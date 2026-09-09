@@ -4,17 +4,19 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.2%20(DFM)-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.3%20(verified)-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-500–850%20V-457b9d?style=for-the-badge"/>
 </p>
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1523%2F1523%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-526%20·%20163%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1540%2F1540%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-529%20·%20164%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-664%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
@@ -148,15 +150,15 @@ flowchart LR
     direction TB
     DCIN["HV DC entry<br/>M8 studs + Y-caps + HVIL"] --> LINK["DC LINK<br/>16× 20 µF/1100 V film = 320 µF"]
     LINK --> BLEED["Passive bleeder 67.5 kΩ<br/>58 s → 60 V"]
-    LINK --> ADIS["Active discharge<br/>2.24 kΩ + 1200 V SiC · 1.9 s"]
+    LINK --> ADIS["Active discharge<br/>1.88 kΩ + 1200 V SiC · 1.6 s"]
     LINK --> MU["MOD U<br/>600 A SiC ½-bridge"]
     LINK --> MV["MOD V<br/>600 A SiC ½-bridge"]
     LINK --> MW["MOD W<br/>600 A SiC ½-bridge"]
-    GDU["2× NSI6611A-Q1<br/>DESAT · Miller · ±(15/−4.3) V"] --> MU
+    GDU["2× NSI6611A-Q1<br/>DESAT · Miller · ±(15/−5.1) V"] --> MU
     GDV["2× NSI6611A-Q1"] --> MV
     GDW["2× NSI6611A-Q1"] --> MW
     FLY["2× gate-power flybacks<br/>UCC28C43 + 3× VGT12EEM each<br/>6 floating domains"] --> GDU & GDV & GDW
-    VDC["2× AMC1311B iso V-sense<br/>independent dividers"] -.-> LINK
+    VDC["2× AMC1311B iso V-sense<br/>independent dividers + bias"] -.-> LINK
     ASC["ASC buffer<br/>DCN-referenced opto"] --> GDU & GDV & GDW
   end
 
@@ -192,7 +194,7 @@ flowchart LR
   G --> SW["SiC switch<br/>(½ of EconoDUAL)"]
   SW -->|"drain"| DS["DESAT chain<br/>BAT64-04 → 100 Ω → 2× US1M<br/>47 pF ≈ 1.5 µs blanking"]
   DS --> DRV
-  BIAS["Flyback secondary<br/>rectifier + C4V3 zener split<br/>+15 V / −4.3 V vs Kelvin"] --> DRV
+  BIAS["Flyback secondary<br/>rectifier + C5V1 zener split<br/>+15 V / −5.1 V vs Kelvin"] --> DRV
   DRV -->|"FLT# wired-OR · RDY wired-AND"| FB["→ MCU + safety chain"]
   G --- P1["10 k G-S bleed ·<br/>1 M HV pulldown at module pin ·<br/>18 V + 5V1 zener stack"]
 ```
@@ -222,7 +224,7 @@ stateDiagram-v2
     ASC --> SPO : speed below threshold · ASC_CLR
     SPO --> DISCHG : shutdown / crash / HVIL open
     DISCHG : ACTIVE DISCHARGE
-    DISCHG : 850→60 V in 1.9 s · witnessed on BOTH V_DC channels
+    DISCHG : 850→60 V in 1.6 s · witnessed on BOTH V_DC channels
     DISCHG --> [*]
 ```
 
@@ -260,14 +262,14 @@ sequenceDiagram
     autonumber
     participant V as Vehicle / Crash signal
     participant M as S32K396
-    participant Q as QDIS (1200 V SiC + 2.24 kΩ)
+    participant Q as QDIS (1200 V SiC + 1.88 kΩ)
     participant C as DC link (320 µF · 116 J)
     participant S as V_DC senses ×2
     V->>M: shutdown / crash / HVIL open
     M->>Q: QDIS_CMD (opto, DCN-referenced, default-OFF)
-    Q->>C: discharge @ τ = 0.72 s
+    Q->>C: discharge @ τ = 0.60 s
     C-->>S: dV/dt on BOTH isolated channels
-    S-->>M: 850 → 60 V in 1.9 s ✅
+    S-->>M: 850 → 60 V in 1.6 s ✅
     Note over M,S: no dV/dt within 200 ms ⇒ stuck-off fault<br/>bus sag in RUN ⇒ stuck-on fault (2.2 kΩ load)
     Note over C: passive 67.5 kΩ always fitted:<br/>58 s to 60 V with zero commands
 ```
@@ -275,7 +277,7 @@ sequenceDiagram
 | Path | Network | τ | 850 → 60 V | Stress per resistor |
 |---|---|---|---|---|
 | **Passive** (always on) | 10× 27 kΩ 2512 2 W, 5s×2p = 67.5 kΩ | 21.6 s | **57 s** ✅ (<60 s, XM3 parity) | 1.07 W (54 %) · 170 V (85 % of 200 V) |
-| **Active** (commanded) | 4× 560 Ω 10 W wirewound + SiC FET = 2.24 kΩ | 0.72 s | **1.9 s** ✅ (≤2 s crash · 5 s R100 ×2.6) | 28.9 J pulse (≥100 J rated) · 213 V |
+| **Active** (commanded) | 4× 470 Ω 10 W wirewound + SiC FET = 1.88 kΩ | 0.60 s | **1.6 s nom / 1.84 s worst** ✅ (≤2 s crash at tolerance corners · 5 s R100 ×2.7) | 32 J worst pulse (≥100 J rated) · 213 V |
 
 > [!WARNING]
 > **Rule printed on sheet 1:** never energize without the passive bleeder network fitted.
@@ -284,7 +286,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹69,683 @1k volume** · 526 components · 163 lines · zero unmatched.
+**Electronics BOM: ₹69,809 @1k volume** · 529 components · 164 lines · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -413,23 +415,34 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
-  V -->|"1523/1523 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
+  V -->|"1540/1540 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
   SVG -->|"sheets-to-pdf.mjs<br/>(headless Chrome)"| PDF["📄 PDF set"]
   CJ -->|bom-gen.mjs| BOM["📋 bom.md + CSVs<br/>same parts-db as the sheets"]
 ```
 
-The verifier **trusts nothing the generator claims**: it re-parses the emitted `.sch` files,
-rebuilds connectivity purely from wire/label/pin *geometry*, and diffs every pin against the
-netlist intent. Current gate: **1523/1523 pins correct · 0 symbol overlaps · 0 floating
-labels · 0 unclosed frames.**
+Three independent verification layers — each with its own tool, none trusting the others:
+
+| Layer | Tool | What it proves | Result |
+|---|---|---|---|
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1540/1540 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **664 checks · 0 fail** |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **51 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+
+The rev A.3 verification campaign found and fixed **18 real defects** (F1–F36 log) — among them a gate
+supply that could never start (FB divider scaled for the wrong controller reference), a
+current-sense resistor whose "limit" was 30 A, five floating-pin net aliases, load-dump-underrated
+input caps, a discharge string that missed the crash target at tolerance corners, and an
+ASC drive that violated the driver's GND2+6 V absolute maximum (caught by reading the real
+NSI6611 datasheet — clamped at 5.1 V now).
+Full findings log + margin tables: [`docs/verification-report.md`](docs/verification-report.md).
 
 | Metric | Power | Card | Total |
 |---|---|---|---|
-| Components | 309 | 217 | **526** |
+| Components | 312 | 217 | **529** |
 | Functional sections | 26 | 26 | 52 |
-| Net labels / pin stubs | 829 | 694 | 1,523 |
+| Net labels / pin stubs | 843 | 697 | 1,540 |
 | Sheet size | 36.6″ × 30.3″ | 40.6″ × 30.1″ | 2 sheets |
 
 ---
@@ -466,6 +479,8 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/dfm.md`](docs/dfm.md) | Manufacturability plan + sourcing tiers |
 | [`docs/bom.md`](docs/bom.md) | Generated BOM with subsystem Pareto |
 | [`docs/cost-rollup.md`](docs/cost-rollup.md) | Full unit cost + NRE + pricing guidance |
+| [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F30, margin tables, worst-case corners |
+| [`docs/datasheets/`](docs/datasheets/) | Component datasheet pack (30+ PDFs) + extracted parameters |
 
 ---
 
@@ -478,6 +493,7 @@ timeline
         Research : NXP GEN3 + Wolfspeed XM3 + TI TIDM-02014 read line-by-line : HIITIO catalog swept
         Rev A.1  : Schematic-complete 2-board set : 100% pin-verified : costed BOM
         Rev A.2  : DFM pass — 2 live sourcing sweeps : 6 design changes : LCSC C-numbers stamped
+        Rev A.3  : Verification campaign — 654-check ERC : worst-case analysis : 9 defects fixed : datasheet pack
     section Next 🔜
         Pin freeze : S32K396 ball map + FS26 pins vs datasheets : HIITIO aux-pin drawing
         Layout : power-board floorplan around 3 modules : laminated busbar ≤15 nH : card 6-layer
@@ -488,11 +504,13 @@ timeline
 ```
 
 > [!NOTE]
-> **⚠️ VERIFY-before-layout list** — honest open items: ① S32K396 ball map & FS2633D package
-> pins are symbolic (names are the real GEN3 nets; numbers need the datasheet pass) ·
-> ② HIITIO EconoDUAL aux-pin numbering vs their outline drawing · ③ NSI6611 ASC-pin override
-> behaviour vs EN · ④ VGT12EEM winding spec vs the +15/−4.3 V split · ⑤ LEM lead time —
-> **order T2 parts at kickoff**.
+> **⚠️ VERIFY-before-layout list** — after the A.3 datasheet round, the open items are:
+> ① S32K396 ball map & FS2633D package pins are symbolic (names are the real GEN3 nets;
+> numbers need the datasheet pass) · ② ASC hold during VCC2-UVLO + flyback core saturation at the 3 A limit (bench items) ·
+> ③ FS26 OTP configuration (VMON windows, VCORE=1.5 V) · ④ LEM lead time — **order T2 parts at
+> kickoff**. *Closed by reading the real datasheets: HCS600 aux-pin map, NSI6611 pin map/UVLO/RDY/ASC,
+> VGT12EEM winding (1:1.6:2.9, Lp 10 µH — flyback fully re-derived), UCC28C40 UVLO grade,
+> FS26 VMONEXT/FS0B drive, S32K39 core-ballast topology, C3D ripple rating.*
 
 ---
 

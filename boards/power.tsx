@@ -50,7 +50,8 @@ export default () => (
         }} />
     )))}
 
-    {/* ---- ACTIVE DISCHARGE: default-OFF opto + 1200V SiC FET + 4x 560R 10W ---- */}
+    {/* ---- ACTIVE DISCHARGE: default-OFF opto + 1200V SiC FET + 4x 470R 10W (F26:
+        worst-case R+5%/C+10% must close under the 2 s crash target) ---- */}
     <chip name="PSQD" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P18", pin4: "COM" }}
       connections={{ VIN: "net.V15", GND: "net.DGND", P18: "net.V18Q", COM: "net.DCN" }} />
     <chip name="UQD" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
@@ -62,18 +63,18 @@ export default () => (
     <chip name="QDIS" footprint={TO247_4L()} {...gp()} pinLabels={{ pin1: "D", pin2: "S", pin3: "KS", pin4: "G" }}
       connections={{ D: "net.QD_D", S: "net.DCN", KS: "net.DCN", G: "net.G_QDIS" }} />
     {[1, 2, 3, 4].map((k) => (
-      <resistor key={k} name={`RDIS${k}`} resistance="560" footprint={AxialFP(38)} {...gp()}
+      <resistor key={k} name={`RDIS${k}`} resistance="470" footprint={AxialFP(38)} {...gp()}
         connections={{ pin1: k === 1 ? "net.DCP" : `net.DIS${k - 1}`, pin2: k === 4 ? "net.QD_D" : `net.DIS${k}` }} />
     ))}
 
     {/* ---- PHASES: module + snubber + NTC route + 2x gate-drive channel ---- */}
     {PH.map((x) => (
       <chip key={x} name={`MOD${x}`} footprint={EconoDual3FP()} {...gp()}
-        pinLabels={{ pin1: "DCP", pin2: "AC", pin3: "DCN", pin4: "GH", pin5: "KSH", pin6: "GL", pin7: "KSL", pin8: "NT1", pin9: "NT2", pin10: "SP1", pin11: "SP2" }}
+        pinLabels={{ pin1: "GL", pin2: "KSL", pin3: "DCN", pin4: "DCP", pin5: "NT1", pin6: "NT2", pin7: "GH", pin8: "KSH", pin9: "DSH", pin10: "AC1", pin11: "AC2" }}
         connections={{
-          DCP: "net.DCP", AC: `net.PH${x}`, DCN: "net.DCN",
-          GH: `net.G_${x}H`, KSH: `net.KS_${x}H`, GL: `net.G_${x}L`, KSL: `net.KS_${x}L`,
-          NT1: `net.NT_${x}A`, NT2: `net.NT_${x}B`, SP1: `net.NC_MOD${x}S1`, SP2: `net.NC_MOD${x}S2`,
+          GL: `net.G_${x}L`, KSL: `net.KS_${x}L`, DCN: "net.DCN", DCP: "net.DCP",
+          NT1: `net.NT_${x}A`, NT2: "net.TMOD_RTN", GH: `net.G_${x}H`, KSH: `net.KS_${x}H`,
+          DSH: `net.DSH_${x}`, AC1: `net.PH${x}`, AC2: `net.PH${x}`,
         }} />
     ))}
     {PH.map((x) => (
@@ -84,21 +85,21 @@ export default () => (
       <chip key={x} name={`JM${x}`} footprint={StudFP()} {...gp()} pinLabels={{ pin1: "P" }} connections={{ P: `net.PH${x}` }} />
     ))}
     {PH.map((x) => (
-      <ModNtc key={x} ph={x} ntcA={`net.NT_${x}A`} ntcB={`net.NT_${x}B`} />
+      <ModNtc key={x} ph={x} ntcA={`net.NT_${x}A`} />
     ))}
     {PH.map((x) => (
       <GateDrive key={`${x}H`} ph={x} side="H"
-        drain="net.DCP" gate={`net.G_${x}H`} ks={`net.KS_${x}H`}
+        drain={`net.DSH_${x}`} gate={`net.G_${x}H`} ks={`net.KS_${x}H`}
         pwmP={`net.PWM_${x}H`} pwmN={`net.PWM_${x}L`}
         en="net.DRV_EN" flt="net.FLT_HS_N" rdy="net.RDY_HS"
-        wA={`net.W_${x}H_A`} wB={`net.W_${x}H_B`} />
+        wA={`net.W_${x}H_A`} />
     ))}
     {PH.map((x) => (
       <GateDrive key={`${x}L`} ph={x} side="L"
         drain={`net.PH${x}`} gate={`net.G_${x}L`} ks={`net.KS_${x}L`}
         pwmP={`net.PWM_${x}L`} pwmN={`net.PWM_${x}H`}
         en="net.DRV_EN" flt="net.FLT_LS_N" rdy="net.RDY_LS"
-        asc="net.ASC_DRV" wA={`net.W_${x}L_A`} wB={`net.W_${x}L_B`} />
+        asc="net.ASC_DRV" wA={`net.W_${x}L_A`} />
     ))}
 
     {/* ---- GATE POWER: dual flyback chains (GEN3 pattern) ---- */}
@@ -111,7 +112,10 @@ export default () => (
     <chip name="UASC" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.ASCA", CAT: "net.DGND", GND: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
     <resistor name="RASCL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
-    <resistor name="RASCG" resistance="100" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />
+    {/* NSI6611 ASC abs max = GND2+6 V (DS 1.2 §2) — series 2.2k + 5.1 V zener clamp the
+        18 V opto swing to a legal ASC level (F28) */}
+    <resistor name="RASCG" resistance="2.2k" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />
+    <diode name="ZASC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DCN", cathode: "net.ASC_DRV" }} />
     <resistor name="RASCPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
     <capacitor name="CASC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18A", pin2: "net.DCN" }} />
 
@@ -122,6 +126,11 @@ export default () => (
       connections={{ VIN: "net.V15", GND: "net.DGND", P5: "net.V5ISO", COM: "net.DCN" }} />
     <capacitor name="C5B1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
     <capacitor name="C5B2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
+    {/* channel-2 bias is its OWN module — the independence claim of the dual VDC sense must
+        not share a common bias supply (ERC finding F4) */}
+    <chip name="PS5C" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P5", pin4: "COM" }}
+      connections={{ VIN: "net.V15", GND: "net.DGND", P5: "net.V5ISO2", COM: "net.DCN" }} />
+    <capacitor name="C5C1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO2", pin2: "net.DCN" }} />
 
     {/* ---- LV POWER: two protected 12V feeds + V5GD LDO + V15 boost ---- */}
     <chip name="FH1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}

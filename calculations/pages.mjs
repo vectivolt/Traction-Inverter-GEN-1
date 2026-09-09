@@ -52,8 +52,8 @@ const PAGES = {
     ["HV-SENSING", [
       ["SENSE-VDC", [/^RVDD[1-6]$/, /^RVDDL$/, /^CVDDF$/, /^UIVDC$/]],
       ["SENSE-VDC2", [/^RVBD[1-6]$/, /^RVBDL$/, /^CVBDF$/, /^UIVB$/]],
-      ["ISO-BIAS", [/^PS5B$/, /^C5B[12]$/]],
-      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD)$/, /^CASC$/]],
+      ["ISO-BIAS", [/^PS5[BC]$/, /^C5[BC][12]$/]],
+      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD)$/, /^CASC$/, /^ZASC$/]],
     ], ["SENSE-VDC", "SENSE-VDC2", "ISO-BIAS", "ASC-BUFFER"]],
     ["LV-POWER", [
       ["PROT-H", [/^FH1$/, /^DRH$/, /^DTVH$/, /^LFH1$/, /^CLVH[12]$/]],
@@ -72,7 +72,7 @@ const PAGES = {
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [
       ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/]],
-      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^CSB\d+$/, /^RSB\d+$/, /^RAGT$/]],
+      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+$/, /^RSB\d+$/, /^RAGT$/]],
       ["WAKE", [/^RIGN[12]$/, /^CIGN$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
@@ -98,7 +98,7 @@ const PAGES = {
       ["SENSE-IW", [/^LWB$/, /^CWS[12]$/, /^RWB[123]$/, /^CWB[12]$/, /^UWB[12]$/]],
     ], ["HALL-CONN", "SENSE-IU", "SENSE-IV", "SENSE-IW"]],
     ["TEMP", [
-      ["MOD-NTC", [/^RSN[UVW]P$/, /^CSN[UVW]F$/]],
+      ["MOD-NTC", [/^RSN[UVW]P$/, /^CSN[UVW]F$/, /^RTMR$/]],
       ["BOARD-NTC", [/^JT(HS|AMB)$/, /^RT(HS|AMB)P$/, /^CT(HS|AMB)F$/]],
       ["MOTOR-TEMP", [/^FMT[12]$/, /^DMT[12]$/, /^UMT[12]$/, /^RMT[12][PS]$/, /^CMT[12]F$/]],
     ], ["MOD-NTC", "BOARD-NTC", "MOTOR-TEMP"]],

@@ -1,0 +1,221 @@
+#!/usr/bin/env node
+// erc-audit.mjs — structural electrical-rules audit of both netlists, from circuit JSON.
+// Beyond the geometric pin-verify (which proves the SHEETS match the netlist), this checks
+// the NETLIST matches the DESIGN INTENT: pairing rules, chain topology, polarity, rail
+// assignment, single-pin nets, ground-domain separation. Every assertion is a named fact —
+// a failure prints what was expected and what the netlist actually says.
+// Run (after tsci builds): node calculations/erc-audit.mjs
+
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+let pass = 0, fail = 0, warn = 0;
+const failures = [], warnings = [];
+const ok = (cond, name, detail = "") => {
+  if (cond) { pass++; }
+  else { fail++; failures.push(`${name}${detail ? " — " + detail : ""}`); }
+};
+const wr = (cond, name, detail = "") => {
+  if (cond) { pass++; }
+  else { warn++; warnings.push(`${name}${detail ? " — " + detail : ""}`); }
+};
+
+function load(board) {
+  const j = JSON.parse(readFileSync(join(ROOT, "dist", "boards", board, "circuit.json"), "utf8"));
+  const comps = j.filter((e) => e.type === "source_component");
+  const ports = j.filter((e) => e.type === "source_port");
+  const nets = new Map(j.filter((e) => e.type === "source_net").map((n) => [n.source_net_id, n.name]));
+  const traces = j.filter((e) => e.type === "source_trace");
+  const parent = new Map();
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const uni = (a, b) => { a = find(a); b = find(b); if (a !== b) parent.set(a, b); };
+  for (const p of ports) parent.set(p.source_port_id, p.source_port_id);
+  const groupNet = new Map();
+  for (const t of traces) {
+    const ps = t.connected_source_port_ids ?? [];
+    for (let i = 1; i < ps.length; i++) uni(ps[0], ps[i]);
+    for (const nid of t.connected_source_net_ids ?? []) if (ps.length) groupNet.set(find(ps[0]), nets.get(nid));
+  }
+  for (const [g, n] of [...groupNet]) groupNet.set(find(g), n);
+  const compName = new Map(comps.map((c) => [c.source_component_id, c.name]));
+  // pin -> net name (named nets only; anonymous junction = symbol "@root")
+  const pinNet = new Map();   // "REF.pinName" and "REF.pinNumber" -> net
+  const netPins = new Map();  // net/root -> [REF.pin]
+  for (const p of ports) {
+    const r = find(p.source_port_id);
+    const net = groupNet.get(r) ?? `@${r}`;
+    const ref = compName.get(p.source_component_id);
+    // key by name, number, and every port hint (anode/cathode live only in port_hints)
+    for (const key of [`${ref}.${p.name}`, `${ref}.#${p.pin_number}`,
+      ...(p.port_hints ?? []).map((h) => `${ref}.${h}`)]) pinNet.set(key, net);
+    if (!netPins.has(net)) netPins.set(net, []);
+    netPins.get(net).push(`${ref}.${p.name ?? p.pin_number}`);
+  }
+  return { comps, compName, pinNet, netPins };
+}
+
+const PWR = load("power");
+const CARD = load("control-card");
+const P = (k) => PWR.pinNet.get(k);
+const C = (k) => CARD.pinNet.get(k);
+const same = (a, b) => a !== undefined && a === b;
+
+// ---------- generic: single-pin named nets (dead labels) ----------
+for (const [b, D] of [["power", PWR], ["card", CARD]]) {
+  for (const [net, pins] of D.netPins) {
+    if (net.startsWith("@") || net.startsWith("NC_")) continue;
+    // de-dup alias ports (anode+pin1 on one physical pin)
+    const uniq = new Set(pins.map((p) => p.split(".")[0] + "." + p.split(".")[1]));
+    wr(uniq.size >= 2 || pins.length >= 2, `[${b}] net ${net} has a single pin`, pins.join(","));
+  }
+}
+
+// ---------- power board: per-phase gate-drive structure ----------
+for (const x of ["U", "V", "W"]) {
+  for (const s of ["H", "L"]) {
+    const d = `U${x}${s}G`;
+    const inP = s === "H" ? `PWM_${x}H` : `PWM_${x}L`;
+    const inN = s === "H" ? `PWM_${x}L` : `PWM_${x}H`;
+    ok(same(P(`${d}.INP`), inP), `${d} IN+ on ${inP}`, `got ${P(`${d}.INP`)}`);
+    ok(same(P(`${d}.INN`), inN), `${d} IN- on ${inN} (shoot-through lockout)`, `got ${P(`${d}.INN`)}`);
+    ok(same(P(`${d}.EN`), "DRV_EN"), `${d} EN on DRV_EN`);
+    ok(same(P(`${d}.VCC1`), "V5GD"), `${d} VCC1 on V5GD`);
+    ok(same(P(`${d}.GND1`), "DGND"), `${d} GND1 on DGND`);
+    ok(same(P(`${d}.GND2`), `KS_${x}${s}`), `${d} Kelvin on KS_${x}${s}`);
+    ok(same(P(`${d}.FLT`), `FLT_${s}S_N`), `${d} FLT wired-OR ${s}S`);
+    ok(same(P(`${d}.RDY`), `RDY_${s}S`), `${d} RDY ganged ${s}S`);
+    // gate node: OUTH -> RON -> G ; OUTL -> ROFF -> G ; CLAMP -> RMC -> G
+    ok(same(P(`R${x}${s}ON.pin1`), P(`${d}.OUTH`)) && same(P(`R${x}${s}ON.pin2`), `G_${x}${s}`), `R${x}${s}ON OUTH->gate`);
+    ok(same(P(`R${x}${s}OFF.pin1`), P(`${d}.OUTL`)) && same(P(`R${x}${s}OFF.pin2`), `G_${x}${s}`), `R${x}${s}OFF OUTL->gate`);
+    ok(same(P(`R${x}${s}MC.pin1`), P(`${d}.CLAMP`)) && same(P(`R${x}${s}MC.pin2`), `G_${x}${s}`), `R${x}${s}MC clamp->gate`);
+    // DESAT chain lands on the right drain
+    const drain = s === "H" ? `DSH_${x}` : `PH${x}`;   // HS DESAT senses the module aux drain pin
+    ok(same(P(`D${x}${s}S2.cathode`), drain), `D${x}${s}S2 cathode on ${drain}`, `got ${P(`D${x}${s}S2.cathode`)}`);
+    ok(same(P(`D${x}${s}S1.cathode`), P(`D${x}${s}S2.anode`)), `${x}${s} DESAT diodes in series`);
+    ok(same(P(`C${x}${s}BL.pin1`), P(`${d}.DESAT`)), `C${x}${s}BL blanking at DESAT pin`);
+    // zener stack: Z1 cathode gate, Z2 cathode Kelvin, anodes common
+    ok(same(P(`D${x}${s}Z1.cathode`), `G_${x}${s}`) && same(P(`D${x}${s}Z2.cathode`), `KS_${x}${s}`)
+      && same(P(`D${x}${s}Z1.anode`), P(`D${x}${s}Z2.anode`)), `${x}${s} gate zener stack orientation`);
+    ok(same(P(`R${x}${s}GS.pin1`), `G_${x}${s}`) && same(P(`R${x}${s}GS.pin2`), `KS_${x}${s}`), `R${x}${s}GS gate bleed`);
+    ok(same(P(`R${x}${s}PD.pin1`), `G_${x}${s}`) && same(P(`R${x}${s}PD.pin2`), `KS_${x}${s}`), `R${x}${s}PD HV pulldown`);
+    // floating bias: winding A -> rectifier -> VCC; VEE == winding B; zener VEE->KS
+    ok(same(P(`D${x}${s}R.anode`), `W_${x}${s}_A`) && same(P(`D${x}${s}R.cathode`), `VCC_${x}${s}`), `${x}${s} bias rectifier`);
+    ok(same(P(`Z${x}${s}V.anode`), `VEE_${x}${s}`) && same(P(`Z${x}${s}V.cathode`), `KS_${x}${s}`), `${x}${s} -4.3 V zener split`);
+    ok(same(P(`Z${x}${s}V.anode`), `VEE_${x}${s}`), `${x}${s} VEE is the winding return rail`);
+    ok(same(P(`${d}.VCC2`), `VCC_${x}${s}`) && same(P(`${d}.VEE2`), `VEE_${x}${s}`), `${d} on its floating rails`);
+  }
+  // module wiring
+  ok(same(P(`MOD${x}.DCP`), "DCP") && same(P(`MOD${x}.DCN`), "DCN") && same(P(`MOD${x}.AC1`), `PH${x}`) && same(P(`MOD${x}.AC2`), `PH${x}`), `MOD${x} power terminals (both AC posts)`);
+  ok(same(P(`MOD${x}.DSH`), `DSH_${x}`), `MOD${x} HS drain-sense aux pin`);
+  ok(same(P(`MOD${x}.GH`), `G_${x}H`) && same(P(`MOD${x}.GL`), `G_${x}L`), `MOD${x} gate pins`);
+  ok(same(P(`MOD${x}.KSH`), `KS_${x}H`) && same(P(`MOD${x}.KSL`), `KS_${x}L`), `MOD${x} Kelvin pins`);
+  ok(same(P(`JM${x}.P`), `PH${x}`), `JM${x} phase stud`);
+  ok(same(P(`C${x}SN.pin1`), "DCP") && same(P(`C${x}SN.pin2`), "DCN"), `C${x}SN snubber across link`);
+}
+// LS ASC pins ganged on the buffer; HS ASC pins parked on their own Kelvin
+for (const x of ["U", "V", "W"]) {
+  ok(same(P(`U${x}LG.ASC`), "ASC_DRV"), `U${x}LG ASC on ASC_DRV`);
+  ok(same(P(`U${x}HG.ASC`), `KS_${x}H`), `U${x}HG ASC parked inactive`);
+}
+
+// ---------- discharge + bleeder + link ----------
+ok(same(P("RDIS1.pin1"), "DCP"), "active discharge string starts at DCP");
+ok(same(P("QDIS.S"), "DCN") && same(P("QDIS.KS"), "DCN"), "QDIS source/Kelvin on DCN");
+ok(same(P("RQDG.pin1"), P("UQD.VO")) && same(P("RQDG.pin2"), P("QDIS.G")), "opto drives QDIS gate");
+ok(same(P("RQDPD.pin1"), P("QDIS.G")) && same(P("RQDPD.pin2"), "DCN"), "QDIS gate default-OFF pulldown");
+ok(same(P("UQD.GND"), "DCN") && same(P("PSQD.COM"), "DCN"), "discharge bias DCN-referenced");
+ok(same(P("ZASC.cathode"), "ASC_DRV") && same(P("ZASC.anode"), "DCN"), "ASC 5.1 V clamp fitted (F28)");
+ok(same(P("RASCG.pin2"), "ASC_DRV") && same(P("RASCPD.pin1"), "ASC_DRV") && same(P("RASCPD.pin2"), "DCN"), "ASC drive series + default-OFF pulldown");
+for (const st of [0, 1]) {
+  ok(same(P(`RBLD${st * 5 + 1}.pin1`), "DCP") && same(P(`RBLD${st * 5 + 5}.pin2`), "DCN"), `bleeder string ${st + 1} spans DCP->DCN`);
+  for (let k = 1; k < 5; k++)
+    ok(same(P(`RBLD${st * 5 + k}.pin2`), P(`RBLD${st * 5 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
+}
+let nCDC = 0;
+for (let k = 1; k <= 16; k++) if (same(P(`CDC${k}.pin1`), "DCP") && same(P(`CDC${k}.pin2`), "DCN")) nCDC++;
+ok(nCDC === 16, "16 link caps across DCP/DCN", `${nCDC}`);
+ok(same(P("CY1.pin1"), "DCP") && same(P("CY1.pin2"), "PE") && same(P("CY2.pin1"), "DCN") && same(P("CY2.pin2"), "PE"), "Y caps to chassis");
+
+// ---------- iso sensing ----------
+for (const [id, U, RT, outP] of [["1", "UIVDC", "RVDD", "VDC1"], ["2", "UIVB", "RVBD", "VDC2"]]) {
+  ok(same(P(`${RT}1.pin1`), "DCP"), `divider ${id} top at DCP`);
+  ok(same(P(`${RT}L.pin2`), "DCN"), `divider ${id} bottom at DCN`);
+  ok(same(P(`${U}.VINP`), P(`${RT}L.pin1`)), `AMC ${id} input at the tap`);
+  ok(same(P(`${U}.GND1`), "DCN") && same(P(`${U}.SHTDN`), "DCN"), `AMC ${id} HV ground/enable`);
+  ok(same(P(`${U}.GND2`), "AGND") && same(P(`${U}.VDD2`), "V5GD"), `AMC ${id} LV side rails`);
+  ok(same(P(`${U}.VOUTP`), `${outP}_P`) && same(P(`${U}.VOUTN`), `${outP}_N`), `AMC ${id} outputs to harness`);
+}
+
+// ---------- flybacks ----------
+for (const id of ["H", "L"]) {
+  ok(same(P(`UF${id}.VCC`), P(`DF${id}A.cathode`)), `FLY-${id} VCC fed by aux rectifier`);
+  ok(same(P(`RF${id}ST.pin2`), P(`UF${id}.VCC`)), `FLY-${id} trickle-start feeds VCC`);
+  ok(same(P(`QF${id}E2.D`), P(`UF${id}.COMP`)), `FLY-${id} enable clamp on COMP`);
+  ok(same(P(`QF${id}E1.G`), `EN_FLYBK_${id}S`), `FLY-${id} enable from harness line`);
+  for (const [k, x] of [[1, "U"], [2, "V"], [3, "W"]])
+    ok(same(P(`TF${id}${k}.S1`), `W_${x}${id}_A`) && same(P(`TF${id}${k}.S2`), `VEE_${x}${id}`), `TF${id}${k} secondary -> phase ${x}${id}`);
+  ok(same(P(`TF${id}1.P1`), P(`TF${id}2.P1`)) && same(P(`TF${id}1.P2`), P(`TF${id}2.P2`)), `FLY-${id} primaries paralleled`);
+}
+
+// ---------- harness equality across boards ----------
+// (HARNESS40 lives in cells.tsx which node cannot import — parse it from source instead,
+// so this audit always checks against the map the boards were actually built from)
+const HARNESS40 = [...readFileSync(join(ROOT, "packages/cells.tsx"), "utf8")
+  .match(/\[(\d+), "([A-Z0-9_]+)"\]/g)].map((m) => {
+  const t = m.match(/\[(\d+), "([A-Z0-9_]+)"\]/);
+  return [Number(t[1]), t[2]];
+});
+ok(HARNESS40.length === 40, "HARNESS40 map parsed (40 entries)", `${HARNESS40.length}`);
+for (const [pin, net] of HARNESS40) {
+  ok(same(P(`JIC.P${pin}_${net}`), net), `power harness pin ${pin} on ${net}`);
+  ok(same(C(`JICC.P${pin}_${net}`), net), `card harness pin ${pin} on ${net}`);
+}
+
+// ---------- ground-domain separation (power board: AGND joins DGND only via the card) ----------
+{
+  const roots = new Set();
+  for (const [net] of PWR.netPins) roots.add(net);
+  ok(P("UIVDC.GND2") === "AGND" && P("UQD.CAT") === "DGND", "power board keeps AGND/DGND distinct nets");
+}
+
+// ---------- card: safety chain ----------
+ok(same(C("UAND1.A"), "FS0B_N") && same(C("UAND1.B"), "MCU_GATE_EN") && same(C("UAND1.C"), "RDY_HS"), "AND1 inputs FS0B/MCU_EN/RDY_HS");
+ok(same(C("UAND2.A"), C("UAND1.Y")) && same(C("UAND2.B"), "RDY_LS") && same(C("UAND2.Y"), "DRV_EN"), "AND2 chains to DRV_EN");
+ok(same(C("RGPD.pin1"), "DRV_EN") && same(C("RGPD.pin2"), "DGND"), "DRV_EN default-OFF");
+ok(same(C("ULAT.CLK"), "ASC_REQ") && same(C("ULAT.Q"), "ASC_CMD") && same(C("ULAT.PRE_N"), "ASC_SET_N") && same(C("ULAT.CLR_N"), "ASC_CLR_N"), "ASC latch wiring");
+ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS1.pin2"), "ASC_SET_N"), "FS1B can set ASC (strap)");
+ok(same(C("UOR1.A"), "MCU_EN_FLYBK_HS") && same(C("UOR1.B"), "FS_GPIO1") && same(C("UOR1.Y"), "EN_FLYBK_HS"), "OR1 flyback-HS enable");
+ok(same(C("UOR2.A"), "MCU_EN_FLYBK_LS") && same(C("UOR2.B"), "FS_GPIO1") && same(C("UOR2.Y"), "EN_FLYBK_LS"), "OR2 flyback-LS enable");
+ok(same(C("USBC.FS0B"), "FS0B_N") && same(C("USBC.FS1B"), "FS1B_N") && same(C("USBC.GPIO1"), "FS_GPIO1"), "FS26 safety pins landed");
+ok(same(C("USBC.FCCU1"), C("UMCU.PTE15_FCCU0")) && same(C("USBC.FCCU2"), C("UMCU.PTE16_FCCU1")), "FCCU pair MCU<->SBC");
+ok(same(C("USBC.RSTB"), C("UMCU.RESET_B")), "SBC resets MCU");
+
+// ---------- card: analog chains ----------
+for (const x of ["U", "V", "W"]) {
+  ok(same(C(`U${x}B1.INN`), C(`U${x}B1.OUT`)), `hall buffer1 ${x} unity feedback`);
+  ok(same(C(`U${x}B2.INN`), C(`U${x}B2.OUT`)), `hall buffer2 ${x} unity feedback`);
+  ok(same(C(`R${x}B3.pin2`), `ISNS_${x}`), `hall ${x} lands on ISNS_${x}`);
+  ok(same(C(`USNS${x}.OUT`), `HALL_${x}`) && same(C(`USNS${x}.GND`), "AGND"), `hall sensor ${x} wiring`);
+}
+for (const k of ["1", "2"]) {
+  ok(same(C(`UVD${k}.OUT`), `VDC${k}_SE`) && same(C(`RVD${k}D.pin2`), `VDC${k}_SE`), `VDC${k} diff-amp closes on output`);
+  ok(same(C(`UMCU.PTA0_VDC1`), "VDC1_SE") || k === "2", `MCU reads VDC1`);
+}
+ok(same(C("UMCU.PTB0_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
+ok(same(C("UEXF.INN"), C("REXA4.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes");
+ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H-bridge outputs");
+ok(same(C("JVEH.R1"), "VREX_P") && same(C("JVEH.R2"), "VREX_N"), "resolver drive reaches vehicle connector");
+for (const s of ["SIN", "COS"])
+  ok(same(C(`R${s}R1.pin2`), `${s}_P`) && same(C(`R${s}R2.pin2`), `${s}_N`), `${s} pair reaches SDADC nets`);
+ok(same(C("UCAN1.TXD"), "CAN0_TX") && same(C("UCAN1.RXD"), "CAN0_RX"), "CAN1 TX/RX not swapped");
+ok(same(C("UCAN2.TXD"), "CAN1_TX") && same(C("UCAN2.RXD"), "CAN1_RX"), "CAN2 TX/RX not swapped");
+ok(same(C("RTMR.pin1"), "TMOD_RTN") && same(C("RTMR.pin2"), "AGND"), "module-NTC return star-tied to AGND on card");
+ok(same(C("RAGT.pin1"), "AGND") && same(C("RAGT.pin2"), "DGND"), "single-point AGND-DGND tie on card");
+
+// ---------- report ----------
+console.log(`\nERC AUDIT: ${pass} pass · ${warn} warn · ${fail} fail`);
+if (warnings.length) { console.log("\nWARN:"); warnings.slice(0, 30).forEach((w) => console.log("  ~ " + w)); }
+if (failures.length) { console.log("\nFAIL:"); failures.forEach((f) => console.log("  ✗ " + f)); }
+process.exit(fail ? 1 : 0);

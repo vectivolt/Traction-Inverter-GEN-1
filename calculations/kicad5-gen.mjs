@@ -21,7 +21,7 @@ const OUT = join(ROOT, "kicad5/traction");
 // Library name is revision-stamped: EasyEDA will NOT overwrite an existing library of the same
 // name, so a re-import would silently mix new sheets with stale pin geometry. Bump on symbol change.
 const LIB_NAME = "traction-r1";
-const REV = "A.2";
+const REV = "A.3";
 // Pinned, NOT new Date(): a release sheet carries its release date; bump with REV.
 const DATE = "2026-09-09";
 mkdirSync(OUT, { recursive: true });
@@ -482,7 +482,7 @@ const HAND = {
   ],
   "SBC / FS26": [
     ["USBC"],
-    ["DBAT", "LSBC", "LCOR", "RSB1", "RSB2", "RSB3", "RSB4", "RAGT"],
+    ["DBAT", "LSBC", "LCOR", "QBAL", "RSB1", "RSB2", "RSB3", "RSB4", "RAGT"],
     ["CSB1", "CSB2", "CSB3", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
   ],
   "SBC / LV-INPUT": [["FLVC", "DREVC", "DTVSC", "LFC", "CLVC1", "CLVC2"]],

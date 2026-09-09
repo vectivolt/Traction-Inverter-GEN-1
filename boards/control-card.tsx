@@ -16,6 +16,7 @@ const MCU_PINS: [string, string][] = [
   ["VDD5_1", "V5A"], ["VDD5_2", "V5A"], ["VDD5_3", "V5A"], ["VDD5_4", "V5A"],
   ["VDD3_1", "V3B"], ["VDD3_2", "V3B"],
   ["V11_1", "V11"], ["V11_2", "V11"], ["V11_3", "V11"], ["V11_4", "V11"],
+  ["V15_IN", "V15S"], ["BCTRL", "BCTRL"],
   ["VDDA", "V5A"], ["VREFH1", "VREF5"], ["VREFH2", "VREF5"], ["VREFL", "AGND"],
   ["VSS1", "DGND"], ["VSS2", "DGND"], ["VSS3", "DGND"],
   // clock + reset + debug
@@ -37,7 +38,7 @@ const MCU_PINS: [string, string][] = [
   // analog
   ["PTA0_VDC1", "VDC1_SE"], ["PTB0_VDC2", "VDC2_SE"],
   ["PTA8_ISU", "ISNS_U"], ["PTB8_ISV", "ISNS_V"], ["PTB13_ISW", "ISNS_W"],
-  ["PTA9_TMU", "TSNS_U"], ["PTB2_TMV", "TSNS_V"], ["PTB3_TMW", "TSNS_W"],
+  ["PTA9_TMU", "TMOD_U"], ["PTB2_TMV", "TMOD_V"], ["PTB3_TMW", "TMOD_W"],
   ["PTA10_NTCA", "NTC_A"], ["PTA11_NTCH", "NTC_H"],
   ["PTA12_MT1", "MT1_SIG"], ["PTA13_MT2", "MT2_SIG"],
   // resolver (SWG excitation + SDADC differential pairs — GEN3)
@@ -53,14 +54,14 @@ const MCU_PINS: [string, string][] = [
 // FS2633D signal map (functional labels; package pin numbers §VERIFY vs FS26 datasheet)
 const SBC_PINS: [string, string][] = [
   ["VSUP1", "VBATC"], ["VSUP2", "VBATC"], ["BATSENSE", "BATSNS"],
-  ["SWPRE", "SWPRE"], ["VPREFB", "VPRE"], ["SWCORE", "SWCORE"], ["VCOREFB", "V11"],
+  ["SWPRE", "SWPRE"], ["VPREFB", "VPRE"], ["SWCORE", "SWCORE"], ["VCOREFB", "V15S"],
   ["VREF", "VREF5"], ["LDO1", "V3B"], ["LDO2", "V5A"], ["TRK1", "NC_TRK1"], ["TRK2", "NC_TRK2"],
   ["VDDIO", "V5A"],
   ["FS0B", "FS0B_N"], ["FS1B", "FS1B_N"], ["RSTB", "RESET_B"], ["INTB", "SBC_INTB"],
   ["FCCU1", "FCCU_ERR0"], ["FCCU2", "FCCU_ERR1"], ["GPIO1", "FS_GPIO1"], ["GPIO2", "NC_GPIO2"],
   ["WAKE1", "WAKE1"], ["WAKE2", "NC_WAKE2"],
   ["MISO", "SBC_MISO"], ["MOSI", "SBC_MOSI"], ["SCLK", "SBC_SCK"], ["CSB", "SBC_CS"],
-  ["VMONCORE", "V11"], ["VMONEXT", "VMONX"], ["AMUX", "AMUXO"], ["PGOOD", "PGOOD"],
+  ["VMONCORE", "V15S"], ["VMONEXT", "VMONX"], ["AMUX", "AMUXO"], ["PGOOD", "PGOOD"],
   ["DEBUG", "NC_DEBUG"], ["GND1", "DGND"], ["GND2", "DGND"],
 ];
 
@@ -90,13 +91,20 @@ export default () => (
       connections={Object.fromEntries(SBC_PINS.map(([l, n]) => [l, `net.${n}`]))} />
     <diode name="DBAT" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VBATC", cathode: "net.BATSNS" }} />
     <inductor name="LSBC" inductance="10uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWPRE", pin2: "net.VPRE" }} />
-    <inductor name="LCOR" inductance="4.7uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V11" }} />
-    {[["CSB1", "VPRE"], ["CSB2", "VPRE"], ["CSB3", "V11"], ["CSB4", "V11"], ["CSB5", "VREF5"], ["CSB6", "V3B"], ["CSB7", "V5A"], ["CSB8", "V5A"]].map(([n, r]) => (
+    {/* S32K39 core topology per DS Rev.3 Table 11: FS26 VCORE buck makes the 1.5 V V15 rail;
+        the 1.14 V V11 core comes through an external NMOS ballast the MCU regulates via its
+        BCTRL loop (F36 — direct VCORE->V11 is not a supported topology) */}
+    <inductor name="LCOR" inductance="4.7uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V15S" }} />
+    <chip name="QBAL" footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
+      connections={{ G: "net.BCTRL", S: "net.V11", D: "net.V15S" }} />
+    {[["CSB1", "VPRE"], ["CSB2", "VPRE"], ["CSB3", "V15S"], ["CSB4", "V11"], ["CSB5", "VREF5"], ["CSB6", "V3B"], ["CSB7", "V5A"], ["CSB8", "V5A"]].map(([n, r]) => (
       <capacitor key={n} name={n} capacitance={n === "CSB5" || n === "CSB6" ? "1uF" : "10uF"} footprint="0805" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
     ))}
-    <resistor name="RSB1" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.VMONX" }} />
-    <resistor name="RSB2" resistance="18.7k" footprint="0603" {...gp()} connections={{ pin1: "net.VMONX", pin2: "net.DGND" }} />
+    {/* FS26 VMONEXT compares against a FIXED 0.8 V reference (DS Rev.3 Table 185) — divider
+        scales 5 V -> 0.794 V (F34; the 10k/18.7k arrangement fed it 3.26 V = permanent OV) */}
+    <resistor name="RSB1" resistance="52.3k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.VMONX" }} />
+    <resistor name="RSB2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VMONX", pin2: "net.DGND" }} />
     <resistor name="RSB3" resistance="220" footprint="0603" {...gp()} connections={{ pin1: "net.AMUXO", pin2: "net.SBC_AMUX" }} />
     <resistor name="RSB4" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.SBC_INTB" }} />
     <resistor name="RMRST" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.RESET_B" }} />
@@ -131,8 +139,10 @@ export default () => (
     <capacitor name="CRST" capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: "net.RESET_B", pin2: "net.DGND" }} />
 
     {/* ---- SAFETY: gate-enable chain + ASC latch + flyback-EN OR gates + straps ---- */}
-    <resistor name="RENP1" resistance="120" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS0B_N" }} />
-    <resistor name="RENP2" resistance="120" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS1B_N" }} />
+    {/* FS0B/FS1B are open low-side outputs with a 4-22 mA clamp (FS26 DS Table 196):
+        1 k pull-ups sink 4.6 mA — the 120 R GEN3-style pulls would force 42 mA (F35) */}
+    <resistor name="RENP1" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS0B_N" }} />
+    <resistor name="RENP2" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS1B_N" }} />
     <chip name="UAND1" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "A", pin2: "B", pin3: "C", pin4: "Y", pin5: "GND" }}
       connections={{ A: "net.FS0B_N", B: "net.MCU_GATE_EN", C: "net.RDY_HS", Y: "net.ENX1", GND: "net.DGND" }} />
     <chip name="UAND2" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "A", pin2: "B", pin3: "C", pin4: "Y", pin5: "GND" }}
@@ -249,9 +259,10 @@ export default () => (
       <group key={x}>
         <resistor name={`RSN${x}P`} resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: `net.TMOD_${x}` }} />
         <capacitor name={`CSN${x}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.TMOD_${x}`, pin2: "net.AGND" }} />
-        <trace from={`net.TMOD_${x}`} to={`net.TSNS_${x}`} />
       </group>
     ))}
+    {/* module-NTC return from the harness ties to the analog reference here (star point) */}
+    <resistor name="RTMR" resistance="0" footprint="0603" {...gp()} connections={{ pin1: "net.TMOD_RTN", pin2: "net.AGND" }} />
     <NtcIn id="AMB" out="net.NTC_A" />
     <NtcIn id="HS" out="net.NTC_H" />
     {/* motor temperature: fuse + clamp + zero-drift buffer (GEN3 exact) */}

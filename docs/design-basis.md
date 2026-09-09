@@ -1,4 +1,4 @@
-# Traction Inverter — Design Basis (rev A.1, 2026-09-09)
+# Traction Inverter — Design Basis (rev A.3, 2026-09-09)
 
 A standalone product: an economical, ASIL-D-capable **220 kW-class, 800 V** SiC traction
 inverter (passenger EV / commercial traction, NOT an LEV drive). Two boards: **Power (HV)** +
@@ -79,12 +79,13 @@ any-vendor 200 V-working parts instead of the TTI-only TE CRGP 500 V line).
   a standard 2512's 200 V working) ✓; alt: TE CRGP2512F68K (LCSC C2073426) in 3s×3p
 - Rule printed on sheet 1: never energize without the bleeder network fitted.
 
-**Active (commanded):** 1200 V SiC FET + 4 × series **560 Ω 10 W ceramic-cased wirewound
-(SQP/RX27-class, axial)** = 2.24 kΩ.
-- τ = 2.24 k · 320 µ = 0.72 s → 850→60 V in τ·ln(14.2) = **1.90 s** ✓ (≤ 2 s OEM crash
-  target; ECE R100 5 s automatic-discharge with 2.6× margin)
-- Peak 0.38 A / 306 W total decaying; energy 115.6 J → **28.9 J per resistor** (10 W ceramic
-  wirewound single-pulse capability ≥ 100 J) ✓; 213 V per resistor ✓
+**Active (commanded):** 1200 V SiC FET + 4 × series **470 Ω 10 W ceramic-cased wirewound
+(SQP/RX27-class, axial)** = 1.88 kΩ (rev A.3 / F26: the 560 Ω string missed the 2 s crash
+target at the R+5 %/C+10 % worst case — 2.19 s).
+- τ = 1.88 k · 320 µ = 0.60 s → 850→60 V in **1.60 s nominal / 1.84 s worst-case** ✓
+  (≤ 2 s OEM crash target even at tolerance corners; ECE R100 5 s with 2.7× margin)
+- Peak 0.45 A / 384 W total decaying; energy 115.6 J → **28.9 J nominal / 31.8 J worst per
+  resistor** (10 W ceramic wirewound single-pulse capability ≥ 100 J) ✓; 213 V per resistor ✓
 - Switch: hiitio **HCM75S12T4K3** (1200 V, 75 mΩ, TO-247-4L — vendor consolidation; any
   1200 V ≥ 5 A FET fits). Peak switch dissipation 0.38²·75 mΩ ≈ 11 mW — trivial.
 - Control: default-OFF — TLP152-class opto driver on a DCN-referenced isolated bias (QA01C),
@@ -108,9 +109,10 @@ Card-side conditioning per phase: supply bead + 47 nF/4.7 nF, 100 Ω + 3.3 nF in
 
 ## 6. DC-link voltage sensing — two independent channels
 
-2 × (6 × 470 kΩ series top + 6.65 kΩ bottom → 850 V ≈ 2.0 V) into **AMC1311-class** (0–2 V
-input) isolated amps, separately biased, read on different ADCs.
-- 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓
+2 × (6 × 470 kΩ series top + 6.2 kΩ bottom → 850 V ≈ 1.87 V; full-scale 2 V = **911 V**, so
+the OV witness never saturates — rev A.3 / F27) into **AMC1311-class** (0–2 V input) isolated
+amps, **each with its own reinforced bias module** (F4), read on different ADCs.
+- 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓; ±0.7 % RSS uncalibrated
 - Channel 2 is the discharge witness and OV cross-check (disagreement > 5 % ⇒ fault).
 - (References use AMC0386-Q1 integrated-divider parts — the divider+AMC1311 chain is the
   economical equivalent with the same reinforced barrier.)
@@ -129,10 +131,10 @@ current-mode flybacks (HS chain / LS chain; DFM rev A.2 — multi-source LCSC/Di
 replacing the thin-distribution NJW4140, with a 2-transistor default-OFF enable clamp and a
 12 V trickle-start feed), each driving **three VGT12EEM transformers with
 primaries paralleled — one floating secondary per phase → six independent domains**;
-per-secondary rectifier + **BZT52-C4V3 zener splitting the winding into +15 V / −4.3 V about
-each Kelvin source**; primary-side regulated (18k/15k/1.3k divider off the aux winding).
+per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15 V / −5.1 V about
+each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side regulated (18k/15k/1.3k divider off the aux winding).
 Gate power at 10 kHz: Qg·ΔV·f ≈ 3 µC·19 V·10 kHz ≈ 0.6 W per switch — well inside a small
-EE core. −4.3 V off-bias + Miller clamp holds the SiC off; +15 V matches the
+EE core. −5.1 V off-bias + Miller clamp holds the SiC off; +15 V matches the
 Infineon/Starpower EconoDUAL alternates (hiitio dies accept +15…18/−5, abs −10).
 This replaces six packaged DC-DC modules with ~₹2k of magnetics + jellybeans and is
 reference-proven. FLT# wired-OR per side, RDY wired-AND into the enable chain, EN gated by
@@ -194,7 +196,20 @@ This is an *architecture capable of* ASIL D per the NXP GEN3 / TI TIDM-02014 pat
 formal claim needs the ISO 26262 work products (HARA, FMEDA, DFA), out of schematic scope.
 Every hardware mechanism those analyses rely on is present above.
 
-## 11. References
+## 11. Verification status (rev A.3)
+
+Three independent verification layers gate every release (see
+[`verification-report.md`](verification-report.md)):
+geometric pin-verify **1540/1540 (100 %)** · structural ERC **664 checks, 0 fail** ·
+numeric worst-case verification **51 PASS / 3 WARN / 0 FAIL**, every constant
+datasheet-real. The campaign found and fixed 18 defects (log F1–F36 in the report),
+including four HIGH-severity ones only the real datasheets could reveal: the flyback
+controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
+re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
+path, net-alias floats, Y-cap class, common-cause sense bias, load-dump cap ratings,
+discharge worst-case, OV-witness headroom.
+
+## 12. References
 
 - Wolfspeed CRD300DA12E-XM3 user guide + discharge PCB (passive 9× CRGP2512F68K network —
   copied verbatim here) + controller schematics

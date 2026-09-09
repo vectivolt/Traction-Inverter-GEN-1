@@ -61,17 +61,18 @@ export const TO247_4L = () => (
     <courtyardrect pcbX={0} pcbY={0} width="16.4mm" height="5.5mm" />
   </footprint>
 );
-// EconoDUAL 3 half-bridge: 3 power terminals (DC+, DC-, AC) + 8 aux pins.
-// Aux numbering VERIFY vs the hiitio HCS600FH120D3C1 outline drawing.
+// EconoDUAL 3 half-bridge — REAL HCS600FH120D3C1 numbering (datasheet rev X.0.1 Fig 1/2):
+// 1=G_L 2=S_L(aux) 3=DC- 4=DC+ 5/6=NTC 7=G_H 8=S_H(aux) 9=HS drain-sense(aux) 10/11=AC.
+// Power terminals (3,4,10,11) are M6/M8 screw lands; aux pins are press-fit/solder posts.
 export const EconoDual3FP = () => (
   <footprint>
-    {[["pin1", -45], ["pin2", 0], ["pin3", 45]].map(([h, x]) => (
-      <platedhole key={h as string} portHints={[h as string]} pcbX={x as number} pcbY={20} holeDiameter="5mm" outerDiameter="9mm" shape="circle" />
+    {[["pin3", -45], ["pin4", 45], ["pin10", -15], ["pin11", 15]].map(([h, x]) => (
+      <platedhole key={h as string} portHints={[h as string]} pcbX={x as number} pcbY={20} holeDiameter="6.5mm" outerDiameter="12mm" shape="circle" />
     ))}
-    {[["pin4", -35], ["pin5", -25], ["pin6", -15], ["pin7", -5], ["pin8", 5], ["pin9", 15], ["pin10", 25], ["pin11", 35]].map(([h, x]) => (
+    {[["pin1", -35], ["pin2", -25], ["pin5", -12], ["pin6", -4], ["pin7", 12], ["pin8", 22], ["pin9", 32]].map(([h, x]) => (
       <platedhole key={h as string} portHints={[h as string]} pcbX={x as number} pcbY={-20} holeDiameter="1.2mm" outerDiameter="2.2mm" shape="circle" />
     ))}
-    <courtyardrect pcbX={0} pcbY={0} width="122mm" height="62mm" />
+    <courtyardrect pcbX={0} pcbY={0} width="152mm" height="62mm" />
   </footprint>
 );
 export const XfmrEEFP = (n = 6) => (
@@ -105,11 +106,11 @@ export const gp = () => {
 // GEN3 patterns carried: complementary PWM on IN- (shoot-through lockout), DESAT via
 // BAT64-04 + 100R + 2x US1M to drain, 47 pF blanking, Miller clamp linked 0R to gate,
 // 10k G-S bleed + 18V/5V1 zener stack at driver, 1M HV pulldown at module pin, secondary
-// winding zener-split +15/-4.3 vs Kelvin.
-export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy, asc, wA, wB }: {
+// winding zener-split +15/-5.1 vs Kelvin (HCS600 DS Note1 recommends +15/-5).
+export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy, asc, wA }: {
   ph: string; side: "H" | "L"; drain: string; gate: string; ks: string;
   pwmP: string; pwmN: string; en: string; flt: string; rdy: string;
-  asc?: string; wA: string; wB: string;
+  asc?: string; wA: string;
 }) => {
   const p = `${ph}${side}`;
   const vcc = `net.VCC_${p}`, vee = `net.VEE_${p}`, dst = `net.DST_${p}`;
@@ -140,13 +141,12 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
       {/* driver rail decoupling */}
       <capacitor name={`C${p}B1`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       <capacitor name={`C${p}B2`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
-      {/* floating secondary: rectifier -> VCC ; zener splits winding return -> VEE (-4.3) */}
+      {/* floating secondary: rectifier -> VCC ; zener splits winding return -> VEE (-5.1) */}
       <diode name={`D${p}R`} footprint={Smd2FP()} {...gp()} connections={{ anode: wA, cathode: vcc }} />
       <diode name={`Z${p}V`} footprint={Smd2FP()} {...gp()} connections={{ anode: vee, cathode: ks }} />
       <capacitor name={`C${p}V1`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       <capacitor name={`C${p}E1`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: ks, pin2: vee }} />
       <resistor name={`R${p}BL`} resistance="5.1k" footprint="0805" {...gp()} connections={{ pin1: vcc, pin2: vee }} />
-      <trace from={vee} to={wB} />
     </group>
   );
 };
@@ -173,12 +173,13 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <diode name={`DF${id}G`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FGO_${id}`, cathode: `net.FDR_${id}` }} />
       <diode name={`ZF${id}G`} footprint={Smd2FP()} {...gp()} connections={{ anode: cs, cathode: `net.FG_${id}` }} />
       <resistor name={`RF${id}GS`} resistance="51k" footprint="0603" {...gp()} connections={{ pin1: `net.FG_${id}`, pin2: cs }} />
-      <resistor name={`RF${id}CS`} resistance="0.033" footprint="1206" {...gp()} connections={{ pin1: cs, pin2: "net.DGND" }} />
+      <resistor name={`RF${id}CS`} resistance="0.33" footprint="1210" {...gp()} connections={{ pin1: cs, pin2: "net.DGND" }} />
       <resistor name={`RF${id}SI`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: cs, pin2: `net.FSI_${id}` }} />
       <capacitor name={`CF${id}SI`} capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: `net.FSI_${id}`, pin2: "net.DGND" }} />
-      {/* RT/CT: 10k from VREF + 3.3nF -> ~52 kHz (fsw = 1.72/(RT*CT)) */}
+      {/* RT/CT: 10k + 680 pF -> ~250 kHz (F32: VGT12EEM Lp is only 10 uH — per-cycle energy
+          must stay small; Ipk ~1.4 A DCM vs the 4.5 A CS limit) */}
       <resistor name={`RF${id}RT`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: vr, pin2: `net.FCT_${id}` }} />
-      <capacitor name={`CF${id}CT`} capacitance="3.3nF" footprint="0603" {...gp()} connections={{ pin1: `net.FCT_${id}`, pin2: "net.DGND" }} />
+      <capacitor name={`CF${id}CT`} capacitance="680pF" footprint="0603" {...gp()} connections={{ pin1: `net.FCT_${id}`, pin2: "net.DGND" }} />
       <capacitor name={`CF${id}VR`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: vr, pin2: "net.DGND" }} />
       <capacitor name={`CF${id}CO`} capacitance="22nF" footprint="0603" {...gp()} connections={{ pin1: `net.FCO_${id}`, pin2: "net.DGND" }} />
       <capacitor name={`CF${id}CF`} capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: `net.FCO_${id}`, pin2: fb }} />
@@ -196,20 +197,24 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       {/* VCC: trickle start from the 12 V rail, then the aux winding takes over
           (the aux-only wiring could never start — startup feed added at DFM review) */}
       <resistor name={`RF${id}ST`} resistance="4.7k" footprint="0805" {...gp()} connections={{ pin1: v12, pin2: vcc }} />
-      {/* primary-side regulation: aux winding on TF?1 -> VCC + FB divider (18k/15k/1.3k) */}
+      {/* primary-side regulation via the NF feedback winding (VGT NP:NF:NS = 1:1.6:2.9):
+          VCC_reg = (NF/NS)*(Vsec+Vf) ~= 11.8 V -> 56k/15k on the 2.5 V ref (F33 — a 15 V
+          target is unreachable through NF and would drive the secondaries to ~27 V) */}
       <diode name={`DF${id}A`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: vcc }} />
       <capacitor name={`CF${id}A`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
-      <resistor name={`RF${id}FB1`} resistance="18k" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: fb }} />
-      <resistor name={`RF${id}FB2`} resistance="15k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: `net.FFB2_${id}` }} />
-      <resistor name={`RF${id}FB3`} resistance="1.3k" footprint="0603" {...gp()} connections={{ pin1: `net.FFB2_${id}`, pin2: "net.DGND" }} />
+      <resistor name={`RF${id}FB1`} resistance="56k" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: fb }} />
+      <resistor name={`RF${id}FB2`} resistance="15k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: "net.DGND" }} />
       {/* three transformers, primaries paralleled on the switch node; TF?1 carries the aux */}
+      {/* VGT12EEM-200S1A4 real map (TDK DS p.3): NP=1-2, NF(feedback)=3-4, NS=5..8
+          (6/7 are winding taps — series/parallel per TDK drawing, NC at schematic level) */}
       {[1, 2, 3].map((k) => (
-        <chip key={k} name={`TF${id}${k}`} footprint={XfmrEEFP(6)} {...gp()}
-          pinLabels={{ pin1: "P1", pin2: "P2", pin3: "A1", pin4: "A2", pin5: "S1", pin6: "S2" }}
+        <chip key={k} name={`TF${id}${k}`} footprint={XfmrEEFP(8)} {...gp()}
+          pinLabels={{ pin1: "P1", pin2: "P2", pin3: "F1", pin4: "F2", pin5: "S1", pin6: "T1", pin7: "T2", pin8: "S2" }}
           connections={{
             P1: v12, P2: sw,
-            A1: k === 1 ? `net.FAX_${id}` : `net.NC_TF${id}${k}A1`, A2: k === 1 ? "net.DGND" : `net.NC_TF${id}${k}A2`,
-            S1: `net.W_${["U", "V", "W"][k - 1]}${id}_A`, S2: `net.W_${["U", "V", "W"][k - 1]}${id}_B`,
+            F1: k === 1 ? `net.FAX_${id}` : `net.NC_TF${id}${k}F1`, F2: k === 1 ? "net.DGND" : `net.NC_TF${id}${k}F2`,
+            S1: `net.W_${["U", "V", "W"][k - 1]}${id}_A`, S2: `net.VEE_${["U", "V", "W"][k - 1]}${id}`,
+            T1: `net.NC_TF${id}${k}T1`, T2: `net.NC_TF${id}${k}T2`,
           }} />
       ))}
     </group>
@@ -231,22 +236,21 @@ export const IsoVSense = ({ id, outP, outN }: { id: string; outP: string; outN: 
         <resistor key={k} name={`${RT}${k}`} resistance="470k" footprint="1206" {...gp()}
           connections={{ pin1: k === 1 ? "net.DCP" : `net.${RT}_${k - 1}${k}`, pin2: k === 6 ? tap : `net.${RT}_${k}${k + 1}` }} />
       ))}
-      <resistor name={RL} resistance="6.65k" footprint="0603" {...gp()} connections={{ pin1: tap, pin2: "net.DCN" }} />
+      <resistor name={RL} resistance="6.2k" footprint="0603" {...gp()} connections={{ pin1: tap, pin2: "net.DCN" }} />
       <capacitor name={CF} capacitance="1nF" footprint="0603" {...gp()} connections={{ pin1: tap, pin2: "net.DCN" }} />
       <chip name={U} footprint={SmdFP(8)} {...gp()}
         pinLabels={{ pin1: "VDD1", pin2: "SHTDN", pin3: "VINP", pin4: "GND1", pin5: "GND2", pin6: "VOUTN", pin7: "VOUTP", pin8: "VDD2" }}
-        connections={{ VDD1: "net.V5ISO", SHTDN: "net.DCN", VINP: tap, GND1: "net.DCN", GND2: "net.AGND", VOUTN: outN, VOUTP: outP, VDD2: "net.V5GD" }} />
+        connections={{ VDD1: id === "1" ? "net.V5ISO" : "net.V5ISO2", SHTDN: "net.DCN", VINP: tap, GND1: "net.DCN", GND2: "net.AGND", VOUTN: outN, VOUTP: outP, VDD2: "net.V5GD" }} />
     </group>
   );
 };
 
 // ---- module NTC route (power board side: series R + clamp + filter to harness) ----------
-export const ModNtc = ({ ph, ntcA, ntcB }: { ph: string; ntcA: string; ntcB: string }) => (
+export const ModNtc = ({ ph, ntcA }: { ph: string; ntcA: string }) => (
   <group>
     <resistor name={`R${ph}TS`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: ntcA, pin2: `net.TMOD_${ph}` }} />
     <capacitor name={`C${ph}TF`} capacitance="2.2nF" footprint="0603" {...gp()} connections={{ pin1: `net.TMOD_${ph}`, pin2: "net.TMOD_RTN" }} />
     <diode name={`D${ph}TP`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.TMOD_${ph}`, cathode: "net.V5GD" }} />
-    <trace from={ntcB} to="net.TMOD_RTN" />
   </group>
 );
 
@@ -289,10 +293,9 @@ export const HallChain = ({ ph, vout, adc }: { ph: string; vout: string; adc: st
 export const NtcIn = ({ id, out }: { id: string; out: string }) => (
   <group>
     <chip name={`JT${id}`} footprint={Header(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
-      connections={{ A: `net.NTC_${id}`, B: "net.AGND" }} />
-    <resistor name={`RT${id}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: `net.NTC_${id}` }} />
-    <capacitor name={`CT${id}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.NTC_${id}`, pin2: "net.AGND" }} />
-    <trace from={`net.NTC_${id}`} to={out} />
+      connections={{ A: out, B: "net.AGND" }} />
+    <resistor name={`RT${id}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: out }} />
+    <capacitor name={`CT${id}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: out, pin2: "net.AGND" }} />
   </group>
 );
 
