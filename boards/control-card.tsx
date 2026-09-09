@@ -125,7 +125,7 @@ export default () => (
     <diode name="DTVSC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.NRC" }} />
     <inductor name="LFC" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.VBATC" }} />
     <capacitor name="CLVC1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
-    <capacitor name="CLVC2" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.VBATC", pin2: "net.DGND" }} />
+    <capacitor name="CLVC2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.VBATC", pin2: "net.DGND" }} />
     {/* gate-power feeds to the power board: sourced HERE from the reverse-protected node,
         one polyfuse per bank, out over harness pins 31/32 (H) and 35/36 (L) */}
     <chip name="FVBH" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
@@ -142,19 +142,21 @@ export default () => (
         DEBUG strapped to ground for normal mode */}
     <capacitor name="CVDIG" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VDIG", pin2: "net.DGND" }} />
     <capacitor name="CVBOS" capacitance="4.7uF" footprint="0805" {...gp()} connections={{ pin1: "net.VBOS", pin2: "net.DGND" }} />
-    <capacitor name="CBTP" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.PREBT", pin2: "net.SWPRE" }} />
-    <capacitor name="CBTC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.CORBT", pin2: "net.SWCORE" }} />
+    <capacitor name="CBTP" capacitance="22nF" footprint="0603" {...gp()} connections={{ pin1: "net.PREBT", pin2: "net.SWPRE" }} />
+    <capacitor name="CBTC" capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: "net.CORBT", pin2: "net.SWCORE" }} />
     <resistor name="RDBG" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.SBC_DBG", pin2: "net.DGND" }} />
     <inductor name="LSBC" inductance="10uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWPRE", pin2: "net.VPRE" }} />
     {/* S32K39 core topology per DS Rev.3 Table 11: FS26 VCORE buck makes the 1.5 V V15 rail;
         the 1.14 V V11 core comes through an external NMOS ballast the MCU regulates via its
         BCTRL loop (F36 — direct VCORE->V11 is not a supported topology) */}
-    <inductor name="LCOR" inductance="4.7uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V15S" }} />
+    {/* VCORE buck inductor: DS Table 106 selections are 1/1.5/2.2 uH only (CORE_LSEL_OTP);
+        2.2 uH chosen (OTP 0x02) — 4.7 uH matched no listed selection (rev A.4.2) */}
+    <inductor name="LCOR" inductance="2.2uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V15S" }} />
     <chip name="QBAL" footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
       connections={{ G: "net.BCTRL", S: "net.V11", D: "net.V15S" }} />
     {/* FS26 output caps per DS: LDO1 COUT 4.7 uF (2.35-15 eff) · VREF COUT 2.2 uF
         (1.1-3.3 eff) · VBOS 4.7 uF — rev A.4.1 value completions */}
-    {[["CSB1", "VPRE", "10uF"], ["CSB2", "VPRE", "10uF"], ["CSB3", "V15S", "10uF"], ["CSB4", "V11", "10uF"],
+    {[["CSB1", "VPRE", "22uF"], ["CSB2", "VPRE", "22uF"], ["CSB3", "V15S", "22uF"], ["CSB3B", "V15S", "22uF"], ["CSB4", "V11", "10uF"],
       ["CSB5", "VREF5", "2.2uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
       <capacitor key={n} name={n} capacitance={v} footprint="0805" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
@@ -301,15 +303,25 @@ export default () => (
     <resistor name="REXA4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX4" }} />
     <chip name="UEXF" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
       connections={{ OUT: "net.REX_F", VN: "net.AGND", INP: "net.VMID_REX", INN: "net.NEX4", VP: "net.V5A" }} />
+    {/* resolver-amp supply: ALM2402 abs max is 18 V (rec 16 V) — VBATC can see 24 V jump
+        start and ~33 V clamped transients, and TPSMC24CA clamps far above 18 V. ULDOEX
+        (same 40 V ADJ LDO family as ULDO15) makes a protected 12.1 V VEXD rail; in dropout
+        at crank it degrades exactly like the old direct feed (rev A.4.2). */}
+    <chip name="ULDOEX" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "VA", pin5: "OUT" }}
+      connections={{ IN: "net.VBATC", INH: "net.VBATC", GND: "net.AGND", VA: "net.VEXVA", OUT: "net.VEXD" }} />
+    <resistor name="RLDE1" resistance="38.3k" footprint="0603" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.VEXVA" }} />
+    <resistor name="RLDE2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VEXVA", pin2: "net.AGND" }} />
+    <capacitor name="CLDEC" capacitance="270pF" footprint="0603" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.VEXVA" }} />
+    <capacitor name="CLDE" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.AGND" }} />
     <chip name="UEXD" footprint={SmdFP(14)} {...gp()}
       pinLabels={{ pin1: "IN1N", pin2: "IN1P", pin3: "SDN", pin4: "IN2P", pin5: "IN2N", pin6: "GND1", pin7: "NC7", pin8: "NC8", pin9: "OUT2", pin10: "VCCO2", pin11: "VCC", pin12: "VCCO1", pin13: "OUT1", pin14: "GND2" }}
-      connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VBATC", VCC: "net.VBATC", VCCO1: "net.VBATC", OUT1: "net.VREX_P", GND2: "net.AGND" }} />
+      connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VEXD", VCC: "net.VEXD", VCCO1: "net.VEXD", OUT1: "net.VREX_P", GND2: "net.AGND" }} />
     <resistor name="RSDN" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.EXSD" }} />
     <resistor name="REXB1" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.EXN1" }} />
     <resistor name="REXB2" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN1" }} />
     <resistor name="REXB3" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN2" }} />
     <resistor name="REXB4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.EXN2" }} />
-    <capacitor name="CEXD" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.VBATC", pin2: "net.AGND" }} />
+    <capacitor name="CEXD" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.AGND" }} />
     {/* excitation monitor dividers (GEN3: 4.99k/12.1k, 4.99k/24k) */}
     <resistor name="REXM1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREXM_P" }} />
     <resistor name="REXM2" resistance="12k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />

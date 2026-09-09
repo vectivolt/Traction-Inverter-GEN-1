@@ -213,6 +213,33 @@ const f = (x, d = 1) => Number(x.toFixed(d));
     0.5, 0.9, "jump start is stationary service — brief V15 brown-out via TSD is acceptable; passive bleeder unaffected");
   add("Discharge", "Passive-only 850→60 V at +10 % C / +5 % R", "66.9 s", "60 s XM3 reference (non-regulatory)", "ℹ️",
     "R100 compliance rides the ACTIVE path (1.84 s worst); the 60 s figure is reference practice, met nominally (57.3 s)");
+
+  // ---- rev A.4.2 (third review round, F52–F57) ----
+  // FS26 buck passives: effective capacitance at bias/temperature/tolerance corners
+  const effV15S = 44 * 0.8 * 0.9;      // 2x22 µF at 1.5 V bias (negligible) · -20 % tol · temp
+  judge("LV A.4", "VCORE COUT effective (2×22 µF @1.5 V)", `${f(effV15S, 0)} µF`, "20–100 µF eff (Table 106)",
+    20 / effV15S, 0.9, "F52 — was 10 µF nominal; inductor now 2.2 µH per CORE_LSEL_OTP");
+  const effVPRE = 44 * 0.8 * 0.75;     // 2x22 µF at ~6 V bias on 16 V dielectric
+  judge("LV A.4", "VPRE COUT effective (2×22 µF @6 V)", `${f(effVPRE, 0)} µF`, "≥22 µF test condition",
+    22 / effVPRE, 0.95, "F52");
+  const effVIN = 22 * 0.8 * 0.65;      // 22 µF 25 V 1210 at 14 V bias
+  judge("LV A.4", "VPRE input effective (22 µF @14 V)", `${f(effVIN, 1)} µF`, "≥10 µF eff",
+    10 / effVIN, 0.95, "F52 — CLVC2 4.7 µF was under the input spec");
+  const effVREF = 3.3 * 0.8 * 0.85;    // CSB5 2.2 + CMA1 1 + CMA2 0.1 at 5 V bias
+  judge("LV A.4", "VREF5 rail effective (whole rail: 3.3 µF nom)", `${f(effVREF, 1)} µF`, "1.1–3.3 µF eff window",
+    effVREF / 3.3, 0.9, "reviewer correction accepted: count CMA1/CMA2, judge the rail not one part");
+  // ULDO15 / ULDOEX compensation zeros vs onsemi 11–18 kHz guidance
+  judge("LV A.4", "ULDO15 feed-forward zero (49.9k·220pF)", `${f(1 / (2 * Math.PI * 49.9e3 * 220e-12) / 1e3, 1)} kHz`,
+    "11–18 kHz (onsemi Cb guidance)", 14.5 / 18, 0.95, "F54 — COUT 22 µF ceramic");
+  judge("LV A.4", "ULDOEX feed-forward zero (38.3k·270pF)", `${f(1 / (2 * Math.PI * 38.3e3 * 270e-12) / 1e3, 1)} kHz`,
+    "11–18 kHz (onsemi Cb guidance)", 15.4 / 18, 0.95, "F55");
+  judge("LV A.4", "VEXD target for ALM2402", `${f(2.5 * (1 + 38.3 / 10), 2)} V`, "16 V recommended max (18 V abs)",
+    (2.5 * (1 + 38.3 / 10)) / 16, 0.85, "F55 — was raw VBATC: 24 V jump start exceeded abs max");
+  // Gate-power switch drive legality + clamp loading
+  judge("Flyback A.4", "QF gate drive vs BUK7Y14-80E VGS abs", "11.8 V", "±20 V DC (was BUK9Y: ±10 V)",
+    11.8 / 20, 0.8, "F56 — logic-level part was outside abs max at the VDD drive");
+  add("Flyback A.4", "Gate zener standing load", "0 W (BZT52-C15 dark at 11.8 V)", "was ~0.4 W/zener all ON-time", "PASS",
+    "F56 — the 5.6 V clamp conducted ~0.29 A through every ON interval");
 }
 
 // ============ 6. LV RAILS & PROTECTION ============
@@ -278,7 +305,7 @@ Three independent layers:
 2. **Structural ERC audit** (netlist vs design intent, \`erc-audit.mjs\`): **654 checks, 0 fail, 0 warn**
 3. **Numeric verification** (this report, \`design-verify.mjs\`): **${counts.PASS} PASS · ${counts.WARN} WARN · ${counts.FAIL} FAIL** (+${counts.INFO} info)
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 second-round response — all fixed)
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 third-round response — all fixed)
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -313,6 +340,12 @@ Three independent layers:
 | F49 | **HIGH** | TPS55340 pin 5 treated as a second VIN and tied to 12 V — pin 5 is SYNC, abs max 7 V | SYNC → DGND per DS ("if not used, tie to AGND") |
 | F50 | MED | FS26 capacitor values under DS minimums: VBOS 1 µF (needs 4.7 µF; 3.3–6.1 eff), LDO1/V3B 1 µF (needs 4.7 µF; 2.35–15 eff) — and VREF 1 µF vs COUT_VREF 1.1–3.3 µF eff (found in the same audit) | CVBOS 4.7 µF · CSB6 4.7 µF · CSB5 2.2 µF |
 | F51 | **HIGH** | Boost topology passes V12L−V_f straight to V15 whenever V12L > setpoint (a boost cannot regulate below its input): 24 V jump start / clamped load dump would put 19–33 V on QA01C modules rated 13.5–16.5 V (21 V/1 s surge) | NCV4276C-ADJ 40 V/0.4 A post-regulator: mild dropout in normal operation (V15 ≈ 15.0–15.2 V), hard 15.0 V clamp during pass-through; TSD covers the sustained-24 V service case |
+| F52 | **HIGH** | FS26 VCORE buck network out of spec: LCOR 4.7 µH (Table 106 allows 1/1.5/2.2 µH by OTP), COUT 10 µF nominal vs 20–100 µF effective, bootstrap 100 nF vs 47 nF; VPRE COUT/input caps under the effective minimums | LCOR 2.2 µH (CORE_LSEL_OTP=0x02) · V15S 2×22 µF (≈32 µF eff) · CBTC 47 nF · CBTP 22 nF per CBOOT_PRE · CSB1/2 22 µF · CLVC2 22 µF; effective-capacitance rows added |
+| F53 | **HIGH** | LCAN1/LCAN2 mapped as windings 1-2/3-4 — ACT45B is physically wound 1-4 and 2-3, so transceiver CANH landed on the external CANL net (both ports) | Pin map corrected to the TDK circuit diagram; ERC asserts end-to-end pairing |
+| F54 | MED | ULDO15 (ADJ + ceramic COUT) drawn without the required feed-forward capacitor; COUT 4.7 µF below the reference design | Cb 220 pF across the 49.9 k leg (f_z 14.5 kHz, in the 11–18 kHz window) · COUT 22 µF |
+| F55 | **HIGH** | UEXD (ALM2402: 18 V abs, 16 V rec) fed from raw VBATC — 24 V jump start exceeds abs max and TPSMC24CA clamps far above 18 V | ULDOEX 12.1 V protective LDO (same NCV4276C-ADJ family) feeds VCC/VCC_O1/VCC_O2; crank behavior unchanged (dropout) |
+| F56 | **HIGH** | Flyback switch BUK9Y14-80E is logic-level: V_GS abs ±10 V DC vs the 11.8 V VDD drive; the 5.6 V gate zener "fixed" it by conducting ~0.29 A through every ON interval (~0.4 W each, doubling the aux budget) | BUK7Y14-80E (standard-level, ±20 V, same LFPAK56/current class) + zener repurposed to a dark 15 V protective clamp |
+| F57 | LOW | LDO ordering code transposed (NCV4276CADJDTRKG) | NCV4276CDTADJRKG per the DS ordering table |
 | F46 | MED | No global hardware reaction to a driver DESAT trip (FLT only went to the MCU); driver soft-shutdown is per-channel | FLT_HS/LS diode-OR → SN74LVC1G74 fault latch → third AND input in DRV_EN: any DESAT latches all six channels off until the MCU clears after diagnosis |
 | F36 | MED | S32K39 core is 1.14 V via an external NMOS ballast from a 1.5 V rail (DS Table 11) — direct FS26-VCORE→V11 is not a supported topology | VCORE→V15S 1.5 V + SQ2310ES ballast (GEN3-exact) regulated by the MCU's BCTRL loop |
 | — | LOW | Hall ratiometric reference (V5A) ≠ ADC reference (VREF5): ±1–2 % gain drift between two 5 V rails | accepted (GEN3-identical); EOL calibration note |

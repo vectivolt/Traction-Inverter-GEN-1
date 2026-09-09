@@ -157,7 +157,11 @@ export default () => (
       connections={{ IN: "net.V15B", INH: "net.V15B", GND: "net.DGND", VA: "net.V15VA", OUT: "net.V15" }} />
     <resistor name="RLD1" resistance="49.9k" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.V15VA" }} />
     <resistor name="RLD2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V15VA", pin2: "net.DGND" }} />
-    <capacitor name="CLD15" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
+    {/* ADJ + low-ESR ceramic COUT needs the Cb feed-forward across the top divider leg
+        (onsemi Fig. 4 / stability section): 220 pF on 49.9 k -> f_z 14.5 kHz, inside the
+        11-18 kHz guidance for the 22 uF example (rev A.4.2) */}
+    <capacitor name="CLDC" capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.V15VA" }} />
+    <capacitor name="CLD15" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
 
     {/* ---- CONTROL INTERFACE: harness + default-OFF pulldowns ---- */}
     <Harness name="JIC" />

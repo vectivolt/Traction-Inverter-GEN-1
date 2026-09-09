@@ -229,10 +229,10 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1674/1674 (100 %)** · structural ERC **769 checks, 0 fail** ·
-numeric worst-case verification **64 PASS / 3 WARN / 0 FAIL**, every constant
+geometric pin-verify **1691/1691 (100 %)** · structural ERC **779 checks, 0 fail** ·
+numeric worst-case verification **73 PASS / 3 WARN / 0 FAIL**, every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
-external-review response confirmed and fixed 10 more (F37–F46), and the second round 5 more (F47–F51 in the report),
+external-review response confirmed and fixed 10 more (F37–F46), the second round 5 more (F47–F51), and the third round 6 more (F52–F57 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback
 controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
 re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
@@ -329,6 +329,31 @@ confirmed; two more items surfaced in the same audit. Fixed as F47–F51:
   high regardless of the input side — so DRV_EN low does not block ASC (they are correctly
   independent), while DESAT and VCC2-UVLO outrank ASC (a faulted switch is not forced on).
   Startup/entry/exit sequencing stays on the bench list.
+
+## 11c. Rev A.4.2 — review round three
+
+Six further defects confirmed against primary datasheets and fixed (F52–F57): the FS26
+VCORE buck network (inductor to a listed OTP selection, effective output capacitance on
+V15S/VPRE/input closed with derating math in the report), the ACT45B CAN-choke winding
+mapping (real windings 1-4 / 2-3 — both ports had CANH crossed onto CANL), the ALM2402
+resolver amplifier moved behind ULDOEX (12.1 V; the part is 18 V abs and VBATC can see
+24 V), completion of the ULDO15 feed-forward compensation (onsemi Cb requirement for the
+ADJ version with ceramic output), the flyback switch corrected to BUK7Y14-80E
+(standard-level ±20 V gate — the BUK9Y logic-level part was outside abs-max at the 11.8 V
+drive, and the 5.6 V zener that masked it conducted ~0.29 A through every ON interval),
+and the LDO ordering code (NCV4276CDTADJRKG).
+
+Accepted qualifications from the same round, on record:
+- **VREF5 rail capacitance** is judged as a rail (CSB5 + CMA1 + CMA2 ≈ 2.2 µF effective,
+  inside the 1.1–3.3 µF window) — not one capacitor at a time.
+- **ASC with VCC1 lost**: per the NSI6611 DS, DESAT protection is unavailable when VCC1 is
+  open while ASC still operates — so "a faulted switch is never forced on" holds only with
+  VCC1 present. The V5GD LDO is KL30-held (A.4), making VCC1-loss a double-fault, but the
+  case is added to the ASC bench matrix (entry/exit, VCC1 brown-out, VCC2 UVLO ride).
+- **ULDO15/ULDOEX in TSD** (sustained >20 V LV) suspends active discharge, ASC bias and
+  resolver excitation — availability is not credited in that stationary service state.
+- **IGN_SNS disposition**: ADC input (PTA25 as ADC channel), firmware thresholds; the
+  47 k/10 k scaling makes 9–16 V read 1.46–2.68 V.
 
 ## 12. References
 

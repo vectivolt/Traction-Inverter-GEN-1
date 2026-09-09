@@ -225,6 +225,23 @@ ok(same(P("ULDO15.IN"), "V15B") && same(P("ULDO15.OUT"), "V15") && same(P("DB15.
 ok(same(P("RLD1.pin1"), "V15") && same(P("RLD1.pin2"), "V15VA") && same(P("RLD2.pin2"), "DGND"),
   "ULDO15 VA divider 49.9k/10k -> 15.0 V");
 ok(same(C("USBC.TRKIN"), "VPRE"), "FS26 TRKIN supplied from VPRE (it feeds the VREF regulator — never ground while VREF is used)");
+
+// ---------- rev A.4.2: third-round review corrections ----------
+// CAN chokes: ACT45B windings are pins 1-4 and 2-3 (TDK circuit diagram, no polarity)
+for (const k of ["1", "2"]) {
+  ok(same(C(`LCAN${k}.A1`), `CANH${k}_T`) && same(C(`LCAN${k}.A2`), `CANH${k}`),
+    `LCAN${k} winding A (pins 1-4) carries CANH end-to-end`);
+  ok(same(C(`LCAN${k}.B1`), `CANL${k}_T`) && same(C(`LCAN${k}.B2`), `CANL${k}`),
+    `LCAN${k} winding B (pins 2-3) carries CANL end-to-end`);
+}
+// Resolver amp behind its protective LDO (ALM2402 abs 18 V vs 24 V jump start on VBATC)
+ok(same(C("UEXD.VCC"), "VEXD") && same(C("UEXD.VCCO1"), "VEXD") && same(C("UEXD.VCCO2"), "VEXD"),
+  "ALM2402 all three supply pins on the protected VEXD rail");
+ok(same(C("ULDOEX.IN"), "VBATC") && same(C("ULDOEX.OUT"), "VEXD") && same(C("RLDE1.pin2"), "VEXVA"),
+  "ULDOEX chain (VBATC -> 12.1 V VEXD)");
+ok(same(C("CLDEC.pin1"), "VEXD") && same(C("CLDEC.pin2"), "VEXVA"), "ULDOEX feed-forward compensation fitted");
+// ULDO15 compensation (ADJ + ceramic COUT needs Cb across the top divider leg)
+ok(same(P("CLDC.pin1"), "V15") && same(P("CLDC.pin2"), "V15VA"), "ULDO15 feed-forward compensation fitted");
 // Card: gate-power feeds are actually sourced (polyfused off the reverse-protected node)
 ok(same(C("FVBH.A"), "NRC") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card");
 ok(same(C("FVBL.A"), "NRC") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card");
@@ -247,7 +264,7 @@ ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS2.pin1"), "V5A") && same(C("RFS3
 ok(same(C("UVOF.OUT"), "VOFS") && same(C("RVD1B.pin2"), "VOFS") && same(C("RVD2B.pin2"), "VOFS"),
   "VDC receivers referenced to the 0.5 V offset");
 // Card: ALM2402 output-stage supplies bound, SHDN pulled up through a resistor only
-ok(same(C("UEXD.VCCO1"), "VBATC") && same(C("UEXD.VCCO2"), "VBATC"), "ALM2402 VCC_O pins powered");
+ok(same(C("UEXD.VCCO1"), "VEXD") && same(C("UEXD.VCCO2"), "VEXD"), "ALM2402 VCC_O pins powered (protected VEXD rail since A.4.2)");
 ok(same(C("UEXD.SDN"), "EXSD") && same(C("RSDN.pin2"), "EXSD"), "ALM2402 SHDN pulled high via 10k (flag stays readable)");
 // Card: FS26 mandatory support pins
 ok(same(C("USBC.VDIG"), "VDIG") && same(C("CVDIG.pin1"), "VDIG"), "FS26 VDIG decoupled");

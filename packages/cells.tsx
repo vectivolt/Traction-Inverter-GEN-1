@@ -180,7 +180,9 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <chip name={`UF${id}`} footprint={SmdFP(8)} {...gp()}
         pinLabels={{ pin1: "COMP", pin2: "FB", pin3: "CS", pin4: "RTCT", pin5: "GND", pin6: "OUT", pin7: "VCC", pin8: "VREF" }}
         connections={{ COMP: `net.FCO_${id}`, FB: fb, CS: `net.FSI_${id}`, RTCT: `net.FCT_${id}`, GND: "net.DGND", OUT: `net.FDR_${id}`, VCC: vcc, VREF: vr }} />
-      {/* BUK9Y14-80E LFPAK56 real allocation: source 1/2/3, gate 4, drain = mounting base */}
+      {/* BUK7Y14-80E LFPAK56 real allocation: source 1/2/3, gate 4, drain = mounting base.
+          Standard-level gate (+/-20 V abs) — the BUK9Y logic-level sibling is +/-10 V DC,
+          under the 11.8 V VDD drive (rev A.4.2). */}
       <chip name={`QF${id}`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "S1", pin2: "S2", pin3: "S3", pin4: "G", pin5: "D" }}
         connections={{ S1: cs, S2: cs, S3: cs, G: `net.FG_${id}`, D: sw }} />
       <resistor name={`RF${id}G`} resistance="10" footprint="0603" {...gp()} connections={{ pin1: `net.FDR_${id}`, pin2: `net.FG_${id}` }} />
@@ -288,8 +290,11 @@ export const CanFd = ({ id, tx, rx, stb, canh, canl }: { id: string; tx: string;
     <chip name={`UCAN${id}`} footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "TXD", pin2: "GND", pin3: "VCC", pin4: "RXD", pin5: "VIO", pin6: "CANL", pin7: "CANH", pin8: "STB" }}
       connections={{ TXD: tx, GND: "net.DGND", VCC: "net.V5A", RXD: rx, VIO: "net.V5A", CANL: `net.CANL${id}_T`, CANH: `net.CANH${id}_T`, STB: stb }} />
-    <chip name={`LCAN${id}`} footprint={XfmrEEFP(4)} {...gp()} pinLabels={{ pin1: "A1", pin2: "A2", pin3: "B1", pin4: "B2" }}
-      connections={{ A1: `net.CANH${id}_T`, A2: canh, B1: `net.CANL${id}_T`, B2: canl }} />
+    {/* ACT45B real winding allocation (TDK circuit diagram): winding A = pins 1-4,
+        winding B = pins 2-3, no polarity — rev A.4.2: the 1-2/3-4 mapping crossed
+        transceiver CANH onto the external CANL net */}
+    <chip name={`LCAN${id}`} footprint={XfmrEEFP(4)} {...gp()} pinLabels={{ pin1: "A1", pin2: "B1", pin3: "B2", pin4: "A2" }}
+      connections={{ A1: `net.CANH${id}_T`, B1: `net.CANL${id}_T`, B2: canl, A2: canh }} />
     <resistor name={`RCT${id}A`} resistance="60.4" footprint="0603" {...gp()} connections={{ pin1: `net.CANH${id}_T`, pin2: `net.CANS${id}` }} />
     <resistor name={`RCT${id}B`} resistance="60.4" footprint="0603" {...gp()} connections={{ pin1: `net.CANS${id}`, pin2: `net.CANL${id}_T` }} />
     <capacitor name={`CCT${id}`} capacitance="4.7nF" footprint="0603" {...gp()} connections={{ pin1: `net.CANS${id}`, pin2: "net.DGND" }} />

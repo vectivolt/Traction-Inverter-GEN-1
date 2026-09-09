@@ -21,7 +21,7 @@ const OUT = join(ROOT, "kicad5/traction");
 // Library name is revision-stamped: EasyEDA will NOT overwrite an existing library of the same
 // name, so a re-import would silently mix new sheets with stale pin geometry. Bump on symbol change.
 const LIB_NAME = "traction-r1";
-const REV = "A.4.1";
+const REV = "A.4.2";
 // Pinned, NOT new Date(): a release sheet carries its release date; bump with REV.
 const DATE = "2026-09-09";
 mkdirSync(OUT, { recursive: true });
@@ -489,7 +489,7 @@ const HAND = {
     ["USBC"],
     ["DBAT", "LSBC", "LCOR", "QBAL", "CBTP", "CBTC", "CVDIG", "CVBOS"],
     ["RSB1", "RSB2", "RSB3", "RSB4", "RAGT", "RDBG"],
-    ["CSB1", "CSB2", "CSB3", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
+    ["CSB1", "CSB2", "CSB3", "CSB3B", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
   ],
   "SBC / LV-INPUT": [["FLVC", "DREVC", "DTVSC", "LFC", "CLVC1", "CLVC2"]],
   "SBC / WAKE": [["DIGN", "RIGN1", "RIGN2", "CIGN"], ["RIGNS1", "RIGNS2", "CIGNS"]],
@@ -513,6 +513,7 @@ const HAND = {
   "RESOLVER / EXCITER": [
     ["REXA1", "CEXA3", "REXA2", "CEXA2", "REXA3", "CEXA1", "REXA4", "UEXF"],
     ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD", "RSDN"],
+    ["ULDOEX", "RLDE1", "RLDE2", "CLDEC", "CLDE"],
     ["REXM1", "REXM2", "REXM3", "REXM4"],
   ],
   "RESOLVER / VMID": [

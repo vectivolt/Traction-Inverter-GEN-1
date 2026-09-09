@@ -11,11 +11,11 @@
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1674%2F1674%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-583%20·%20184%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1691%2F1691%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-590%20·%20192%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-769%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-779%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -306,7 +306,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹70,074 @1k volume** · 583 components · 184 lines · zero unmatched.
+**Electronics BOM: ₹70,090 @1k volume** · 590 components · 192 lines · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -435,7 +435,7 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
-  V -->|"1674/1674 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
+  V -->|"1691/1691 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
   SVG -->|"sheets-to-pdf.mjs<br/>(headless Chrome)"| PDF["📄 PDF set"]
@@ -446,9 +446,18 @@ Three independent verification layers — each with its own tool, none trusting 
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1674/1674 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **769 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **64 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1691/1691 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **779 checks · 0 fail** |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **73 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+
+Rev A.4.2 closed round three: **6 more confirmed defects fixed (F52–F57)** — the FS26
+VCORE/VPRE buck passives brought to Table-106 selections (2.2 µH OTP inductor, effective-
+capacitance closure on every rail), both CAN chokes remapped to the ACT45B's real 1-4/2-3
+windings (CANH had been crossed onto CANL), the resolver amplifier moved behind a protective
+12 V LDO (18 V-abs part on a 24 V-capable rail), the flyback switch swapped to the
+standard-level BUK7Y14-80E (±20 V gate; the logic-level part was outside abs-max at the
+11.8 V drive and its 5.6 V "clamp" burned 0.4 W all ON-time), the V15 LDO's feed-forward
+compensation completed, and the LDO ordering code corrected.
 
 Rev A.4.1 closed the review's second round: **5 more confirmed defects fixed (F47–F51)**
 — the AMC1311 IN/SHTDN pin swap on both V_DC channels, FS26 TRKIN re-supplied from VPRE
@@ -480,10 +489,10 @@ Full findings log + margin tables: [`docs/verification-report.md`](docs/verifica
 
 | Metric | Power | Cap bank | Discharge | Card | Total |
 |---|---|---|---|---|---|
-| Components | 289 | 26 | 24 | 244 | **583** |
+| Components | 290 | 26 | 24 | 250 | **590** |
 | Functional sections | 24 | 2 | 3 | 26 | 55 |
-| Net labels / pin stubs | 801 | 42 | 55 | 776 | 1,674 |
-| Sheet size | 44.6″ × 22.8″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 40.6″ × 27.6″ | 4 sheets |
+| Net labels / pin stubs | 803 | 42 | 55 | 791 | 1,691 |
+| Sheet size | 44.6″ × 22.8″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 44.6″ × 25.3″ | 4 sheets |
 
 ---
 
