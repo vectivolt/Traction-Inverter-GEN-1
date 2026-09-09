@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Cap bank (busbar assembly, 320 uF)"
 Date "2026-09-09"
-Rev "A.4"
+Rev "A.4.1"
 Comp "Traction Inverter 220 kW pk - Cap bank (HV, busbar), sheet 2 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: laminated busbar + 16x 20 uF/1100 V film cans = 320 uF — NOT an FR4 PCB; discharge board bolts across it"
@@ -14,7 +14,7 @@ Comment3 "2 functional sections - 26 components - cross-section links are net la
 Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"
 $EndDescr
 Text Notes 600 5100 0    60   ~ 12
-220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.4   ·   2 sections   ·   26 components
+220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.4.1   ·   2 sections   ·   26 components
 Text Notes 600 5400 0    50   ~ 0
 NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab
 Wire Notes Line
@@ -29,7 +29,7 @@ Text Notes 560 660 0    79   ~ 16
 CAP-BANK / BUS-STUDS
 $Comp
 L traction-r1:TERM_1 JCBDN
-U 1 1 5E00011E
+U 1 1 5E000122
 P 1250 2350
 F 0 "JCBDN" H 1250 2190 50  0000 C CNN
 F 1 "STUD-M6" H 1250 2520 50  0000 C CNN
@@ -46,7 +46,7 @@ Text Label 950 2350 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JCBDP
-U 1 1 5E00011F
+U 1 1 5E000123
 P 1250 1950
 F 0 "JCBDP" H 1250 1790 50  0000 C CNN
 F 1 "STUD-M6" H 1250 2120 50  0000 C CNN
@@ -63,7 +63,7 @@ Text Label 950 1950 2    45   ~ 0
 DCP
 $Comp
 L traction-r1:TERM_1 JCBEN
-U 1 1 5E000120
+U 1 1 5E000124
 P 1250 1550
 F 0 "JCBEN" H 1250 1390 50  0000 C CNN
 F 1 "STUD-M8" H 1250 1720 50  0000 C CNN
@@ -80,7 +80,7 @@ Text Label 950 1550 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JCBEP
-U 1 1 5E000121
+U 1 1 5E000125
 P 1250 1150
 F 0 "JCBEP" H 1250 990 50  0000 C CNN
 F 1 "STUD-M8" H 1250 1320 50  0000 C CNN
@@ -97,7 +97,7 @@ Text Label 950 1150 2    45   ~ 0
 DCP
 $Comp
 L traction-r1:TERM_1 JCBUN
-U 1 1 5E000122
+U 1 1 5E000126
 P 2150 1550
 F 0 "JCBUN" H 2150 1390 50  0000 C CNN
 F 1 "TAB-M6" H 2150 1720 50  0000 C CNN
@@ -114,7 +114,7 @@ Text Label 1850 1550 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JCBUP
-U 1 1 5E000123
+U 1 1 5E000127
 P 2150 1150
 F 0 "JCBUP" H 2150 990 50  0000 C CNN
 F 1 "TAB-M6" H 2150 1320 50  0000 C CNN
@@ -131,7 +131,7 @@ Text Label 1850 1150 2    45   ~ 0
 DCP
 $Comp
 L traction-r1:TERM_1 JCBVN
-U 1 1 5E000124
+U 1 1 5E000128
 P 2150 2350
 F 0 "JCBVN" H 2150 2190 50  0000 C CNN
 F 1 "TAB-M6" H 2150 2520 50  0000 C CNN
@@ -148,7 +148,7 @@ Text Label 1850 2350 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JCBVP
-U 1 1 5E000125
+U 1 1 5E000129
 P 2150 1950
 F 0 "JCBVP" H 2150 1790 50  0000 C CNN
 F 1 "TAB-M6" H 2150 2120 50  0000 C CNN
@@ -165,7 +165,7 @@ Text Label 1850 1950 2    45   ~ 0
 DCP
 $Comp
 L traction-r1:TERM_1 JCBWN
-U 1 1 5E000126
+U 1 1 5E00012A
 P 2150 3150
 F 0 "JCBWN" H 2150 2990 50  0000 C CNN
 F 1 "TAB-M6" H 2150 3320 50  0000 C CNN
@@ -182,7 +182,7 @@ Text Label 1850 3150 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JCBWP
-U 1 1 5E000127
+U 1 1 5E00012B
 P 2150 2750
 F 0 "JCBWP" H 2150 2590 50  0000 C CNN
 F 1 "TAB-M6" H 2150 2920 50  0000 C CNN
@@ -209,7 +209,7 @@ Text Notes 3060 660 0    79   ~ 16
 CAP-BANK / CAN-ARRAY
 $Comp
 L traction-r1:C CDC1
-U 1 1 5E000128
+U 1 1 5E00012C
 P 4550 1150
 F 0 "CDC1" H 4550 990 50  0000 C CNN
 F 1 "20uF" H 4550 1320 50  0000 C CNN
@@ -230,7 +230,7 @@ Text Label 5000 1150 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC10
-U 1 1 5E000129
+U 1 1 5E00012D
 P 6050 1550
 F 0 "CDC10" H 6050 1390 50  0000 C CNN
 F 1 "20uF" H 6050 1720 50  0000 C CNN
@@ -251,7 +251,7 @@ Text Label 6500 1550 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC11
-U 1 1 5E00012A
+U 1 1 5E00012E
 P 6050 1950
 F 0 "CDC11" H 6050 1790 50  0000 C CNN
 F 1 "20uF" H 6050 2120 50  0000 C CNN
@@ -272,7 +272,7 @@ Text Label 6500 1950 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC12
-U 1 1 5E00012B
+U 1 1 5E00012F
 P 6050 2350
 F 0 "CDC12" H 6050 2190 50  0000 C CNN
 F 1 "20uF" H 6050 2520 50  0000 C CNN
@@ -293,7 +293,7 @@ Text Label 6500 2350 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC13
-U 1 1 5E00012C
+U 1 1 5E000130
 P 6050 2750
 F 0 "CDC13" H 6050 2590 50  0000 C CNN
 F 1 "20uF" H 6050 2920 50  0000 C CNN
@@ -314,7 +314,7 @@ Text Label 6500 2750 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC14
-U 1 1 5E00012D
+U 1 1 5E000131
 P 6050 3150
 F 0 "CDC14" H 6050 2990 50  0000 C CNN
 F 1 "20uF" H 6050 3320 50  0000 C CNN
@@ -335,7 +335,7 @@ Text Label 6500 3150 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC15
-U 1 1 5E00012E
+U 1 1 5E000132
 P 6050 3550
 F 0 "CDC15" H 6050 3390 50  0000 C CNN
 F 1 "20uF" H 6050 3720 50  0000 C CNN
@@ -356,7 +356,7 @@ Text Label 6500 3550 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC16
-U 1 1 5E00012F
+U 1 1 5E000133
 P 6050 3950
 F 0 "CDC16" H 6050 3790 50  0000 C CNN
 F 1 "20uF" H 6050 4120 50  0000 C CNN
@@ -377,7 +377,7 @@ Text Label 6500 3950 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC2
-U 1 1 5E000130
+U 1 1 5E000134
 P 4550 1550
 F 0 "CDC2" H 4550 1390 50  0000 C CNN
 F 1 "20uF" H 4550 1720 50  0000 C CNN
@@ -398,7 +398,7 @@ Text Label 5000 1550 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC3
-U 1 1 5E000131
+U 1 1 5E000135
 P 4550 1950
 F 0 "CDC3" H 4550 1790 50  0000 C CNN
 F 1 "20uF" H 4550 2120 50  0000 C CNN
@@ -419,7 +419,7 @@ Text Label 5000 1950 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC4
-U 1 1 5E000132
+U 1 1 5E000136
 P 4550 2350
 F 0 "CDC4" H 4550 2190 50  0000 C CNN
 F 1 "20uF" H 4550 2520 50  0000 C CNN
@@ -440,7 +440,7 @@ Text Label 5000 2350 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC5
-U 1 1 5E000133
+U 1 1 5E000137
 P 4550 2750
 F 0 "CDC5" H 4550 2590 50  0000 C CNN
 F 1 "20uF" H 4550 2920 50  0000 C CNN
@@ -461,7 +461,7 @@ Text Label 5000 2750 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC6
-U 1 1 5E000134
+U 1 1 5E000138
 P 4550 3150
 F 0 "CDC6" H 4550 2990 50  0000 C CNN
 F 1 "20uF" H 4550 3320 50  0000 C CNN
@@ -482,7 +482,7 @@ Text Label 5000 3150 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC7
-U 1 1 5E000135
+U 1 1 5E000139
 P 4550 3550
 F 0 "CDC7" H 4550 3390 50  0000 C CNN
 F 1 "20uF" H 4550 3720 50  0000 C CNN
@@ -503,7 +503,7 @@ Text Label 5000 3550 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC8
-U 1 1 5E000136
+U 1 1 5E00013A
 P 4550 3950
 F 0 "CDC8" H 4550 3790 50  0000 C CNN
 F 1 "20uF" H 4550 4120 50  0000 C CNN
@@ -524,7 +524,7 @@ Text Label 5000 3950 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CDC9
-U 1 1 5E000137
+U 1 1 5E00013B
 P 6050 1150
 F 0 "CDC9" H 6050 990 50  0000 C CNN
 F 1 "20uF" H 6050 1320 50  0000 C CNN

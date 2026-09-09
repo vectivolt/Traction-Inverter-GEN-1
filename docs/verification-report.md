@@ -6,9 +6,9 @@ Three independent layers:
 
 1. **Geometric pin-verify** (sheets vs netlist): **1523/1523 pins, 100 %**
 2. **Structural ERC audit** (netlist vs design intent, `erc-audit.mjs`): **654 checks, 0 fail, 0 warn**
-3. **Numeric verification** (this report, `design-verify.mjs`): **60 PASS · 3 WARN · 0 FAIL** (+7 info)
+3. **Numeric verification** (this report, `design-verify.mjs`): **64 PASS · 3 WARN · 0 FAIL** (+7 info)
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 external-review response — all fixed)
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 second-round response — all fixed)
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -38,6 +38,11 @@ Three independent layers:
 | F43 | LOW | Reviewer flagged divider linear-range margin at 900 V/1 % | Not applicable as reviewed: system max is 850 V and the bottom leg is 0.1 % — worst-corner FS ≈ 902 V; margin documented |
 | F44 | **HIGH** | VBAT_H/VBAT_L appeared ONLY as harness pins — no source anywhere on the card ⇒ the whole gate-power system had no positive feed | FVBH/FVBL polyfuses from the reverse-protected node NRC feed pins 31/32 & 35/36; power board keeps per-bank fuse+TVS+filter |
 | F45 | **HIGH** | Symbol pin maps did not match packages: 74LVC1G11 (unpowered — no VCC pin at all), 74LVC1G32, NCV4276C (output on NC pin 4), TPS55340 (6-pin symbol for RTE-16; SS and FREQ missing entirely), BUK9Y14 (G/S swapped vs LFPAK56), ALM2402 (PWP-14; VCC_O supplies absent; SHDN tied stiff to a rail though it is also the open-drain OT flag — grounded/floating = shutdown), QA01C-class SIP-7 modules drawn as 4-pin, PESD parts drawn as 3-pin arrays, FS26 as a 34-pin abstraction | Every one rebound to the real package pins from its datasheet; FS26 now full LQFP-48+EP with VDIG/VBOS/bootstraps/DEBUG strap and DS-specified unused-pin terminations; MCU remains explicitly symbolic (no package table in the DS — bind at layout, printed on sheet) |
+| F47 | **HIGH** | AMC1311 pins 2/3 swapped on BOTH V_DC channels (real: 2=IN, 3=SHTDN active-high w/ internal pull-up) — the analog inputs were grounded; channel agreement could not validate the measurement | IsoVSense symbol rebound: IN(2)=divider tap, SHTDN(3)=DCN; locked in ERC |
+| F48 | **HIGH** | FS26 TRKIN grounded as an "unused tracker input" — it is the input SUPPLY of the VREF regulator, so VREF5 (ADC reference, temp networks, receiver offset) had no source | TRKIN → VPRE (headroom ≥ VREF+350 mV inside the 6.35 V max; CIN_TRK ≥0.5 µF eff at the pin — VPRE bank, layout note) |
+| F49 | **HIGH** | TPS55340 pin 5 treated as a second VIN and tied to 12 V — pin 5 is SYNC, abs max 7 V | SYNC → DGND per DS ("if not used, tie to AGND") |
+| F50 | MED | FS26 capacitor values under DS minimums: VBOS 1 µF (needs 4.7 µF; 3.3–6.1 eff), LDO1/V3B 1 µF (needs 4.7 µF; 2.35–15 eff) — and VREF 1 µF vs COUT_VREF 1.1–3.3 µF eff (found in the same audit) | CVBOS 4.7 µF · CSB6 4.7 µF · CSB5 2.2 µF |
+| F51 | **HIGH** | Boost topology passes V12L−V_f straight to V15 whenever V12L > setpoint (a boost cannot regulate below its input): 24 V jump start / clamped load dump would put 19–33 V on QA01C modules rated 13.5–16.5 V (21 V/1 s surge) | NCV4276C-ADJ 40 V/0.4 A post-regulator: mild dropout in normal operation (V15 ≈ 15.0–15.2 V), hard 15.0 V clamp during pass-through; TSD covers the sustained-24 V service case |
 | F46 | MED | No global hardware reaction to a driver DESAT trip (FLT only went to the MCU); driver soft-shutdown is per-channel | FLT_HS/LS diode-OR → SN74LVC1G74 fault latch → third AND input in DRV_EN: any DESAT latches all six channels off until the MCU clears after diagnosis |
 | F36 | MED | S32K39 core is 1.14 V via an external NMOS ballast from a 1.5 V rail (DS Table 11) — direct FS26-VCORE→V11 is not a supported topology | VCORE→V15S 1.5 V + SQ2310ES ballast (GEN3-exact) regulated by the MCU's BCTRL loop |
 | — | LOW | Hall ratiometric reference (V5A) ≠ ADC reference (VREF5): ±1–2 % gain drift between two 5 V rails | accepted (GEN3-identical); EOL calibration note |
@@ -139,6 +144,21 @@ Three independent layers:
 |---|---|---|---|---|
 | Fail-safe window (healthy-zero 0.5 V vs railed ~0.05 V) | 0.45 V window | ≥0.2 V discrimination | ✅ PASS | 44% of limit · F42 — AMC1311 dead-HV state now distinguishable from a dead bus |
 | V_DC linear FS, worst tolerance corner | 902 V | 850 V operating max | ✅ PASS | 94% of limit · F43 — reviewer corner assumed 900 V operation and 1% bottom; ours is 850 V / 0.1% |
+
+### LV A.4
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| TPS55340 SYNC pin level (grounded) | 0 V | 7 V abs on SYNC | ✅ PASS | 1% of limit · F49 — pin 5 is SYNC, not a second VIN; 12 V there exceeds abs max |
+| V15 behind ULDO15 @24 V jump start | 15.0 V | 16.5 V QA01C normal-max | ✅ PASS | 91% of limit · F51 — boost pass-through clamped; LDO input 23.5 V << 40 V rating |
+| ULDO15 input at clamped load dump | ≈33 V | 40 V NCV4276C operating max | ✅ PASS | 83% of limit · F51 — TPSMC24CA clamp level on the 12 V node |
+| ULDO15 dissipation @24 V sustained | 2.8 W | TSD-protected (survival case, not an operating mode) | ✅ PASS | 50% of limit · jump start is stationary service — brief V15 brown-out via TSD is acceptable; passive bleeder unaffected |
+
+### Discharge
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| Passive-only 850→60 V at +10 % C / +5 % R | 66.9 s | 60 s XM3 reference (non-regulatory) | ℹ️ | R100 compliance rides the ACTIVE path (1.84 s worst); the 60 s figure is reference practice, met nominally (57.3 s) |
 
 ### LV
 

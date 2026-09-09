@@ -262,9 +262,13 @@ export const IsoVSense = ({ id, outP, outN }: { id: string; outP: string; outN: 
       ))}
       <resistor name={RL} resistance="6.2k" footprint="0603" {...gp()} connections={{ pin1: tap, pin2: "net.DCN" }} />
       <capacitor name={CF} capacitance="1nF" footprint="0603" {...gp()} connections={{ pin1: tap, pin2: "net.DCN" }} />
+      {/* AMC1311 REAL pins (TI Table 6-1): 1=VDD1 2=IN 3=SHTDN 4=GND1 / 5=GND2 6=OUTN
+          7=OUTP 8=VDD2. SHTDN is active-HIGH with an internal 100k pull-up — it must be
+          tied to GND1 or the channel silently shuts down (rev A.4.1: pins 2/3 were swapped,
+          grounding both analog inputs). */}
       <chip name={U} footprint={SmdFP(8)} {...gp()}
-        pinLabels={{ pin1: "VDD1", pin2: "SHTDN", pin3: "VINP", pin4: "GND1", pin5: "GND2", pin6: "VOUTN", pin7: "VOUTP", pin8: "VDD2" }}
-        connections={{ VDD1: id === "1" ? "net.V5ISO" : "net.V5ISO2", SHTDN: "net.DCN", VINP: tap, GND1: "net.DCN", GND2: "net.AGND", VOUTN: outN, VOUTP: outP, VDD2: "net.V5GD" }} />
+        pinLabels={{ pin1: "VDD1", pin2: "IN", pin3: "SHTDN", pin4: "GND1", pin5: "GND2", pin6: "VOUTN", pin7: "VOUTP", pin8: "VDD2" }}
+        connections={{ VDD1: id === "1" ? "net.V5ISO" : "net.V5ISO2", IN: tap, SHTDN: "net.DCN", GND1: "net.DCN", GND2: "net.AGND", VOUTN: outN, VOUTP: outP, VDD2: "net.V5GD" }} />
     </group>
   );
 };

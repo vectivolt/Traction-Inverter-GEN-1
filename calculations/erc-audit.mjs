@@ -163,7 +163,7 @@ ok(same(P("CY1.pin1"), "DCP") && same(P("CY1.pin2"), "PE") && same(P("CY2.pin1")
 for (const [id, U, RT, outP] of [["1", "UIVDC", "RVDD", "VDC1"], ["2", "UIVB", "RVBD", "VDC2"]]) {
   ok(same(P(`${RT}1.pin1`), "DCP"), `divider ${id} top at DCP`);
   ok(same(P(`${RT}L.pin2`), "DCN"), `divider ${id} bottom at DCN`);
-  ok(same(P(`${U}.VINP`), P(`${RT}L.pin1`)), `AMC ${id} input at the tap`);
+  ok(same(P(`${U}.IN`), P(`${RT}L.pin1`)), `AMC ${id} analog input (package pin 2) at the tap`);
   ok(same(P(`${U}.GND1`), "DCN") && same(P(`${U}.SHTDN`), "DCN"), `AMC ${id} HV ground/enable`);
   ok(same(P(`${U}.GND2`), "AGND") && same(P(`${U}.VDD2`), "V5GD"), `AMC ${id} LV side rails`);
   ok(same(P(`${U}.VOUTP`), `${outP}_P`) && same(P(`${U}.VOUTN`), `${outP}_N`), `AMC ${id} outputs to harness`);
@@ -217,6 +217,14 @@ ok(same(P("UGDL.OUT"), "V5GD"), "NCV4276C output on pin 5 (fixed version: pin 4 
 // TPS55340 required programming pins present
 ok(same(P("UB15.SS"), "B15SS") && same(P("CB15S.pin1"), "B15SS"), "UB15 soft-start cap fitted");
 ok(same(P("UB15.FREQ"), "B15FQ") && same(P("RB15Q.pin1"), "B15FQ"), "UB15 FREQ resistor fitted");
+
+// ---------- rev A.4.1: second-round review corrections ----------
+ok(same(P("UB15.SYNC"), "DGND"), "TPS55340 SYNC (pin 5, 7 V abs) grounded — it is NOT a second VIN");
+ok(same(P("ULDO15.IN"), "V15B") && same(P("ULDO15.OUT"), "V15") && same(P("DB15.cathode"), "V15B"),
+  "V15 loads sit behind the protective LDO (boost pass-through cannot reach the QA01C window)");
+ok(same(P("RLD1.pin1"), "V15") && same(P("RLD1.pin2"), "V15VA") && same(P("RLD2.pin2"), "DGND"),
+  "ULDO15 VA divider 49.9k/10k -> 15.0 V");
+ok(same(C("USBC.TRKIN"), "VPRE"), "FS26 TRKIN supplied from VPRE (it feeds the VREF regulator — never ground while VREF is used)");
 // Card: gate-power feeds are actually sourced (polyfused off the reverse-protected node)
 ok(same(C("FVBH.A"), "NRC") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card");
 ok(same(C("FVBL.A"), "NRC") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card");

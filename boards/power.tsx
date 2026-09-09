@@ -135,19 +135,29 @@ export default () => (
     <capacitor name="C5G2" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.DGND" }} />
     {/* V15 boost for the reinforced sense-bias modules */}
     <chip name="UB15" footprint={SmdFP(16)} {...gp()}
-      pinLabels={{ pin1: "SW1", pin2: "VIN1", pin3: "EN", pin4: "SS", pin5: "VIN2", pin6: "AGND", pin7: "COMP", pin8: "FB", pin9: "FREQ", pin10: "NC1", pin11: "PGND1", pin12: "PGND2", pin13: "PGND3", pin14: "NC2", pin15: "SW2", pin16: "SW3" }}
-      connections={{ SW1: "net.B15SW", VIN1: "net.V12L", EN: "net.V12L", SS: "net.B15SS", VIN2: "net.V12L", AGND: "net.DGND", COMP: "net.B15CO", FB: "net.B15FB", FREQ: "net.B15FQ", NC1: "net.DGND", PGND1: "net.DGND", PGND2: "net.DGND", PGND3: "net.DGND", NC2: "net.DGND", SW2: "net.B15SW", SW3: "net.B15SW" }} />
+      pinLabels={{ pin1: "SW1", pin2: "VIN1", pin3: "EN", pin4: "SS", pin5: "SYNC", pin6: "AGND", pin7: "COMP", pin8: "FB", pin9: "FREQ", pin10: "NC1", pin11: "PGND1", pin12: "PGND2", pin13: "PGND3", pin14: "NC2", pin15: "SW2", pin16: "SW3" }}
+      connections={{ SW1: "net.B15SW", VIN1: "net.V12L", EN: "net.V12L", SS: "net.B15SS", SYNC: "net.DGND", AGND: "net.DGND", COMP: "net.B15CO", FB: "net.B15FB", FREQ: "net.B15FQ", NC1: "net.DGND", PGND1: "net.DGND", PGND2: "net.DGND", PGND3: "net.DGND", NC2: "net.DGND", SW2: "net.B15SW", SW3: "net.B15SW" }} />
     {/* soft-start + switching-frequency programming (RTE16 required pins): 80.6k -> ~580 kHz */}
     <capacitor name="CB15S" capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15SS", pin2: "net.DGND" }} />
     <resistor name="RB15Q" resistance="80.6k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FQ", pin2: "net.DGND" }} />
     <inductor name="LB15" inductance="10uH" footprint="1210" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.B15SW" }} />
-    <diode name="DB15" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.B15SW", cathode: "net.V15" }} />
+    <diode name="DB15" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.B15SW", cathode: "net.V15B" }} />
     <capacitor name="CB15I" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
-    <capacitor name="CB15O1" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
-    <capacitor name="CB15O2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
-    <resistor name="RB15F1" resistance="110k" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.B15FB" }} />
+    <capacitor name="CB15O1" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.DGND" }} />
+    <capacitor name="CB15O2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.DGND" }} />
+    <resistor name="RB15F1" resistance="110k" footprint="0603" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.B15FB" }} />
     <resistor name="RB15F2" resistance="9.53k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FB", pin2: "net.DGND" }} />
     <capacitor name="CB15C" capacitance="10nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15CO", pin2: "net.DGND" }} />
+    {/* V15 protective post-regulator (rev A.4.1): a boost cannot regulate below its input —
+        when V12L rides above ~15.5 V (24 V jump start, clamped load dump) the LB15/DB15
+        path feeds V15 directly. NCV4276C-ADJ (40 V in, 400 mA) sits in mild dropout in
+        normal operation (V15 ≈ 15.0-15.2 V) and CLAMPS at 15.0 V during pass-through, so
+        the QA01C modules (13.5-16.5 V window) never see the raw rail. Vout = 2.5·(1+49.9/10). */}
+    <chip name="ULDO15" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "VA", pin5: "OUT" }}
+      connections={{ IN: "net.V15B", INH: "net.V15B", GND: "net.DGND", VA: "net.V15VA", OUT: "net.V15" }} />
+    <resistor name="RLD1" resistance="49.9k" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.V15VA" }} />
+    <resistor name="RLD2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V15VA", pin2: "net.DGND" }} />
+    <capacitor name="CLD15" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
 
     {/* ---- CONTROL INTERFACE: harness + default-OFF pulldowns ---- */}
     <Harness name="JIC" />

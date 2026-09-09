@@ -119,6 +119,7 @@ export const DB = [
   { m: /^DTV[HL]$/, mpn: "TPSMC24CA", mfr: "Littelfuse", desc: "24 V bidir TVS on 12 V entry (GEN3 exact; LCSC as -VR packing)", fp: "SMC", lcsc: "C1975284", price1k: 6, alt: "SMCJ24CA" },
   { m: /^LF(H|L)[12]$/, mpn: "FB-120R-3A", mfr: "TDK/Murata", desc: "ferrite bead 120 R @100 MHz, 12 V pi filter", fp: "FB1206", price1k: 1, alt: "any" },
   { m: /^CLV[HL][12]$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "12 V entry filter — 50 V rated for the ~39 V load-dump clamp (F25)", fp: "C1206", price1k: 1.2, alt: "any X7R 50 V" },
+  { m: /^ULDO15$/, mpn: "NCV4276CADJDTRKG", mfr: "onsemi", desc: "V15 protective post-regulator: 40 V-in 400 mA adjustable LDO (DPAK-5) — clamps the boost pass-through path at 15.0 V for the QA01C window", fp: "DPAK5", price1k: 14, alt: "any 40 V 0.4 A adj LDO (NCV4275A)" },
   { m: /^UGDL$/, mpn: "NCV4276CDT50RKG", mfr: "onsemi", desc: "5 V 400 mA LDO (driver VCC1 logic rail, INH from EN_FLYBK_LS — GEN3 exact)", fp: "DPAK", price1k: 32, alt: "NCV4949 class" },
   { m: /^C5G[12]$/, mpn: "MLCC-10uF-25V", mfr: "any", desc: "VCC1 5 V rail caps", fp: "C1206", price1k: 1, alt: "any" },
   { m: /^UB15$/, mpn: "TPS55340QRTERQ1", mfr: "TI", desc: "boost 12->15.0 V (sense-bias rail V15, ~6 W) — automotive grade stocked on LCSC", fp: "WQFN16", lcsc: "C2070860", price1k: 140, alt: "LM5155-Q1 / commercial TPS55340RTER C169167" },

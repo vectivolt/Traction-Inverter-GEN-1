@@ -7,7 +7,7 @@ Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio m
 LEM sensor prices are quote-gated — figures below are the planning assumptions.
 `CLASS` = buy to the rating printed on the sheet; `ALT` = footprint-compatible second source.
 
-## power — 285 components, 81 BOM lines, ≈ ₹58,578 @1k
+## power — 289 components, 84 BOM lines, ≈ ₹58,593 @1k
 
 CSV: [`docs/bom-power.csv`](bom-power.csv). Top cost lines:
 
@@ -55,7 +55,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 | 1 | R0603-10k | discharge gate pulldown to DCN | 0 | any |
 | 1 | MLCC-100nF-25V | discharge bias decoupling | 0 | any |
 
-## control-card — 244 components, 84 BOM lines, ≈ ₹5,869 @1k
+## control-card — 244 components, 85 BOM lines, ≈ ₹5,869 @1k
 
 CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
 
@@ -82,7 +82,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Subsystem | ₹ | share | cumulative | parts |
 |---|---|---|---|---|
 | SiC power modules | 54,000 | 77.1% | 77.1% | 3 |
-| DC-link film caps | 4,800 | 6.9% | 83.9% | 16 |
+| DC-link film caps | 4,800 | 6.8% | 83.9% | 16 |
 | Hall sensors + AFE | 2,321 | 3.3% | 87.2% | 35 |
 | Gate-power flybacks | 2,227 | 3.2% | 90.4% | 66 |
 | MCU + clock + debug | 1,465 | 2.1% | 92.5% | 22 |
@@ -91,8 +91,8 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Discharge (active+passive) | 630 | 0.9% | 95.5% | 21 |
 | Module snubbers | 540 | 0.8% | 96.2% | 3 |
 | FS26 SBC + LV input + wake | 528 | 0.8% | 97.0% | 30 |
-| VDC iso sensing + bias | 340 | 0.5% | 97.5% | 21 |
-| misc | 338 | 0.5% | 98.0% | 35 |
+| misc | 353 | 0.5% | 97.5% | 39 |
+| VDC iso sensing + bias | 340 | 0.5% | 98.0% | 21 |
 | Resolver AFE | 272 | 0.4% | 98.4% | 48 |
 | Harness + pulldowns | 245 | 0.3% | 98.7% | 17 |
 | LV power (prot+LDO+boost) | 239 | 0.3% | 99.0% | 26 |
@@ -109,7 +109,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 55,123 | 78.7% |
-| drive + control ICs | 5,500 | 7.9% |
+| drive + control ICs | 5,515 | 7.9% |
 | capacitors | 4,873 | 7.0% |
 | magnetics | 2,137 | 3.0% |
 | connectors + sensors | 1,230 | 1.8% |
@@ -117,7 +117,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | isolation | 421 | 0.6% |
 | resistors | 163 | 0.2% |
 | protection + diodes | 159 | 0.2% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **70,059** | 100% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **70,074** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.

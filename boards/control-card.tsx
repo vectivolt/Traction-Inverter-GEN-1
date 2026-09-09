@@ -62,7 +62,7 @@ const SBC_PINS: [string, string][] = [
   ["TRK1", "NC_TRK1"],        // 4  tracker off by OTP
   ["TRK2", "NC_TRK2"],        // 5
   ["GPIO2", "NC_GPIO2"],      // 6
-  ["TRKIN", "DGND"],          // 7  trackers unused -> input grounded
+  ["TRKIN", "VPRE"],          // 7  input SUPPLY of the VREF regulator (DS: pair of LDOIN) — from VPRE, never grounded while VREF is used
   ["VREF", "VREF5"],          // 8
   ["LDO2", "V5A"],            // 9  LDO2OUT
   ["LDOIN", "VPRE"],          // 10 LDO input supply from VPRE
@@ -141,7 +141,7 @@ export default () => (
     {/* FS26 mandatory support pins (DS Rev.3): VDIG + VBOS decouplers, both buck bootstraps,
         DEBUG strapped to ground for normal mode */}
     <capacitor name="CVDIG" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VDIG", pin2: "net.DGND" }} />
-    <capacitor name="CVBOS" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VBOS", pin2: "net.DGND" }} />
+    <capacitor name="CVBOS" capacitance="4.7uF" footprint="0805" {...gp()} connections={{ pin1: "net.VBOS", pin2: "net.DGND" }} />
     <capacitor name="CBTP" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.PREBT", pin2: "net.SWPRE" }} />
     <capacitor name="CBTC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.CORBT", pin2: "net.SWCORE" }} />
     <resistor name="RDBG" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.SBC_DBG", pin2: "net.DGND" }} />
@@ -152,8 +152,11 @@ export default () => (
     <inductor name="LCOR" inductance="4.7uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V15S" }} />
     <chip name="QBAL" footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
       connections={{ G: "net.BCTRL", S: "net.V11", D: "net.V15S" }} />
-    {[["CSB1", "VPRE"], ["CSB2", "VPRE"], ["CSB3", "V15S"], ["CSB4", "V11"], ["CSB5", "VREF5"], ["CSB6", "V3B"], ["CSB7", "V5A"], ["CSB8", "V5A"]].map(([n, r]) => (
-      <capacitor key={n} name={n} capacitance={n === "CSB5" || n === "CSB6" ? "1uF" : "10uF"} footprint="0805" {...gp()}
+    {/* FS26 output caps per DS: LDO1 COUT 4.7 uF (2.35-15 eff) · VREF COUT 2.2 uF
+        (1.1-3.3 eff) · VBOS 4.7 uF — rev A.4.1 value completions */}
+    {[["CSB1", "VPRE", "10uF"], ["CSB2", "VPRE", "10uF"], ["CSB3", "V15S", "10uF"], ["CSB4", "V11", "10uF"],
+      ["CSB5", "VREF5", "2.2uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
+      <capacitor key={n} name={n} capacitance={v} footprint="0805" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
     ))}
     {/* FS26 VMONEXT compares against a FIXED 0.8 V reference (DS Rev.3 Table 185) — divider

@@ -229,10 +229,10 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1663/1663 (100 %)** · structural ERC **763 checks, 0 fail** ·
-numeric worst-case verification **60 PASS / 3 WARN / 0 FAIL**, every constant
+geometric pin-verify **1674/1674 (100 %)** · structural ERC **769 checks, 0 fail** ·
+numeric worst-case verification **64 PASS / 3 WARN / 0 FAIL**, every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
-external-review response confirmed and fixed 10 more (F37–F46 in the report),
+external-review response confirmed and fixed 10 more (F37–F46), and the second round 5 more (F47–F51 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback
 controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
 re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
@@ -298,6 +298,37 @@ power hold-up), which circulates the machine current in the motor and cannot pum
 Below the ASC/open crossover speed the reaction is three-phase-open (body diodes see less
 than the bus). This is the printed safe-state concept on sheet 1; the discharge path only
 ever handles the stored 116 J.
+
+## 11b. Rev A.4.1 — review round two
+
+All three "definite connection errors" were verified against the primary datasheets and
+confirmed; two more items surfaced in the same audit. Fixed as F47–F51:
+
+- **F47 AMC1311**: real pins are 2=IN, 3=SHTDN (active-high, internal 100 k pull-up). Both
+  channels had them exchanged — the analog inputs were grounded. Symbol rebound; ERC now
+  asserts the tap lands on IN. (Channel agreement genuinely could not have caught this —
+  a common-mode symbol error defeats redundancy; the fix layer is the package audit.)
+- **F48 TRKIN**: it is the VREF regulator's input supply (abs-max group with LDOIN/CORE_IN),
+  not a ground-able unused input. Now fed from VPRE — same rail as LDOIN, which already has
+  to satisfy VREF+350 mV headroom under the 6.35 V max. CIN_TRK ≥0.5 µF effective is a
+  layout placement note (VPRE bank).
+- **F49 TPS55340 pin 5 = SYNC** (7 V abs), grounded per the DS "if not used" instruction.
+- **F50 capacitors**: CVBOS 1→4.7 µF, CSB6 (LDO1/V3B) 1→4.7 µF, and CSB5 (VREF) 1→2.2 µF —
+  the third found by re-reading the same table (COUT_VREF 1.1–3.3 µF effective).
+- **F51 V15 pass-through**: a boost cannot regulate below its input; with V12L at 24 V
+  (jump start) or ~33 V (clamped load dump) the LB15/DB15 path feeds V15 directly, and the
+  QA01C window is 13.5–16.5 V. Fix: NCV4276C-ADJ (40 V/0.4 A) post-regulator — in mild
+  dropout normally (V15 ≈ 15.0–15.2 V), clamping at 15.0 V during pass-through. Sustained
+  24 V service dissipates ~2.8 W → thermal shutdown may cycle V15: acceptable, because
+  jump start is a stationary service case and the passive bleeder needs no LV at all.
+- **Release hygiene**: the earlier standalone discharge/cap-bank PDFs the reviewer held
+  were a prior send (rev A.3) — every PDF now regenerates from one source in one run, and
+  all five carry the same revision string. Lesson recorded: a matching pin *count* is not a
+  matching pin *map*.
+- **ASC ↔ fault-latch interplay** (review §4): per the NSI6611 DS, ASC forces the output
+  high regardless of the input side — so DRV_EN low does not block ASC (they are correctly
+  independent), while DESAT and VCC2-UVLO outrank ASC (a faulted switch is not forced on).
+  Startup/entry/exit sequencing stays on the bench list.
 
 ## 12. References
 

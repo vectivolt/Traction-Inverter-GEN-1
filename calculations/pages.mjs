@@ -57,7 +57,7 @@ const PAGES = {
       ["PROT-H", [/^FH1$/, /^DRH$/, /^DTVH$/, /^LFH1$/, /^CLVH[12]$/]],
       ["PROT-L", [/^FL1$/, /^DRL$/, /^DTVL$/, /^LFL1$/, /^CLVL[12]$/]],
       ["VCC1-LDO", [/^UGDL$/, /^RGDLE$/, /^C5G[12]$/]],
-      ["BOOST-15V", [/^UB15$/, /^LB15$/, /^DB15$/, /^CB15(I|O1|O2|C|S)$/, /^RB15F[12]$/, /^RB15Q$/]],
+      ["BOOST-15V", [/^UB15$/, /^LB15$/, /^DB15$/, /^CB15(I|O1|O2|C|S)$/, /^RB15F[12]$/, /^RB15Q$/, /^ULDO15$/, /^RLD[12]$/, /^CLD15$/]],
     ], ["PROT-H", "PROT-L", "VCC1-LDO", "BOOST-15V"]],
     ["CONTROL-IF", [
       ["HARNESS", [/^JIC$/, /^RPD\d+$/]],
