@@ -422,7 +422,11 @@ const HAND = {
     ["CWSN", "JMW", "RWTS", "CWTF", "DWTP"],
   ],
   // DC link: the can bank in two columns; the XM3 bleeder as its three strings.
-  "DC-LINK / LINK-BANK": [
+  "CAP-BANK / BUS-STUDS": [
+    ["JCBEP", "JCBEN", "JCBDP", "JCBDN"],
+    ["JCBUP", "JCBUN", "JCBVP", "JCBVN", "JCBWP", "JCBWN"],
+  ],
+  "CAP-BANK / CAN-ARRAY": [
     ["CDC1", "CDC2", "CDC3", "CDC4", "CDC5", "CDC6", "CDC7", "CDC8"],
     ["CDC9", "CDC10", "CDC11", "CDC12", "CDC13", "CDC14", "CDC15", "CDC16"],
   ],
@@ -553,9 +557,10 @@ const HAND = {
 const files = [];
 let totalComps = 0, totalLabels = 0;
 
-const BOARDS = { power: [], disch: [], card: [] };
+const BOARDS = { power: [], capbank: [], disch: [], card: [] };
 const PAGE_ORDER = [
   "power-DC-INPUT", "power-DC-LINK", "power-PHASE-U", "power-PHASE-V", "power-PHASE-W",
+  "capbank-CAP-BANK",
   "power-GATE-POWER", "power-HV-SENSING", "power-LV-POWER", "power-CONTROL-IF",
   "disch-DISCHARGE",
   "card-CONTROL", "card-SBC", "card-SAFETY", "card-RESOLVER", "card-PHASE-SENSE",
@@ -563,35 +568,38 @@ const PAGE_ORDER = [
 ];
 for (const file of readdirSync(SRC).filter((f) => f.endsWith(".json")).sort()) {
   const pg = JSON.parse(readFileSync(join(SRC, file), "utf8"));
-  const side = pg.page.split("-")[0];   // power / card — page names are side-prefixed
+  const side = pg.page.split("-")[0];   // power / capbank / disch / card — side-prefixed
   if (BOARDS[side]) BOARDS[side].push(pg);
 }
 for (const side of Object.keys(BOARDS))
   BOARDS[side].sort((a, b) => PAGE_ORDER.indexOf(a.page) - PAGE_ORDER.indexOf(b.page));
 const SIDE_TITLE = {
   power: "Traction Inverter 220 kW pk - Power board (SiC 3-phase, 2-level)",
+  capbank: "Traction Inverter - Cap bank (laminated busbar + 16x 20 uF film can array)",
   disch: "Traction Inverter - Discharge board (bolt-on bleeder + active discharge)",
   card: "Traction Inverter - Control Card (S32K396 + FS26, ASIL D)",
 };
 const SHEET_TITLES = {
   power: "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)",
+  capbank: "Traction Inverter — Cap bank (busbar assembly, 320 uF)",
   disch: "Traction Inverter — Discharge board (bolt-on, XM3 pattern)",
   card: "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)",
 };
 const SHEET_IDENT = {
-  power: { sku: "220 kW pk", board: "Power (HV)", sheet: "1 of 3", cells: "3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + 320 uF link + gate drive + iso sensing" },
-  disch: { sku: "220 kW pk", board: "Discharge (HV, bolt-on)", sheet: "2 of 3", cells: "passive 67.5k bleeder (58 s) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted" },
-  card: { sku: "220 kW pk", board: "Control card (LV)", sheet: "3 of 3", cells: "S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain" },
+  power: { sku: "220 kW pk", board: "Power (HV)", sheet: "1 of 4", cells: "3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)" },
+  capbank: { sku: "220 kW pk", board: "Cap bank (HV, busbar)", sheet: "2 of 4", cells: "laminated busbar + 16x 20 uF/1100 V film cans = 320 uF — NOT an FR4 PCB; discharge board bolts across it" },
+  disch: { sku: "220 kW pk", board: "Discharge (HV, bolt-on)", sheet: "3 of 4", cells: "passive 67.5k bleeder (58 s) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted" },
+  card: { sku: "220 kW pk", board: "Control card (LV)", sheet: "4 of 4", cells: "S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain" },
 };
 
 for (const [side, pgs] of Object.entries(BOARDS)) {
   if (!pgs.length) continue;
-  const SINGLE = side === "disch";   // the small discharge sheet uses the compact footer
+  const SINGLE = side === "disch" || side === "capbank";   // small sheets use the compact footer
   const page = { page: `traction-${side}`, title: SIDE_TITLE[side],
     total: pgs.reduce((a, p) => a + p.total, 0),
     nc: Object.assign({}, ...pgs.map((p) => p.nc)) };
   const blocks = pgs.flatMap((p) => p.block_order.map((b, i) => ({
-    title: `${p.page.replace(/^(power|card)-/, "")} / ${b}`, comps: p.chunks[i] })));
+    title: `${p.page.replace(/^(power|capbank|disch|card)-/, "")} / ${b}`, comps: p.chunks[i] })));
 
   for (const b of blocks) {
     b.items = b.comps.map((c) => ({ c, s: shapeOf(c) }));
@@ -842,7 +850,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
       body += `Text Notes ${MARGIN + 100} ${sheetH - 700} 0    60   ~ 12\n`
         + `${ident.sku} ${ident.board} - ${ident.sheet}   ·   rev ${REV}   ·   ${blocks.length} sections   ·   ${page.total} components\n`;
       body += `Text Notes ${MARGIN + 100} ${sheetH - 400} 0    50   ~ 0\n`
-        + `NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets\n`;
+        + `NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab\n`;
     } else {
       const v1 = pickVoid(used);
       const p1 = drawPanel(v1, "SHEET INDEX",
@@ -857,6 +865,8 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
             "R<stem>_M        midpoint of a series pair  e.g. RBLA_M",
             "R<stem>_<nm>     tap between R<stem>n/m     e.g. RVDD_12",
             "all others are explicit design nets",
+            "same name on another sheet = same net, joined ONLY at the",
+            "named connector/stud/tab (see INTERBOARD LINKS, design basis)",
           ], "", fixed);
         const l1 = legend(below, { x0: p1.x0, x1: p1.x1 }) || legend(pickVoid(used));
         if (l1) used.push(l1);
@@ -968,7 +978,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
     + `Title "${SHEET_TITLES[side]}"\n`
     + `Date "${DATE}"\nRev "${REV}"\n`
     + `Comp "Traction Inverter ${ident.sku} - ${ident.board}, sheet ${ident.sheet}"\n`
-    + `Comment1 "Inverter = Power board (HV) + bolt-on Discharge board (HV) + Control card (LV); safe state holds with any link lost"\n`
+    + `Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"\n`
     + `Comment2 "Content: ${ident.cells}"\n`
     + `Comment3 "${blocks.length} functional sections - ${page.total} components - cross-section links are net labels; wires are pin stubs only"\n`
     + `Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"\n$EndDescr\n${body}$EndSCHEMATC\n`;
@@ -989,7 +999,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
   const rootSch = `EESchema Schematic File Version 4\nEELAYER 30 0\nEELAYER END\n`
     + `$Descr User 12000 8000\nencoding utf-8\nSheet 1 1\n`
     + `Title "Traction Inverter 220 kW pk - schematic set"\nDate "${DATE}"\nRev "${REV}"\n`
-    + `Comp "Traction Inverter"\nComment1 "Power board (SiC 3-phase) sheet 1 - Discharge board sheet 2 - Control card (S32K396+FS26) sheet 3"\n`
+    + `Comp "Traction Inverter"\nComment1 "Power board sheet 1 - Cap bank sheet 2 - Discharge board sheet 3 - Control card sheet 4"\n`
     + `Comment2 "800 V-class, 120 kW cont / 220 kW pk, ASIL-D-capable architecture"\nComment3 ""\nComment4 ""\n$EndDescr\n`
     + `${root}$EndSCHEMATC\n`;
   writeFileSync(join(OUT, "traction.sch"), rootSch);

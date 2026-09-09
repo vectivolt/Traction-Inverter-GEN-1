@@ -64,6 +64,11 @@ Capacitor RMS current (2-level SVPWM): I_c,rms ≈ 0.62 · I_ph,rms → **211 Ar
 - Energy at 850 V: E = ½·320 µF·850² = **115.6 J** (discharge design input).
 - Voltage ripple: ΔV ≈ I_c/(8·f_sw·C_tot)-class ≈ negligible; ESL dominated — busbar item.
 - No series strings → no balance dividers; the passive bleeder below is the fixed load.
+- **Packaging (rev A.3): the 16 cans are a separate CAP BANK assembly** (sheet 2 of 4) — a
+  laminated busbar (two copper plates + insulation film) the cans solder/bolt onto, because
+  FR4 cannot carry the 340 A-class bus current. The sheet is the busbar vendor's electrical
+  drawing: entry lugs, 3× module DC tab pairs, discharge-board studs, 16 can positions. The
+  power PCB touches DCP/DCN only through its entry taps (Y-caps, HVIL, V_DC sense dividers).
 
 ## 4. DC-link discharge — checked (the review item)
 
@@ -72,7 +77,7 @@ Reference behaviour: XM3/TIDM ship a **purely passive** bleeder (9 × 68 kΩ 251
 network **verbatim** and adds an **active** path for the ≤2 s / ≤5 s automatic-discharge case.
 
 Rev A.3: the whole network — bleeder + active path — lives on a **separate bolt-on discharge
-board** (sheet 2 of 3), mounted directly across the cap-bank busbar studs, the XM3 pattern:
+board** (sheet 3 of 4), mounted directly across the cap-bank busbar studs, the XM3 pattern:
 the stored energy and its bleeder are one assembly and can never be separated. Bias + command
 arrive from the power board over a 4-way header (V15 / QDIS_CMD / 2× GND); the command line
 keeps its default-OFF pulldown on the power board, and the sheet's title block carries the
@@ -203,11 +208,28 @@ This is an *architecture capable of* ASIL D per the NXP GEN3 / TI TIDM-02014 pat
 formal claim needs the ISO 26262 work products (HARA, FMEDA, DFA), out of schematic scope.
 Every hardware mechanism those analyses rely on is present above.
 
+## 10a. Interboard links (how the four assemblies connect)
+
+Every net that crosses assemblies passes through a **named connector/stud/tab drawn on both
+sheets**, and `erc-audit.mjs` asserts both ends pin-by-pin. Same net name on two sheets =
+one net, joined only at that named interface (rule printed in every NET NAMING panel).
+
+| Link | Interface | Carries | Behaviour when lost |
+|---|---|---|---|
+| L1 power ⇄ card | `JIC` ⇄ `JICC`, 40-way harness | 6× gate PWM, FLT/RDY, EN/ASC, V_DC + NTC feedbacks, 15 V bias, grounds | every line default-OFF / pulled to safe → gates low, FS26 sees loss |
+| L2 power ⇄ discharge | `JDIS` ⇄ `JCTL`, 4-way (V15, QDIS_CMD, 2× GND) | active-discharge bias + command | opto dark → active path OFF; passive bleeder alone still meets < 60 s |
+| L3 busbar (cap bank) | `JCBE[PN]` lugs ⇄ HV entry cables · `JCB[UVW][PN]` tabs ⇄ EconoDUAL DC terminals · `JCBD[PN]` ⇄ `JDCP/JDCN` | the DC bus itself | bolted, torque-controlled joints; HVIL loop opens before any service parting |
+| L4 card ⇄ LEM ×3 | `JLEM` 10-way | 5 V per sensor + 3 hall outputs | pull-downs give implausible zero → MCU plausibility trips |
+| L5 HVIL | `JHVIL` (power) through the HV connector loop to the card monitor | interlock continuity | open = V_DDIO/2 signature → torque off + commanded discharge |
+
+QDIS_CMD's default-OFF pulldown lives on the **power board** (not only the discharge board),
+so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction.
+
 ## 11. Verification status (rev A.3)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1550/1550 (100 %)** · structural ERC **672 checks, 0 fail** ·
+geometric pin-verify **1560/1560 (100 %)** · structural ERC **687 checks, 0 fail** ·
 numeric worst-case verification **51 PASS / 3 WARN / 0 FAIL**, every constant
 datasheet-real. The campaign found and fixed 18 defects (log F1–F36 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback

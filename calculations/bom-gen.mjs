@@ -60,7 +60,7 @@ const subTotal = new Map();
 
 let md = `# Traction Inverter — BOM (rev A.3, generated ${new Date().toISOString().slice(0, 10)})
 
-220 kW pk / 800 V SiC traction inverter — Power board + bolt-on Discharge board + Control card.
+220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the
 LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
@@ -70,7 +70,7 @@ LEM sensor prices are quote-gated — figures below are the planning assumptions
 `;
 let grand = 0;
 const catTotal = new Map();
-for (const [board, path] of [["power", "power"], ["discharge", "discharge"], ["control-card", "control-card"]]) {
+for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["discharge", "discharge"], ["control-card", "control-card"]]) {
   const p = join(ROOT, "dist", "boards", path, "circuit.json");
   if (!existsSync(p)) { console.log(`!! missing build: ${board} — run npm run build first`); continue; }
   const j = JSON.parse(readFileSync(p, "utf8"));

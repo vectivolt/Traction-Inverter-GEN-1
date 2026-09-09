@@ -11,11 +11,11 @@
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1550%2F1550%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-533%20·%20172%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1560%2F1560%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-543%20·%20175%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-672%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-687%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -43,18 +43,29 @@
 
 ## 🎯 What this is
 
-**GEN-1** is a complete, netlist-verified schematic set + costed BOM for a three-board traction
+**GEN-1** is a complete, netlist-verified schematic set + costed BOM for a four-assembly traction
 inverter, generated from a single **tscircuit** source of truth:
 
 | Board | Domain | Contents | Parts |
 |---|---|---|---|
-| 🔴 **Power board** | HV (500–850 V) | 3× HIITIO `HCS600FH120D3C1` SiC half-bridges (EconoDUAL™ 3), 320 µF film DC-link (16× 20 µF 1100 V cans), 6× isolated gate-drive channels, dual gate-power flybacks, 2× isolated V<sub>DC</sub> senses, ASC buffer, HVIL loop | **290** |
+| 🔴 **Power board** | HV (500–850 V) | 3× HIITIO `HCS600FH120D3C1` SiC half-bridges (EconoDUAL™ 3), 6× isolated gate-drive channels, dual gate-power flybacks, 2× isolated V<sub>DC</sub> senses, ASC buffer, HVIL loop | **274** |
+| 🟡 **Cap bank** | HV (500–850 V) | Laminated-busbar assembly (not FR4 — it carries the 340 A bus): 16× 20 µF 1100 V film cans = 320 µF, entry lugs, 3× module DC tab pairs, discharge-board studs | **26** |
 | 🟠 **Discharge board** | HV (500–850 V) | Bolt-on across the cap bank (XM3 pattern): always-on 67.5 kΩ passive bleeder + commanded active discharge (1.88 kΩ / 1200 V SiC), default-OFF opto control | **24** |
 | 🔵 **Control card** | LV (KL30) | NXP **S32K396** lockstep MCU + **FS2633D** ASIL-D SBC, hardware gate-enable chain, ASC latch, resolver AFE, 3× hall-current AFE, 2× CAN-FD, vehicle interface | **219** |
 
-Power board and control card talk over one 40-way harness that is **default-OFF on every line
-it can float**; the discharge board bolts across the DC-link busbar and takes bias + command
-over a 4-way header, so the stored energy and its bleeder are never separated.
+### 🔗 Interboard links — every one explicit, both ends drawn + ERC-checked
+
+| Link | Carries | Ends (sheet ⇄ sheet) | If it fails |
+|---|---|---|---|
+| **L1** 40-way harness | gate PWM ×6, faults/RDY, V<sub>DC</sub> + NTC feedbacks, EN/ASC, 15 V bias | `JIC` (power) ⇄ `JICC` (card) | every line default-OFF → gates held low |
+| **L2** 4-way discharge link | V15 bias · `QDIS_CMD` · 2× GND | `JDIS` (power) ⇄ `JCTL` (discharge) | opto dark → active path OFF; 67.5 kΩ bleeder still discharges (57 s) |
+| **L3** laminated busbar | DC bus (340 A<sub>rms</sub> class) | `JCBE*` lugs ⇄ HV entry · `JCB[UVW]*` tabs ⇄ module DC terminals · `JCBD*` studs ⇄ `JDCP/JDCN` (discharge) | bolted metal — torque-audited, HVIL opens the loop first |
+| **L4** hall harness | 5 V per sensor + 3× current signals | `JLEM` (card) ⇄ 3× LEM HC5FW at the phase outputs | pull-downs → implausible-zero detected by MCU plausibility |
+| **L5** HVIL loop | interlock continuity through HV connector | `JHVIL` (power) ⇄ loop ⇄ card monitor | open = V<sub>DDIO</sub>/2 signature → controlled discharge |
+
+Same net name on two sheets means **one net, joined only at the named connector/stud/tab** —
+the rule is printed in every sheet's NET NAMING panel, and `erc-audit.mjs` asserts both ends
+of every link pin-by-pin (the 40-way map alone is 80 assertions).
 The design leans on three production references, read line-by-line: NXP **EV-INVERTERGEN3**
 (control architecture, adopted almost verbatim), Wolfspeed **CRD300DA12E-XM3** (discharge +
 gate-drive practice), and TI **TIDM-02014** (safety decomposition patterns).
@@ -73,9 +84,13 @@ cross-section wiring, sheet index + net-naming + safety panels, self-identifying
 
 **➡️ Open the PDF set: [`boards/out-pdf/`](boards/out-pdf/) · Import into EasyEDA Pro / KiCad 5: [`kicad5/Traction-Inverter-SHIP.zip`](kicad5/Traction-Inverter-SHIP.zip)**
 
-| Sheet 1 — Power board (HV) | Sheet 2 — Discharge board (HV) | Sheet 3 — Control card (LV) |
-|---|---|---|
-| [![Power board sheet](docs/img/sheet-power.png)](boards/out-pdf/) | [![Discharge board sheet](docs/img/sheet-disch.png)](boards/out-pdf/) | [![Control card sheet](docs/img/sheet-card.png)](boards/out-pdf/) |
+| Sheet 1 — Power board (HV) | Sheet 4 — Control card (LV) |
+|---|---|
+| [![Power board sheet](docs/img/sheet-power.png)](boards/out-pdf/) | [![Control card sheet](docs/img/sheet-card.png)](boards/out-pdf/) |
+
+| Sheet 2 — Cap bank (busbar assembly) | Sheet 3 — Discharge board (bolt-on) |
+|---|---|
+| [![Cap bank sheet](docs/img/sheet-capbank.png)](boards/out-pdf/) | [![Discharge board sheet](docs/img/sheet-disch.png)](boards/out-pdf/) |
 
 Every sheet carries its own review panels — the ASIL-D concept and the discharge verification
 are printed **on the drawing**, so the schematic is never the only artifact a reviewer holds:
@@ -151,7 +166,7 @@ Full derivations: [`docs/design-basis.md`](docs/design-basis.md)
 flowchart LR
   subgraph HV["🔴 POWER BOARD — HV domain"]
     direction TB
-    DCIN["HV DC entry<br/>M8 studs + Y-caps + HVIL"] --> LINK["DC LINK<br/>16× 20 µF/1100 V film = 320 µF"]
+    DCIN["HV DC entry<br/>M8 studs + Y-caps + HVIL"] --> LINK["CAP BANK busbar assembly<br/>16× 20 µF/1100 V film = 320 µF"]
     LINK --> BLEED["Passive bleeder 67.5 kΩ<br/>58 s → 60 V"]
     LINK --> ADIS["Bolt-on discharge board<br/>67.5 kΩ bleeder · 1.88 kΩ + 1200 V SiC · 1.6 s"]
     LINK --> MU["MOD U<br/>600 A SiC ½-bridge"]
@@ -259,8 +274,8 @@ stateDiagram-v2
 
 Both references ship only a passive bleeder; GEN-1 keeps that network **and** adds a
 default-OFF active path for the ≤2 s crash case — then *verifies* it. The whole network rides
-its own **bolt-on discharge board** (sheet 2 of 3) mounted across the cap-bank busbar, the
-XM3 pattern: the stored energy and its bleeder are one assembly.
+its own **bolt-on discharge board** (sheet 3 of 4) mounted across the cap-bank busbar
+(sheet 2), the XM3 pattern: the stored energy and its bleeder are one assembly.
 
 ```mermaid
 sequenceDiagram
@@ -291,7 +306,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹69,856 @1k volume** · 533 components · 172 lines · zero unmatched.
+**Electronics BOM: ₹69,996 @1k volume** · 543 components · 175 lines · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -420,7 +435,7 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
-  V -->|"1550/1550 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
+  V -->|"1560/1560 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
   SVG -->|"sheets-to-pdf.mjs<br/>(headless Chrome)"| PDF["📄 PDF set"]
@@ -431,8 +446,8 @@ Three independent verification layers — each with its own tool, none trusting 
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1550/1550 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **672 checks · 0 fail** |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1560/1560 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **687 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **51 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
 
 The rev A.3 verification campaign found and fixed **18 real defects** (F1–F36 log) — among them a gate
@@ -443,12 +458,12 @@ ASC drive that violated the driver's GND2+6 V absolute maximum (caught by readin
 NSI6611 datasheet — clamped at 5.1 V now).
 Full findings log + margin tables: [`docs/verification-report.md`](docs/verification-report.md).
 
-| Metric | Power | Discharge | Card | Total |
-|---|---|---|---|---|
-| Components | 290 | 24 | 219 | **533** |
-| Functional sections | 25 | 3 | 26 | 54 |
-| Net labels / pin stubs | 794 | 55 | 701 | 1,550 |
-| Sheet size | 44.6″ × 23.8″ | 14.6″ × 10.1″ | 40.6″ × 30.8″ | 3 sheets |
+| Metric | Power | Cap bank | Discharge | Card | Total |
+|---|---|---|---|---|---|
+| Components | 274 | 26 | 24 | 219 | **543** |
+| Functional sections | 24 | 2 | 3 | 26 | 55 |
+| Net labels / pin stubs | 762 | 42 | 55 | 701 | 1,560 |
+| Sheet size | 44.6″ × 23.3″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 40.6″ × 30.8″ | 4 sheets |
 
 ---
 
@@ -474,7 +489,7 @@ npm run bom       # docs/bom.md + per-board CSVs
 
 | Path | What lives there |
 |---|---|
-| [`boards/power.tsx`](boards/power.tsx) · [`boards/discharge.tsx`](boards/discharge.tsx) · [`boards/control-card.tsx`](boards/control-card.tsx) | **Source of truth** — the three board netlists |
+| [`boards/power.tsx`](boards/power.tsx) · [`boards/capbank.tsx`](boards/capbank.tsx) · [`boards/discharge.tsx`](boards/discharge.tsx) · [`boards/control-card.tsx`](boards/control-card.tsx) | **Source of truth** — the four assembly netlists |
 | [`packages/cells.tsx`](packages/cells.tsx) | Parameterized cells: gate-drive channel, flyback chain, iso V-sense, hall AFE, CAN, 40-way harness map |
 | [`calculations/parts-db.mjs`](calculations/parts-db.mjs) | Designator→MPN/LCSC/price/alt database + on-sheet safety/discharge panel text |
 | [`calculations/*.mjs`](calculations/) | The generator pipeline (pages · kicad5-gen · verify · print · pdf · bom) |

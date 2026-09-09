@@ -34,12 +34,9 @@ export default () => (
     <resistor name="RHVL2" resistance="100" footprint="0603" {...gp()} connections={{ pin1: "net.HVIL_LB", pin2: "net.HVIL_B" }} />
     <diode name="DTVSH" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.HVIL_B" }} />
 
-    {/* ---- DC LINK: 16x 20uF 1100V film (Faratronic C3D class — LCSC-stocked; DFM rev) ---- */}
-    {Array.from({ length: 16 }, (_, i) => i + 1).map((k) => (
-      <capacitor key={k} name={`CDC${k}`} capacitance="20uF" footprint={FilmCanFP()} {...gp()}
-        connections={{ pin1: "net.DCP", pin2: "net.DCN" }} />
-    ))}
-    {/* Bleeder + active discharge live on the SEPARATE bolt-on DISCHARGE BOARD (sheet 3 —
+    {/* The 16-can DC-link lives on the SEPARATE CAP BANK busbar assembly (sheet 2) — FR4
+        cannot carry the bus current; DCP/DCN reach this board only as sense/bias taps.
+        Bleeder + active discharge live on the SEPARATE bolt-on DISCHARGE BOARD (sheet 3 —
         the XM3 pattern: the network physically stays with the cap bank/busbar). This header
         carries its bias + command; QDIS_CMD keeps its default-OFF pulldown on this board. */}
     <chip name="JDIS" footprint={Header(4)} {...gp()}

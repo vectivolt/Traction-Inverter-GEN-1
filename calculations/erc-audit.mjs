@@ -57,15 +57,17 @@ function load(board) {
 }
 
 const PWR = load("power");
+const CB = load("capbank");
 const DIS = load("discharge");
 const CARD = load("control-card");
 const P = (k) => PWR.pinNet.get(k);
+const B = (k) => CB.pinNet.get(k);
 const D = (k) => DIS.pinNet.get(k);
 const C = (k) => CARD.pinNet.get(k);
 const same = (a, b) => a !== undefined && a === b;
 
 // ---------- generic: single-pin named nets (dead labels) ----------
-for (const [b, DD] of [["power", PWR], ["discharge", DIS], ["card", CARD]]) {
+for (const [b, DD] of [["power", PWR], ["capbank", CB], ["discharge", DIS], ["card", CARD]]) {
   for (const [net, pins] of DD.netPins) {
     if (net.startsWith("@") || net.startsWith("NC_")) continue;
     // de-dup alias ports (anode+pin1 on one physical pin)
@@ -139,8 +141,22 @@ for (const st of [0, 1]) {
     ok(same(D(`RBLD${st * 5 + k}.pin2`), D(`RBLD${st * 5 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
 }
 let nCDC = 0;
-for (let k = 1; k <= 16; k++) if (same(P(`CDC${k}.pin1`), "DCP") && same(P(`CDC${k}.pin2`), "DCN")) nCDC++;
-ok(nCDC === 16, "16 link caps across DCP/DCN", `${nCDC}`);
+for (let k = 1; k <= 16; k++) if (same(B(`CDC${k}.pin1`), "DCP") && same(B(`CDC${k}.pin2`), "DCN")) nCDC++;
+ok(nCDC === 16, "cap bank: 16 link cans across DCP/DCN", `${nCDC}`);
+
+// ---------- interboard links: both ends of every board-to-board connection ----------
+// L3 busbar: every terminal position on the cap-bank drawing, and its mate on the other sheet
+for (const t of ["E", "U", "V", "W", "D"]) {
+  ok(same(B(`JCB${t}P.P`), "DCP") && same(B(`JCB${t}N.P`), "DCN"), `busbar terminal pair ${t} on DCP/DCN`);
+}
+ok(same(P("JHVP.P"), "DCP") && same(P("JHVN.P"), "DCN"), "power-board entry taps mate the busbar entry lugs");
+// L2 power<->discharge control link: 4-way, role-for-role including the redundant ground
+ok(same(P("JDIS.GND2"), "DGND") && same(D("JCTL.GND2"), "DGND"), "discharge link redundant ground on both ends");
+// L4 card<->LEM halls: connector supplies each sensor and returns its output, per phase
+for (const x of ["U", "V", "W"]) {
+  ok(same(C(`JLEM.S5${x}`), `V5S_${x}`) && same(C(`USNS${x}.VCC`), `V5S_${x}`), `LEM ${x} supply through JLEM`);
+  ok(same(C(`JLEM.O${x}`), `HALL_${x}`) && same(C(`USNS${x}.OUT`), `HALL_${x}`), `LEM ${x} signal through JLEM`);
+}
 ok(same(P("CY1.pin1"), "DCP") && same(P("CY1.pin2"), "PE") && same(P("CY2.pin1"), "DCN") && same(P("CY2.pin2"), "PE"), "Y caps to chassis");
 
 // ---------- iso sensing ----------
