@@ -17,7 +17,7 @@
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
   <img alt="ERC" src="https://img.shields.io/badge/ERC-782%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-82%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
-  <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S7%20·%2018%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2021%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
@@ -453,7 +453,7 @@ Four independent verification layers — each with its own tool, none trusting t
 | Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **82 PASS · 4 WARN · 0 FAIL** (all constants datasheet-real, incl. the IGBT-variant block) |
-| Circuits ⇄ time/frequency domain | `sim-verify.mjs` | cycle-by-cycle flyback, boost Bode, SVPWM DC-link ripple, 30 s thermal transient, discharge ODE, current-loop PM | **18 PASS · 1 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
+| Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: cycle-by-cycle flyback, boost Bode, SVPWM ripple, 30 s thermal, discharge ODE, current-loop PM, parametric double-pulse, SC/DESAT timeline, ASC hold-up | **21 PASS · 2 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 
 ### 🔍 The review campaign — five external rounds, every claim verified at the source
 
@@ -515,9 +515,8 @@ Generate with `npm run bom:igbt`; the verification report carries a dedicated
 ## 🧪 Simulation — the drawn circuits at their operating points
 
 `calculations/sim-verify.mjs` numerically simulates the released netlist's circuits in the
-time and frequency domain (`npm run verify` runs all three numeric gates). **18 PASS ·
-1 WARN · 0 FAIL** — full table with per-row modeling assumptions:
-[`docs/simulation-report.md`](docs/simulation-report.md).
+time and frequency domain. **21 PASS · 2 WARN · 0 FAIL** — full table with per-row modeling
+assumptions: [`docs/simulation-report.md`](docs/simulation-report.md).
 
 | # | Simulation | Key result |
 |---|---|---|
@@ -528,11 +527,15 @@ time and frequency domain (`npm run verify` runs all three numeric gates). **18 
 | S5 | Discharge ODE incl. 2.5 ms bias startup | **1.53 s nom / 1.76 s worst** to 60 V (≤2 s crash target); ≤99 W · ~31 J per 470 Ω |
 | S6 | Current-loop phase margin (drawn filters + double-update FOC) | 58° @1 kHz → **firmware bandwidth ceiling ≤1.2 kHz** for ≥45° |
 | S7 | Gate switching event vs driver | 8.6/14.3 A demand vs the 10 A-class driver (source-limited) |
+| S8 | Double-pulse turn-off, parametric L_loop @850 V/481 A | budget **18 nH** for ≤90 % V_DS (busbar target ≤15 nH holds); breaking point 42 nH |
+| S9 | Shoot-through fault → DESAT timeline (both silicon) | SiC cleared **2.4 µs/5.6 J** (3 µs class) · IGBT **4.3 µs/6.3 J** (10 µs, I_SC 1800 A) |
+| S10 | ASC hold-up through total LV loss | **≈15 ms** (VCC2 caps) → sustained ASC requires KL30 — stated operating limit |
 
 | | |
 |---|---|
 | ![S1](docs/img/sim/s1-flyback-startup.svg) | ![S2](docs/img/sim/s2-boost-bode.svg) |
 | ![S4](docs/img/sim/s4-thermal-30s.svg) | ![S5](docs/img/sim/s5-discharge.svg) |
+| ![S8](docs/img/sim/s8-double-pulse.svg) | ![S9](docs/img/sim/s9-shortcircuit.svg) |
 
 <p align="center"><img src="docs/img/sim/s3-dclink-ripple.svg" width="70%" alt="SVPWM DC-link capacitor current simulation"/></p>
 

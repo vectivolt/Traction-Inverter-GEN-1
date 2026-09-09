@@ -273,6 +273,16 @@ one net, joined only at that named interface (rule printed in every NET NAMING p
 QDIS_CMD's default-OFF pulldown lives on the **power board** (not only the discharge board),
 so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction.
 
+### ASC hold-up operating limit (S10)
+
+Simulated: after a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for only
+**≈15 ms** (15.6 → 10.4 V UVLO at ~5 mA/channel). Sustained ASC therefore **requires KL30
+present** — the FS26 (GPIO1) holds the flybacks up through faults, but not through a dead
+12 V system. Vehicle-level allocation: the safe-state argument above overspeed credits ASC
+only while LV is alive; a dead-LV coast-down relies on three-phase-open (gates parked low
+by UVLO) and the passive bleeder. Bench: measure the real hold window and the FS26
+entry/exit sequence.
+
 ## 11. Verification status (current release: rev A.5)
 
 Three independent verification layers gate every release (see

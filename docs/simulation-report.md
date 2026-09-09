@@ -28,14 +28,22 @@ are flagged in each row's note.
 | S6 | Max crossover for 45° margin | 1.39 kHz | design statement: loop BW ≤1.2 kHz | ✅ PASS | sets the firmware bandwidth ceiling with the drawn filters |
 | S7 | Gate peak current (on/off) | 8.6 / 14.3 A | 10 A driver class | ✅ PASS | off-path exceeds 10 A only into the nominal short — real Ipk source-limited by the driver |
 | S7 | Effective switching time (Qg model) | 240 / 145 ns | - | ℹ️ | double-pulse remains the bench gate for dv/dt, overshoot and Rg trim |
+| S8 | Loop-L budget for Vds ≤ 90 % (1080 V) | 18 nH | busbar target ≤15 nH (design basis) | ✅ PASS | at the fast 20 kA/µs corner; slower Rg trim relaxes it |
+| S8 | Breaking point (Vds = 1200 V abs) | 42 nH | - | ℹ️ | the laminated-busbar spec line exists to stay 2× under this; double-pulse closes the real number |
+| S9 | Fault cleared, SiC build | 2.4 µs · E ≈ 5.6 J | 3 µs-class withstand | ✅ PASS | SiC tSC unpublished — 3 µs class assumed, vendor letter is the gate |
+| S9 | Fault cleared, IGBT variant | 4.3 µs · E ≈ 6.3 J | 10 µs-class withstand | ✅ PASS | Isc 1800 A per DS; 10 µs class |
+| S10 | ASC hold-up after TOTAL LV loss | 15 ms (VCC2 15.6→10.4 V) | - | ⚠️ WARN | operating limit: sustained ASC REQUIRES KL30 present (FS26 GPIO1 holds the flybacks). Vehicle-level: ASC is not credited through a dead 12 V system — stated in the safety concept |
 
-**18 PASS · 1 WARN · 0 FAIL**
+**21 PASS · 2 WARN · 0 FAIL**
 
 ![S1](img/sim/s1-flyback-startup.svg)
 ![S2](img/sim/s2-boost-bode.svg)
 ![S3](img/sim/s3-dclink-ripple.svg)
 ![S4](img/sim/s4-thermal-30s.svg)
 ![S5](img/sim/s5-discharge.svg)
+![S8](img/sim/s8-double-pulse.svg)
+![S9](img/sim/s9-shortcircuit.svg)
+![S10](img/sim/s10-asc-holdup.svg)
 
 ## Modeling assumptions (each is a named bench-closure item)
 - S1: transformer leakage 2 % of Lp; converter losses lumped at 8 %; P-control stands in for the UCC28C40 error amp.
@@ -43,8 +51,13 @@ are flagged in each row's note.
 - S4: coldplate 0.045 K/W per switch to 65 °C coolant; single-τ nodes (no vendor Zth curve published).
 - S5: 2.5 ms bias-startup dead time before the active path conducts.
 - S6: motor 0.35 mH / 25 mΩ assumed; PI tuned by the L·ωc rule.
+- S8: 20 kA/µs fast-corner di/dt, module Coss 5 nF class, first-overshoot ring fraction 0.25.
+- S9: 100 nH shoot-through stray, desat saturation clamp at the device limit, 1 µs soft-off.
+- S10: 5 mA static driver load per channel; gates not switching during the hold.
 
-## Explicitly NOT simulatable at schematic stage (bench/vendor gates)
-Commutation-loop overshoot (needs layout L), SiC short-circuit withstand (vendor/bench),
-transformer core saturation at the CS limit (bench), EMI/CISPR (hardware), FS26 VCORE loop
-(internally compensated — component selections verified against Table 106 instead).
+## What simulation cannot close (bench/vendor gates — the numbers above bound them)
+S8 gives the loop-inductance BUDGET; the real busbar L and waveform come from double-pulse.
+S9 gives the reaction TIMELINE; SiC withstand needs the vendor letter (tSC unpublished).
+S10 gives the hold WINDOW; the FS26-orchestrated entry/exit sequence is a bench script.
+Still hardware-only: transformer core saturation at the CS limit, EMI/CISPR, measured
+regulator Bode/load steps, FS26 VCORE loop (internally compensated — parts per Table 106).

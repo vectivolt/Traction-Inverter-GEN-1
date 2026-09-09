@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sim-verify.mjs — operating-point SIMULATION layer (S1–S7), on top of the closed-form
+// sim-verify.mjs — operating-point SIMULATION layer (S1–S10), on top of the closed-form
 // design-verify. These are numerical time/frequency-domain simulations of the drawn
 // circuits at the actual operating conditions — not measured waveforms. Items that
 // physically require hardware (layout parasitics, core saturation, SC withstand, EMI)
@@ -226,6 +226,73 @@ function plot(file, title, series, xlab, ylab) {
     "double-pulse remains the bench gate for dv/dt, overshoot and Rg trim");
 }
 
+// ============ S8 — double-pulse turn-off, parametric commutation loop ============
+// Vds(t) = Vbus + Lloop·di/dt + ring into Coss; di/dt from the gate model (off-path
+// 14.3 A into ~Qgd) parametrically derated for bench Rg trim. Sweep Lloop to find the
+// budget and the breaking point at 850 V / 481 A (peak device current at 340 Arms).
+{
+  const Vbus = 850, Ipk = 481, Coss = 5e-9;      // module-level output C (class figure)
+  const sweep = { x: [], y: [] };
+  let lBudget = 0, lBreak = 0;
+  for (let Ln = 5e-9; Ln <= 60e-9; Ln += 1e-9) {
+    // di/dt: 20 kA/µs gate-limited fast corner (Rg as drawn), ring adds √(L/C) term
+    const didt = 20e9 * 1e-6 / 1e-6;             // 20 kA/µs in A/s
+    const vSpike = Ln * 20e12 * 1e-6;            // Ln · 20 kA/µs
+    const vRing = Ipk * Math.sqrt(Ln / Coss) * 0.25; // damped first overshoot fraction
+    const vpk = Vbus + vSpike + vRing;
+    sweep.x.push(Ln * 1e9); sweep.y.push(vpk);
+    if (vpk <= 0.9 * 1200 && lBudget < Ln) lBudget = Ln;
+    if (vpk <= 1200) lBreak = Ln;
+  }
+  plot("s8-double-pulse.svg", "S8 turn-off Vds peak vs commutation-loop inductance (850 V, 481 A, 20 kA/µs)",
+    [{ name: "Vds,pk (V)", x: sweep.x, y: sweep.y }], "L_loop (nH)", "V");
+  add("S8", "Loop-L budget for Vds ≤ 90 % (1080 V)", `${f(lBudget * 1e9, 0)} nH`, "busbar target ≤15 nH (design basis)",
+    lBudget * 1e9 >= 15 ? "PASS" : "FAIL", "at the fast 20 kA/µs corner; slower Rg trim relaxes it");
+  add("S8", "Breaking point (Vds = 1200 V abs)", `${f(lBreak * 1e9, 0)} nH`, "-", "ℹ️",
+    "the laminated-busbar spec line exists to stay 2× under this; double-pulse closes the real number");
+}
+
+// ============ S9 — short-circuit fault: DESAT reaction timeline, SiC + IGBT variant ============
+// Hard-switch fault: i(t) = (Vbus/Lsc)·t until desaturation; DESAT charges its blanking C
+// (500 µA) + LEB 200 ns + deglitch 320 ns, then soft-off. Device sees E = ∫V·I dt.
+{
+  for (const [tag, Cbl, vTrip, iSat, tWith] of [["SiC build", 47e-12, 8.1, 3200, 3], ["IGBT variant", 150e-12, 5.75, 1800, 10]]) {
+    const Vbus = 850, Lsc = 100e-9;              // shoot-through loop (stray only) — worst case
+    const dt = 10e-9; let i = 0, t = 0, vbl = 0, tripped = -1, Epul = 0;
+    const trI = { x: [], y: [] };
+    while (t < 12e-6) {
+      i = Math.min(iSat, i + (Vbus / Lsc) * dt); // desat clamps the ramp at the device limit
+      const vds = i >= iSat ? Vbus : Math.min(Vbus, i * 5.7e-3 + (i / iSat) * 40); // channel then desat rise
+      if (t > 200e-9) vbl = Math.min(9.3, vbl + (0.5e-3 / Cbl) * dt * (vds > vTrip ? 1 : 0.2));
+      if (tripped < 0 && vbl >= 9.3) tripped = t + 320e-9 + 1.0e-6;  // deglitch + soft-off
+      Epul += vds * i * dt;
+      if (tripped > 0 && t >= tripped) break;
+      t += dt;
+      if (trI.x.length < 500) { trI.x.push(t * 1e6); trI.y.push(i); }
+    }
+    if (tag === "SiC build") plot("s9-shortcircuit.svg", "S9 shoot-through fault: current ramp to DESAT trip + soft-off (SiC build)",
+      [{ name: "i_fault (A)", x: trI.x, y: trI.y }], "time (µs)", "A");
+    add("S9", `Fault cleared, ${tag}`, `${f(t * 1e6, 1)} µs · E ≈ ${f(Epul, 1)} J`, `${tWith} µs-class withstand`,
+      t * 1e6 < tWith * 0.8 ? "PASS" : "WARN",
+      tag === "SiC build" ? "SiC tSC unpublished — 3 µs class assumed, vendor letter is the gate" : "Isc 1800 A per DS; 10 µs class");
+  }
+}
+
+// ============ S10 — ASC hold-up through total LV loss ============
+// KL30 gone → flybacks die in ~1 ms → LS VCC2 rail caps (14.7 µF/channel) carry the
+// drivers; ASC output holds until VCC2 falls to UVLO-off (10.4 V typ). Load: driver
+// quiescent ≈5 mA (no switching during ASC hold — gates static).
+{
+  const C = 14.7e-6, Iq = 5e-3, V0 = 15.6, Vuv = 10.4;
+  const tr = { x: [], y: [] }; let V = V0, t = 0; const dt = 1e-4;
+  while (V > Vuv - 1 && t < 40e-3) { V -= (Iq / C) * dt; t += dt; tr.x.push(t * 1e3); tr.y.push(V); }
+  const hold = C * (V0 - Vuv) / Iq;
+  plot("s10-asc-holdup.svg", "S10 LS driver VCC2 decay after total LV loss (ASC hold window)",
+    [{ name: "VCC2 (V)", x: tr.x, y: tr.y }], "time (ms)", "V");
+  add("S10", "ASC hold-up after TOTAL LV loss", `${f(hold * 1e3, 0)} ms (VCC2 15.6→10.4 V)`, "-", "WARN",
+    "operating limit: sustained ASC REQUIRES KL30 present (FS26 GPIO1 holds the flybacks). Vehicle-level: ASC is not credited through a dead 12 V system — stated in the safety concept");
+}
+
 // ============ report ============
 let md = `# Simulation report (rev ${REV} · generated ${new Date().toISOString().slice(0, 10)})
 
@@ -251,6 +318,9 @@ md += `
 ![S3](img/sim/s3-dclink-ripple.svg)
 ![S4](img/sim/s4-thermal-30s.svg)
 ![S5](img/sim/s5-discharge.svg)
+![S8](img/sim/s8-double-pulse.svg)
+![S9](img/sim/s9-shortcircuit.svg)
+![S10](img/sim/s10-asc-holdup.svg)
 
 ## Modeling assumptions (each is a named bench-closure item)
 - S1: transformer leakage 2 % of Lp; converter losses lumped at 8 %; P-control stands in for the UCC28C40 error amp.
@@ -258,11 +328,16 @@ md += `
 - S4: coldplate 0.045 K/W per switch to 65 °C coolant; single-τ nodes (no vendor Zth curve published).
 - S5: 2.5 ms bias-startup dead time before the active path conducts.
 - S6: motor 0.35 mH / 25 mΩ assumed; PI tuned by the L·ωc rule.
+- S8: 20 kA/µs fast-corner di/dt, module Coss 5 nF class, first-overshoot ring fraction 0.25.
+- S9: 100 nH shoot-through stray, desat saturation clamp at the device limit, 1 µs soft-off.
+- S10: 5 mA static driver load per channel; gates not switching during the hold.
 
-## Explicitly NOT simulatable at schematic stage (bench/vendor gates)
-Commutation-loop overshoot (needs layout L), SiC short-circuit withstand (vendor/bench),
-transformer core saturation at the CS limit (bench), EMI/CISPR (hardware), FS26 VCORE loop
-(internally compensated — component selections verified against Table 106 instead).
+## What simulation cannot close (bench/vendor gates — the numbers above bound them)
+S8 gives the loop-inductance BUDGET; the real busbar L and waveform come from double-pulse.
+S9 gives the reaction TIMELINE; SiC withstand needs the vendor letter (tSC unpublished).
+S10 gives the hold WINDOW; the FS26-orchestrated entry/exit sequence is a bench script.
+Still hardware-only: transformer core saturation at the CS limit, EMI/CISPR, measured
+regulator Bode/load steps, FS26 VCORE loop (internally compensated — parts per Table 106).
 `;
 writeFileSync(join(ROOT, "docs", "simulation-report.md"), md);
 console.log(`sim-verify: ${pass} PASS · ${warn} WARN · ${fail} FAIL → docs/simulation-report.md + docs/img/sim/`);
