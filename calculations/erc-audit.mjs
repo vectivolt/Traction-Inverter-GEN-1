@@ -242,6 +242,11 @@ ok(same(C("ULDOEX.IN"), "VBATC") && same(C("ULDOEX.OUT"), "VEXD") && same(C("RLD
 ok(same(C("CLDEC.pin1"), "VEXD") && same(C("CLDEC.pin2"), "VEXVA"), "ULDOEX feed-forward compensation fitted");
 // ULDO15 compensation (ADJ + ceramic COUT needs Cb across the top divider leg)
 ok(same(P("CLDC.pin1"), "V15") && same(P("CLDC.pin2"), "V15VA"), "ULDO15 feed-forward compensation fitted");
+
+// ---------- rev A.4.3: fourth-round review corrections ----------
+ok(same(P("RB15C.pin1"), "B15CO") && same(P("CB15CC.pin1"), "B15CZ") && same(P("CB15CC.pin2"), "DGND"),
+  "UB15 COMP has the series R3/C4 pole-zero network (TI 8.2.1.2.11)");
+ok(same(P("CB15C.pin1"), "B15CO") && same(P("CB15C.pin2"), "DGND"), "UB15 COMP high-frequency pole cap");
 // Card: gate-power feeds are actually sourced (polyfused off the reverse-protected node)
 ok(same(C("FVBH.A"), "NRC") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card");
 ok(same(C("FVBL.A"), "NRC") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card");

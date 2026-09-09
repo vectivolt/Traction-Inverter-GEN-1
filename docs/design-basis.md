@@ -229,10 +229,10 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1691/1691 (100 %)** · structural ERC **779 checks, 0 fail** ·
-numeric worst-case verification **73 PASS / 3 WARN / 0 FAIL**, every constant
+geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
+numeric worst-case verification **75 PASS / 3 WARN / 0 FAIL**, every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
-external-review response confirmed and fixed 10 more (F37–F46), the second round 5 more (F47–F51), and the third round 6 more (F52–F57 in the report),
+external-review response confirmed and fixed 10 more (F37–F46), the second round 5 more (F47–F51), the third round 6 more (F52–F57), and the fourth round 2 more (F58–F59 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback
 controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
 re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
@@ -348,7 +348,11 @@ Accepted qualifications from the same round, on record:
   inside the 1.1–3.3 µF window) — not one capacitor at a time.
 - **ASC with VCC1 lost**: per the NSI6611 DS, DESAT protection is unavailable when VCC1 is
   open while ASC still operates — so "a faulted switch is never forced on" holds only with
-  VCC1 present. The V5GD LDO is KL30-held (A.4), making VCC1-loss a double-fault, but the
+  VCC1 present. Classification corrected in round 4: a UGDL open-output or a V5GD
+  interconnect break is a SINGLE initiating failure that removes VCC1 (the KL30-held
+  enable is availability, not redundancy). VCC1-UVLO parks the driver outputs low —
+  three-phase open — and ASC remains commandable per the DS, so the safe states stay
+  reachable; the
   case is added to the ASC bench matrix (entry/exit, VCC1 brown-out, VCC2 UVLO ride).
 - **ULDO15/ULDOEX in TSD** (sustained >20 V LV) suspends active discharge, ASC bias and
   resolver excitation — availability is not credited in that stationary service state.

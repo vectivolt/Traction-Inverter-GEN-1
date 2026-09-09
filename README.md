@@ -11,11 +11,11 @@
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1691%2F1691%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-590%20·%20192%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1695%2F1695%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-592%20·%20193%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-779%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-782%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -306,7 +306,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹70,090 @1k volume** · 590 components · 192 lines · zero unmatched.
+**Electronics BOM: ₹70,091 @1k volume** · 592 components · 193 lines · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -435,7 +435,7 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
-  V -->|"1691/1691 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
+  V -->|"1695/1695 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
   SVG -->|"sheets-to-pdf.mjs<br/>(headless Chrome)"| PDF["📄 PDF set"]
@@ -446,9 +446,17 @@ Three independent verification layers — each with its own tool, none trusting 
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1691/1691 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **779 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **73 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+
+Rev A.4.3 closed round four: the LCOR value/MPN/BOM/OTP now agree end-to-end (the class
+part string had kept printing 4.7 µH after the value fix), and the TPS55340 boost got its
+real compensation network (series 2 kΩ/100 nF per TI §8.2.1.2.11 — the lone 10 nF gave a
+~0° screening phase margin). Two review narratives were corrected rather than the hardware:
+CBOOT_PRE at 100 nF was legal per Rev 6.1's 22–100 nF window (22 nF kept as the typ), and
+VCC1 loss is reclassified as a single initiating failure (UGDL open) whose outcome is
+three-phase-open with ASC still commandable.
 
 Rev A.4.2 closed round three: **6 more confirmed defects fixed (F52–F57)** — the FS26
 VCORE/VPRE buck passives brought to Table-106 selections (2.2 µH OTP inductor, effective-
@@ -489,9 +497,9 @@ Full findings log + margin tables: [`docs/verification-report.md`](docs/verifica
 
 | Metric | Power | Cap bank | Discharge | Card | Total |
 |---|---|---|---|---|---|
-| Components | 290 | 26 | 24 | 250 | **590** |
+| Components | 292 | 26 | 24 | 250 | **592** |
 | Functional sections | 24 | 2 | 3 | 26 | 55 |
-| Net labels / pin stubs | 803 | 42 | 55 | 791 | 1,691 |
+| Net labels / pin stubs | 807 | 42 | 55 | 791 | 1,695 |
 | Sheet size | 44.6″ × 22.8″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 44.6″ × 25.3″ | 4 sheets |
 
 ---

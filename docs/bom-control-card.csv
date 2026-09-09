@@ -22,7 +22,7 @@ Qty,Designators,Value,MPN,Manufacturer,Description,LCSC,Footprint,Price1k_INR,Ex
 1,"LSBC","","IND-10uH-2A","any","VPRE buck inductor 10 uH (450 kHz)",CLASS,"IND6x6",8,8,"any shielded"
 4,"DCOSP DSINP TVSC1 TVSC2","","PESD2IVN24-T","Nexperia","resolver pair ESD clamp — real dual-line 3-pin part (rev A.4: 2-terminal PESD cannot implement the drawn A/B/G array)",C406047,"SOT23",2,8,"PESD2CAN"
 1,"DTVSC","","TPSMC24CA","Littelfuse","24 V TVS on card 12 V entry (LCSC as -VR packing)",C1975284,"SMC",6,6,"SMCJ24CA"
-1,"LCOR","","IND-4.7uH-2A","any","VCORE buck inductor",CLASS,"IND5x5",6,6,"any"
+1,"LCOR","","IND-2.2uH-4A","any","VCORE buck inductor 2.2 uH (FS26 Table 106, CORE_LSEL_OTP=0x02; eff 1.5-2.9 uH)",CLASS,"IND5x5",6,6,"any shielded, Isat > 4 A"
 1,"QBAL","","SQ2310ES","Vishay","core ballast NMOS V15S->V11 1.14 V, BCTRL-regulated (S32K39 DS Table 11 topology; GEN3-exact part — F36)",CLASS,"SOT23",6,6,"AO3400A class"
 14,"RASCP RBOOT RCPD0 RCPD1 RCPD2 RCPD3 RGPD RILK1 RILK2 RILK3 RILK4 RLAT1 RLAT2 RMRST","10k","R0603-10k","any","RESET_B pull-up",CLASS,"R0603",0.3,4.2,"any"
 8,"RVD1A RVD1B RVD1C RVD1D RVD2A RVD2B RVD2C RVD2D","10k","R0603-10k-0.1%","any","VDC diff-amp gain set 10k (matched)",CLASS,"R0603",0.5,4,"any 0.1%"

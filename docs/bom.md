@@ -7,7 +7,7 @@ Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio m
 LEM sensor prices are quote-gated — figures below are the planning assumptions.
 `CLASS` = buy to the rating printed on the sheet; `ALT` = footprint-compatible second source.
 
-## power — 290 components, 85 BOM lines, ≈ ₹58,593 @1k
+## power — 292 components, 86 BOM lines, ≈ ₹58,594 @1k
 
 CSV: [`docs/bom-power.csv`](bom-power.csv). Top cost lines:
 
@@ -95,7 +95,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | VDC iso sensing + bias | 340 | 0.5% | 98.0% | 21 |
 | Resolver AFE | 272 | 0.4% | 98.4% | 48 |
 | Harness + pulldowns | 245 | 0.3% | 98.7% | 17 |
-| LV power (prot+LDO+boost) | 239 | 0.3% | 99.0% | 26 |
+| LV power (prot+LDO+boost) | 239 | 0.3% | 99.0% | 28 |
 | HV entry/Y-caps/HVIL/studs | 208 | 0.3% | 99.3% | 14 |
 | ASC buffer | 139 | 0.2% | 99.5% | 7 |
 | CAN-FD x2 | 132 | 0.2% | 99.7% | 14 |
@@ -117,7 +117,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | isolation | 421 | 0.6% |
 | resistors | 164 | 0.2% |
 | protection + diodes | 159 | 0.2% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **70,090** | 100% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **70,091** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.

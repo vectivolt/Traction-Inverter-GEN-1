@@ -147,7 +147,12 @@ export default () => (
     <capacitor name="CB15O2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.DGND" }} />
     <resistor name="RB15F1" resistance="110k" footprint="0603" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.B15FB" }} />
     <resistor name="RB15F2" resistance="9.53k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FB", pin2: "net.DGND" }} />
-    <capacitor name="CB15C" capacitance="10nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15CO", pin2: "net.DGND" }} />
+    {/* UB15 loop compensation per TI §8.2.1.2.11: series R3/C4 on COMP make the pole+zero
+        (starting values 2 k / 100 nF from the DS); small parallel C5 for the HF pole.
+        Rev A.4.3 — a lone 10 nF to ground gave no zero and ~0° screening phase margin. */}
+    <resistor name="RB15C" resistance="2k" footprint="0603" {...gp()} connections={{ pin1: "net.B15CO", pin2: "net.B15CZ" }} />
+    <capacitor name="CB15CC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15CZ", pin2: "net.DGND" }} />
+    <capacitor name="CB15C" capacitance="470pF" footprint="0603" {...gp()} connections={{ pin1: "net.B15CO", pin2: "net.DGND" }} />
     {/* V15 protective post-regulator (rev A.4.1): a boost cannot regulate below its input —
         when V12L rides above ~15.5 V (24 V jump start, clamped load dump) the LB15/DB15
         path feeds V15 directly. NCV4276C-ADJ (40 V in, 400 mA) sits in mild dropout in

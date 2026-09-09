@@ -153,7 +153,7 @@ export const DB = [
   { m: /^USBC$/, mpn: "FS2633D", mfr: "NXP", desc: "ASIL-D SBC: VPRE 5.4V buck / VCORE 1.5V buck / VREF 5V / LDO1 3.3V / LDO2 5V, Q&A WD, FCCU, FS0B/FS1B (GEN3 exact; pin map VERIFY vs DS). Production via NXP direct; LCSC lists MFS2633AMBA0AD C5191165 in single digits (proto); OTP variant must match", fp: "HLQFP48", price1k: 480, alt: "FS2630 variants" },
   { m: /^LSBC$/, mpn: "IND-10uH-2A", mfr: "any", desc: "VPRE buck inductor 10 uH (450 kHz)", fp: "IND6x6", price1k: 8, alt: "any shielded" },
   { m: /^QBAL$/, mpn: "SQ2310ES", mfr: "Vishay", desc: "core ballast NMOS V15S->V11 1.14 V, BCTRL-regulated (S32K39 DS Table 11 topology; GEN3-exact part — F36)", fp: "SOT23", price1k: 6, alt: "AO3400A class" },
-  { m: /^LCOR$/, mpn: "IND-4.7uH-2A", mfr: "any", desc: "VCORE buck inductor", fp: "IND5x5", price1k: 6, alt: "any" },
+  { m: /^LCOR$/, mpn: "IND-2.2uH-4A", mfr: "any", desc: "VCORE buck inductor 2.2 uH (FS26 Table 106, CORE_LSEL_OTP=0x02; eff 1.5-2.9 uH)", fp: "IND5x5", price1k: 6, alt: "any shielded, Isat > 4 A" },
   { m: /^CSB\d+$/, mpn: "MLCC-CLASS", mfr: "any", desc: "SBC rail caps (ESR windows per FS26 DS — do not substitute blindly, GEN3 note)", fp: "C0805", price1k: 0.5, alt: "per DS" },
   { m: /^RSB\d+$/, mpn: "R0603-CLASS", mfr: "any", desc: "SBC straps/monitors (VMONEXT divider 10k/18.7k, pulls)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^DBAT$/, mpn: "BAT46ZFILM", mfr: "ST", desc: "BATSENSE diode (GEN3 exact; LCSC-stocked)", fp: "SOD123", lcsc: "C283255", price1k: 1.5, alt: "CDBW46-G" },
