@@ -6,6 +6,7 @@ LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
 LEM sensor prices are quote-gated — figures below are the planning assumptions.
 `CLASS` = buy to the rating printed on the sheet; `ALT` = footprint-compatible second source.
+Base SiC build: [`docs/bom.md`](bom.md).
 
 ## power — 292 components, 87 BOM lines, ≈ ₹33,891 @1k
 

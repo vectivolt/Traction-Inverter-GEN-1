@@ -1,4 +1,4 @@
-# Traction Inverter — Design Basis (rev A.3, 2026-09-09)
+# Traction Inverter — Design Basis (rev A.5)
 
 A standalone product: an economical, ASIL-D-capable **220 kW-class, 800 V** SiC traction
 inverter (passenger EV / commercial traction, NOT an LEV drive). Two boards: **Power (HV)** +
@@ -273,7 +273,7 @@ one net, joined only at that named interface (rule printed in every NET NAMING p
 QDIS_CMD's default-OFF pulldown lives on the **power board** (not only the discharge board),
 so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction.
 
-## 11. Verification status (rev A.3)
+## 11. Verification status (current release: rev A.5)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):

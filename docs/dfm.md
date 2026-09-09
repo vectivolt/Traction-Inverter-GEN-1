@@ -11,7 +11,7 @@ busbar assembly, bolt-on discharge PCB, control card). Grounded in two live sour
 
 | Tier | Lines | Parts | Channel |
 |---|---|---|---|
-| T1 Direct | HCS600FH120D3C1 ×3, HCM75S12T4K3 ×1 | 4 | hiitio (relationship in place) |
+| T1 Direct | HCS600FH120D3C1 ×3 (SiC build) **or HCG600FH120D3E1EA ×3 (IGBT variant — same D3 pads/pins)**, HCM75S12T4K3 ×1 | 4 | hiitio (relationship in place) |
 | T2 Franchise/NXP | S32K396, FS2633D (programmed per design-basis §8a OTP table), LEM HC5FW 900-S ×3 | 5 | NXP direct + LEM/Mouser — the ASIL-D anchors; order FIRST, longest lead |
 | T3 DigiKey/Mouser ships-today | VGT12EEM-200S1A4 ×6, TE 770669-1 header + 770680-1 plug, 470 R/10 W wirewounds ×4, BAT64-04, NRVBAF360T3G, NCV4276C (5.0 fixed ×1 + DTADJ ×2), Mornsun QA01C ×2, Murata MGJ2D150505SC ×2 (**PO gate:** verify reinforced cert @850 VDC working + SIP-7 pin map), TDK ACT45B ×2, Coilcraft XAL4020-222 ×1 + XAL4040-103 ×2, BUK7Y14-80E ×2 | ~20 | one consolidated DigiKey order |
 | T4 LCSC-stocked specifics | NSI6611ASC-Q1SWR (full ordering code), AMC1311B, ALM2402Q-Q1, OPA348/333/376-Q1, UCC28C40DR, TCAN1042-Q1, TPS55340-Q1, 74LVC1G11/32-Q100, SN74LVC1G74 ×2, Faratronic 20 µF/1.1 kV ×16, Bourns MF-LSMF polyfuses, TLP152 ×2, PESD family, SMAJ13A ×2 … | ~60 | LCSC/JLC |
@@ -44,6 +44,13 @@ NCV4276CDTADJRKG — family labels caused F45/F57).
    from its own TE drawing).
 7. **Resolver driver ALM2402Q-Q1** stays (LCSC-stocked, GEN3-exact), now fed from its own
    protective 12 V LDO (F55).
+
+### IGBT drop-in variant on the same line
+
+`BOM_VARIANT=igbt` (`npm run bom:igbt` → `bom-igbt.md`) builds the **identical boards** with
+three line swaps: the module MPN, R⟨ph⟩⟨HL⟩DS 100 Ω→4.7 kΩ, C⟨ph⟩⟨HL⟩BL 47→150 pF — same
+feeders otherwise, so both SKUs run on one SMT program with a two-reel changeover plus the
+module pick. EOL limits differ only in firmware constants (f_sw, dead-time, NTC B-value).
 
 ## 3. Assembly flow (box build, four assemblies)
 

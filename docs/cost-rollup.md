@@ -24,6 +24,13 @@ answer are flagged in §3.
 **Baseline: ≈ ₹1.15 lakh / unit ≈ $1,390 ≈ ₹525/kW ($6.3/kW).**
 1,000 units ⇒ **≈ ₹11.5 Cr** parts + build (range ₹10.0–15.1 Cr).
 
+### IGBT cost SKU (same boards)
+
+Swapping to the HCG600FH120D3E1EA IGBT variant (₹9.5k/module planning vs ₹18k SiC) drops
+line 1 to **₹45,434** and the ex-works baseline to **≈ ₹90k/unit (≈ ₹410/kW)** — at
+~1.1 pt efficiency and 4–6 kHz switching. Everything else in the rollup is unchanged; the
+natural pairing is the <500 V-pack derated SKU. Both quotes ride the same hiitio RFQ.
+
 ## 2. One-time NRE (not in the per-unit number)
 
 | Item | ₹ |
