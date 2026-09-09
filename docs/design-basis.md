@@ -138,12 +138,14 @@ active Miller clamp (CLAMP wired to gate), UVLO, RDY/FLT# feedback, separate RG_
 10 A peak drive on a ~2.5–4 µC module gate ⇒ no booster stage needed (the XM3 driver does the
 same class of module directly).
 
-Bias: the **GEN3 dual-flyback pattern, copied from EV-POWEREVBHD2**: two **UCC28C43**
-current-mode flybacks (HS chain / LS chain; DFM rev A.2 — multi-source LCSC/DigiKey part
-replacing the thin-distribution NJW4140, with a 2-transistor default-OFF enable clamp and a
-12 V trickle-start feed), each driving **three VGT12EEM transformers with
-primaries paralleled — one floating secondary per phase → six independent domains**;
-per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15 V / −5.1 V about
+Bias: the **GEN3 dual-flyback pattern, copied from EV-POWEREVBHD2**: two **UCC28C40DR**
+current-mode flybacks (HS chain / LS chain; the C43 grade's 8.4 V UVLO cannot start at 9 V
+crank — F31; original NJW4140 dropped for distribution at DFM; 2-transistor default-OFF
+enable clamp and a 12 V trickle-start feed; switch **BUK7Y14-80E** — standard-level ±20 V
+gate, F56 — with a US1M + SMAJ13A primary clamp, F38), each driving **three VGT12EEM
+transformers with primaries paralleled — one floating secondary per phase → six independent
+domains**, secondary rectifier on the **dot end (pin 8, F37)**;
+per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15.6 V / −5.1 V about
 each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side regulated (18k/15k/1.3k divider off the aux winding).
 Gate power at 10 kHz: Qg·ΔV·f ≈ 3 µC·19 V·10 kHz ≈ 0.6 W per switch — well inside a small
 EE core. −5.1 V off-bias + Miller clamp holds the SiC off; +15 V matches the
@@ -204,9 +206,13 @@ guarantee it (review round 3/5 item):
 - Power board: **two separately fused KL30 feeds** (HS / LS chains, GEN3 pattern — polyfuse +
   NRVBAF360T3G + TVS + bead each) feed the two gate flybacks directly (they regulate
   primary-side over the full 9–16 V window — no pre-regulator needed);
-  **NCV4276C 5 V LDO** (INH from EN_FLYBK_LS) for driver VCC1 logic;
-  **TPS55340-Q1 boost → 15 V** only for the reinforced sense/discharge/ASC bias modules
-  (ISO5V-RFC-6K ×1, QA01C ×2 — their 13.5–16.5 V input window).
+  **NCV4276C 5 V LDO** (INH tied on via 100 k since A.4 — VCC1 and the AMC1311 LV sides
+  stay alive whenever KL30 is present) for driver VCC1 logic;
+  **TPS55340-Q1 boost → 15.4 V (V15B) → NCV4276C-ADJ post-regulator → V15 = 15.0 V**
+  (F51 — a boost passes its input through above the setpoint; the LDO clamps jump-start/
+  load-dump pass-through away from the bias modules) feeding the four isolated bias
+  modules (Murata MGJ2 ×2 for the V_DC senses + Mornsun QA01C ×2 for ASC/discharge —
+  13.5–16.5 V windows; QA01C outputs are **+20/−4 V** per DS, F61).
 - Budget ≈ 20 W total LV on the power board at full gate load.
 
 ## 10. ASIL D concept (decomposition summary — printed on sheet 1)
@@ -250,7 +256,7 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
-numeric worst-case verification **75 PASS / 3 WARN / 0 FAIL** · operating-point
+numeric worst-case verification **75 PASS / 4 WARN / 0 FAIL** · operating-point
 simulation (`sim-verify.mjs`, S1–S7: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
 with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
 thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,

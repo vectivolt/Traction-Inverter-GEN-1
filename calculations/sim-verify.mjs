@@ -6,6 +6,7 @@
 // stay on the bench list and are marked so.
 // Run: node calculations/sim-verify.mjs  → docs/simulation-report.md + docs/img/sim/*.svg
 import { writeFileSync, mkdirSync } from "node:fs";
+import { REV } from "./rev.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -226,7 +227,7 @@ function plot(file, title, series, xlab, ylab) {
 }
 
 // ============ report ============
-let md = `# Simulation report (rev A.4.3 · generated ${new Date().toISOString().slice(0, 10)})
+let md = `# Simulation report (rev ${REV} · generated ${new Date().toISOString().slice(0, 10)})
 
 Numerical time/frequency-domain simulations of the drawn circuits at the actual operating
 conditions (\`calculations/sim-verify.mjs\`). These complement — not replace — the closed-form

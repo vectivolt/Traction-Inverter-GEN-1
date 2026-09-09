@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.3%20(verified)-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.5%20·%20F1–F61%20closed-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-500–850%20V-457b9d?style=for-the-badge"/>
 </p>
@@ -13,10 +13,11 @@
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
   <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1695%2F1695%20·%20100%25-2a9d8f?style=flat-square"/>
   <img alt="Components" src="https://img.shields.io/badge/components-592%20·%20193%20BOM%20lines-0077b6?style=flat-square"/>
-  <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
+  <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹70.9k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
   <img alt="ERC" src="https://img.shields.io/badge/ERC-782%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
-  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-75%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S7%20·%2018%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
@@ -175,7 +176,7 @@ flowchart LR
     GDU["2× NSI6611A-Q1<br/>DESAT · Miller · ±(15/−5.1) V"] --> MU
     GDV["2× NSI6611A-Q1"] --> MV
     GDW["2× NSI6611A-Q1"] --> MW
-    FLY["2× gate-power flybacks<br/>UCC28C43 + 3× VGT12EEM each<br/>6 floating domains"] --> GDU & GDV & GDW
+    FLY["2× gate-power flybacks<br/>UCC28C40 + 3× VGT12EEM each<br/>6 floating domains"] --> GDU & GDV & GDW
     VDC["2× AMC1311B iso V-sense<br/>independent dividers + bias"] -.-> LINK
     ASC["ASC buffer<br/>DCN-referenced opto"] --> GDU & GDV & GDW
   end
@@ -392,32 +393,35 @@ sourcing tiers, nothing single-channel outside the anchors:
 |---|---|---|---|
 | 🤝 **T1 Direct** | 3× SiC module + discharge FET | 4 | HIITIO (relationship in place) |
 | 🏛 **T2 Franchise** | S32K396 · FS2633D · 3× LEM hall | 5 | NXP/LEM — **order first, longest lead** |
-| 📦 **T3 DigiKey ships-today** | VGT12EEM-200S1A4 ×6 · AMPSEAL · 10 W wirewounds · BAT64-04… | ~16 | one consolidated order |
+| 📦 **T3 DigiKey ships-today** | VGT12EEM ×6 · TE 770669-1/770680-1 · 10 W wirewounds · Murata MGJ2 ×2 (PO cert gate) · Coilcraft XAL ×3 · BUK7Y14-80E ×2 · NCV4276C ×3… | ~20 | one consolidated order |
 | ✅ **T4 LCSC-verified** | ~60 lines *with live C-numbers* — incl. automotive grades of NSI6611A-Q1, AMC1311B, ALM2402Q-Q1, TCAN1042-Q1, TPS55340-Q1, OPA348-Q1, 74LVC1G11-Q100H, Faratronic link caps | ~60 | LCSC / JLC |
 | 🧂 **T5 Jellybeans** | 0603+ passives, zeners, SS34, 2N7002… | ~440 | LCSC basic |
 
 ```mermaid
 flowchart LR
-  A["SMT all boards<br/>~740 placements · AOI"] --> B["Selective/wave THT<br/>film caps · studs · xfmrs · TO-247"]
+  A["SMT 3 PCBs<br/>~750 placements · AOI"] --> B["Selective/wave THT<br/>studs · xfmrs · TO-247 · axials"]
   B --> C["Conformal coat card"]
-  C --> D["Modules → coldplate<br/>torque + TIM verify"]
-  D --> E["Power PCB onto module pins<br/>(solder/press-fit per HIITIO dwg)"]
-  E --> F["Laminated busbar<br/>+ 16× link caps"]
-  F --> G["Harnesses · lid · seal"]
-  G --> H["EOL: hi-pot · LV functional ·<br/>back-to-back spin test"]
+  C --> D["CAP-BANK assembly<br/>16 cans onto laminated busbar"]
+  C --> E["Modules → coldplate<br/>torque + TIM verify"]
+  E --> F["Power PCB onto module pins<br/>(solder/press-fit per HIITIO dwg)"]
+  D --> G["Busbar → module DC tabs<br/>+ DISCHARGE BOARD bolted across"]
+  F --> G
+  G --> H["Harnesses · lid · seal"]
+  H --> I["EOL: hi-pot · discharge-time ·<br/>LV functional · B2B spin test"]
 ```
 
 <details>
-<summary><b>🔧 The six DFM design changes in rev A.2</b></summary>
+<summary><b>🔧 The seven DFM design changes (running log)</b></summary>
 
 | # | Change | Why | Effect |
 |---|---|---|---|
-| 1 | Flyback controller **NJW4140 → UCC28C43** + 2-transistor default-OFF enable clamp | Nisshinbo part had 0–2 pcs on LCSC; UCC28C4x is TI+ST multi-source everywhere | Also **caught a latent bug**: the aux-only VCC could never start — trickle-start added |
+| 1 | Flyback controller **NJW4140 → UCC28C40DR** + 2-transistor default-OFF enable clamp | Nisshinbo part had 0–2 pcs on LCSC; the C43 grade cannot start at 9 V crank (F31) | Also **caught a latent bug**: the aux-only VCC could never start — trickle-start added |
 | 2 | DC link **8× 40 µF → 16× Faratronic 20 µF/1100 V** (C2840809) | No 40 µF/1100 V can exists on LCSC in any brand | **−₹2.8k**, better ripple spread; TDK B32778 stays drop-in alt |
 | 3 | Bleeder **9× TE CRGP (500 V specialty) → 10× generic 27 k 2512 2 W** 5s×2p | TE part is TTI-only in volume | 170 V/resistor inside standard ratings — any vendor builds it |
 | 4 | Resolver driver **confirmed ALM2402Q-Q1** (LCSC C544754) | Sweep found the GEN3-exact part in stock | No redesign |
 | 5 | **Value consolidation** 4.99k→5.1k · 49.9k→51k · 12.1k→12k · 0402→0603 | Fewer feeders, JLC-basic, easier rework | Firmware-calibrated scalings unaffected |
-| 6 | Vehicle connector → concrete **TE AMPSEAL 23-pos** (776231-1 + 770680-1) | Was an abstract class | DigiKey ~$9, sealed automotive |
+| 6 | Vehicle connector → **TE 770669-1** 23-pos AMPSEAL header + 770680-1 plug | 776231-1 turned out to be the **35-pos** header (its own TE drawing, F60) | DigiKey-stocked, sealed automotive |
+| 7 | Flyback switch **BUK9Y14 → BUK7Y14-80E**; clamp TVS SMAJ13A; both 10 µH → one XAL4040-103 line | Logic-level ±10 V gate was illegal at the 11.8 V drive (F56) | Same LFPAK56; zener now dark in normal operation |
 
 Full plan incl. layout-phase DFM rules and proto-vs-production grade policy: [`docs/dfm.md`](docs/dfm.md)
 
@@ -432,7 +436,7 @@ Everything on this repo is **generated and gated** — the drawing set ships onl
 ```mermaid
 flowchart LR
   TSX["boards/*.tsx<br/>tscircuit source of truth"] -->|tsci build| CJ["circuit.json<br/>netlists"]
-  CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
+  CJ -->|pages.mjs| PG["section payloads<br/>21 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
   V -->|"1695/1695 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
@@ -442,67 +446,39 @@ flowchart LR
   CJ -->|bom-gen.mjs| BOM["📋 bom.md + CSVs<br/>same parts-db as the sheets"]
 ```
 
-Three independent verification layers — each with its own tool, none trusting the others:
+Four independent verification layers — each with its own tool, none trusting the others:
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
 | Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 4 WARN · 0 FAIL** (all constants datasheet-real) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | cycle-by-cycle flyback, boost Bode, SVPWM DC-link ripple, 30 s thermal transient, discharge ODE, current-loop PM | **18 PASS · 1 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 
-Rev A.4.4 closed round five (procurement binding, no electrical change): the generic
-class identifiers are bound to verified orderable parts — LCOR → Coilcraft XAL4020-222
-(AEC-Q200, values from the XAL4000 datasheet), both 10 µH positions → XAL4040-103, and
-PS5B/PS5C → Murata MGJ2D150505SC behind an explicit reinforced-cert procurement gate. One
-candidate was **rejected during verification**: RECOM R15P05S — its headline 6.4 kV is a
-1-second test; the IEC 62368-1 grade is *basic* at 250 VACrms working, failing the 850 V
-barrier rule. The FS26 OTP configuration the schematic assumes is now pinned as a table in
-design-basis §8a.
+### 🔍 The review campaign — five external rounds, every claim verified at the source
 
-Rev A.4.3 closed round four: the LCOR value/MPN/BOM/OTP now agree end-to-end (the class
-part string had kept printing 4.7 µH after the value fix), and the TPS55340 boost got its
-real compensation network (series 2 kΩ/100 nF per TI §8.2.1.2.11 — the lone 10 nF gave a
-~0° screening phase margin). Two review narratives were corrected rather than the hardware:
-CBOOT_PRE at 100 nF was legal per Rev 6.1's 22–100 nF window (22 nF kept as the typ), and
-VCC1 loss is reclassified as a single initiating failure (UGDL open) whose outcome is
-three-phase-open with ASC still commandable.
+An independent reviewer ran five adversarial rounds against the released PDFs. The working
+rule throughout: **no fix without primary-source verification, no rebuttal without evidence**
+— every claim was checked against the manufacturer datasheet (winding diagrams read at
+300 dpi where the dots decided it) before a single edit. Findings log **F1–F61, all closed**;
+each round's full narrative lives in [`docs/design-basis.md`](docs/design-basis.md) §11.
 
-Rev A.4.2 closed round three: **6 more confirmed defects fixed (F52–F57)** — the FS26
-VCORE/VPRE buck passives brought to Table-106 selections (2.2 µH OTP inductor, effective-
-capacitance closure on every rail), both CAN chokes remapped to the ACT45B's real 1-4/2-3
-windings (CANH had been crossed onto CANL), the resolver amplifier moved behind a protective
-12 V LDO (18 V-abs part on a 24 V-capable rail), the flyback switch swapped to the
-standard-level BUK7Y14-80E (±20 V gate; the logic-level part was outside abs-max at the
-11.8 V drive and its 5.6 V "clamp" burned 0.4 W all ON-time), the V15 LDO's feed-forward
-compensation completed, and the LDO ordering code corrected.
+| Round | Release | Fixed | The headline catches |
+|---|---|---|---|
+| Self campaign | A.3 | 18 defects (F1–F36) | a gate supply that could never start; ASC drive over the driver's GND2+6 V abs max; discharge string missing the crash corner |
+| Review 1 | A.4 | 10 (F37–F46) | **transformer secondary phasing** (forward-mode ≈35 V into +22 V-abs gates), DESAT clamp direction, raw KL15 into the MCU, unsourced gate-power feeds, hardware fault latch added, every symbol rebound to real package pins |
+| Review 2 | A.4.1 | 5 (F47–F51) | **AMC1311 IN/SHTDN swapped on both channels** (inputs grounded), FS26 TRKIN was the VREF supply — not a ground-able spare, TPS55340 pin 5 is SYNC (7 V abs), V15 post-regulator vs boost pass-through |
+| Review 3 | A.4.2 | 6 (F52–F57) | FS26 buck passives to Table-106, **CAN chokes wound 1-4/2-3** (CANH crossed onto CANL), ALM2402 behind its own LDO, **BUK7Y14-80E** (±20 V gate) |
+| Review 4 | A.4.3 | 2 (F58–F59) | LCOR value/MPN/BOM/OTP agreement, UB15 compensation network (was ~0° screening margin) |
+| Review 5 | A.4.4 | procurement | real MPNs bound; **RECOM R15P05S rejected** — 6.4 kV is a 1 s test, insulation grade *basic*; FS26 OTP table pinned (§8a) |
+| Docs audit | A.5 | 2 (F60–F61) | JVEH rebound to the true 23-pos AMPSEAL **770669-1** (the TE drawing proved 776231-1 is 35-pos); QA01C rails are **+20/−4 V** per DS — clamps re-verified |
 
-Rev A.4.1 closed the review's second round: **5 more confirmed defects fixed (F47–F51)**
-— the AMC1311 IN/SHTDN pin swap on both V_DC channels, FS26 TRKIN re-supplied from VPRE
-(it feeds the VREF regulator and had been grounded), TPS55340 pin 5 corrected to SYNC and
-grounded (7 V abs — it is not a second VIN), three FS26 capacitor values brought to DS
-minimums, and a 40 V protective post-regulator on V15 so boost pass-through (jump start,
-load dump) can never reach the QA01C 13.5–16.5 V window. All five standalone PDFs and the
-combined set are regenerated from this one release.
+Three review claims were **rebutted with evidence** (900 V divider corner — system max is
+850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; the discharge math —
+it matches), and two review narratives were corrected in our own records at the reviewer's
+insistence (CBOOT_PRE 100 nF was legal; VCC1 loss is a single-point failure whose outcome is
+three-phase-open with ASC still commandable).
 
-Rev A.4 answered an independent external design review line-by-line: every claim was
-re-verified against the primary datasheets, **10 further defects were confirmed and fixed
-(F37–F46)** — the gate-power transformer secondary phasing (dot ends per the TDK winding
-diagram), the flyback drain clamp topology and rating, the DESAT clamp direction, the ASC
-latch logic levels, a raw KL15 path into the MCU, the unsourced gate-power feeds, a
-hardware fault latch added into the DRV_EN chain, receiver offsets so the AMC1311 fail-safe
-state is distinguishable, and a full re-bind of every symbol to its real package pins
-(FS26 now full LQFP-48; the S32K396 stays explicitly symbolic until layout, printed on the
-sheet). Three review claims did not survive verification (900 V divider corner — system max
-is 850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; discharge
-numbers — they match ours) and are documented with the reasoning.
-
-The rev A.3 verification campaign found and fixed **18 real defects** (F1–F36 log) — among them a gate
-supply that could never start (FB divider scaled for the wrong controller reference), a
-current-sense resistor whose "limit" was 30 A, five floating-pin net aliases, load-dump-underrated
-input caps, a discharge string that missed the crash target at tolerance corners, and an
-ASC drive that violated the driver's GND2+6 V absolute maximum (caught by reading the real
-NSI6611 datasheet — clamped at 5.1 V now).
 Full findings log + margin tables: [`docs/verification-report.md`](docs/verification-report.md).
 
 | Metric | Power | Cap bank | Discharge | Card | Total |
@@ -510,7 +486,36 @@ Full findings log + margin tables: [`docs/verification-report.md`](docs/verifica
 | Components | 292 | 26 | 24 | 250 | **592** |
 | Functional sections | 24 | 2 | 3 | 26 | 55 |
 | Net labels / pin stubs | 807 | 42 | 55 | 791 | 1,695 |
-| Sheet size | 44.6″ × 22.8″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 44.6″ × 25.3″ | 4 sheets |
+| Sheet size | 44.6″ × 28.6″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 44.6″ × 25.3″ | 4 sheets |
+
+---
+
+## 🧪 Simulation — the drawn circuits at their operating points
+
+`calculations/sim-verify.mjs` numerically simulates the released netlist's circuits in the
+time and frequency domain (`npm run verify` runs all three numeric gates). **18 PASS ·
+1 WARN · 0 FAIL** — full table with per-row modeling assumptions:
+[`docs/simulation-report.md`](docs/simulation-report.md).
+
+| # | Simulation | Key result |
+|---|---|---|
+| S1 | Gate-power flyback, cycle-by-cycle DCM @9/12/16 V | rail **21.3 V** (target 21.4), settles 4 ms, I_pk 1.82 A vs 3.03 A limit, drain ≤42.3 V vs 80 V |
+| S2 | UB15 boost loop Bode (A.4.3 compensation) | f_c 1.9–2.5 kHz, **PM 72–75°** (was ~0° before the RC network) |
+| S3 | DC-link ripple by SVPWM switching-state sim | **11.9 A/can** @340 A peak vs 15.4 A rating (7.6 A continuous) |
+| S4 | Junction thermal transient, 120→220 kW/30 s→120 kW | **T_j peak 89 °C** vs 150 °C design ceiling (coldplate 0.045 K/W assumption) |
+| S5 | Discharge ODE incl. 2.5 ms bias startup | **1.53 s nom / 1.76 s worst** to 60 V (≤2 s crash target); ≤99 W · ~31 J per 470 Ω |
+| S6 | Current-loop phase margin (drawn filters + double-update FOC) | 58° @1 kHz → **firmware bandwidth ceiling ≤1.2 kHz** for ≥45° |
+| S7 | Gate switching event vs driver | 8.6/14.3 A demand vs the 10 A-class driver (source-limited) |
+
+| | |
+|---|---|
+| ![S1](docs/img/sim/s1-flyback-startup.svg) | ![S2](docs/img/sim/s2-boost-bode.svg) |
+| ![S4](docs/img/sim/s4-thermal-30s.svg) | ![S5](docs/img/sim/s5-discharge.svg) |
+
+<p align="center"><img src="docs/img/sim/s3-dclink-ripple.svg" width="70%" alt="SVPWM DC-link capacitor current simulation"/></p>
+
+Hardware-only items are named per-row as bench gates (layout parasitics, core saturation,
+SiC short-circuit withstand, EMI) — simulated claims and measured claims are never mixed.
 
 ---
 

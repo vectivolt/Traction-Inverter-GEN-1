@@ -9,6 +9,7 @@
 // Run: node calculations/design-verify.mjs
 
 import { writeFileSync } from "node:fs";
+import { REV } from "./rev.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -241,6 +242,10 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   add("Flyback A.4", "Gate zener standing load", "0 W (BZT52-C15 dark at 11.8 V)", "was ~0.4 W/zener all ON-time", "PASS",
     "F56 — the 5.6 V clamp conducted ~0.29 A through every ON interval (historical estimate, not carried into the new budget)");
 
+  // ---- rev A.5 documentation-audit findings (F60–F61) ----
+  judge("Discharge", "QDIS gate at the QA01C rail (+20 V per DS)", "≈19.5 V", "+22 V abs (+18 V rec) HCM75S12T4K3",
+    19.5 / 22, 0.85, "F61 — the base QA01C row is +20/−4 V; inside abs, above rec — gate divider option at proto if bench confirms 20 V");
+
   // ---- rev A.4.3 (fourth review round, F58–F59) ----
   const D15 = 1 - 12 / 15.4, Rld15 = 15.4 / 0.33;
   const fRHPZ = (1 - D15) ** 2 * Rld15 / (2 * Math.PI * 10e-6) / 1e3;
@@ -303,7 +308,7 @@ const f = (x, d = 1) => Number(x.toFixed(d));
 // ---------------- render report ----------------
 const counts = { PASS: 0, WARN: 0, FAIL: 0, INFO: 0 };
 rows.forEach((r) => counts[r.status]++);
-let md = `# Design Verification Report — rev A.3 (${new Date().toISOString().slice(0, 10)})
+let md = `# Design Verification Report — rev ${REV} (${new Date().toISOString().slice(0, 10)})
 
 End-to-end verification of the 220 kW / 800 V traction inverter at actual operating corners
 (V_bus 500–850 V · KL30 9–16 V · 10 kHz · 65 °C coldplate), worst-case component tolerances.
@@ -313,7 +318,7 @@ Three independent layers:
 2. **Structural ERC audit** (netlist vs design intent, \`erc-audit.mjs\`): **654 checks, 0 fail, 0 warn**
 3. **Numeric verification** (this report, \`design-verify.mjs\`): **${counts.PASS} PASS · ${counts.WARN} WARN · ${counts.FAIL} FAIL** (+${counts.INFO} info)
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 fourth-round response — all fixed)
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit — all fixed)
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -354,6 +359,9 @@ Three independent layers:
 | F55 | **HIGH** | UEXD (ALM2402: 18 V abs, 16 V rec) fed from raw VBATC — 24 V jump start exceeds abs max and TPSMC24CA clamps far above 18 V | ULDOEX 12.1 V protective LDO (same NCV4276C-ADJ family) feeds VCC/VCC_O1/VCC_O2; crank behavior unchanged (dropout) |
 | F56 | **HIGH** | Flyback switch BUK9Y14-80E is logic-level: V_GS abs ±10 V DC vs the 11.8 V VDD drive; the 5.6 V gate zener "fixed" it by conducting ~0.29 A through every ON interval (~0.4 W each, doubling the aux budget) | BUK7Y14-80E (standard-level, ±20 V, same LFPAK56/current class) + zener repurposed to a dark 15 V protective clamp |
 | F57 | LOW | LDO ordering code transposed (NCV4276CADJDTRKG) | NCV4276CDTADJRKG per the DS ordering table |
+| F62 | MED | The on-sheet ASIL-D + DISCHARGE review panel had silently vanished from the power sheet (its single void pick stopped fitting as the sheet grew through A.4.x) — found by the A.5 docs audit | Panel placement retries every void largest-first, and the build now FAILS if the panel cannot be placed; panel text refreshed (DRV_EN chain incl. RDY+fault-latch, 57 s bleed, "never energize w/o the DISCHARGE BOARD") |
+| F60 | MED | JVEH bound to TE 776231-1 called "AMPSEAL 23" — the TE drawing in docs/datasheets shows 776231-1 is the **35-position** header (mates plug 776164) | Rebound to **770669-1**, the real 23-position AMPSEAL PCB header (mates the 770680-1 plug already cited); drawing TE-770669-1.pdf fetched |
+| F61 | LOW | Rails named V18A/V18Q assume "+18 V": the QA01C DS selection row is **+20/−4 V**. ASC path unaffected (2.2 k + 5.1 V clamp); QDIS gate ≈19.5 V vs +22 abs / +18 rec | Documented + WARN row; clamps verified for +20 V; gate-divider option noted for proto |
 | F58 | LOW | LCOR reconciliation: the netlist value became 2.2 µH in A.4.2 but the parts-db class MPN still printed "IND-4.7uH-2A" on the sheet/BOM — an assembler would fit the old value | MPN string now IND-2.2uH-4A with the OTP pairing in the description; value, MPN, BOM and OTP agree |
 | F59 | MED | UB15 (TPS55340) COMP node had only 10 nF to ground — no compensation zero; simplified CCM screening gives ~0° phase margin | Series R3/C4 = 2 kΩ/100 nF per TI §8.2.1.2.11 + 470 pF HF pole cap; RHPZ ≈ 450 kHz (not limiting); measured Bode remains a bench gate |
 | F46 | MED | No global hardware reaction to a driver DESAT trip (FLT only went to the MCU); driver soft-shutdown is per-channel | FLT_HS/LS diode-OR → SN74LVC1G74 fault latch → third AND input in DRV_EN: any DESAT latches all six channels off until the MCU clears after diagnosis |

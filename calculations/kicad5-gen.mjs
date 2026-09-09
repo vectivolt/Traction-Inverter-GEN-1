@@ -21,7 +21,7 @@ const OUT = join(ROOT, "kicad5/traction");
 // Library name is revision-stamped: EasyEDA will NOT overwrite an existing library of the same
 // name, so a re-import would silently mix new sheets with stale pin geometry. Bump on symbol change.
 const LIB_NAME = "traction-r1";
-const REV = "A.4.4";
+import { REV } from "./rev.mjs";
 // Pinned, NOT new Date(): a release sheet carries its release date; bump with REV.
 const DATE = "2026-09-09";
 mkdirSync(OUT, { recursive: true });
@@ -791,7 +791,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
   const NC = pick.NC;
   for (const { b, X, Y } of pick.out) { b.X = X; b.Y = Y; }
   const sheetW = snap(MARGIN + NC * COLW - SECGAP + MARGIN);
-  const sheetH = snap(Math.max(...blocks.map((b) => b.Y + b.h)) + MARGIN + 800);
+  let sheetH = snap(Math.max(...blocks.map((b) => b.Y + b.h)) + MARGIN + 800);
 
   const ident = SHEET_IDENT[side];
 
@@ -882,10 +882,35 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
         // One combined panel: the safety concept AND the discharge verification share a frame so
         // neither can silently vanish when voids run short — the discharge check is a review
         // requirement, not decoration.
-        const s1 = side !== "power" ? null : drawPanel(pickVoid(used),
-          "ASIL-D SAFETY CONCEPT + DC-LINK DISCHARGE VERIFICATION",
-          "safe state = 3-phase-open (ASC above overspeed); discharge vs ECE R100 / ISO 6469",
-          [...SAFETY_ROWS, "--- DISCHARGE ---", ...DISCHARGE_ROWS], "");
+        // F62: a single filtered void pick let this panel vanish silently when the sheet
+        // grew. Now every void candidate is tried largest-first, and a power sheet WITHOUT
+        // the panel refuses to build — the review panel is a ship requirement.
+        let s1 = null;
+        if (side === "power") {
+          const sRows = [...SAFETY_ROWS, "--- DISCHARGE ---", ...DISCHARGE_ROWS];
+          const cands = voidCandidates(used.map((u) => ({ x0: u.x0, y0: u.y0, x1: u.x1, y1: u.y1 })), sheetW, sheetH + MARGIN + 800, 16)
+            .filter((v) => v.x1 - v.x0 > 5200 && v.y1 - v.y0 > 2200)
+            .sort((p, q) => (q.x1 - q.x0) * (q.y1 - q.y0) - (p.x1 - p.x0) * (p.y1 - p.y0));
+          for (const v of [pickVoid(used), ...cands]) {
+            s1 = drawPanel(v,
+              "ASIL-D SAFETY CONCEPT + DC-LINK DISCHARGE VERIFICATION",
+              "safe state = 3-phase-open (ASC above overspeed); discharge vs ECE R100 / ISO 6469",
+              sRows, "");
+            if (s1) break;
+          }
+          if (!s1) {
+            // No interior void fits: extend the sheet downward and anchor the panel there.
+            // The $Descr size is emitted after this point, so the growth is consistent.
+            const need = 160 + 260 + Math.round(300 * 1.4) + 9 * 300 + 2 * 500;
+            const v = { x0: MARGIN + 400, y0: sheetH - 400, x1: MARGIN + 400 + 10600, y1: sheetH - 400 + need + 700 };
+            sheetH = snap(v.y1 + 900);
+            s1 = drawPanel(v,
+              "ASIL-D SAFETY CONCEPT + DC-LINK DISCHARGE VERIFICATION",
+              "safe state = 3-phase-open (ASC above overspeed); discharge vs ECE R100 / ISO 6469",
+              sRows, "");
+          }
+          if (!s1) throw new Error("power sheet: ASIL-D + DISCHARGE panel does not fit any void (F62 gate)");
+        }
         if (s1) used.push(s1);
       }
     }

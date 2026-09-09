@@ -15,7 +15,7 @@ export const OVERRIDES = {};   // per-designator {mpn} overrides (none yet)
 export const SAFETY_ROWS = [
   "1 lockstep S32K396 (ASIL-D core) runs torque path",
   "2 FS26 Q&A watchdog + monitors -> FS0B (no SW)",
-  "3 FS0B AND MCU_EN -> all 6 driver EN = 3-ph open",
+  "3 FS0B&MCU_EN&RDY&FLT-latch -> DRV_EN = 3-ph open",
   "4 FS1B strap -> LS ASC latch (HS strapped OFF)",
   "5 flyback EN = MCU OR FS26-GPIO1 (ASC gate power)",
   "6 3x hall + sum(I)=0 plausibility (torque path)",
@@ -24,11 +24,11 @@ export const SAFETY_ROWS = [
   "9 HVIL open = VDDIO/2 signature -> discharge",
 ];
 export const DISCHARGE_ROWS = [
-  "PASSIVE 10x 27k 2512-2W (5s x 2p = 67.5k): 58 s to 60 V",
+  "PASSIVE 10x 27k 2512-2W (5s x 2p = 67.5k): 57 s to 60 V",
   "ACTIVE QDIS + 4x 470R 10W = 1.88k: 1.6 s to 60 V",
   "E = 116 J @850 V - 32 J/res worst (>=100 J rated)",
   "VERIFY: MCU fires QDIS, watches BOTH VDC channels",
-  "RULE: never energize without the bleeder fitted",
+  "RULE: never energize w/o the DISCHARGE BOARD fitted",
 ];
 
 export const DB = [
@@ -41,7 +41,7 @@ export const DB = [
   { m: /^RDIS[1-4]$/, mpn: "WW-470R-10W-AX", mfr: "TT/Vitrohm", desc: "470 R 10 W axial ceramic wirewound, >=100 J single pulse (active discharge string; F26 — 4x = 1.88k closes 850->60 V in 1.84 s WORST case). DigiKey (TE SQP500JB / Vishay AC10) or RX27-1 via 1688", fp: "AxialWW10W", price1k: 28, alt: "TE SQP500JB / Vishay AC10 / RX27-1" },
   { m: /^QDIS$/, mpn: "HCM75S12T4K3", mfr: "HIITIO", desc: "SiC MOSFET 1200 V 75 mR TO-247-4L (discharge switch — vendor consolidation)", fp: "TO247-4L", price1k: 350, alt: "any 1200 V >=5 A SiC/Si FET, TO-247" },
   { m: /^UQD$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto gate driver (isolated discharge control, default-OFF)", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745 / EL3182" },
-  { m: /^PSQD$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15->18 V 1 W module >=6 kVDC (discharge driver bias, DCN-referenced). Genuine Mornsun via Mouser/direct; LCSC stocks spec-matched clones (YLPTEC C5369865) — qualify before production", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
+  { m: /^PSQD$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15 V-in SiC-driver bias module >=6 kVDC, OUTPUTS +20/-4 V per DS (F61 — rail historically named V18Q; clamps sized for +20 V) (discharge driver bias, DCN-referenced). Genuine Mornsun via Mouser/direct; LCSC stocks spec-matched clones (YLPTEC C5369865) — qualify before production", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
   { m: /^RQDG$/, mpn: "R0603-47R", mfr: "any", desc: "discharge gate resistor", fp: "R0603", price1k: 0.4, alt: "any" },
   { m: /^RQDL$/, mpn: "R0603-470R", mfr: "any", desc: "discharge opto LED series", fp: "R0603", price1k: 0.4, alt: "any" },
   { m: /^RQDPD$/, mpn: "R0603-10k", mfr: "any", desc: "discharge gate pulldown to DCN (default-OFF)", fp: "R0603", price1k: 0.4, alt: "any" },
@@ -129,7 +129,7 @@ export const DB = [
   { m: /^CB15O[12]$/, mpn: "MLCC-22uF-25V", mfr: "any", desc: "boost output caps", fp: "C1210", price1k: 2, alt: "any" },
   { m: /^RB15F[12]$/, mpn: "R0603-1%", mfr: "any", desc: "boost feedback divider (15.0 V)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   // ---- ASC buffer (DCN-referenced, drives 3x LS ASC pins) ----
-  { m: /^PSASC$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15->18 V 1 W (ASC buffer bias, DCN-referenced domain). Genuine via Mouser/direct; LCSC clone C5369865 — qualify first", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
+  { m: /^PSASC$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15 V-in SiC-driver bias module, OUTPUTS +20/-4 V per DS (F61 — rail historically named V18A; ASC path clamped 5.1 V regardless) (ASC buffer bias, DCN-referenced domain). Genuine via Mouser/direct; LCSC clone C5369865 — qualify first", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
   { m: /^UASC$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto buffer: latched ASC_CMD -> LS driver ASC pins (secondary side)", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745" },
   { m: /^RASCG$/, mpn: "R0603-2k2", mfr: "any", desc: "ASC drive series (with ZASC clamps the 18 V opto to <=5.1 V — NSI6611 ASC abs max GND2+6 V, F28)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RASCL$/, mpn: "R0603-470R", mfr: "any", desc: "ASC opto LED series", fp: "R0603", price1k: 0.3, alt: "any" },
@@ -216,7 +216,7 @@ export const DB = [
   { m: /^UMT[12]$/, mpn: "OPA333AQDBVRQ1", mfr: "TI", desc: "zero-drift buffer, motor temp (GEN3 exact; LCSC 80 pcs + marketplace)", fp: "SOT23-5", lcsc: "C2058544", price1k: 35, alt: "OPA388-Q1" },
   { m: /^RMT[12][PS]$/, mpn: "R0603-CLASS", mfr: "any", desc: "motor-temp bias/series", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^CMT[12]F$/, mpn: "MLCC-47nF-25V", mfr: "any", desc: "motor-temp filter", fp: "C0603", price1k: 0.3, alt: "any" },
-  { m: /^JVEH$/, mpn: "TE 776231-1 (AMPSEAL 23)", mfr: "TE", desc: "23-pos AMPSEAL sealed header, flange mount (CAN x2, KL30/KL15, resolver, motor temp, FAULT_OUT); mates 770680-1 plug + contacts — DigiKey-stocked ~$9", fp: "AMPSEAL23", price1k: 780, alt: "Aptiv GT 280 sealed family (Mouser)" },
+  { m: /^JVEH$/, mpn: "TE 770669-1 (AMPSEAL 23)", mfr: "TE", desc: "23-pos AMPSEAL PCB header, right-angle shrouded (CAN x2, KL30/KL15, resolver, motor temp, FAULT_OUT); mates 770680-1 plug + 770520 contacts. F60: 776231-1 was the 35-pos header (its drawing mates plug 776164) — rebound from the TE drawing, TE-770669-1.pdf in docs/datasheets", fp: "AMPSEAL23", price1k: 780, alt: "1-770669-x plating variants / Aptiv GT 280 family" },
   { m: /^FVS\d+$/, mpn: "MF-LSMF-CLASS", mfr: "Bourns", desc: "vehicle-line polyfuse (per GEN3: every off-board signal fused)", fp: "PTC1206", price1k: 3, alt: "any" },
   { m: /^LVS\d+$/, mpn: "FB-470R-CLASS", mfr: "TDK", desc: "vehicle-line bead 470 R @100 MHz (GEN3: MMZ1608 class)", fp: "FB0603", price1k: 0.5, alt: "any" },
   { m: /^R(THS|TAMB)P$/, mpn: "R0603-10k-1%", mfr: "any", desc: "board NTC pull-up", fp: "R0603", price1k: 0.3, alt: "any" },

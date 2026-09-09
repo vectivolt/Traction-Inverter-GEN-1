@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB, OVERRIDES } from "./parts-db.mjs";
+import { REV } from "./rev.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const eng = (x, unit) => {
@@ -58,7 +59,7 @@ const SUBSYS = [
 ];
 const subTotal = new Map();
 
-let md = `# Traction Inverter — BOM (rev A.3, generated ${new Date().toISOString().slice(0, 10)})
+let md = `# Traction Inverter — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the

@@ -1,4 +1,4 @@
-# Traction Inverter — BOM (rev A.3, generated 2026-09-09)
+# Traction Inverter — BOM (rev A.5, generated 2026-09-09)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -22,7 +22,7 @@ CSV: [`docs/bom-power.csv`](bom-power.csv). Top cost lines:
 | 5 | STUD-M8 | HV DC entry M8 stud | 140 | M10 |
 | 1 | TPS55340QRTERQ1 | boost 12->15.0 V | 140 | LM5155-Q1 / commercial TPS55340RTER C169 |
 | 1 | MICROFIT3-40 | 40-way Micro-Fit 3.0 harness to control card | 120 | TE MATE-N-LOK eq |
-| 1 | QA01C-18 | iso 15->18 V 1 W | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
+| 1 | QA01C-18 | iso 15 V-in SiC-driver bias module, OUTPUTS +20/-4 V per DS | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
 | 2 | BUK7Y14-80E | 80 V logic-level NFET LFPAK | 50 | SQJ850EP class |
 | 2 | Y1-4.7nF-500VAC | Y1-class 4.7 nF disc | 44 | 2x Y2 in series / TDK CeraLink 1.5 kVdc |
 
@@ -45,7 +45,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 |---|---|---|---|---|
 | 1 | HCM75S12T4K3 | SiC MOSFET 1200 V 75 mR TO-247-4L | 350 | any 1200 V >=5 A SiC/Si FET, TO-247 |
 | 4 | WW-470R-10W-AX | 470 R 10 W axial ceramic wirewound, >=100 J single pulse | 112 | TE SQP500JB / Vishay AC10 / RX27-1 |
-| 1 | QA01C-18 | iso 15->18 V 1 W module >=6 kVDC | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
+| 1 | QA01C-18 | iso 15 V-in SiC-driver bias module >=6 kVDC, OUTPUTS +20/-4  | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
 | 1 | TLP152 | opto gate driver | 42 | TLP2745 / EL3182 |
 | 2 | STUD-M6 | discharge-board bolt terminal onto the cap bank / busbar | 36 | M8 |
 | 10 | R2512-27k-2W | 27 k 2512 2 W standard thick-film | 30 | TE CRGP2512F68K C2073426 (101 pcs LCSC)  |
@@ -63,7 +63,7 @@ CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
 |---|---|---|---|---|
 | 3 | HC5FW900-S | open-loop hall 900 A busbar transducer, 5 V ratiometric | 2,100 | HAH1BVW S/08 900 A class (LEM) |
 | 1 | S32K396 | lockstep M7 motor-control MCU | 1,400 | S32K388 (same family) |
-| 1 | TE 776231-1 (AMPSEAL 23) | 23-pos AMPSEAL sealed header, flange mount | 780 | Aptiv GT 280 sealed family (Mouser) |
+| 1 | TE 770669-1 (AMPSEAL 23) | 23-pos AMPSEAL PCB header, right-angle shrouded | 780 | 1-770669-x plating variants / Aptiv GT 2 |
 | 1 | FS2633D | ASIL-D SBC: VPRE 5.4V buck / VCORE 1.5V buck / VREF 5V / LDO | 480 | FS2630 variants |
 | 9 | OPA376AQDBVRQ1 | VDC differential receiver | 252 | OPA320-Q1 |
 | 1 | ALM2402QPWPRQ1 | dual power op-amp resolver driver, 8 Vpp H-bridge out | 180 | ALM2403QPWPRQ1 (DigiKey ships-today) |
@@ -108,8 +108,8 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 
 | Category | ₹ | share |
 |---|---|---|
-| power semiconductors | 56,083 | 79.1% |
-| drive + control ICs | 5,557 | 7.8% |
+| power semiconductors | 56,178 | 79.2% |
+| drive + control ICs | 5,462 | 7.7% |
 | capacitors | 4,874 | 6.9% |
 | magnetics | 2,183 | 3.1% |
 | connectors + sensors | 1,230 | 1.7% |

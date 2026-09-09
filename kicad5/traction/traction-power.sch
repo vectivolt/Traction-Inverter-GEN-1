@@ -1,12 +1,12 @@
 EESchema Schematic File Version 4
 EELAYER 30 0
 EELAYER END
-$Descr User 44600 22800
+$Descr User 44600 28550
 encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)"
 Date "2026-09-09"
-Rev "A.4.4"
+Rev "A.5"
 Comp "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)"
@@ -44,7 +44,7 @@ CONTROL-IF   -   1 section
 Text Notes 29100 21350 0    60   ~ 0
 DC-LINK   -   1 section
 Text Notes 29110 22000 0    60   ~ 0
-rev A.4.4   -   24 sections   -   292 components
+rev A.5   -   24 sections   -   292 components
 Wire Notes Line
 	34650 18100 39100 18100
 Wire Notes Line
@@ -69,6 +69,48 @@ Text Notes 34700 20150 0    60   ~ 0
 same name on another sheet = same net, joined ONLY at the
 Text Notes 34700 20450 0    60   ~ 0
 named connector/stud/tab (see INTERBOARD LINKS, design basis)
+Wire Notes Line
+	1400 22900 10050 22900
+Wire Notes Line
+	10050 22900 10050 26700
+Wire Notes Line
+	10050 26700 1400 26700
+Wire Notes Line
+	1400 26700 1400 22900
+Text Notes 1460 23060 0    79   ~ 16
+ASIL-D SAFETY CONCEPT + DC-LINK DISCHARGE VERIFICATION
+Text Notes 1460 23320 0    60   ~ 0
+safe state = 3-phase-open (ASC above overspeed); discharge vs ECE R100 / ISO 6469
+Text Notes 1450 23750 0    60   ~ 0
+1 lockstep S32K396 (ASIL-D core) runs torque path
+Text Notes 1450 24050 0    60   ~ 0
+2 FS26 Q&A watchdog + monitors -> FS0B (no SW)
+Text Notes 1450 24350 0    60   ~ 0
+3 FS0B&MCU_EN&RDY&FLT-latch -> DRV_EN = 3-ph open
+Text Notes 1450 24650 0    60   ~ 0
+4 FS1B strap -> LS ASC latch (HS strapped OFF)
+Text Notes 1450 24950 0    60   ~ 0
+5 flyback EN = MCU OR FS26-GPIO1 (ASC gate power)
+Text Notes 1450 25250 0    60   ~ 0
+6 3x hall + sum(I)=0 plausibility (torque path)
+Text Notes 1450 25550 0    60   ~ 0
+7 2x isolated VDC senses, >5% mismatch = fault
+Text Notes 1450 25850 0    60   ~ 0
+8 DESAT per switch, ~1.5 us blanking, latching
+Text Notes 5650 23750 0    60   ~ 0
+9 HVIL open = VDDIO/2 signature -> discharge
+Text Notes 5650 24050 0    60   ~ 0
+--- DISCHARGE ---
+Text Notes 5650 24350 0    60   ~ 0
+PASSIVE 10x 27k 2512-2W (5s x 2p = 67.5k): 57 s to 60 V
+Text Notes 5650 24650 0    60   ~ 0
+ACTIVE QDIS + 4x 470R 10W = 1.88k: 1.6 s to 60 V
+Text Notes 5650 24950 0    60   ~ 0
+E = 116 J @850 V - 32 J/res worst (>=100 J rated)
+Text Notes 5650 25250 0    60   ~ 0
+VERIFY: MCU fires QDIS, watches BOTH VDC channels
+Text Notes 5650 25550 0    60   ~ 0
+RULE: never energize w/o the DISCHARGE BOARD fitted
 Wire Notes Line
 	500 500 4100 500
 Wire Notes Line

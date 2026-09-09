@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-09"
-Rev "A.4.4"
+Rev "A.5"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -46,7 +46,7 @@ CARD-IF   -   1 section
 Text Notes 36800 8650 0    60   ~ 0
 VEHICLE-IF   -   1 section
 Text Notes 36810 9300 0    60   ~ 0
-rev A.4.4   -   26 sections   -   250 components
+rev A.5   -   26 sections   -   250 components
 Wire Notes Line
 	36750 10250 41200 10250
 Wire Notes Line
@@ -6279,15 +6279,15 @@ Wire Notes Line
 Text Notes 24560 18160 0    79   ~ 16
 VEHICLE-IF / CONNECTOR
 $Comp
-L traction-r1:TE_776231-1__AMPSEAL_23_ JVEH
+L traction-r1:TE_770669-1__AMPSEAL_23_ JVEH
 U 1 1 5E000246
 P 27550 19200
 F 0 "JVEH" H 27150 18500 50  0000 R CNN
-F 1 "TE 776231-1 (AMPSEAL 23)" H 27150 19930 50  0000 R CNN
+F 1 "TE 770669-1 (AMPSEAL 23)" H 27150 19930 50  0000 R CNN
 F 2 "AMPSEAL23" H 27550 19200 50  0001 C CNN
 F 3 "~" H 27550 19200 50  0001 C CNN
 F 4 "CLASS" H 27550 19200 50  0001 C CNN "LCSC"
-F 5 "TE 776231-1 (AMPSEAL 23)" H 27550 19200 50  0001 C CNN "MPN"
+F 5 "TE 770669-1 (AMPSEAL 23)" H 27550 19200 50  0001 C CNN "MPN"
 	1    27550 19200
 	1    0    0    -1  
 $EndComp
