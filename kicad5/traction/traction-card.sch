@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-09"
-Rev "A.4.3"
+Rev "A.4.4"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -46,7 +46,7 @@ CARD-IF   -   1 section
 Text Notes 36800 8650 0    60   ~ 0
 VEHICLE-IF   -   1 section
 Text Notes 36810 9300 0    60   ~ 0
-rev A.4.3   -   26 sections   -   250 components
+rev A.4.4   -   26 sections   -   250 components
 Wire Notes Line
 	36750 10250 41200 10250
 Wire Notes Line
@@ -1578,11 +1578,11 @@ L traction-r1:L LCOR
 U 1 1 5E000185
 P 3650 15450
 F 0 "LCOR" H 3650 15290 50  0000 C CNN
-F 1 "IND-2.2uH-4A" H 3650 15620 50  0000 C CNN
-F 2 "IND5x5" H 3650 15450 50  0001 C CNN
+F 1 "XAL4020-222MEC" H 3650 15620 50  0000 C CNN
+F 2 "XAL4020" H 3650 15450 50  0001 C CNN
 F 3 "~" H 3650 15450 50  0001 C CNN
 F 4 "CLASS" H 3650 15450 50  0001 C CNN "LCSC"
-F 5 "IND-2.2uH-4A" H 3650 15450 50  0001 C CNN "MPN"
+F 5 "XAL4020-222MEC" H 3650 15450 50  0001 C CNN "MPN"
 	1    3650 15450
 	1    0    0    -1  
 $EndComp
@@ -1599,11 +1599,11 @@ L traction-r1:L LSBC
 U 1 1 5E000186
 P 3650 15050
 F 0 "LSBC" H 3650 14890 50  0000 C CNN
-F 1 "IND-10uH-2A" H 3650 15220 50  0000 C CNN
-F 2 "IND6x6" H 3650 15050 50  0001 C CNN
+F 1 "XAL4040-103MEC" H 3650 15220 50  0000 C CNN
+F 2 "XAL4040" H 3650 15050 50  0001 C CNN
 F 3 "~" H 3650 15050 50  0001 C CNN
 F 4 "CLASS" H 3650 15050 50  0001 C CNN "LCSC"
-F 5 "IND-10uH-2A" H 3650 15050 50  0001 C CNN "MPN"
+F 5 "XAL4040-103MEC" H 3650 15050 50  0001 C CNN "MPN"
 	1    3650 15050
 	1    0    0    -1  
 $EndComp

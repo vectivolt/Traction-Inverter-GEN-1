@@ -306,7 +306,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹70,091 @1k volume** · 592 components · 193 lines · zero unmatched.
+**Electronics BOM: ₹70,934 @1k volume** · 592 components · 193 lines (real MPNs replaced the last class placeholders in A.4.4) · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -450,6 +450,15 @@ Three independent verification layers — each with its own tool, none trusting 
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | cycle-by-cycle flyback, boost Bode, SVPWM DC-link ripple, 30 s thermal transient, discharge ODE, current-loop PM | **18 PASS · 1 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
+
+Rev A.4.4 closed round five (procurement binding, no electrical change): the generic
+class identifiers are bound to verified orderable parts — LCOR → Coilcraft XAL4020-222
+(AEC-Q200, values from the XAL4000 datasheet), both 10 µH positions → XAL4040-103, and
+PS5B/PS5C → Murata MGJ2D150505SC behind an explicit reinforced-cert procurement gate. One
+candidate was **rejected during verification**: RECOM R15P05S — its headline 6.4 kV is a
+1-second test; the IEC 62368-1 grade is *basic* at 250 VACrms working, failing the 850 V
+barrier rule. The FS26 OTP configuration the schematic assumes is now pinned as a table in
+design-basis §8a.
 
 Rev A.4.3 closed round four: the LCOR value/MPN/BOM/OTP now agree end-to-end (the class
 part string had kept printing 4.7 µH after the value fix), and the TPS55340 boost got its

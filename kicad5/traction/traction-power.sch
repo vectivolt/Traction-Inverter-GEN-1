@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)"
 Date "2026-09-09"
-Rev "A.4.3"
+Rev "A.4.4"
 Comp "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)"
@@ -44,7 +44,7 @@ CONTROL-IF   -   1 section
 Text Notes 29100 21350 0    60   ~ 0
 DC-LINK   -   1 section
 Text Notes 29110 22000 0    60   ~ 0
-rev A.4.3   -   24 sections   -   292 components
+rev A.4.4   -   24 sections   -   292 components
 Wire Notes Line
 	34650 18100 39100 18100
 Wire Notes Line
@@ -5800,15 +5800,15 @@ Wire Notes Line
 Text Notes 28560 11910 0    79   ~ 16
 HV-SENSING / ISO-BIAS
 $Comp
-L traction-r1:ISO5V-RFC-6K PS5B
+L traction-r1:MGJ2D150505SC PS5B
 U 1 1 5E0000EB
 P 30400 13050
 F 0 "PS5B" H 30000 12750 50  0000 R CNN
-F 1 "ISO5V-RFC-6K" H 30000 13380 50  0000 R CNN
+F 1 "MGJ2D150505SC" H 30000 13380 50  0000 R CNN
 F 2 "SIP7" H 30400 13050 50  0001 C CNN
 F 3 "~" H 30400 13050 50  0001 C CNN
 F 4 "CLASS" H 30400 13050 50  0001 C CNN "LCSC"
-F 5 "ISO5V-RFC-6K" H 30400 13050 50  0001 C CNN "MPN"
+F 5 "MGJ2D150505SC" H 30400 13050 50  0001 C CNN "MPN"
 	1    30400 13050
 	1    0    0    -1  
 $EndComp
@@ -5829,15 +5829,15 @@ Wire Wire Line
 Text Label 30200 13600 3    45   ~ 0
 DGND
 $Comp
-L traction-r1:ISO5V-RFC-6K PS5C
+L traction-r1:MGJ2D150505SC PS5C
 U 1 1 5E0000EC
 P 30400 14800
 F 0 "PS5C" H 30000 14500 50  0000 R CNN
-F 1 "ISO5V-RFC-6K" H 30000 15130 50  0000 R CNN
+F 1 "MGJ2D150505SC" H 30000 15130 50  0000 R CNN
 F 2 "SIP7" H 30400 14800 50  0001 C CNN
 F 3 "~" H 30400 14800 50  0001 C CNN
 F 4 "CLASS" H 30400 14800 50  0001 C CNN "LCSC"
-F 5 "ISO5V-RFC-6K" H 30400 14800 50  0001 C CNN "MPN"
+F 5 "MGJ2D150505SC" H 30400 14800 50  0001 C CNN "MPN"
 	1    30400 14800
 	1    0    0    -1  
 $EndComp
@@ -6785,11 +6785,11 @@ L traction-r1:L LB15
 U 1 1 5E000112
 P 40250 12150
 F 0 "LB15" H 40250 11990 50  0000 C CNN
-F 1 "IND-10uH-3A" H 40250 12320 50  0000 C CNN
-F 2 "IND6x6" H 40250 12150 50  0001 C CNN
+F 1 "XAL4040-103MEC" H 40250 12320 50  0000 C CNN
+F 2 "XAL4040" H 40250 12150 50  0001 C CNN
 F 3 "~" H 40250 12150 50  0001 C CNN
 F 4 "CLASS" H 40250 12150 50  0001 C CNN "LCSC"
-F 5 "IND-10uH-3A" H 40250 12150 50  0001 C CNN "MPN"
+F 5 "XAL4040-103MEC" H 40250 12150 50  0001 C CNN "MPN"
 	1    40250 12150
 	1    0    0    -1  
 $EndComp

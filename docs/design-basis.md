@@ -176,6 +176,26 @@ documents SPO as the KL30-loss safe state.*
 - Motor temp (2 × PT1000/NTC), SWD debug, boot straps, 40-way harness with default-OFF
   pulldowns on every enable/PWM line the harness can float.
 
+## 8a. FS26 OTP configuration (what the FS2633D programmed variant must contain)
+
+The schematic assumes this exact OTP set — the ordering step must procure a variant (or
+NXP OTP-programming service) matching it; the abbreviated "FS2633D" label alone does not
+guarantee it (review round 3/5 item):
+
+| OTP field | Required setting | Anchored by |
+|---|---|---|
+| VPRE_V | 6.0 V | LDOIN & TRKIN headroom ≥ V5A+0.35 V, ≤6.35 V max |
+| FPRE | 450 kHz | LSBC = 10 µH (DS pairing: L_VPRE 10 µH ↔ 450 kHz) |
+| CORE_LSEL_OTP[1:0] | 10 (2.2 µH) | LCOR = XAL4020-222 (eff window 1.5–2.9 µH) |
+| VCORE | 1.5 V | V15S rail → QBAL ballast → V11 (S32K39 Table 11) |
+| LDO1 / LDO2 | 3.3 V / 5.0 V, slotted ON | V3B / V5A rails |
+| VMONEXT | enabled (0.8 V ref) | 52.3 k/10 k divider on V5A |
+| VMONCORE / VMONPRE | enabled | V15S / VPRE monitors |
+| TRK1/TRK2 slots | OFF (111) | trackers unused, outputs open |
+| WK2PD_OTP / IO2PD_OTP | 1 / 1 | WAKE2, GPIO2 left open |
+| VBST (boost front-end) | disabled | pins terminated per DS unused table |
+| FS0B + FS1B, FCCU1/2 | enabled | safety chain + ASC strap |
+
 ## 9. LV power
 
 - Card: KL30 (9–16 V) → polyfuse + STPS5L60SY reverse Schottky + TPSMC24CA TVS (GEN3 exact) →
@@ -364,6 +384,20 @@ Accepted qualifications from the same round, on record:
   resolver excitation — availability is not credited in that stationary service state.
 - **IGN_SNS disposition**: ADC input (PTA25 as ADC channel), firmware thresholds; the
   47 k/10 k scaling makes 9–16 V read 1.46–2.68 V.
+
+## 11e. Rev A.4.4 — round five: procurement binding
+
+No electrical change. The generic class identifiers flagged in review round 5 are bound to
+real orderable parts, each verified against its manufacturer datasheet before binding:
+LCOR → Coilcraft XAL4020-222 (2.2 µH, AEC-Q200; values read from the XAL4000 datasheet),
+LB15/LSBC → XAL4040-103 (one line item for both 10 µH positions), PS5B/PS5C →
+Murata MGJ2D150505SC with an explicit procurement gate (verify the reinforced
+characterization at 850 VDC working and the SIP-7 pin map before PO). One candidate was
+evaluated and **rejected during this binding**: RECOM R15P05S/R6.4 — its 6.4 kV rating is a
+1-second test voltage; the insulation grade per IEC 62368-1 is *basic* at 250 VACrms
+working, which fails the barrier rule for the 850 V bus. PSASC/PSQD stay Mornsun QA01C-18
+(6 kVDC, 60950-family approvals; CB-cert verification at PO stays in the BOM note).
+The S32K396 package binding remains the standing fabrication blocker.
 
 ## 12. References
 
