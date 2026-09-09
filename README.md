@@ -4,12 +4,12 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.5%20·%20F1–F61%20closed-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.5%20·%20F1–F62%20closed-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-500–850%20V-457b9d?style=for-the-badge"/>
 </p>
 <p align="center">
-  <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
+  <img alt="Silicon" src="https://img.shields.io/badge/silicon-SiC%20or%20IGBT%20·%203×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
   <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1695%2F1695%20·%20100%25-2a9d8f?style=flat-square"/>
   <img alt="Components" src="https://img.shields.io/badge/components-592%20·%20193%20BOM%20lines-0077b6?style=flat-square"/>
@@ -17,7 +17,7 @@
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
   <img alt="ERC" src="https://img.shields.io/badge/ERC-782%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-82%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
-  <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2021%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2023%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
@@ -114,8 +114,9 @@ are printed **on the drawing**, so the schematic is never the only artifact a re
 | Continuous power | **120 kW** |
 | Peak phase current | **340 A<sub>rms</sub>** (480 A pk) |
 | Continuous phase current | 185 A<sub>rms</sub> |
+| Efficiency @120 kW | **SiC ≈98.4 %** · **IGBT ≈97.3 %** |
 | DC feed current | 314 A pk / 171 A cont |
-| Switching frequency | 8 – 10 kHz SVPWM |
+| Switching frequency | **SiC** 8–10 kHz (16–20 kHz quiet option) · **IGBT** 4–6 kHz |
 | Motor type | 3-φ PMSM, resolver feedback |
 | Cooling | Liquid coldplate @ 65 °C |
 | Ambient | −40 … +85 °C |
@@ -126,7 +127,7 @@ are printed **on the drawing**, so the schematic is never the only artifact a re
 
 | Function | Part | Grade |
 |---|---|---|
-| Power switch ×3 | HIITIO **HCS600FH120D3C1** 1200 V/600 A | EconoDUAL 3 |
+| Power switch ×3 | HIITIO **HCS600FH120D3C1** (SiC) *or* **HCG600FH120D3E1EA** (IGBT) — same pads & pins | EconoDUAL 3 |
 | Gate driver ×6 | **NSI6611A-Q1** 10 A iso, DESAT + Miller | AEC-Q100 |
 | MCU | NXP **S32K396** lockstep M7 | ASIL-D |
 | Safety SBC | NXP **FS2633D** | ASIL-D |
@@ -307,14 +308,19 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹70,934 @1k volume** · 592 components · 193 lines (real MPNs replaced the last class placeholders in A.4.4) · zero unmatched.
-Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
-parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
-[`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
+Two silicon builds of the same boards, one parts-db (the sheets, BOMs and LCSC fields
+cannot disagree) — full comparison: [`docs/variants.md`](docs/variants.md):
+
+| Build | Electronics BOM @1k | Ex-works unit | Suggested price (35–40 % GM) |
+|---|---|---|---|
+| **SiC** (HCS600) | **₹70,934** → [`bom.md`](docs/bom.md) | ≈ ₹1.15 L (₹525/kW) | ₹1.75–1.95 L |
+| **IGBT** (HCG600) | **₹45,434** → [`bom-igbt.md`](docs/bom-igbt.md) | ≈ ₹0.90 L (₹410/kW) | ₹1.35–1.55 L |
+
+592 components · 193 lines · zero unmatched · per-board CSVs alongside each BOM.
 
 ```mermaid
 pie showData title Electronics BOM contribution (₹ @1k)
-    "SiC modules (3× HCS600)" : 54000
+    "Modules 3× (SiC 54,000 / IGBT 28,500)" : 54000
     "DC-link film caps (16×)" : 4800
     "Hall sensors + AFE" : 2321
     "Gate-power flybacks" : 2225
@@ -453,14 +459,14 @@ Four independent verification layers — each with its own tool, none trusting t
 | Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **82 PASS · 4 WARN · 0 FAIL** (all constants datasheet-real, incl. the IGBT-variant block) |
-| Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: cycle-by-cycle flyback, boost Bode, SVPWM ripple, 30 s thermal, discharge ODE, current-loop PM, parametric double-pulse, SC/DESAT timeline, ASC hold-up | **21 PASS · 2 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
+| Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: cycle-by-cycle flyback, boost Bode, SVPWM ripple, 30 s thermal, discharge ODE, current-loop PM, parametric double-pulse, SC/DESAT timeline, ASC hold-up | **23 PASS · 2 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 
 ### 🔍 The review campaign — five external rounds, every claim verified at the source
 
 An independent reviewer ran five adversarial rounds against the released PDFs. The working
 rule throughout: **no fix without primary-source verification, no rebuttal without evidence**
 — every claim was checked against the manufacturer datasheet (winding diagrams read at
-300 dpi where the dots decided it) before a single edit. Findings log **F1–F61, all closed**;
+300 dpi where the dots decided it) before a single edit. Findings log **F1–F62, all closed**;
 each round's full narrative lives in [`docs/design-basis.md`](docs/design-basis.md) §11.
 
 | Round | Release | Fixed | The headline catches |
@@ -471,7 +477,7 @@ each round's full narrative lives in [`docs/design-basis.md`](docs/design-basis.
 | Review 3 | A.4.2 | 6 (F52–F57) | FS26 buck passives to Table-106, **CAN chokes wound 1-4/2-3** (CANH crossed onto CANL), ALM2402 behind its own LDO, **BUK7Y14-80E** (±20 V gate) |
 | Review 4 | A.4.3 | 2 (F58–F59) | LCOR value/MPN/BOM/OTP agreement, UB15 compensation network (was ~0° screening margin) |
 | Review 5 | A.4.4 | procurement | real MPNs bound; **RECOM R15P05S rejected** — 6.4 kV is a 1 s test, insulation grade *basic*; FS26 OTP table pinned (§8a) |
-| Docs audit | A.5 | 2 (F60–F61) | JVEH rebound to the true 23-pos AMPSEAL **770669-1** (the TE drawing proved 776231-1 is 35-pos); QA01C rails are **+20/−4 V** per DS — clamps re-verified |
+| Docs audit | A.5 | 3 (F60–F62) | JVEH rebound to the true 23-pos AMPSEAL **770669-1** (the TE drawing proved 776231-1 is 35-pos); QA01C rails are **+20/−4 V** per DS — clamps re-verified |
 
 Three review claims were **rebutted with evidence** (900 V divider corner — system max is
 850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; the discharge math —
@@ -503,19 +509,20 @@ value swaps on existing pads plus firmware:
 | DESAT blanking | 47 pF | **150 pF** (≈2.8 µs vs 10 µs-class SC withstand) |
 | Gate rails | +15.6/−5.1 V | **unchanged** (±20 V abs, V_GE(th) 5.0–6.2 V + Miller clamp) |
 | Firmware | 8–10 kHz, 1 µs DT, NTC B3435 | 4–6 kHz, 2.5 µs DT, NTC B3375 |
-| Verified | Tj 89 °C @220 kW pk (sim) | **Tj 97 °C cont / 118 °C @220 kW pk vs 150 °C Tvjop** |
+| Verified | Tj 89 °C @220 kW pk (S4 sim) | **Tj 97 °C cont · 110 °C @220 kW pk (S4 sim) vs 150 °C Tvjop** |
 | Electronics BOM | ₹70,934 @1k | **₹45,434 @1k** ([`docs/bom-igbt.md`](docs/bom-igbt.md)) |
 
 Trade: ≈1.1 pt efficiency at 120 kW. Natural pairing: the <500 V-pack / cost SKU.
-Generate with `npm run bom:igbt`; the verification report carries a dedicated
-"IGBT variant" margin block.
+Generate with `npm run bom:igbt`. Full end-to-end comparison (ratings, losses, thermal,
+cost, pricing, open items): [`docs/variants.md`](docs/variants.md); the verification report
+carries the "IGBT variant" margin block and S1b/S4/S9 simulate both builds.
 
 ---
 
 ## 🧪 Simulation — the drawn circuits at their operating points
 
 `calculations/sim-verify.mjs` numerically simulates the released netlist's circuits in the
-time and frequency domain. **21 PASS · 2 WARN · 0 FAIL** — full table with per-row modeling
+time and frequency domain. **23 PASS · 2 WARN · 0 FAIL** — full table with per-row modeling
 assumptions: [`docs/simulation-report.md`](docs/simulation-report.md).
 
 | # | Simulation | Key result |
@@ -574,7 +581,8 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`kicad5/`](kicad5/) | EasyEDA-Pro/KiCad-5 importable sheets + `Traction-Inverter-SHIP.zip` |
 | [`docs/design-basis.md`](docs/design-basis.md) | Ratings, sizing math, safety concept, references |
 | [`docs/dfm.md`](docs/dfm.md) | Manufacturability plan + sourcing tiers |
-| [`docs/bom.md`](docs/bom.md) | Generated BOM with subsystem Pareto |
+| [`docs/bom.md`](docs/bom.md) · [`docs/bom-igbt.md`](docs/bom-igbt.md) | Generated BOMs, both silicon builds, with subsystem Pareto |
+| [`docs/variants.md`](docs/variants.md) | SiC vs IGBT end-to-end comparison (ratings · losses · thermal · cost · pricing) |
 | [`docs/simulation-report.md`](docs/simulation-report.md) | Operating-point simulations (S1–S7) with waveform/Bode plots |
 | [`docs/cost-rollup.md`](docs/cost-rollup.md) | Full unit cost + NRE + pricing guidance |
 | [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F30, margin tables, worst-case corners |
@@ -589,16 +597,16 @@ timeline
     title GEN-1 program
     section Done ✅
         Research : NXP GEN3 + Wolfspeed XM3 + TI TIDM-02014 read line-by-line : HIITIO catalog swept
-        Rev A.1  : Schematic-complete 2-board set : 100% pin-verified : costed BOM
-        Rev A.2  : DFM pass — 2 live sourcing sweeps : 6 design changes : LCSC C-numbers stamped
-        Rev A.3  : Verification campaign — 654-check ERC : worst-case analysis : 9 defects fixed : datasheet pack
+        Rev A.1–A.3 : Schematic-complete set : DFM pass : verification campaign (F1–F36)
+        Rev A.4–A.4.4 : Five external review rounds answered at the source (F37–F59) : real MPNs bound
+        Rev A.5 : 4-assembly set · S1–S10 simulations · IGBT drop-in variant (HCG600, same pads) : F60–F62
     section Next 🔜
         Pin freeze : S32K396 ball map + FS26 pins vs datasheets : HIITIO aux-pin drawing
         Layout : power-board floorplan around 3 modules : laminated busbar ≤15 nH : card 6-layer
         Proto : EVT build ×5 : double-pulse : discharge timing : resolver loop
     section Then 🎯
         DVT : CISPR 25 EMC : ISO 16750 environmental : thermal endurance
-        Production : casting tooling : EOL rig : 1k ramp @ ~₹1.15L/unit
+        Production : casting tooling : EOL rig : 1k ramp @ ~₹1.15L (SiC) / ~₹0.90L (IGBT) per unit
 ```
 
 > [!NOTE]
@@ -619,13 +627,13 @@ timeline
 | **NXP EV-INVERTERGEN3** (SPF-91122 / EV-POWEREVBHD2) | Control architecture near-verbatim: FS26 rails & FS0B/FS1B paths, OR-gated flyback enables, resolver AFE chain, hall AFE, PWM/PWMALT lockout, interlock signature |
 | **Wolfspeed CRD300DA12E-XM3** (PRD-06975 + discharge PCB) | Passive-bleeder discharge numbers, gate-drive practice (±15/−4 rails, soft-shutdown, 2 µs dead-time guidance), DC-link class |
 | **TI TIDM-02014** (TIDUF23A) | Safety decomposition: PMIC SAFE-OUT OR-gate, LVSS strap matrix concept, dual-path ASC authority |
-| **HIITIO catalog** (hiitio.com, 2025 datasheets) | HCS600FH120D3C1 module line, HCM75S12T4K3; EconoDUAL 3 footprint strategy |
+| **HIITIO catalog** (hiitio.com, 2025 datasheets) | HCS600FH120D3C1 (SiC) + HCG600FH120D3E1EA (IGBT variant, same D3 pads/pins), HCM75S12T4K3; EconoDUAL 3 footprint strategy |
 
 ---
 
 <p align="center">
   <img alt="Vectivolt" src="https://img.shields.io/badge/⚡-VECTIVOLT-0d1b2a?style=for-the-badge"/>
   <br/>
-  <sub><b>Traction Inverter GEN-1</b> · rev A.2 · 2026-09-09 · schematic-complete, layout next.<br/>
+  <sub><b>Traction Inverter GEN-1</b> · rev A.5 · dual-silicon (SiC / IGBT) · schematic-complete, layout next.<br/>
   Proprietary — © Vectivolt. Reference designs cited remain property of their respective owners.</sub>
 </p>

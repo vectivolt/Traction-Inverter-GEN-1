@@ -25,6 +25,13 @@ the direct references; NXP EV-INVERTERGEN3 (S32K396) is the control architecture
 Max SVPWM line-line voltage at 700 V: V_ll = V_dc/√2 = 495 Vrms.
 P = √3 · 495 · 340 · 0.85 ≈ 248 kW available; 220 kW rating leaves modulation/PF margin.
 
+### Ratings apply to BOTH silicon builds
+
+The 220 kW pk / 120 kW cont / 500–850 V ratings hold for the SiC build (8–10 kHz) **and**
+the IGBT variant (4–6 kHz) — verified independently (report "IGBT variant" block + S4
+transient: Tj 89 °C SiC / 110 °C IGBT at the end of the 30 s peak). Efficiency @120 kW:
+≈98.4 % SiC / ≈97.3 % IGBT. Full comparison: [`variants.md`](variants.md).
+
 ## 2. Power stage — SiC module selection (hiitio primary, standard EconoDUAL 3 footprint)
 
 At 340 Arms per phase, discrete TO-247 paralleling (6–8 per switch) loses to a module on
@@ -68,7 +75,7 @@ Qg 4.36 µC · Isc 1800 A · Tvjop 150 °C · NTC B25/50 3375.
   5.0–6.2 V, and the NSI6611 Miller clamp holds the off-state — dv/dt shoot-through stays a
   bench row.
 
-Verified in the report's "IGBT variant" block: Tj 97 °C continuous / 118 °C at the 30 s
+Verified in the report's "IGBT variant" block (and S4 transient sim: 110 °C): Tj 97 °C continuous / 118 °C static-worst at the 30 s
 peak (65 °C coolant, 0.045 K/W coldplate assumption), gate-power 1.63 W/bank vs 3.87 W
 throughput. Trade: ≈1.1 pt efficiency at 120 kW for **₹25.5k/unit** (BOM ₹45,434 vs
 ₹70,934) — the natural pairing for the <500 V-pack derate.
@@ -289,10 +296,10 @@ Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
 numeric worst-case verification **82 PASS / 4 WARN / 0 FAIL** (incl. the IGBT-variant block) · operating-point
-simulation (`sim-verify.mjs`, S1–S7: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
+simulation (`sim-verify.mjs`, S1–S10 across BOTH silicon builds: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
 with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
 thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,
-current-loop phase margin, parametric double-pulse, SC/DESAT timelines, ASC hold-up — **21 PASS / 2 WARN / 0 FAIL**, plots in
+current-loop phase margin, parametric double-pulse, SC/DESAT timelines, ASC hold-up — **23 PASS / 2 WARN / 0 FAIL**, plots in
 `docs/simulation-report.md`; the S6 result fixes the firmware current-loop bandwidth
 ceiling at **≤1.2 kHz** for ≥45° margin with the drawn filter chain), every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4

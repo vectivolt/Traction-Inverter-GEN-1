@@ -5,7 +5,7 @@ builds at any competent CEM from LCSC + DigiKey stock** — no exotic distributi
 single-source jellybeans, one clean flow across the four assemblies (power PCB, cap-bank
 busbar assembly, bolt-on discharge PCB, control card). Grounded in two live sourcing sweeps
 (LCSC exact-MPN + DigiKey/Mouser alternates, 2026-09-09) and five external review rounds
-(findings F1–F61, all closed — see `verification-report.md`).
+(findings F1–F62, all closed — see `verification-report.md`). Silicon-variant comparison: [`variants.md`](variants.md).
 
 ## 1. Sourcing tiers (how the buy is organized)
 

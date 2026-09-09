@@ -80,6 +80,14 @@ function plot(file, title, series, xlab, ylab) {
   }
 }
 
+// S1b — same bank under the IGBT variant's gate load (Qg_eff ≈3.0 µC @6 kHz)
+{
+  const Pload = 3 * (3.0e-6 * 20.7 * 6e3 + 5e-3 * 20.7) + 0.2;
+  const cap = 0.5 * (10e-6 / 3) * (0.9 * 3.03) ** 2 * 253e3 * 0.92;
+  add("S1", "Flyback bank load, IGBT variant @6 kHz", `${f(Pload, 2)} W demand`, `${f(cap, 2)} W DCM capacity`,
+    Pload < 0.8 * cap ? "PASS" : "WARN", "Qg 4.36 µC scaled to the 20.7 V swing; same rails, same transformer");
+}
+
 // ============ S2 — UB15 boost loop Bode WITH the A.4.3 compensation ============
 // Current-mode CCM model (TI SLVSBD4E §8.2.1.2.11 form): power stage Gps with output pole,
 // RHP zero; EA gm=360 µS, Ro=10 MΩ, Zc = Rc + 1/sCc (∥ Cp). Vin 12/9 V, load 0.33 A.
@@ -141,7 +149,7 @@ function plot(file, title, series, xlab, ylab) {
     if (Iph === 340) plot("s3-dclink-ripple.svg", "S3 DC-link capacitor current, SVPWM switching sim (340 A, m=0.9, cosφ=0.9)",
       [{ name: "i_dc (A)", x: wave.x, y: wave.y }], "time (ms)", "A");
     add("S3", `Cap ripple per can, ${tag}`, `${f(perCan, 1)} A rms (bank ${f(irms, 0)} A)`, "15.4 A/can @10 kHz/70 °C",
-      perCan < 15.4 ? "PASS" : "FAIL", "switching-state simulation (not the closed-form envelope)");
+      perCan < 15.4 ? "PASS" : "FAIL", "switching-state simulation; IGBT variant at 4–6 kHz has the same rms (frequency shifts, magnitude does not)");
   }
 }
 
@@ -149,26 +157,27 @@ function plot(file, title, series, xlab, ylab) {
 // 3-node ladder per switch: junction (RthJC 0.066, τ 0.8 s) → case/TIM (0.015, τ 5 s) →
 // coldplate node (0.045 K/W to 65 °C coolant, τ 60 s — coldplate Rth is a stated assumption).
 {
-  const Rjc = 0.066, Rch = 0.015, Rha = 0.045, Ta = 65;
-  const Cj = 0.8 / Rjc, Cc = 5 / Rch, Ch = 60 / Rha;
-  const Pcont = 121, Ppk = 232;           // per-switch: design-verify loss rows (cond+sw) at 120/220 kW
-  let Tj = 0, Tc = 0, Th = 0;             // temperatures above coolant
-  const dt = 0.02, tr = { x: [], y: [] };
-  let t = 0, TjPk = 0;
-  const step = (P) => {
-    const qjc = (Tj - Tc) / Rjc, qch = (Tc - Th) / Rch, qha = Th / Rha;
-    Tj += dt * (P - qjc) / Cj; Tc += dt * (qjc - qch) / Cc; Th += dt * (qch - qha) / Ch;
-  };
-  for (; t < 120; t += dt) step(Pcont);                    // reach continuous steady state
-  for (const tEnd of [30]) {
-    for (let te = 0; te < tEnd; te += dt) { step(Ppk); t += dt; TjPk = Math.max(TjPk, Tj); tr.x.push(t - 120); tr.y.push(Ta + Tj); }
+  const Ta = 65, series = [];
+  for (const [tag, Rjc, Pcont, Ppk, tCeil] of [["SiC (8 kHz)", 0.066, 121, 232, 150], ["IGBT variant (6 kHz)", 0.070, 248, 406, 150]]) {
+    const Rch = 0.015, Rha = 0.045;
+    const Cj = 0.8 / Rjc, Cc = 5 / Rch, Ch = 60 / Rha;
+    let Tj = 0, Tc = 0, Th = 0, t = 0, TjPk = 0;
+    const tr = { x: [], y: [] };
+    const dt = 0.02;
+    const step = (P) => {
+      const qjc = (Tj - Tc) / Rjc, qch = (Tc - Th) / Rch, qha = Th / Rha;
+      Tj += dt * (P - qjc) / Cj; Tc += dt * (qjc - qch) / Cc; Th += dt * (qch - qha) / Ch;
+    };
+    for (; t < 120; t += dt) step(Pcont);
+    for (let te = 0; te < 30; te += dt) { step(Ppk); t += dt; TjPk = Math.max(TjPk, Tj); tr.x.push(t - 120); tr.y.push(Ta + Tj); }
+    for (let te = 0; te < 60; te += dt) { step(Pcont); t += dt; tr.x.push(t - 120); tr.y.push(Ta + Tj); }
+    series.push({ name: `Tj ${tag}`, x: tr.x, y: tr.y });
+    add("S4", `Tj end of 30 s / 220 kW peak — ${tag}`, `${f(Ta + TjPk, 0)} °C`, `${tCeil} °C ceiling (${tag.startsWith("SiC") ? "175 abs" : "Tvjop"})`,
+      Ta + TjPk < tCeil ? "PASS" : "WARN",
+      "coldplate 0.045 K/W per switch is an assumption — thermal test closes it");
   }
-  for (let te = 0; te < 60; te += dt) { step(Pcont); t += dt; tr.x.push(t - 120); tr.y.push(Ta + Tj); }
-  plot("s4-thermal-30s.svg", "S4 junction temperature: 120 kW steady → 220 kW for 30 s → back (65 °C coolant)",
-    [{ name: "Tj (°C)", x: tr.x, y: tr.y }], "time from peak start (s)", "°C");
-  add("S4", "Tj at end of 30 s / 220 kW peak", `${f(Ta + TjPk, 0)} °C`, "175 °C max (design ≤150)",
-    Ta + TjPk < 150 ? "PASS" : Ta + TjPk < 175 ? "WARN" : "FAIL",
-    "coldplate 0.045 K/W per switch is an assumption — thermal test closes it");
+  plot("s4-thermal-30s.svg", "S4 junction transient, BOTH silicon: 120 kW → 220 kW/30 s → 120 kW (65 °C coolant)",
+    series, "time from peak start (s)", "°C");
 }
 
 // ============ S5 — discharge transient incl. bias startup + resistor stress ============

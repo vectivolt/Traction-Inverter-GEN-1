@@ -24,7 +24,7 @@ answer are flagged in §3.
 **Baseline: ≈ ₹1.15 lakh / unit ≈ $1,390 ≈ ₹525/kW ($6.3/kW).**
 1,000 units ⇒ **≈ ₹11.5 Cr** parts + build (range ₹10.0–15.1 Cr).
 
-### IGBT cost SKU (same boards)
+### IGBT cost SKU (same boards — full comparison in [`variants.md`](variants.md))
 
 Swapping to the HCG600FH120D3E1EA IGBT variant (₹9.5k/module planning vs ₹18k SiC) drops
 line 1 to **₹45,434** and the ex-works baseline to **≈ ₹90k/unit (≈ ₹410/kW)** — at
@@ -58,7 +58,9 @@ natural pairing is the <500 V-pack derated SKU. Both quotes ride the same hiitio
 ## 4. Pricing guidance (if "price" = selling price)
 
 Low-volume 200–300 kW/800 V SiC inverters (Cascadia CM350-class) sell at $4,000–7,000.
-At ₹1.15 L cost, ex-works pricing at **₹1.75–1.95 L (~$2,100–2,350, 35–40 % GM)** undercuts
+SiC SKU: at ₹1.15 L cost, ex-works **₹1.75–1.95 L** (35–40 % GM). IGBT SKU: at ≈₹0.90 L
+cost, ex-works **₹1.35–1.55 L** at the same margin — it undercuts imported IGBT drives
+(Curtis/Sevcon class tops out far below this power) while the SiC SKU undercuts
 every imported option by ~2× while funding the NRE inside the first 1,000 units:
 
 - Revenue @1k ≈ ₹17.5–19.5 Cr · COGS ≈ ₹11.5 Cr · gross ≈ ₹6–8 Cr vs ≈ ₹1.2 Cr hardware NRE.

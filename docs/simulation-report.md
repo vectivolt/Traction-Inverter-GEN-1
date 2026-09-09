@@ -14,13 +14,15 @@ are flagged in each row's note.
 | S1 | Flyback drain peak @12 V in | 39.1 V | 80 V BUK7Y14-80E | ✅ PASS | leakage 2 % assumed — bench-confirm the ring; clamp path bounds it |
 | S1 | Flyback steady rail @16 V in | 21.3 V (target 21.4) | ±5 % | ✅ PASS | settles in 4 ms · steady Ipk 1.82 A vs 3.03 A limit |
 | S1 | Flyback drain peak @16 V in | 43.1 V | 80 V BUK7Y14-80E | ✅ PASS | leakage 2 % assumed — bench-confirm the ring; clamp path bounds it |
+| S1 | Flyback bank load, IGBT variant @6 kHz | 1.63 W demand | 2.88 W DCM capacity | ✅ PASS | Qg 4.36 µC scaled to the 20.7 V swing; same rails, same transformer |
 | S2 | UB15 crossover @12 V in | 2.45 kHz | «fsw/10 (58 kHz) · «RHPZ (451 kHz) | ✅ PASS |  |
 | S2 | UB15 phase margin @12 V in | 75° | ≥45° | ✅ PASS | vs ~0° for the pre-A.4.3 capacitor-only COMP; measured Bode still a bench gate |
 | S2 | UB15 crossover @9 V in | 1.91 kHz | «fsw/10 (58 kHz) · «RHPZ (254 kHz) | ✅ PASS |  |
 | S2 | UB15 phase margin @9 V in | 72° | ≥45° | ✅ PASS | vs ~0° for the pre-A.4.3 capacitor-only COMP; measured Bode still a bench gate |
-| S3 | Cap ripple per can, peak-30s (340 A) | 11.9 A rms (bank 191 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation (not the closed-form envelope) |
-| S3 | Cap ripple per can, continuous (216 A) | 7.6 A rms (bank 121 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation (not the closed-form envelope) |
-| S4 | Tj at end of 30 s / 220 kW peak | 89 °C | 175 °C max (design ≤150) | ✅ PASS | coldplate 0.045 K/W per switch is an assumption — thermal test closes it |
+| S3 | Cap ripple per can, peak-30s (340 A) | 11.9 A rms (bank 191 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation; IGBT variant at 4–6 kHz has the same rms (frequency shifts, magnitude does not) |
+| S3 | Cap ripple per can, continuous (216 A) | 7.6 A rms (bank 121 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation; IGBT variant at 4–6 kHz has the same rms (frequency shifts, magnitude does not) |
+| S4 | Tj end of 30 s / 220 kW peak — SiC (8 kHz) | 89 °C | 150 °C ceiling (175 abs) | ✅ PASS | coldplate 0.045 K/W per switch is an assumption — thermal test closes it |
+| S4 | Tj end of 30 s / 220 kW peak — IGBT variant (6 kHz) | 110 °C | 150 °C ceiling (Tvjop) | ✅ PASS | coldplate 0.045 K/W per switch is an assumption — thermal test closes it |
 | S5 | Active discharge to 60 V, nominal | 1.53 s | ≤2 s crash target (5 s R100) | ✅ PASS | peak 99 W and 28.3 J per 470 Ω (100 J single-pulse class) |
 | S5 | Active discharge to 60 V, worst (+10 %C, +5 %R) | 1.76 s | ≤2 s crash target (5 s R100) | ✅ PASS | peak 94 W and 31.1 J per 470 Ω (100 J single-pulse class) |
 | S6 | Current-loop PM @1 kHz crossover | 58° | ≥45° (≥40 accepted) | ✅ PASS | double-update FOC (75 µs delay); motor 0.35 mH/25 mΩ assumed — bind at commissioning |
@@ -34,7 +36,7 @@ are flagged in each row's note.
 | S9 | Fault cleared, IGBT variant | 4.3 µs · E ≈ 6.3 J | 10 µs-class withstand | ✅ PASS | Isc 1800 A per DS; 10 µs class |
 | S10 | ASC hold-up after TOTAL LV loss | 15 ms (VCC2 15.6→10.4 V) | - | ⚠️ WARN | operating limit: sustained ASC REQUIRES KL30 present (FS26 GPIO1 holds the flybacks). Vehicle-level: ASC is not credited through a dead 12 V system — stated in the safety concept |
 
-**21 PASS · 2 WARN · 0 FAIL**
+**23 PASS · 2 WARN · 0 FAIL**
 
 ![S1](img/sim/s1-flyback-startup.svg)
 ![S2](img/sim/s2-boost-bode.svg)
