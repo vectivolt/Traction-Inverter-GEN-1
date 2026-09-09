@@ -289,7 +289,7 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   add("Sensing", "HVIL signatures (drive hi/lo/open)", "3.0 / 2.0 / 2.5 V", "-", "PASS", "distinct at ±5 % R tolerance (worst separation 0.38 V)");
   const vmp = 4.0 * 12.1 / (12.1 + 4.99), vmn = 4.0 * 24 / (24 + 4.99);
   judge("Sensing", "Resolver monitor dividers @4 V pk", `${f(vmp, 2)} / ${f(vmn, 2)} V`, "5 V SDADC input", Math.max(vmp, vmn) / 5, 0.85);
-  add("Sensing", "Resolver drive @9 V KL30", "≈7 V pp available vs 8 V pp target", "-", "WARN", "ALM2402 swing limit at cold-crank — angle still tracks (amplitude-invariant demod); GEN3 identical");
+  add("Sensing", "Resolver drive @9 V KL30", "≈6.5 V pp available vs 8 V pp target", "-", "WARN", "ALM2402 swing at cold-crank INCLUDING ULDOEX dropout (~0.3 V @ ~150 mA, A.4.3) — angle still tracks (amplitude-invariant demod); GEN3-equivalent behavior");
 }
 
 // ============ 8. SAFETY CHAIN TIMING/LOGIC ============
