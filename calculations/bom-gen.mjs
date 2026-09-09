@@ -19,7 +19,7 @@ const eng = (x, unit) => {
 const valueOf = (c) => c.ftype === "simple_resistor"
   ? (Number(c.resistance) === 0 ? "0R" : eng(Number(c.resistance), ""))
   : c.ftype === "simple_capacitor" ? eng(Number(c.capacitance), "F")
-  : c.ftype === "simple_inductor" ? eng(Number(c.inductance), "H") : "";
+  : c.ftype === "simple_inductor" ? (Number.isFinite(Number(c.inductance)) ? eng(Number(c.inductance), "H") : String(c.inductance)) : "";
 
 const CAT = (mpn, desc) =>
   /SiC|module|MOSFET|NFET/i.test(desc) ? "power semiconductors"
