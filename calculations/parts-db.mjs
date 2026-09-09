@@ -104,6 +104,8 @@ export const DB = [
   { m: /^JM[UVW]$/, mpn: "STUD-M8", mfr: "local", desc: "phase output M8 stud (busbar)", fp: "StudM8", price1k: 28, alt: "M10" },
   { m: /^JPE$/, mpn: "STUD-M6", mfr: "local", desc: "PE / chassis stud", fp: "StudM6", price1k: 18, alt: "M8" },
   { m: /^CY[12]$/, mpn: "Y1-4.7nF-500VAC", mfr: "TDK/Vishay/Murata", desc: "Y1-class 4.7 nF disc (500 Vac / 8 kV impulse), bus-to-chassis at 850 Vdc — Y2 (250 Vac line class) is NOT sufficient here (verification finding F2)", fp: "DiscP10", price1k: 22, alt: "2x Y2 in series / TDK CeraLink 1.5 kVdc" },
+  { m: /^JDC[PN]$/, mpn: "STUD-M6", mfr: "local", desc: "discharge-board bolt terminal onto the cap bank / busbar", fp: "StudM6", price1k: 18, alt: "M8" },
+  { m: /^(JDIS|JCTL)$/, mpn: "HDR-1x4-2.54", mfr: "any", desc: "discharge-board control link (V15 / QDIS_CMD / GND x2) — locking header at layout", fp: "HDR1x4", price1k: 6, alt: "JST-XH 4p" },
   { m: /^JHVIL$/, mpn: "HDR-1x2-2.54", mfr: "any", desc: "HVIL loop pass-through (to HV connector interlock pins)", fp: "HDR1x2", price1k: 4, alt: "any" },
   { m: /^RHVL[12]$/, mpn: "R0603-100R", mfr: "any", desc: "HVIL loop series", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^DTVSH$/, mpn: "PESD5V0U1UA", mfr: "Nexperia", desc: "HVIL line ESD clamp", fp: "SOD323", price1k: 0.8, alt: "any" },

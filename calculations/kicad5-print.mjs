@@ -39,7 +39,7 @@ const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 const INK = "#1a1a1a", WIRE = "#00695c", LBL = "#8c2b3d", REF = "#333333", VAL = "#00626e",
   PINNO = "#8a8a8a", FRAME = "#9b8a66", NOTE = "#4a3f35";
 
-for (const file of readdirSync(SCH).filter((f) => /^traction-(power|card)\.sch$/.test(f)).sort()) {
+for (const file of readdirSync(SCH).filter((f) => /^traction-(power|disch|card)\.sch$/.test(f)).sort()) {
   const lines = readFileSync(join(SCH, file), "utf8").split("\n");
   const [W, H] = lines.find((l) => l.startsWith("$Descr")).split(/\s+/).slice(2).map(Number);
   const grab = (k) => (lines.find((l) => l.startsWith(k)) ?? "").split('"')[1] ?? "";

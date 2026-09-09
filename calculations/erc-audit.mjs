@@ -57,14 +57,16 @@ function load(board) {
 }
 
 const PWR = load("power");
+const DIS = load("discharge");
 const CARD = load("control-card");
 const P = (k) => PWR.pinNet.get(k);
+const D = (k) => DIS.pinNet.get(k);
 const C = (k) => CARD.pinNet.get(k);
 const same = (a, b) => a !== undefined && a === b;
 
 // ---------- generic: single-pin named nets (dead labels) ----------
-for (const [b, D] of [["power", PWR], ["card", CARD]]) {
-  for (const [net, pins] of D.netPins) {
+for (const [b, DD] of [["power", PWR], ["discharge", DIS], ["card", CARD]]) {
+  for (const [net, pins] of DD.netPins) {
     if (net.startsWith("@") || net.startsWith("NC_")) continue;
     // de-dup alias ports (anode+pin1 on one physical pin)
     const uniq = new Set(pins.map((p) => p.split(".")[0] + "." + p.split(".")[1]));
@@ -120,18 +122,21 @@ for (const x of ["U", "V", "W"]) {
   ok(same(P(`U${x}HG.ASC`), `KS_${x}H`), `U${x}HG ASC parked inactive`);
 }
 
-// ---------- discharge + bleeder + link ----------
-ok(same(P("RDIS1.pin1"), "DCP"), "active discharge string starts at DCP");
-ok(same(P("QDIS.S"), "DCN") && same(P("QDIS.KS"), "DCN"), "QDIS source/Kelvin on DCN");
-ok(same(P("RQDG.pin1"), P("UQD.VO")) && same(P("RQDG.pin2"), P("QDIS.G")), "opto drives QDIS gate");
-ok(same(P("RQDPD.pin1"), P("QDIS.G")) && same(P("RQDPD.pin2"), "DCN"), "QDIS gate default-OFF pulldown");
-ok(same(P("UQD.GND"), "DCN") && same(P("PSQD.COM"), "DCN"), "discharge bias DCN-referenced");
+// ---------- discharge board (bolt-on) + power-board interface ----------
+ok(same(P("JDIS.V15"), "V15") && same(P("JDIS.CMD"), "QDIS_CMD") && same(P("JDIS.GND1"), "DGND"), "power board feeds the discharge board (V15/CMD/GND)");
+ok(same(D("JCTL.V15"), "V15") && same(D("JCTL.CMD"), "QDIS_CMD") && same(D("JCTL.GND1"), "DGND"), "discharge board control header");
+ok(same(D("JDCP.P"), "DCP") && same(D("JDCN.P"), "DCN"), "discharge board bolt terminals");
+ok(same(D("RDIS1.pin1"), "DCP"), "active discharge string starts at DCP");
+ok(same(D("QDIS.S"), "DCN") && same(D("QDIS.KS"), "DCN"), "QDIS source/Kelvin on DCN");
+ok(same(D("RQDG.pin1"), D("UQD.VO")) && same(D("RQDG.pin2"), D("QDIS.G")), "opto drives QDIS gate");
+ok(same(D("RQDPD.pin1"), D("QDIS.G")) && same(D("RQDPD.pin2"), "DCN"), "QDIS gate default-OFF pulldown");
+ok(same(D("UQD.GND"), "DCN") && same(D("PSQD.COM"), "DCN"), "discharge bias DCN-referenced");
 ok(same(P("ZASC.cathode"), "ASC_DRV") && same(P("ZASC.anode"), "DCN"), "ASC 5.1 V clamp fitted (F28)");
 ok(same(P("RASCG.pin2"), "ASC_DRV") && same(P("RASCPD.pin1"), "ASC_DRV") && same(P("RASCPD.pin2"), "DCN"), "ASC drive series + default-OFF pulldown");
 for (const st of [0, 1]) {
-  ok(same(P(`RBLD${st * 5 + 1}.pin1`), "DCP") && same(P(`RBLD${st * 5 + 5}.pin2`), "DCN"), `bleeder string ${st + 1} spans DCP->DCN`);
+  ok(same(D(`RBLD${st * 5 + 1}.pin1`), "DCP") && same(D(`RBLD${st * 5 + 5}.pin2`), "DCN"), `bleeder string ${st + 1} spans DCP->DCN`);
   for (let k = 1; k < 5; k++)
-    ok(same(P(`RBLD${st * 5 + k}.pin2`), P(`RBLD${st * 5 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
+    ok(same(D(`RBLD${st * 5 + k}.pin2`), D(`RBLD${st * 5 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
 }
 let nCDC = 0;
 for (let k = 1; k <= 16; k++) if (same(P(`CDC${k}.pin1`), "DCP") && same(P(`CDC${k}.pin2`), "DCN")) nCDC++;
@@ -177,7 +182,7 @@ for (const [pin, net] of HARNESS40) {
 {
   const roots = new Set();
   for (const [net] of PWR.netPins) roots.add(net);
-  ok(P("UIVDC.GND2") === "AGND" && P("UQD.CAT") === "DGND", "power board keeps AGND/DGND distinct nets");
+  ok(P("UIVDC.GND2") === "AGND" && P("UASC.CAT") === "DGND", "power board keeps AGND/DGND distinct nets");
 }
 
 // ---------- card: safety chain ----------

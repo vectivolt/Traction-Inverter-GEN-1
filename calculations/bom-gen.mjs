@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bom-gen.mjs — BOM generator: reads the built circuit JSON of both boards, classifies every
+// bom-gen.mjs — BOM generator: reads the built circuit JSON of all three boards, classifies every
 // component via parts-db patterns, emits per-board CSVs + a combined costed docs/bom.md.
 // UNMATCHED components are listed loudly — the BOM is not done until that list is empty.
 // Run (after tsci builds): node calculations/bom-gen.mjs
@@ -58,9 +58,9 @@ const SUBSYS = [
 ];
 const subTotal = new Map();
 
-let md = `# Traction Inverter — BOM (rev A.1, generated ${new Date().toISOString().slice(0, 10)})
+let md = `# Traction Inverter — BOM (rev A.3, generated ${new Date().toISOString().slice(0, 10)})
 
-220 kW pk / 800 V SiC traction inverter — Power board + Control card.
+220 kW pk / 800 V SiC traction inverter — Power board + bolt-on Discharge board + Control card.
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the
 LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
@@ -70,7 +70,7 @@ LEM sensor prices are quote-gated — figures below are the planning assumptions
 `;
 let grand = 0;
 const catTotal = new Map();
-for (const [board, path] of [["power", "power"], ["control-card", "control-card"]]) {
+for (const [board, path] of [["power", "power"], ["discharge", "discharge"], ["control-card", "control-card"]]) {
   const p = join(ROOT, "dist", "boards", path, "circuit.json");
   if (!existsSync(p)) { console.log(`!! missing build: ${board} — run npm run build first`); continue; }
   const j = JSON.parse(readFileSync(p, "utf8"));
@@ -119,7 +119,7 @@ for (const [board, path] of [["power", "power"], ["control-card", "control-card"
   }
   console.log(`${board}: ${lines.size} lines · ₹${Math.round(total).toLocaleString("en-IN")} @1k${unmatched.length ? ` · UNMATCHED: ${unmatched.join(",")}` : ""}`);
 }
-md += `## BOM contribution by subsystem (both boards, ₹ @1k)\n
+md += `## BOM contribution by subsystem (all boards, ₹ @1k)\n
 Where the money actually goes — cumulative share shows the Pareto: the first two rows are
 ~87 % of the electronics BOM, so those are the only two lines worth an RFQ fight.\n
 | Subsystem | ₹ | share | cumulative | parts |\n|---|---|---|---|---|\n`;
@@ -131,7 +131,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
   }
   md += "\n";
 }
-md += `## Cost by category (both boards, ₹ @1k)\n\n| Category | ₹ | share |\n|---|---|---|\n`;
+md += `## Cost by category (all boards, ₹ @1k)\n\n| Category | ₹ | share |\n|---|---|---|\n`;
 for (const [cat, v] of [...catTotal].sort((a, b) => b[1] - a[1]))
   md += `| ${cat} | ${Math.round(v).toLocaleString("en-IN")} | ${(100 * v / grand).toFixed(1)}% |\n`;
 md += `| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **${Math.round(grand).toLocaleString("en-IN")}** | 100% |\n\n`;

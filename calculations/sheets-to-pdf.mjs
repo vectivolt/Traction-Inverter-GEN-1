@@ -25,6 +25,7 @@ if (!existsSync(CHROME)) { console.error("Google Chrome not found — needed for
 
 const BOARDS = [
   { k5: "traction-power", name: "Traction Inverter 220kW — Power Board (SiC 3-phase)" },
+  { k5: "traction-disch", name: "Traction Inverter — Discharge Board (bolt-on bleeder + active discharge)" },
   { k5: "traction-card", name: "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)" },
 ];
 
@@ -77,7 +78,7 @@ if (sized.length > 1) {
 ${pages}`;
   const htmlPath = join(TMP, "set.html");
   writeFileSync(htmlPath, html);
-  const pdfPath = join(OUT, "Traction Inverter 220kW — Schematic Set (Power + Control Card).pdf");
+  const pdfPath = join(OUT, "Traction Inverter 220kW — Schematic Set (Power + Discharge + Control Card).pdf");
   printPdf(htmlPath, pdfPath);
   console.log(`Schematic Set: ${sized.length} sheets → "${pdfPath.split("/").pop()}"`);
 }

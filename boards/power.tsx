@@ -39,33 +39,12 @@ export default () => (
       <capacitor key={k} name={`CDC${k}`} capacitance="20uF" footprint={FilmCanFP()} {...gp()}
         connections={{ pin1: "net.DCP", pin2: "net.DCN" }} />
     ))}
-    {/* passive bleeder — DFM rev: 2 strings x 5 series 27k standard 2512 2W (170 V/resistor
-        at 850 V, inside plain-2512 200 V working — no specialty HV resistor needed).
-        Net 67.5k: same 58 s to 60 V as the XM3 68k network. */}
-    {[0, 1].map((st) => [1, 2, 3, 4, 5].map((k) => (
-      <resistor key={`${st}-${k}`} name={`RBLD${st * 5 + k}`} resistance="27k" footprint="2512" {...gp()}
-        connections={{
-          pin1: k === 1 ? "net.DCP" : `net.BL${st}${k - 1}`,
-          pin2: k === 5 ? "net.DCN" : `net.BL${st}${k}`,
-        }} />
-    )))}
-
-    {/* ---- ACTIVE DISCHARGE: default-OFF opto + 1200V SiC FET + 4x 470R 10W (F26:
-        worst-case R+5%/C+10% must close under the 2 s crash target) ---- */}
-    <chip name="PSQD" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P18", pin4: "COM" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", P18: "net.V18Q", COM: "net.DCN" }} />
-    <chip name="UQD" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
-      connections={{ ANO: "net.QDA", CAT: "net.DGND", GND: "net.DCN", VO: "net.QDVO", VCC: "net.V18Q" }} />
-    <resistor name="RQDL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.QDIS_CMD", pin2: "net.QDA" }} />
-    <resistor name="RQDG" resistance="47" footprint="0603" {...gp()} connections={{ pin1: "net.QDVO", pin2: "net.G_QDIS" }} />
-    <resistor name="RQDPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.G_QDIS", pin2: "net.DCN" }} />
-    <capacitor name="CQD" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18Q", pin2: "net.DCN" }} />
-    <chip name="QDIS" footprint={TO247_4L()} {...gp()} pinLabels={{ pin1: "D", pin2: "S", pin3: "KS", pin4: "G" }}
-      connections={{ D: "net.QD_D", S: "net.DCN", KS: "net.DCN", G: "net.G_QDIS" }} />
-    {[1, 2, 3, 4].map((k) => (
-      <resistor key={k} name={`RDIS${k}`} resistance="470" footprint={AxialFP(38)} {...gp()}
-        connections={{ pin1: k === 1 ? "net.DCP" : `net.DIS${k - 1}`, pin2: k === 4 ? "net.QD_D" : `net.DIS${k}` }} />
-    ))}
+    {/* Bleeder + active discharge live on the SEPARATE bolt-on DISCHARGE BOARD (sheet 3 —
+        the XM3 pattern: the network physically stays with the cap bank/busbar). This header
+        carries its bias + command; QDIS_CMD keeps its default-OFF pulldown on this board. */}
+    <chip name="JDIS" footprint={Header(4)} {...gp()}
+      pinLabels={{ pin1: "V15", pin2: "CMD", pin3: "GND1", pin4: "GND2" }}
+      connections={{ V15: "net.V15", CMD: "net.QDIS_CMD", GND1: "net.DGND", GND2: "net.DGND" }} />
 
     {/* ---- PHASES: module + snubber + NTC route + 2x gate-drive channel ---- */}
     {PH.map((x) => (

@@ -426,12 +426,13 @@ const HAND = {
     ["CDC1", "CDC2", "CDC3", "CDC4", "CDC5", "CDC6", "CDC7", "CDC8"],
     ["CDC9", "CDC10", "CDC11", "CDC12", "CDC13", "CDC14", "CDC15", "CDC16"],
   ],
-  "DC-LINK / BLEED": [
+  "DISCHARGE / BLEED": [
     ["RBLD1", "RBLD2", "RBLD3", "RBLD4", "RBLD5"],
     ["RBLD6", "RBLD7", "RBLD8", "RBLD9", "RBLD10"],
   ],
+  "DISCHARGE / ENTRY": [["JDCP", "JDCN", "JCTL"]],
   // Discharge in work order: bias, opto, LED/gate network | the switch with its string.
-  "DC-LINK / DISCHARGE": [
+  "DISCHARGE / ACTIVE": [
     ["PSQD", "UQD", "RQDL", "RQDG", "RQDPD", "CQD"],
     ["QDIS", "RDIS1", "RDIS2", "RDIS3", "RDIS4"],
   ],
@@ -552,10 +553,11 @@ const HAND = {
 const files = [];
 let totalComps = 0, totalLabels = 0;
 
-const BOARDS = { power: [], card: [] };
+const BOARDS = { power: [], disch: [], card: [] };
 const PAGE_ORDER = [
   "power-DC-INPUT", "power-DC-LINK", "power-PHASE-U", "power-PHASE-V", "power-PHASE-W",
   "power-GATE-POWER", "power-HV-SENSING", "power-LV-POWER", "power-CONTROL-IF",
+  "disch-DISCHARGE",
   "card-CONTROL", "card-SBC", "card-SAFETY", "card-RESOLVER", "card-PHASE-SENSE",
   "card-VDC-RECEIVE", "card-TEMP", "card-COMMS", "card-VEHICLE-IF", "card-CARD-IF",
 ];
@@ -568,20 +570,23 @@ for (const side of Object.keys(BOARDS))
   BOARDS[side].sort((a, b) => PAGE_ORDER.indexOf(a.page) - PAGE_ORDER.indexOf(b.page));
 const SIDE_TITLE = {
   power: "Traction Inverter 220 kW pk - Power board (SiC 3-phase, 2-level)",
+  disch: "Traction Inverter - Discharge board (bolt-on bleeder + active discharge)",
   card: "Traction Inverter - Control Card (S32K396 + FS26, ASIL D)",
 };
 const SHEET_TITLES = {
   power: "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)",
+  disch: "Traction Inverter — Discharge board (bolt-on, XM3 pattern)",
   card: "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)",
 };
 const SHEET_IDENT = {
-  power: { sku: "220 kW pk", board: "Power (HV)", sheet: "1 of 2", cells: "3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + 320 uF link + active/passive discharge + iso sensing" },
-  card: { sku: "220 kW pk", board: "Control card (LV)", sheet: "2 of 2", cells: "S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain" },
+  power: { sku: "220 kW pk", board: "Power (HV)", sheet: "1 of 3", cells: "3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + 320 uF link + gate drive + iso sensing" },
+  disch: { sku: "220 kW pk", board: "Discharge (HV, bolt-on)", sheet: "2 of 3", cells: "passive 67.5k bleeder (58 s) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted" },
+  card: { sku: "220 kW pk", board: "Control card (LV)", sheet: "3 of 3", cells: "S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain" },
 };
 
 for (const [side, pgs] of Object.entries(BOARDS)) {
   if (!pgs.length) continue;
-  const SINGLE = false;   // both sheets carry the index + naming panels
+  const SINGLE = side === "disch";   // the small discharge sheet uses the compact footer
   const page = { page: `traction-${side}`, title: SIDE_TITLE[side],
     total: pgs.reduce((a, p) => a + p.total, 0),
     nc: Object.assign({}, ...pgs.map((p) => p.nc)) };
@@ -963,7 +968,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
     + `Title "${SHEET_TITLES[side]}"\n`
     + `Date "${DATE}"\nRev "${REV}"\n`
     + `Comp "Traction Inverter ${ident.sku} - ${ident.board}, sheet ${ident.sheet}"\n`
-    + `Comment1 "Inverter = Power board (HV) + Control card (LV) over a 40-way harness; safe state holds with the harness lost"\n`
+    + `Comment1 "Inverter = Power board (HV) + bolt-on Discharge board (HV) + Control card (LV); safe state holds with any link lost"\n`
     + `Comment2 "Content: ${ident.cells}"\n`
     + `Comment3 "${blocks.length} functional sections - ${page.total} components - cross-section links are net labels; wires are pin stubs only"\n`
     + `Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"\n$EndDescr\n${body}$EndSCHEMATC\n`;
@@ -984,7 +989,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
   const rootSch = `EESchema Schematic File Version 4\nEELAYER 30 0\nEELAYER END\n`
     + `$Descr User 12000 8000\nencoding utf-8\nSheet 1 1\n`
     + `Title "Traction Inverter 220 kW pk - schematic set"\nDate "${DATE}"\nRev "${REV}"\n`
-    + `Comp "X-IN-One Traction"\nComment1 "Power board (SiC 3-phase) sheet 1 - Control card (S32K396+FS26) sheet 2"\n`
+    + `Comp "Traction Inverter"\nComment1 "Power board (SiC 3-phase) sheet 1 - Discharge board sheet 2 - Control card (S32K396+FS26) sheet 3"\n`
     + `Comment2 "800 V-class, 120 kW cont / 220 kW pk, ASIL-D-capable architecture"\nComment3 ""\nComment4 ""\n$EndDescr\n`
     + `${root}$EndSCHEMATC\n`;
   writeFileSync(join(OUT, "traction.sch"), rootSch);

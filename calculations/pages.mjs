@@ -27,9 +27,8 @@ const PAGES = {
     ], ["ENTRY", "EMI-Y", "HVIL"]],
     ["DC-LINK", [
       ["LINK-BANK", [/^CDC\d+$/]],
-      ["BLEED", [/^RBLD\d+$/]],
-      ["DISCHARGE", [/^RDIS[1-4]$/, /^QDIS$/, /^UQD$/, /^PSQD$/, /^RQD(G|PD|L)$/, /^CQD$/]],
-    ], ["LINK-BANK", "BLEED", "DISCHARGE"]],
+      ["DISCH-IF", [/^JDIS$/]],
+    ], ["LINK-BANK", "DISCH-IF"]],
     ["PHASE-U", [
       ["MODULE-U", [/^MODU$/, /^CUSN$/, /^JMU$/, /^RUTS$/, /^CUTF$/, /^DUTP$/]],
       ["DRIVE-UH", [/^(U|R|C|D|Z)UH/]],
@@ -64,6 +63,13 @@ const PAGES = {
     ["CONTROL-IF", [
       ["HARNESS", [/^JIC$/, /^RPD\d+$/]],
     ], ["HARNESS"]],
+  ],
+  disch: [
+    ["DISCHARGE", [
+      ["ENTRY", [/^JDC[PN]$/, /^JCTL$/]],
+      ["BLEED", [/^RBLD\d+$/]],
+      ["ACTIVE", [/^RDIS[1-4]$/, /^QDIS$/, /^UQD$/, /^PSQD$/, /^RQD(G|PD|L)$/, /^CQD$/]],
+    ], ["ENTRY", "BLEED", "ACTIVE"]],
   ],
   card: [
     ["CONTROL", [
@@ -120,9 +126,9 @@ const WIRE_NETS = [/^PH[UVW]$/, /^G_/, /^GH_/, /^GL_/, /^KS_/, /^EXC/, /^SDD_/, 
 const RAILS = ["V3P3", "V5", "V15", "VBAT", "VBATP", "DGND", "AGND", "PE", "DCP", "DCN", "VPRE", "VCORE", "VDDIO", "VREF"];
 
 const f2 = (x) => JSON.stringify(x);
-for (const side of ["power", "card"]) {
+for (const side of ["power", "disch", "card"]) {
   const j = JSON.parse(readFileSync(
-    join(ROOT, "dist", "boards", side === "card" ? "control-card" : "power", "circuit.json"), "utf8"));
+    join(ROOT, "dist", "boards", side === "card" ? "control-card" : side === "disch" ? "discharge" : "power", "circuit.json"), "utf8"));
   const comps = j.filter(e => e.type === "source_component");
   const ports = j.filter(e => e.type === "source_port");
   const nets = new Map(j.filter(e => e.type === "source_net").map(n => [n.source_net_id, n.name]));

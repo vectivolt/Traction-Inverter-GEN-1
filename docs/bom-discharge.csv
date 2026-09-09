@@ -1,0 +1,12 @@
+Qty,Designators,Value,MPN,Manufacturer,Description,LCSC,Footprint,Price1k_INR,Ext_INR,Alt
+1,"QDIS","","HCM75S12T4K3","HIITIO","SiC MOSFET 1200 V 75 mR TO-247-4L (discharge switch — vendor consolidation)",CLASS,"TO247-4L",350,350,"any 1200 V >=5 A SiC/Si FET, TO-247"
+4,"RDIS1 RDIS2 RDIS3 RDIS4","470","WW-470R-10W-AX","TT/Vitrohm","470 R 10 W axial ceramic wirewound, >=100 J single pulse (active discharge string; F26 — 4x = 1.88k closes 850->60 V in 1.84 s WORST case). DigiKey (TE SQP500JB / Vishay AC10) or RX27-1 via 1688",CLASS,"AxialWW10W",28,112,"TE SQP500JB / Vishay AC10 / RX27-1"
+1,"PSQD","","QA01C-18","MORNSUN","iso 15->18 V 1 W module >=6 kVDC (discharge driver bias, DCN-referenced). Genuine Mornsun via Mouser/direct; LCSC stocks spec-matched clones (YLPTEC C5369865) — qualify before production",CLASS,"SIP7",95,95,"B1518S-3WR3HD / YLPTEC QA01C-18 C5369865"
+1,"UQD","","TLP152","Toshiba","opto gate driver (isolated discharge control, default-OFF)",C17255258,"SO6",42,42,"TLP2745 / EL3182"
+2,"JDCN JDCP","","STUD-M6","local","discharge-board bolt terminal onto the cap bank / busbar",CLASS,"StudM6",18,36,"M8"
+10,"RBLD1 RBLD10 RBLD2 RBLD3 RBLD4 RBLD5 RBLD6 RBLD7 RBLD8 RBLD9","27k","R2512-27k-2W","any","27 k 2512 2 W standard thick-film (passive bleeder 5s x 2p = 67.5k; 170 V/resistor at 850 V — inside plain-2512 200 V working, DFM rev replacing the TTI-only TE CRGP)",CLASS,"R2512",3,30,"TE CRGP2512F68K C2073426 (101 pcs LCSC) in 3s x 3p if the XM3 arrangement is preferred"
+1,"JCTL","","HDR-1x4-2.54","any","discharge-board control link (V15 / QDIS_CMD / GND x2) — locking header at layout",CLASS,"HDR1x4",6,6,"JST-XH 4p"
+1,"RQDL","470","R0603-470R","any","discharge opto LED series",CLASS,"R0603",0.4,0.4,"any"
+1,"RQDG","47","R0603-47R","any","discharge gate resistor",CLASS,"R0603",0.4,0.4,"any"
+1,"RQDPD","10k","R0603-10k","any","discharge gate pulldown to DCN (default-OFF)",CLASS,"R0603",0.4,0.4,"any"
+1,"CQD","100nF","MLCC-100nF-25V","any","discharge bias decoupling",CLASS,"C0603",0.3,0.3,"any"

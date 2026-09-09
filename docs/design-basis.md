@@ -71,13 +71,20 @@ Reference behaviour: XM3/TIDM ship a **purely passive** bleeder (9 × 68 kΩ 251
 < 60 s, 9.4 W at 800 V) and verify discharge via the bus-voltage sense. This design keeps that
 network **verbatim** and adds an **active** path for the ≤2 s / ≤5 s automatic-discharge case.
 
+Rev A.3: the whole network — bleeder + active path — lives on a **separate bolt-on discharge
+board** (sheet 2 of 3), mounted directly across the cap-bank busbar studs, the XM3 pattern:
+the stored energy and its bleeder are one assembly and can never be separated. Bias + command
+arrive from the power board over a 4-way header (V15 / QDIS_CMD / 2× GND); the command line
+keeps its default-OFF pulldown on the power board, and the sheet's title block carries the
+rule "NEVER energize without this board fitted".
+
 **Passive (always on):** 10 × standard **27 kΩ 2512 2 W** thick-film as 5-series ×
 2-parallel = **67.5 kΩ net** (DFM rev A.2 — electrically the XM3 68 k network, built from
 any-vendor 200 V-working parts instead of the TTI-only TE CRGP 500 V line).
 - τ = 67.5 k · 320 µ = 21.6 s → 850→60 V in τ·ln(14.2) = **57.3 s** ✓ (< 60 s, matches XM3)
 - At 850 V: 10.7 W total, 1.07 W per resistor (54 % of 2 W) ✓; 170 V per resistor (85 % of
   a standard 2512's 200 V working) ✓; alt: TE CRGP2512F68K (LCSC C2073426) in 3s×3p
-- Rule printed on sheet 1: never energize without the bleeder network fitted.
+- Rule printed on the discharge sheet: never energize without this board fitted.
 
 **Active (commanded):** 1200 V SiC FET + 4 × series **470 Ω 10 W ceramic-cased wirewound
 (SQP/RX27-class, axial)** = 1.88 kΩ (rev A.3 / F26: the 560 Ω string missed the 2 s crash
@@ -200,7 +207,7 @@ Every hardware mechanism those analyses rely on is present above.
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1540/1540 (100 %)** · structural ERC **664 checks, 0 fail** ·
+geometric pin-verify **1550/1550 (100 %)** · structural ERC **672 checks, 0 fail** ·
 numeric worst-case verification **51 PASS / 3 WARN / 0 FAIL**, every constant
 datasheet-real. The campaign found and fixed 18 defects (log F1–F36 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback
