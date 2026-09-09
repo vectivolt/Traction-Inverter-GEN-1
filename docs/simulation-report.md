@@ -1,0 +1,50 @@
+# Simulation report (rev A.4.3 · generated 2026-09-09)
+
+Numerical time/frequency-domain simulations of the drawn circuits at the actual operating
+conditions (`calculations/sim-verify.mjs`). These complement — not replace — the closed-form
+worst-case rows in `docs/verification-report.md`. Items that require hardware (layout
+parasitics, transformer saturation, SiC short-circuit withstand, EMI) remain bench gates and
+are flagged in each row's note.
+
+| # | Simulation | Result | Limit / target | Status | Note |
+|---|---|---|---|---|---|
+| S1 | Flyback steady rail @9 V in | 21.3 V (target 21.4) | ±5 % | ✅ PASS | settles in 4 ms · steady Ipk 1.82 A vs 3.03 A limit |
+| S1 | Flyback drain peak @9 V in | 36.1 V | 80 V BUK7Y14-80E | ✅ PASS | leakage 2 % assumed — bench-confirm the ring; clamp path bounds it |
+| S1 | Flyback steady rail @12 V in | 21.3 V (target 21.4) | ±5 % | ✅ PASS | settles in 4 ms · steady Ipk 1.82 A vs 3.03 A limit |
+| S1 | Flyback drain peak @12 V in | 39.1 V | 80 V BUK7Y14-80E | ✅ PASS | leakage 2 % assumed — bench-confirm the ring; clamp path bounds it |
+| S1 | Flyback steady rail @16 V in | 21.3 V (target 21.4) | ±5 % | ✅ PASS | settles in 4 ms · steady Ipk 1.82 A vs 3.03 A limit |
+| S1 | Flyback drain peak @16 V in | 43.1 V | 80 V BUK7Y14-80E | ✅ PASS | leakage 2 % assumed — bench-confirm the ring; clamp path bounds it |
+| S2 | UB15 crossover @12 V in | 2.45 kHz | «fsw/10 (58 kHz) · «RHPZ (451 kHz) | ✅ PASS |  |
+| S2 | UB15 phase margin @12 V in | 75° | ≥45° | ✅ PASS | vs ~0° for the pre-A.4.3 capacitor-only COMP; measured Bode still a bench gate |
+| S2 | UB15 crossover @9 V in | 1.91 kHz | «fsw/10 (58 kHz) · «RHPZ (254 kHz) | ✅ PASS |  |
+| S2 | UB15 phase margin @9 V in | 72° | ≥45° | ✅ PASS | vs ~0° for the pre-A.4.3 capacitor-only COMP; measured Bode still a bench gate |
+| S3 | Cap ripple per can, peak-30s (340 A) | 11.9 A rms (bank 191 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation (not the closed-form envelope) |
+| S3 | Cap ripple per can, continuous (216 A) | 7.6 A rms (bank 121 A) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | switching-state simulation (not the closed-form envelope) |
+| S4 | Tj at end of 30 s / 220 kW peak | 89 °C | 175 °C max (design ≤150) | ✅ PASS | coldplate 0.045 K/W per switch is an assumption — thermal test closes it |
+| S5 | Active discharge to 60 V, nominal | 1.53 s | ≤2 s crash target (5 s R100) | ✅ PASS | peak 99 W and 28.3 J per 470 Ω (100 J single-pulse class) |
+| S5 | Active discharge to 60 V, worst (+10 %C, +5 %R) | 1.76 s | ≤2 s crash target (5 s R100) | ✅ PASS | peak 94 W and 31.1 J per 470 Ω (100 J single-pulse class) |
+| S6 | Current-loop PM @1 kHz crossover | 58° | ≥45° (≥40 accepted) | ✅ PASS | double-update FOC (75 µs delay); motor 0.35 mH/25 mΩ assumed — bind at commissioning |
+| S6 | Current-loop PM @1.5 kHz crossover | 42° | ≥45° (≥40 accepted) | ⚠️ WARN | double-update FOC (75 µs delay); motor 0.35 mH/25 mΩ assumed — bind at commissioning |
+| S6 | Max crossover for 45° margin | 1.39 kHz | design statement: loop BW ≤1.2 kHz | ✅ PASS | sets the firmware bandwidth ceiling with the drawn filters |
+| S7 | Gate peak current (on/off) | 8.6 / 14.3 A | 10 A driver class | ✅ PASS | off-path exceeds 10 A only into the nominal short — real Ipk source-limited by the driver |
+| S7 | Effective switching time (Qg model) | 240 / 145 ns | - | ℹ️ | double-pulse remains the bench gate for dv/dt, overshoot and Rg trim |
+
+**18 PASS · 1 WARN · 0 FAIL**
+
+![S1](img/sim/s1-flyback-startup.svg)
+![S2](img/sim/s2-boost-bode.svg)
+![S3](img/sim/s3-dclink-ripple.svg)
+![S4](img/sim/s4-thermal-30s.svg)
+![S5](img/sim/s5-discharge.svg)
+
+## Modeling assumptions (each is a named bench-closure item)
+- S1: transformer leakage 2 % of Lp; converter losses lumped at 8 %; P-control stands in for the UCC28C40 error amp.
+- S2: current-mode small-signal per TI SLVSBD4E; internal current-sense gain estimated; slope compensation not modeled.
+- S4: coldplate 0.045 K/W per switch to 65 °C coolant; single-τ nodes (no vendor Zth curve published).
+- S5: 2.5 ms bias-startup dead time before the active path conducts.
+- S6: motor 0.35 mH / 25 mΩ assumed; PI tuned by the L·ωc rule.
+
+## Explicitly NOT simulatable at schematic stage (bench/vendor gates)
+Commutation-loop overshoot (needs layout L), SiC short-circuit withstand (vendor/bench),
+transformer core saturation at the CS limit (bench), EMI/CISPR (hardware), FS26 VCORE loop
+(internally compensated — component selections verified against Table 106 instead).

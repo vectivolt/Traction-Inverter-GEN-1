@@ -230,7 +230,13 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
-numeric worst-case verification **75 PASS / 3 WARN / 0 FAIL**, every constant
+numeric worst-case verification **75 PASS / 3 WARN / 0 FAIL** · operating-point
+simulation (`sim-verify.mjs`, S1–S7: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
+with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
+thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,
+current-loop phase margin — **18 PASS / 1 WARN / 0 FAIL**, plots in
+`docs/simulation-report.md`; the S6 result fixes the firmware current-loop bandwidth
+ceiling at **≤1.2 kHz** for ≥45° margin with the drawn filter chain), every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
 external-review response confirmed and fixed 10 more (F37–F46), the second round 5 more (F47–F51), the third round 6 more (F52–F57), and the fourth round 2 more (F58–F59 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback

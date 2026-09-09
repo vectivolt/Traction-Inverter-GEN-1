@@ -449,6 +449,7 @@ Three independent verification layers — each with its own tool, none trusting 
 | Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+| Circuits ⇄ time/frequency domain | `sim-verify.mjs` | cycle-by-cycle flyback, boost Bode, SVPWM DC-link ripple, 30 s thermal transient, discharge ODE, current-loop PM | **18 PASS · 1 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 
 Rev A.4.3 closed round four: the LCOR value/MPN/BOM/OTP now agree end-to-end (the class
 part string had kept printing 4.7 µH after the value fix), and the TPS55340 boost got its
@@ -535,6 +536,7 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/design-basis.md`](docs/design-basis.md) | Ratings, sizing math, safety concept, references |
 | [`docs/dfm.md`](docs/dfm.md) | Manufacturability plan + sourcing tiers |
 | [`docs/bom.md`](docs/bom.md) | Generated BOM with subsystem Pareto |
+| [`docs/simulation-report.md`](docs/simulation-report.md) | Operating-point simulations (S1–S7) with waveform/Bode plots |
 | [`docs/cost-rollup.md`](docs/cost-rollup.md) | Full unit cost + NRE + pricing guidance |
 | [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F30, margin tables, worst-case corners |
 | [`docs/datasheets/`](docs/datasheets/) | Component datasheet pack (30+ PDFs) + extracted parameters |
