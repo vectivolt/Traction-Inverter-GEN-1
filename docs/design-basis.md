@@ -86,7 +86,7 @@ Capacitor RMS current (2-level SVPWM): I_c,rms ≈ 0.62 · I_ph,rms → **211 Ar
 - Energy at 850 V: E = ½·320 µF·850² = **115.6 J** (discharge design input).
 - Voltage ripple: ΔV ≈ I_c/(8·f_sw·C_tot)-class ≈ negligible; ESL dominated — busbar item.
 - No series strings → no balance dividers; the passive bleeder below is the fixed load.
-- **Packaging (rev A.3): the 16 cans are a separate CAP BANK assembly** (sheet 2 of 4) — a
+- **Packaging: the 16 cans are a separate CAP BANK assembly** (sheet 2 of 4) — a
   laminated busbar (two copper plates + insulation film) the cans solder/bolt onto, because
   FR4 cannot carry the 340 A-class bus current. The sheet is the busbar vendor's electrical
   drawing: entry lugs, 3× module DC tab pairs, discharge-board studs, 16 can positions. The
