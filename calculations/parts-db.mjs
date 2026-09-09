@@ -12,6 +12,20 @@
 export const OVERRIDES = {};   // per-designator {mpn} overrides (none yet)
 
 // Rows printed on the power sheet's safety/discharge panels (kicad5-gen consumes these).
+// ---- IGBT drop-in variant (same PCB, same pads — value/MPN swaps only) --------------
+// HCG600FH120D3E1EA: 1200 V/600 A IGBT half-bridge, SAME D3 EconoDUAL-3 outline and the
+// SAME 11-pin map as the SiC HCS600FH120D3C1 (DS p.8 circuit diagram: 1=G_L 2=E_L 3=DC-
+// 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=HS C-sense 10/11=AC). VGE(th) 5.0-6.2 V + NSI6611 Miller
+// clamp -> the +15.6/-5.1 gate rails carry over unchanged. Only the DESAT network moves:
+// trip from ~8.1 V (SiC) to ~5.75 V (IGBT VCEsat 1.82 V hot) via the series resistor, and
+// blanking from 47 pF to 150 pF (~2.8 us) against the 10 us-class SC withstand (Isc 1800 A).
+// Firmware deltas (no hardware): fsw 4-6 kHz, dead-time 2.5 us, NTC B25/50 = 3375.
+export const IGBT_VARIANT = [
+  { m: /^MOD[UVW]$/, mpn: "HCG600FH120D3E1EA", mfr: "HIITIO", desc: "IGBT half-bridge module 1200 V 600 A, SAME D3 EconoDUAL 3 footprint + pin map as the SiC part (VCEsat 1.50/1.82 V, Eon+Eoff 143.7 mJ hot, Qg 4.36 uC, Isc 1800 A, Tvjop 150 C) — quote-gated", price1k: 9500 },
+  { m: /^R[UVW][HL]DS$/, mpn: "R0805-4k7-1%", desc: "DESAT series (IGBT variant: trip ~5.75 V = 9.3 - 2*0.6 - 0.5mA*4.7k vs VCEsat 1.82 V hot)", price1k: 0.3 },
+  { m: /^C[UVW][HL]BL$/, mpn: "MLCC-150pF-50V", desc: "DESAT blanking 150 pF -> ~2.8 us (IGBT turn-on tail; < 10 us-class SC withstand)", price1k: 0.3 },
+];
+
 export const SAFETY_ROWS = [
   "1 lockstep S32K396 (ASIL-D core) runs torque path",
   "2 FS26 Q&A watchdog + monitors -> FS0B (no SW)",

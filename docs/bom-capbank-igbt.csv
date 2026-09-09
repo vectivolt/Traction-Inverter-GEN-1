@@ -1,0 +1,5 @@
+Qty,Designators,Value,MPN,Manufacturer,Description,LCSC,Footprint,Price1k_INR,Ext_INR,Alt
+16,"CDC1 CDC10 CDC11 CDC12 CDC13 CDC14 CDC15 CDC16 CDC2 CDC3 CDC4 CDC5 CDC6 CDC7 CDC8 CDC9","20uF","C3D1M206KFSA382","Faratronic","DC-link film 20 uF 1100 V p37.5 (16x = 320 uF; LCSC-stocked DFM pick, ~$3.4 ea)",C2840809,"FilmCan37.5",300,4800,"TDK B32778G0406K000 40 uF 4-lead (1 per 2 positions, DigiKey) / Vishay MKP1848C"
+2,"JCBEN JCBEP","","STUD-M8","local","cap-bank busbar HV entry lug (cable side)",CLASS,"StudM8",28,56,"M10"
+6,"JCBUN JCBUP JCBVN JCBVP JCBWN JCBWP","","TAB-M6","local","cap-bank busbar DC tab onto EconoDUAL module terminal",CLASS,"TabM6",8,48,"per busbar drawing"
+2,"JCBDN JCBDP","","STUD-M6","local","cap-bank busbar stud for the bolt-on discharge board (mates JDCP/JDCN)",CLASS,"StudM6",18,36,"M8"

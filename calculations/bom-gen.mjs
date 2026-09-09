@@ -7,9 +7,13 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DB, OVERRIDES } from "./parts-db.mjs";
+import { DB, OVERRIDES, IGBT_VARIANT } from "./parts-db.mjs";
 import { REV } from "./rev.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const VARIANT = process.env.BOM_VARIANT === "igbt" ? "igbt" : "";
+const SFX = VARIANT ? `-${VARIANT}` : "";
+// variant rows shadow the base DB (first match wins)
+const XDB = VARIANT ? [...IGBT_VARIANT.map((v) => ({ mfr: "any", alt: "-", fp: "-", ...v })), ...DB] : DB;
 
 const eng = (x, unit) => {
   if (!(x > 0)) return "";
@@ -59,7 +63,7 @@ const SUBSYS = [
 ];
 const subTotal = new Map();
 
-let md = `# Traction Inverter — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
+let md = `# Traction Inverter${VARIANT ? " — IGBT VARIANT (HCG600FH120D3E1EA)" : ""} — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the
@@ -79,7 +83,7 @@ for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["disch
   const unmatched = [];
   for (const c of j.filter((e) => e.type === "source_component")) {
     if (/^NC_/.test(c.name)) continue;
-    const rule = OVERRIDES[c.name] ?? DB.find((r) => r.m.test(c.name));
+    const rule = (VARIANT ? undefined : OVERRIDES[c.name]) ?? XDB.find((r) => r.m.test(c.name));
     if (!rule) { unmatched.push(c.name); continue; }
     const val = valueOf(c);
     const key = `${rule.mpn}|${val}`;
@@ -105,11 +109,11 @@ for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["disch
     csv.push([refs.length, clean(refs.sort().join(" ")), clean(val), clean(rule.mpn), clean(rule.mfr),
       clean(rule.desc), rule.lcsc ?? "CLASS", clean(rule.fp ?? ""), rule.price1k, ext, clean(rule.alt)].join(","));
   }
-  const csvPath = join(ROOT, "docs", `bom-${board}.csv`);
+  const csvPath = join(ROOT, "docs", `bom-${board}${SFX}.csv`);
   writeFileSync(csvPath, csv.join("\n") + "\n");
   grand += total;
   md += `## ${board} — ${[...lines.values()].reduce((a, l) => a + l.refs.length, 0)} components, ${lines.size} BOM lines, ≈ ₹${Math.round(total).toLocaleString("en-IN")} @1k\n\n`;
-  md += `CSV: [\`docs/bom-${board}.csv\`](bom-${board}.csv). Top cost lines:\n\n`;
+  md += `CSV: [\`docs/bom-${board}${SFX}.csv\`](bom-${board}${SFX}.csv). Top cost lines:\n\n`;
   md += `| Qty | MPN | Description | ₹ ext @1k | Alt |\n|---|---|---|---|---|\n`;
   for (const { rule, refs } of rows.slice(0, 12))
     md += `| ${refs.length} | ${rule.mpn} | ${rule.desc.split("(")[0].trim().slice(0, 60)} | ${Math.round(rule.price1k * refs.length).toLocaleString("en-IN")} | ${String(rule.alt).slice(0, 40)} |\n`;
@@ -138,5 +142,5 @@ for (const [cat, v] of [...catTotal].sort((a, b) => b[1] - a[1]))
 md += `| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **${Math.round(grand).toLocaleString("en-IN")}** | 100% |\n\n`;
 md += `The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.\n`;
-writeFileSync(join(ROOT, "docs", "bom.md"), md);
-console.log(`→ docs/bom.md + per-board CSVs · TOTAL ≈ ₹${Math.round(grand).toLocaleString("en-IN")} @1k`);
+writeFileSync(join(ROOT, "docs", `bom${SFX}.md`), md);
+console.log(`→ docs/bom${SFX}.md + per-board CSVs · TOTAL ≈ ₹${Math.round(grand).toLocaleString("en-IN")} @1k`);

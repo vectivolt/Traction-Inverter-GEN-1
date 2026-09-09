@@ -246,6 +246,37 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   judge("Discharge", "QDIS gate at the QA01C rail (+20 V per DS)", "≈19.5 V", "+22 V abs (+18 V rec) HCM75S12T4K3",
     19.5 / 22, 0.85, "F61 — the base QA01C row is +20/−4 V; inside abs, above rec — gate divider option at proto if bench confirms 20 V");
 
+  // ---------- IGBT drop-in variant: HCG600FH120D3E1EA (same D3 pads + pin map) ----------
+  // BOM_VARIANT=igbt swaps ONLY: module MPN, DESAT series R 100→4.7 k, blanking 47→150 pF.
+  // Firmware: fsw 4–6 kHz, dead-time 2.5 µs, NTC B3375. Numbers from the HCG DS in docs/.
+  {
+    const V0 = 0.9, rce = (1.82 - 0.9) / 600;           // hot VCEsat linearization
+    const eswHot = 143.7e-3, Itest = 600, Vtest = 600;  // Eon+Eoff, DS test point
+    const rth = 0.07 + 0.015 + 0.045;                    // JC + TIM + coldplate assumption
+    for (const [tag, Iph, fsw, tvj] of [["cont 120 kW @6 kHz", 216, 6000, 150], ["peak 220 kW/30 s @6 kHz", 340, 6000, 150]]) {
+      const Ipk = Math.SQRT2 * Iph;
+      const pCond = 0.5 * (V0 * Ipk / Math.PI + rce * Ipk * Ipk / 4);
+      const pSw = fsw * eswHot * (800 / Vtest) * (Ipk / Itest) / Math.PI;
+      const tj = 65 + (pCond + pSw) * rth;
+      judge("IGBT variant", `Tj, ${tag}`, `${f(tj, 0)} °C (${f(pCond, 0)}+${f(pSw, 0)} W/sw)`, `${tvj} °C Tvjop`,
+        tj / tvj, 0.85, "diode recovery/conduction adds on the FWD — thermal test closes; coldplate 0.045 K/W assumed");
+    }
+    judge("IGBT variant", "DESAT trip vs VCEsat hot", "5.75 V (4.7 k swap)", "≥3× VCEsat(1.82 V) headroom",
+      (3 * 1.82) / 5.75, 0.98, "9.3 − 2·0.6 − 0.5 mA·4.7 k; SiC build keeps 100 Ω/8.1 V");
+    judge("IGBT variant", "DESAT blanking vs SC withstand", "≈2.8 µs (150 pF)", "10 µs-class (Isc 1800 A)",
+      2.8 / 10, 0.6, "blank+deglitch+soft-off budget; bench-verify the reaction chain");
+    judge("IGBT variant", "Gate rails legality (+15.6/−5.1)", "on 15.6 V · off −5.1 V", "±20 V abs; VGE(th) min 5.0 V",
+      15.6 / 20, 0.85, "DS characterizes at ±15; high Vth + Miller clamp justify −5.1 off-bias — dv/dt shoot-through is a bench row");
+    const qgEff = 4.36e-6 * 20.7 / 30;
+    const pBank = 3 * qgEff * 20.7 * 6000 + 3 * 5e-3 * 20.7 + 0.2;
+    judge("IGBT variant", "Gate-power demand @6 kHz (Qg 4.36 µC)", `${f(pBank, 2)} W/bank`, "3.87 W DCM throughput",
+      pBank / 3.87, 0.75, "Qg scaled to the 20.7 V swing (≈3.0 µC)");
+    add("IGBT variant", "Efficiency vs SiC @120 kW/6 kHz", "≈97.3 % vs ≈98.4 %", "-", "ℹ️",
+      "~1.5 kW extra silicon loss buys ₹25.5k/unit BOM — the 400 V-class / cost-focused SKU trade");
+    add("IGBT variant", "Pin map / footprint", "IDENTICAL to HCS600FH120D3C1 (DS p.8: 1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=C-sense 10/11=AC)", "-", "PASS",
+      "zero layout change; MODx pinLabels carry over (KS labels = Kelvin emitter)");
+  }
+
   // ---- rev A.4.3 (fourth review round, F58–F59) ----
   const D15 = 1 - 12 / 15.4, Rld15 = 15.4 / 0.33;
   const fRHPZ = (1 - D15) ** 2 * Rld15 / (2 * Math.PI * 10e-6) / 1e3;

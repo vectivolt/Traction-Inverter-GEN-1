@@ -6,7 +6,7 @@ Three independent layers:
 
 1. **Geometric pin-verify** (sheets vs netlist): **1523/1523 pins, 100 %**
 2. **Structural ERC audit** (netlist vs design intent, `erc-audit.mjs`): **654 checks, 0 fail, 0 warn**
-3. **Numeric verification** (this report, `design-verify.mjs`): **75 PASS · 4 WARN · 0 FAIL** (+7 info)
+3. **Numeric verification** (this report, `design-verify.mjs`): **82 PASS · 4 WARN · 0 FAIL** (+7 info)
 
 ## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit — all fixed)
 
@@ -195,6 +195,19 @@ Three independent layers:
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | QDIS gate at the QA01C rail (+20 V per DS) | ≈19.5 V | +22 V abs (+18 V rec) HCM75S12T4K3 | 🟡 WARN | 89% of limit · F61 — the base QA01C row is +20/−4 V; inside abs, above rec — gate divider option at proto if bench confirms 20 V |
+
+### IGBT variant
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| Tj, cont 120 kW @6 kHz | 97 °C (62+186 W/sw) | 150 °C Tvjop | ✅ PASS | 65% of limit · diode recovery/conduction adds on the FWD — thermal test closes; coldplate 0.045 K/W assumed |
+| Tj, peak 220 kW/30 s @6 kHz | 118 °C (113+293 W/sw) | 150 °C Tvjop | ✅ PASS | 79% of limit · diode recovery/conduction adds on the FWD — thermal test closes; coldplate 0.045 K/W assumed |
+| DESAT trip vs VCEsat hot | 5.75 V (4.7 k swap) | ≥3× VCEsat(1.82 V) headroom | ✅ PASS | 95% of limit · 9.3 − 2·0.6 − 0.5 mA·4.7 k; SiC build keeps 100 Ω/8.1 V |
+| DESAT blanking vs SC withstand | ≈2.8 µs (150 pF) | 10 µs-class (Isc 1800 A) | ✅ PASS | 28% of limit · blank+deglitch+soft-off budget; bench-verify the reaction chain |
+| Gate rails legality (+15.6/−5.1) | on 15.6 V · off −5.1 V | ±20 V abs; VGE(th) min 5.0 V | ✅ PASS | 78% of limit · DS characterizes at ±15; high Vth + Miller clamp justify −5.1 off-bias — dv/dt shoot-through is a bench row |
+| Gate-power demand @6 kHz (Qg 4.36 µC) | 1.63 W/bank | 3.87 W DCM throughput | ✅ PASS | 42% of limit · Qg scaled to the 20.7 V swing (≈3.0 µC) |
+| Efficiency vs SiC @120 kW/6 kHz | ≈97.3 % vs ≈98.4 % | - | ℹ️ | ~1.5 kW extra silicon loss buys ₹25.5k/unit BOM — the 400 V-class / cost-focused SKU trade |
+| Pin map / footprint | IDENTICAL to HCS600FH120D3C1 (DS p.8: 1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=C-sense 10/11=AC) | - | ✅ PASS | zero layout change; MODx pinLabels carry over (KS labels = Kelvin emitter) |
 
 ### LV A.4
 
