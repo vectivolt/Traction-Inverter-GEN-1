@@ -292,7 +292,7 @@ numeric worst-case verification **82 PASS / 4 WARN / 0 FAIL** (incl. the IGBT-va
 simulation (`sim-verify.mjs`, S1–S7: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
 with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
 thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,
-current-loop phase margin — **18 PASS / 1 WARN / 0 FAIL**, plots in
+current-loop phase margin, parametric double-pulse, SC/DESAT timelines, ASC hold-up — **21 PASS / 2 WARN / 0 FAIL**, plots in
 `docs/simulation-report.md`; the S6 result fixes the firmware current-loop bandwidth
 ceiling at **≤1.2 kHz** for ≥45° margin with the drawn filter chain), every constant
 datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
