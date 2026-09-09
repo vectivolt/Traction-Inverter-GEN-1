@@ -16,7 +16,7 @@
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹70.9k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
   <img alt="ERC" src="https://img.shields.io/badge/ERC-782%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
-  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-75%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-82%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S7%20·%2018%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -452,7 +452,7 @@ Four independent verification layers — each with its own tool, none trusting t
 |---|---|---|---|
 | Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1695/1695 · 100 %** |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **782 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **75 PASS · 4 WARN · 0 FAIL** (all constants datasheet-real) |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **82 PASS · 4 WARN · 0 FAIL** (all constants datasheet-real, incl. the IGBT-variant block) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | cycle-by-cycle flyback, boost Bode, SVPWM DC-link ripple, 30 s thermal transient, discharge ODE, current-loop PM | **18 PASS · 1 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 
 ### 🔍 The review campaign — five external rounds, every claim verified at the source
@@ -487,6 +487,28 @@ Full findings log + margin tables: [`docs/verification-report.md`](docs/verifica
 | Functional sections | 24 | 2 | 3 | 26 | 55 |
 | Net labels / pin stubs | 807 | 42 | 55 | 791 | 1,695 |
 | Sheet size | 44.6″ × 28.6″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 44.6″ × 25.3″ | 4 sheets |
+
+---
+
+## 🔁 IGBT drop-in variant — same boards, ₹25.5k/unit cheaper
+
+**HCG600FH120D3E1EA** (hiitio IGBT, 1200 V/600 A) shares the SiC module's D3 footprint
+**and pin map** (verified from its datasheet's circuit diagram) — the whole variant is two
+value swaps on existing pads plus firmware:
+
+| Delta | SiC build | IGBT build |
+|---|---|---|
+| Module | HCS600FH120D3C1 (₹18k) | **HCG600FH120D3E1EA (₹9.5k)** — same pads, same pins |
+| DESAT series R | 100 Ω → trip 8.1 V | **4.7 kΩ → trip 5.75 V** (VCEsat 1.82 V hot) |
+| DESAT blanking | 47 pF | **150 pF** (≈2.8 µs vs 10 µs-class SC withstand) |
+| Gate rails | +15.6/−5.1 V | **unchanged** (±20 V abs, V_GE(th) 5.0–6.2 V + Miller clamp) |
+| Firmware | 8–10 kHz, 1 µs DT, NTC B3435 | 4–6 kHz, 2.5 µs DT, NTC B3375 |
+| Verified | Tj 89 °C @220 kW pk (sim) | **Tj 97 °C cont / 118 °C @220 kW pk vs 150 °C Tvjop** |
+| Electronics BOM | ₹70,934 @1k | **₹45,434 @1k** ([`docs/bom-igbt.md`](docs/bom-igbt.md)) |
+
+Trade: ≈1.1 pt efficiency at 120 kW. Natural pairing: the <500 V-pack / cost SKU.
+Generate with `npm run bom:igbt`; the verification report carries a dedicated
+"IGBT variant" margin block.
 
 ---
 

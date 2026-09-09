@@ -215,9 +215,22 @@ insulation grade **basic**, 250 VACrms working; its 6.4 kV figure is a 1 s test 
 `TE-776231-1.pdf` is retained as F60 evidence: that drawing is the **35-position** header
 (mates plug 776164) and was the previously-bound wrong part.
 
+## 24. HIITIO HCG600FH120D3E1EA (`HCG600FH120D3E1EA.pdf`) — IGBT drop-in variant
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Package / pin map | **D3 (EconoDUAL 3), IDENTICAL 11-pin map to HCS600FH120D3C1** (1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=HS C-sense 10/11=AC) | p.8 Package Information |
+| VCEsat (terminal) | 1.50 V @25 °C / **1.82 V @175 °C** (600 A, VGE 15 V) | Table 4 |
+| VGE / VGE(th) | ±20 V abs; threshold **5.0/5.6/6.2 V** | Tables 3/4 |
+| Eon+Eoff | 17.7+74.0 mJ @25 °C; **39.7+104 mJ hot** (Rg 0.51 Ω test) | Table 5 |
+| Qg / Cres | **4.36 µC**; 0.49 nF | Table 4 |
+| Isc / Tvjop | **1800 A**; −40…+150 °C | Table 3 |
+| RthJC | 0.07 K/W per IGBT · 0.10 per diode | Table 7 |
+| NTC | B25/50 = **3375 K** | Table 8 |
+
 ---
 
-# Archive index (47 PDFs, verified `%PDF` headers)
+# Archive index (48 PDFs, verified `%PDF` headers)
 
 Every part on the released BOM has its datasheet here, except MGJ2 (see §22 — PO gate).
 Evidence files for superseded/rejected parts are kept deliberately and labeled.
@@ -237,6 +250,7 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | BZT52-series.pdf | 133,785 | OK |
 | C3D1M206KFSA382.pdf | 541,956 | OK |
 | CX3225GA.pdf | 596,614 | OK |
+| HCG600FH120D3E1EA.pdf | (see dir) | IGBT drop-in variant module |
 | FS26.pdf | 5,421,631 | OK |
 | HC5FW-900-S.pdf | 835,088 | OK |
 | HCM75S12T4K3.pdf | 2,538,054 | OK |

@@ -51,6 +51,28 @@ Why not discrete TO-247 (the 30–60 kW answer): 6-parallel × 6 switches of 13 
 matches neither the loop inductance nor the assembly economics of one module per phase at
 this current.
 
+## 2b. IGBT drop-in variant (cost SKU — same boards, same layout)
+
+**HCG600FH120D3E1EA** (hiitio, 1200 V/600 A IGBT half-bridge) shares the **D3 EconoDUAL-3
+outline and the exact 11-pin map** of the SiC module (its DS p.8 circuit diagram: 1=G_L
+2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=HS C-sense 10/11=AC) — a true drop-in, zero layout
+change. Facts: VCEsat 1.50/1.82 V (25/175 °C, 600 A, VGE 15 V) · Eon+Eoff 143.7 mJ hot ·
+Qg 4.36 µC · Isc 1800 A · Tvjop 150 °C · NTC B25/50 3375.
+
+**The entire variant is two value swaps + firmware** (`BOM_VARIANT=igbt`, `npm run bom:igbt`
+→ `docs/bom-igbt.md`):
+- R⟨ph⟩⟨HL⟩DS 100 Ω → **4.7 kΩ** (DESAT trip 8.1 → **5.75 V** ≈ 3.2× VCEsat hot)
+- C⟨ph⟩⟨HL⟩BL 47 pF → **150 pF** (blanking ≈ 2.8 µs, inside the 10 µs-class SC withstand)
+- firmware: f_sw 4–6 kHz, dead-time 2.5 µs, NTC B3375
+- gate rails **unchanged** (+15.6/−5.1): the DS characterizes at ±15 V, VGE(th) is a high
+  5.0–6.2 V, and the NSI6611 Miller clamp holds the off-state — dv/dt shoot-through stays a
+  bench row.
+
+Verified in the report's "IGBT variant" block: Tj 97 °C continuous / 118 °C at the 30 s
+peak (65 °C coolant, 0.045 K/W coldplate assumption), gate-power 1.63 W/bank vs 3.87 W
+throughput. Trade: ≈1.1 pt efficiency at 120 kW for **₹25.5k/unit** (BOM ₹45,434 vs
+₹70,934) — the natural pairing for the <500 V-pack derate.
+
 ## 3. DC link (film) + ripple
 
 Capacitor RMS current (2-level SVPWM): I_c,rms ≈ 0.62 · I_ph,rms → **211 Arms peak-30 s /
@@ -256,7 +278,7 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
-numeric worst-case verification **75 PASS / 4 WARN / 0 FAIL** · operating-point
+numeric worst-case verification **82 PASS / 4 WARN / 0 FAIL** (incl. the IGBT-variant block) · operating-point
 simulation (`sim-verify.mjs`, S1–S7: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
 with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
 thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,
