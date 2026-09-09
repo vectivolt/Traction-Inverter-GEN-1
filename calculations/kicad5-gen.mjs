@@ -21,7 +21,7 @@ const OUT = join(ROOT, "kicad5/traction");
 // Library name is revision-stamped: EasyEDA will NOT overwrite an existing library of the same
 // name, so a re-import would silently mix new sheets with stale pin geometry. Bump on symbol change.
 const LIB_NAME = "traction-r1";
-const REV = "A.3";
+const REV = "A.4";
 // Pinned, NOT new Date(): a release sheet carries its release date; bump with REV.
 const DATE = "2026-09-09";
 mkdirSync(OUT, { recursive: true });
@@ -487,15 +487,17 @@ const HAND = {
   ],
   "SBC / FS26": [
     ["USBC"],
-    ["DBAT", "LSBC", "LCOR", "QBAL", "RSB1", "RSB2", "RSB3", "RSB4", "RAGT"],
+    ["DBAT", "LSBC", "LCOR", "QBAL", "CBTP", "CBTC", "CVDIG", "CVBOS"],
+    ["RSB1", "RSB2", "RSB3", "RSB4", "RAGT", "RDBG"],
     ["CSB1", "CSB2", "CSB3", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
   ],
   "SBC / LV-INPUT": [["FLVC", "DREVC", "DTVSC", "LFC", "CLVC1", "CLVC2"]],
-  "SBC / WAKE": [["RIGN1", "RIGN2", "DIGN", "CIGN"]],
+  "SBC / WAKE": [["DIGN", "RIGN1", "RIGN2", "CIGN"], ["RIGNS1", "RIGNS2", "CIGNS"]],
   // Safety reads: the AND chain with its pull-ups | the fault/ready conditioning.
   "SAFETY / GATE-EN": [
-    ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD"],
+    ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD", "CAND1", "CAND2"],
     ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "CFLTF"],
+    ["ULAT2", "DFLT1", "DFLT2", "RFLTC", "RLAT2", "CLAT2"],
   ],
   "SAFETY / ASC-LATCH": [
     ["ULAT", "RLAT1", "CLAT", "RASCP"],
@@ -505,11 +507,12 @@ const HAND = {
   "VDC-RECEIVE / CH-#": [
     ["RVD#A", "RVD#B", "RVD#C", "RVD#D"],
     ["UVD#", "CVD#"],
+    ["UVOF", "ROF1", "ROF2", "COF1"],
   ],
   // Exciter in signal order: SWG filter -> op-amp -> power driver -> monitor dividers.
   "RESOLVER / EXCITER": [
     ["REXA1", "CEXA3", "REXA2", "CEXA2", "REXA3", "CEXA1", "REXA4", "UEXF"],
-    ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD"],
+    ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD", "RSDN"],
     ["REXM1", "REXM2", "REXM3", "REXM4"],
   ],
   "RESOLVER / VMID": [
@@ -751,7 +754,10 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
     const notesFits = voidCandidates(out.map(({ b: bb, X, Y }) =>
       ({ x0: X, y0: Y, x1: X + bb.w, y1: Y + bb.h })), W, H + MARGIN + 800, 4)
       .some((v) => v.x1 - v.x0 > 5200 && v.y1 - v.y0 > 4200 && v.y1 > (H + MARGIN + 800) * 0.4);
-    const usable = aspect >= 1.15 && aspect <= 1.95 && spreadOver <= 0 && voidFrac <= 0.09
+    // void gate: 9 % was calibrated when the tallest symbol was ~34 pins; the full 49-pin
+    // FS26 monolith (rev A.4) makes <=9 % unreachable at any NC — 12 % keeps the intent
+    // (notes panels still land in the void) without an impossible bar.
+    const usable = aspect >= 1.15 && aspect <= 1.95 && spreadOver <= 0 && voidFrac <= 0.12
       && (notesFits || SINGLE);
     const soft = (sheetArea / frameArea) * 10 + ragged / RAGGED_DIV + voidFrac * 60
       + frag * 1

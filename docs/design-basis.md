@@ -229,14 +229,75 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
-geometric pin-verify **1560/1560 (100 %)** · structural ERC **687 checks, 0 fail** ·
-numeric worst-case verification **51 PASS / 3 WARN / 0 FAIL**, every constant
-datasheet-real. The campaign found and fixed 18 defects (log F1–F36 in the report),
+geometric pin-verify **1663/1663 (100 %)** · structural ERC **763 checks, 0 fail** ·
+numeric worst-case verification **60 PASS / 3 WARN / 0 FAIL**, every constant
+datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
+external-review response confirmed and fixed 10 more (F37–F46 in the report),
 including four HIGH-severity ones only the real datasheets could reveal: the flyback
 controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
 re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
 path, net-alias floats, Y-cap class, common-cause sense bias, load-dump cap ratings,
 discharge worst-case, OV-witness headroom.
+
+## 11a. Rev A.4 — external design review, answered line-by-line
+
+An independent review of the rev A.3 PDFs was verified claim-by-claim against the primary
+datasheets (all in `docs/datasheets/`). Outcome: **10 confirmed defects, fixed (F37–F46)**;
+**3 claims rebutted with evidence**; the rest were layout/bench items already on the VERIFY
+list. Every fix is locked into `erc-audit.mjs` so it cannot regress.
+
+**Confirmed and fixed**
+- **F37 transformer phasing** — TDK VGT12EEM winding diagram (DS p.3/9): NP dots on pin 2,
+  NS dot on pin 8, NF dot on pin 3; pins 6/7 have no internal connection. The secondary
+  rectifier now hangs on pin 8 (dot) so it conducts only in the OFF interval; the drawn
+  version was forward-mode ≈2.9·V_in ≈ 35 V into gates rated +22 V abs.
+- **F38 flyback drain clamp** — the SMBJ85A stood forward from drain to rail (conducting
+  every OFF interval) and its 94.4 V minimum breakdown could never protect an 80 V FET.
+  Replaced by US1M blocking diode → SMAJ13A TVS returned to the rail: reflected 7.4 V stays
+  under the 13 V standoff, and the drain sees ≤60 V even at a clamped-load-dump input.
+- **F39 DESAT clamp** — BAT64-04 is a series pair (A=1, K=2, junction=3); it now clamps
+  DESAT→VCC2 instead of injecting VCC2 into the DESAT node.
+- **F40 ASC latch** — SN74LVC1G74 rebound to the real DCU pins; the 120 Ω network (2.5 V
+  "low", 42 mA clear current) replaced by 1 k series / 10 k pull-ups (asserted low 0.45 V).
+- **F41 KL15 sense** — 47 k/10 k + 100 nF after the steering diode; the MCU pin reads
+  2.7 V at 16 V and injection stays ≤0.7 mA at a 40 V load dump (was a raw 13.3 V path).
+- **F42 V_DC receivers** — re-zeroed to +0.5 V (buffered VREF5 divider): the AMC1311
+  fail-safe state (negative differential) rails to ~0 V and is now distinguishable from a
+  genuinely dead bus.
+- **F44 gate-power feeds** — VBAT_H/VBAT_L are now sourced on the card (per-bank polyfuses
+  off the reverse-protected node) instead of existing only as harness pin names.
+- **F45 package pin maps** — every symbol rebound to its real package: 74LVC1G11/32 (the
+  AND gates previously had **no VCC pin at all**), SN74LVC1G74, NCV4276C (output is pin 5),
+  TPS55340 RTE-16 (with the required SS capacitor and FREQ resistor, previously absent),
+  BUK9Y14 LFPAK56 (S=1/2/3, G=4, D=tab), ALM2402 PWP-14 (output-stage supplies bound; SHDN
+  pulled up through 10 k — it doubles as the open-drain OT flag, and grounded/floating
+  means *shutdown*), QA01C SIP-7 (1/2/5/6/7), PESD parts as their real 2- or 3-terminal
+  selves, FS26 as the full LQFP-48+EP with VDIG/VBOS decouplers, both buck bootstraps,
+  DEBUG strap, and DS-specified unused-pin terminations. The **S32K396 remains symbolic**
+  (its datasheet carries no package pin table — the IO-signal spreadsheet binds it at
+  layout) and the sheet says so explicitly.
+- **F46 global fault reaction** — FLT_HS/FLT_LS diode-OR into a second LVC1G74: any DESAT
+  trip latches DRV_EN low on all six channels in hardware; the driver's own soft-shutdown
+  handles the faulted switch in ~1 µs; the MCU must clear deliberately after diagnosis.
+- Driver ordering code pinned: **NSI6611ASC-Q1SWR** (the ASC-capable variant), not the
+  family label.
+
+**Rebutted with evidence**
+- *"Divider too close to 2 V at 900 V with 1 % resistors"* — the system maximum is 850 V
+  (spec §1) and the bottom leg is 0.1 %: worst-corner linear FS ≈ 902 V. Margin row added.
+- *"Resolver excitation monitors are asymmetric"* — deliberately GEN3-exact (12 k / 24 k
+  arms); the SDADC pair and NXP's angle diagnostics account for it. Documented, not a bug.
+- *"Discharge calculations"* — the reviewer's own numbers (67.5 kΩ, 1 880 Ω, 1.52 s @800 V)
+  match this design basis §4/§5; pulse ratings were already dimensioned (24.8 J vs 100 J
+  single-pulse wirewound; 0.95 W vs 2 W per bleeder resistor).
+
+**Regeneration / battery-disconnect strategy (review §5.4)** — the discharge resistors are
+*shutdown bleeders*, not a regen dump, by design: the reaction to load-dump or contactor
+opening under regeneration is **ASC** (three-phase short via the low side, FS26-backed gate
+power hold-up), which circulates the machine current in the motor and cannot pump the bus.
+Below the ASC/open crossover speed the reaction is three-phase-open (body diodes see less
+than the bus). This is the printed safe-state concept on sheet 1; the discharge path only
+ever handles the stored 116 J.
 
 ## 12. References
 

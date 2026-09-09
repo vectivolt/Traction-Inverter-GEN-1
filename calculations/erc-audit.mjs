@@ -180,6 +180,78 @@ for (const id of ["H", "L"]) {
   ok(same(P(`TF${id}1.P1`), P(`TF${id}2.P1`)) && same(P(`TF${id}1.P2`), P(`TF${id}2.P2`)), `FLY-${id} primaries paralleled`);
 }
 
+// ---------- rev A.4: external-review corrections, locked in ----------
+// Flyback transformer phasing (TDK VGT12EEM: NP dot=pin2, NS dot=pin8, NF dot=pin3):
+// the secondary rectifier hangs on the DOT end (label S1 = physical pin 8), winding return
+// is VEE; aux rectifier on F1 (dot). Wrong-way wiring = forward-mode ~35 V into the gates.
+for (const id of ["H", "L"]) {
+  for (const [k, ph] of [[1, "U"], [2, "V"], [3, "W"]]) {
+    ok(same(P(`TF${id}${k}.S1`), `W_${ph}${id}_A`) && same(P(`TF${id}${k}.S2`), `VEE_${ph}${id}`),
+      `TF${id}${k} secondary: rectifier on the dot end, return to VEE`);
+    ok((P(`TF${id}${k}.NC1`) ?? "NC").startsWith("NC") && (P(`TF${id}${k}.NC2`) ?? "NC").startsWith("NC"),
+      `TF${id}${k} pins 6/7 not connected (no internal winding)`);
+  }
+  ok(same(P(`TF${id}1.F1`), `FAX_${id}`) && same(P(`TF${id}1.F2`), "DGND"), `TF${id}1 aux winding feeds VCC regulation`);
+  // primary clamp: blocking diode from drain into a TVS returned to the rail (never a
+  // forward diode straight across drain->rail)
+  ok(same(P(`DF${id}SN.anode`), `FSW_${id}`) && same(P(`DF${id}SN.cathode`), `FCL_${id}`), `DF${id}SN blocks into the clamp node`);
+  ok(same(P(`ZF${id}SN.cathode`), `FCL_${id}`) && same(P(`ZF${id}SN.anode`), `V12${id}`), `ZF${id}SN TVS returns clamp energy to the rail`);
+  // BUK9Y14 LFPAK56: gate on pin 4, source pins commoned to the CS node
+  ok(same(P(`QF${id}.G`), `FG_${id}`) && same(P(`QF${id}.S1`), P(`QF${id}.S2`)) && same(P(`QF${id}.D`), `FSW_${id}`), `QF${id} LFPAK56 pin roles`);
+}
+// DESAT clamp: BAT64-04 series pair, anode end on DESAT, cathode end on VCC2 (clamp only)
+for (const ph of ["U", "V", "W"]) for (const sd of ["H", "L"]) {
+  const q = `${ph}${sd}`;
+  ok(same(P(`D${q}SB.A`), `DST_${q}`) && same(P(`D${q}SB.K`), `VCC_${q}`), `D${q}SB clamps DESAT to VCC2 (not VCC into DESAT)`);
+  ok(same(P(`C${q}IN.pin1`), "V5GD") && same(P(`C${q}IN.pin2`), "DGND"), `C${q}IN input-side driver bypass`);
+}
+// QA01C-class SIP-7 modules: +Vo on pin7-label VOP, output common on COM, -Vo unloaded
+for (const [b, u] of [["P", "PSASC"], ["P", "PS5B"], ["P", "PS5C"]]) {
+  ok(P(`${u}.VOP`) !== undefined && P(`${u}.COM`) !== undefined, `${u} real SIP-7 output pins bound`);
+}
+ok(same(D("PSQD.VOP"), "V18Q") && same(D("PSQD.COM"), "DCN"), "PSQD real SIP-7 output pins bound");
+// VCC1 LDO alive whenever LV is present (sensing decoupled from gate-power enable)
+ok(same(P("UGDL.INH"), "GDL_ON") && same(P("RGDLE.pin1"), "V12L") && same(P("RGDLE.pin2"), "GDL_ON"),
+  "V5GD LDO enable is tied on (not slaved to EN_FLYBK_LS)");
+ok(same(P("UGDL.OUT"), "V5GD"), "NCV4276C output on pin 5 (fixed version: pin 4 is NC)");
+// TPS55340 required programming pins present
+ok(same(P("UB15.SS"), "B15SS") && same(P("CB15S.pin1"), "B15SS"), "UB15 soft-start cap fitted");
+ok(same(P("UB15.FREQ"), "B15FQ") && same(P("RB15Q.pin1"), "B15FQ"), "UB15 FREQ resistor fitted");
+// Card: gate-power feeds are actually sourced (polyfused off the reverse-protected node)
+ok(same(C("FVBH.A"), "NRC") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card");
+ok(same(C("FVBL.A"), "NRC") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card");
+// Card: IGN sense is divided + filtered, not a raw diode into the MCU
+ok(same(C("DIGN.cathode"), "IGN_D") && same(C("RIGNS1.pin1"), "IGN_D") && same(C("RIGNS1.pin2"), "IGN_SNS")
+  && same(C("RIGNS2.pin1"), "IGN_SNS") && same(C("RIGNS2.pin2"), "AGND"), "KL15 sense divided 47k/10k to the ADC pin");
+// Card: logic actually powered, real Nexperia/TI pin roles
+ok(same(C("UAND1.VCC"), "V5A") && same(C("UAND2.VCC"), "V5A") && same(C("UOR1.VCC"), "V5A") && same(C("UOR2.VCC"), "V5A"),
+  "single-gate logic has VCC bound");
+// Card: hardware fault latch gates DRV_EN; either bank FLT sets it; MCU clears it
+ok(same(C("UAND2.C"), "FLT_OK"), "DRV_EN chain includes the fault latch");
+ok(same(C("DFLT1.cathode"), "FLT_HS_N") && same(C("DFLT2.cathode"), "FLT_LS_N") && same(C("DFLT1.anode"), "FLT_CMB_N"),
+  "FLT diode-OR into the latch preset");
+ok(same(C("ULAT2.PRE_N"), "FLT_CMB_N") && same(C("ULAT2.QN"), "FLT_OK") && same(C("ULAT2.CLR_N"), "FLT_CLR_N"),
+  "fault latch preset/clear/output roles");
+// Card: ASC latch network makes real logic levels (1k series into 10k pull-ups)
+ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS2.pin1"), "V5A") && same(C("RFS3.pin1"), "ASC_CLR_M"),
+  "ASC latch set/clear network (rev A.4 values)");
+// Card: AMC fail-safe discrimination — receiver zero offset from a buffered 0.5 V
+ok(same(C("UVOF.OUT"), "VOFS") && same(C("RVD1B.pin2"), "VOFS") && same(C("RVD2B.pin2"), "VOFS"),
+  "VDC receivers referenced to the 0.5 V offset");
+// Card: ALM2402 output-stage supplies bound, SHDN pulled up through a resistor only
+ok(same(C("UEXD.VCCO1"), "VBATC") && same(C("UEXD.VCCO2"), "VBATC"), "ALM2402 VCC_O pins powered");
+ok(same(C("UEXD.SDN"), "EXSD") && same(C("RSDN.pin2"), "EXSD"), "ALM2402 SHDN pulled high via 10k (flag stays readable)");
+// Card: FS26 mandatory support pins
+ok(same(C("USBC.VDIG"), "VDIG") && same(C("CVDIG.pin1"), "VDIG"), "FS26 VDIG decoupled");
+ok(same(C("USBC.VBOS"), "VBOS") && same(C("CVBOS.pin1"), "VBOS"), "FS26 VBOS decoupled");
+ok(same(C("USBC.VPRE_BT"), "PREBT") && same(C("CBTP.pin2"), "SWPRE"), "FS26 VPRE bootstrap fitted");
+ok(same(C("USBC.CORE_BT"), "CORBT") && same(C("CBTC.pin2"), "SWCORE"), "FS26 VCORE bootstrap fitted");
+ok(same(C("USBC.LDOIN"), "VPRE") && same(C("USBC.CORE_IN"), "VPRE"), "FS26 LDO + core buck fed from VPRE");
+ok(same(C("USBC.VSUP"), "VBATC") && same(C("USBC.VSUP_PWR"), "VBATC"), "FS26 both supply pins bound");
+ok(same(C("USBC.VBST_FB"), "DGND") && same(C("USBC.VBST_ISL"), "DGND") && same(C("USBC.VBST_ISH"), "DGND"),
+  "FS26 unused boost front-end terminated per DS");
+ok(same(C("RDBG.pin1"), "SBC_DBG") && same(C("USBC.DEBUG"), "SBC_DBG"), "FS26 DEBUG strapped for normal mode");
+
 // ---------- harness equality across boards ----------
 // (HARNESS40 lives in cells.tsx which node cannot import — parse it from source instead,
 // so this audit always checks against the map the boards were actually built from)

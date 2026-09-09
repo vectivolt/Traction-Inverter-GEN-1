@@ -3,7 +3,7 @@
 // dual gate-power flybacks, isolated DC-link sensing x2, module NTC routing, LV protection,
 // ASC buffer, 40-way harness. Schematic-complete; layout is a later phase.
 import {
-  StudFP, FilmCanFP, FilmBoxFP, DiscFP, AxialFP, TO247_4L, EconoDual3FP, Header,
+  StudFP, FilmCanFP, FilmBoxFP, DiscFP, AxialFP, TO247_4L, EconoDual3FP, Header, Sip7FP,
   SmdFP, Smd2FP, GateDrive, FlybackChain, IsoVSense, ModNtc, Harness, gp,
 } from "../packages/cells";
 
@@ -83,8 +83,9 @@ export default () => (
     <FlybackChain id="L" v12="net.V12L" />
 
     {/* ---- ASC buffer: DCN-referenced, drives the 3 LS ASC pins ---- */}
-    <chip name="PSASC" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P18", pin4: "COM" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", P18: "net.V18A", COM: "net.DCN" }} />
+    {/* QA01C-18 real SIP-7: 1=Vin 2=GND(in) 5=-Vo 6=0V 7=+Vo — +18 V used, -Vo unloaded */}
+    <chip name="PSASC" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
+      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSASCN", COM: "net.DCN", VOP: "net.V18A" }} />
     <chip name="UASC" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.ASCA", CAT: "net.DGND", GND: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
     <resistor name="RASCL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
@@ -98,14 +99,14 @@ export default () => (
     {/* ---- ISOLATED DC-LINK SENSING: two independent channels + shared reinforced bias ---- */}
     <IsoVSense id="1" outP="net.VDC1_P" outN="net.VDC1_N" />
     <IsoVSense id="2" outP="net.VDC2_P" outN="net.VDC2_N" />
-    <chip name="PS5B" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P5", pin4: "COM" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", P5: "net.V5ISO", COM: "net.DCN" }} />
+    <chip name="PS5B" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
+      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PS5BN", COM: "net.DCN", VOP: "net.V5ISO" }} />
     <capacitor name="C5B1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
     <capacitor name="C5B2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
     {/* channel-2 bias is its OWN module — the independence claim of the dual VDC sense must
         not share a common bias supply (ERC finding F4) */}
-    <chip name="PS5C" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P5", pin4: "COM" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", P5: "net.V5ISO2", COM: "net.DCN" }} />
+    <chip name="PS5C" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
+      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PS5CN", COM: "net.DCN", VOP: "net.V5ISO2" }} />
     <capacitor name="C5C1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO2", pin2: "net.DCN" }} />
 
     {/* ---- LV POWER: two protected 12V feeds + V5GD LDO + V15 boost ---- */}
@@ -123,14 +124,22 @@ export default () => (
     <inductor name="LFL1" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRL", pin2: "net.V12L" }} />
     <capacitor name="CLVL1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRL", pin2: "net.DGND" }} />
     <capacitor name="CLVL2" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
-    {/* driver logic 5V (VCC1) — INH from EN_FLYBK_LS, GEN3 exact */}
-    <chip name="UGDL" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "OUT" }}
-      connections={{ IN: "net.V12L", INH: "net.EN_FLYBK_LS", GND: "net.DGND", OUT: "net.V5GD" }} />
+    {/* driver logic 5V (VCC1): NCV4276C real map 1=IN 2=INH 3=GND 4=NC/VA 5=OUT (fixed-5V
+        version: pin 4 NC). INH is tied on through 100k so driver diagnostics and both
+        AMC1311 LV sides stay alive whenever KL30 is present — gate POWER stays separately
+        default-OFF via the flyback enables (rev A.4: was slaved to EN_FLYBK_LS). */}
+    <chip name="UGDL" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "NC", pin5: "OUT" }}
+      connections={{ IN: "net.V12L", INH: "net.GDL_ON", GND: "net.DGND", NC: "net.NC_UGDL4", OUT: "net.V5GD" }} />
+    <resistor name="RGDLE" resistance="100k" footprint="0603" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.GDL_ON" }} />
     <capacitor name="C5G1" capacitance="1uF" footprint="0805" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
     <capacitor name="C5G2" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.DGND" }} />
     {/* V15 boost for the reinforced sense-bias modules */}
-    <chip name="UB15" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "EN", pin3: "SW", pin4: "FB", pin5: "COMP", pin6: "GND" }}
-      connections={{ VIN: "net.V12L", EN: "net.V12L", SW: "net.B15SW", FB: "net.B15FB", COMP: "net.B15CO", GND: "net.DGND" }} />
+    <chip name="UB15" footprint={SmdFP(16)} {...gp()}
+      pinLabels={{ pin1: "SW1", pin2: "VIN1", pin3: "EN", pin4: "SS", pin5: "VIN2", pin6: "AGND", pin7: "COMP", pin8: "FB", pin9: "FREQ", pin10: "NC1", pin11: "PGND1", pin12: "PGND2", pin13: "PGND3", pin14: "NC2", pin15: "SW2", pin16: "SW3" }}
+      connections={{ SW1: "net.B15SW", VIN1: "net.V12L", EN: "net.V12L", SS: "net.B15SS", VIN2: "net.V12L", AGND: "net.DGND", COMP: "net.B15CO", FB: "net.B15FB", FREQ: "net.B15FQ", NC1: "net.DGND", PGND1: "net.DGND", PGND2: "net.DGND", PGND3: "net.DGND", NC2: "net.DGND", SW2: "net.B15SW", SW3: "net.B15SW" }} />
+    {/* soft-start + switching-frequency programming (RTE16 required pins): 80.6k -> ~580 kHz */}
+    <capacitor name="CB15S" capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15SS", pin2: "net.DGND" }} />
+    <resistor name="RB15Q" resistance="80.6k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FQ", pin2: "net.DGND" }} />
     <inductor name="LB15" inductance="10uH" footprint="1210" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.B15SW" }} />
     <diode name="DB15" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.B15SW", cathode: "net.V15" }} />
     <capacitor name="CB15I" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />

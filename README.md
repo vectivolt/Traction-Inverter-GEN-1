@@ -11,11 +11,11 @@
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/SiC-3×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1560%2F1560%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-543%20·%20175%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1663%2F1663%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-579%20·%20180%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-₹69.7k%20@1k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-687%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-763%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
   <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-51%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -306,7 +306,7 @@ sequenceDiagram
 
 ## 📊 BOM & cost analysis
 
-**Electronics BOM: ₹69,996 @1k volume** · 543 components · 175 lines · zero unmatched.
+**Electronics BOM: ₹70,059 @1k volume** · 579 components · 180 lines · zero unmatched.
 Machine-generated from the netlists — the sheets, BOM and LCSC fields resolve through one
 parts-db, so they cannot disagree. Full data: [`docs/bom.md`](docs/bom.md) ·
 [`bom-power.csv`](docs/bom-power.csv) · [`bom-control-card.csv`](docs/bom-control-card.csv)
@@ -435,7 +435,7 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>19 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
-  V -->|"1560/1560 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
+  V -->|"1663/1663 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
   SVG -->|"sheets-to-pdf.mjs<br/>(headless Chrome)"| PDF["📄 PDF set"]
@@ -446,9 +446,21 @@ Three independent verification layers — each with its own tool, none trusting 
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1560/1560 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **687 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **51 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1663/1663 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats | **763 checks · 0 fail** |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` | losses, thermal, discharge corners, protection, tolerances | **60 PASS · 3 WARN · 0 FAIL** (all constants datasheet-real) |
+
+Rev A.4 answered an independent external design review line-by-line: every claim was
+re-verified against the primary datasheets, **10 further defects were confirmed and fixed
+(F37–F46)** — the gate-power transformer secondary phasing (dot ends per the TDK winding
+diagram), the flyback drain clamp topology and rating, the DESAT clamp direction, the ASC
+latch logic levels, a raw KL15 path into the MCU, the unsourced gate-power feeds, a
+hardware fault latch added into the DRV_EN chain, receiver offsets so the AMC1311 fail-safe
+state is distinguishable, and a full re-bind of every symbol to its real package pins
+(FS26 now full LQFP-48; the S32K396 stays explicitly symbolic until layout, printed on the
+sheet). Three review claims did not survive verification (900 V divider corner — system max
+is 850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; discharge
+numbers — they match ours) and are documented with the reasoning.
 
 The rev A.3 verification campaign found and fixed **18 real defects** (F1–F36 log) — among them a gate
 supply that could never start (FB divider scaled for the wrong controller reference), a
@@ -460,10 +472,10 @@ Full findings log + margin tables: [`docs/verification-report.md`](docs/verifica
 
 | Metric | Power | Cap bank | Discharge | Card | Total |
 |---|---|---|---|---|---|
-| Components | 274 | 26 | 24 | 219 | **543** |
+| Components | 285 | 26 | 24 | 244 | **579** |
 | Functional sections | 24 | 2 | 3 | 26 | 55 |
-| Net labels / pin stubs | 762 | 42 | 55 | 701 | 1,560 |
-| Sheet size | 44.6″ × 23.3″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 40.6″ × 30.8″ | 4 sheets |
+| Net labels / pin stubs | 790 | 42 | 55 | 776 | 1,663 |
+| Sheet size | 44.6″ × 22.8″ | 8.1″ × 5.8″ | 11.1″ × 7.8″ | 40.6″ × 27.6″ | 4 sheets |
 
 ---
 

@@ -83,6 +83,16 @@ export const XfmrEEFP = (n = 6) => (
     <courtyardrect pcbX={0} pcbY={0} width="20mm" height="16mm" />
   </footprint>
 );
+// Mornsun QA01C-class SIP-7 iso module: real pins 1=Vin 2=GND(in) 5=-Vo 6=0V(out common)
+// 7=+Vo; positions 3/4 have no pins (DS "Design Reference" fig).
+export const Sip7FP = () => (
+  <footprint>
+    {[["pin1", 0], ["pin2", 2.54], ["pin5", 10.16], ["pin6", 12.7], ["pin7", 15.24]].map(([h, x]) => (
+      <platedhole key={h as string} portHints={[h as string]} pcbX={x as number} pcbY={0} holeDiameter="1mm" outerDiameter="1.8mm" shape="circle" />
+    ))}
+    <courtyardrect pcbX={7.62} pcbY={0} width="20mm" height="10mm" />
+  </footprint>
+);
 export const Header = (n: number, rows = 1) => (
   <footprint>
     {Array.from({ length: n }, (_, i) => (
@@ -131,14 +141,18 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
       <resistor name={`R${p}PD`} resistance="1M" footprint="1206" {...gp()} connections={{ pin1: gate, pin2: ks }} />
       <diode name={`D${p}Z1`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.ZK_${p}`, cathode: gate }} />
       <diode name={`D${p}Z2`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.ZK_${p}`, cathode: ks }} />
-      {/* DESAT chain: VCC -> BAT64 -> node -> 100R -> 2x US1M -> drain; 47p blanking */}
-      <chip name={`D${p}SB`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "A1", pin2: "A2", pin3: "K" }}
-        connections={{ A1: vcc, A2: dst, K: dst }} />
+      {/* DESAT clamp: BAT64-04 SERIES pair (real config: A=pin1, K=pin2, junction=pin3 NC).
+          Anode end on DESAT, cathode end on VCC2 -> clamps DESAT to VCC2+2Vf; never a
+          forward path FROM the supply INTO the DESAT node (rev A.4 review fix). */}
+      <chip name={`D${p}SB`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "A", pin2: "K", pin3: "M" }}
+        connections={{ A: dst, K: vcc, M: `net.NC_D${p}SBM` }} />
       <resistor name={`R${p}DS`} resistance="100" footprint="0805" {...gp()} connections={{ pin1: dst, pin2: `net.DS1_${p}` }} />
       <diode name={`D${p}S1`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.DS1_${p}`, cathode: `net.DS2_${p}` }} />
       <diode name={`D${p}S2`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.DS2_${p}`, cathode: drain }} />
       <capacitor name={`C${p}BL`} capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: dst, pin2: ks }} />
-      {/* driver rail decoupling */}
+      {/* driver rail decoupling — both sides of the barrier (NSI6611 DS layout rule):
+          input-side VCC1-GND1 bypass lives in each channel, not only at the LDO */}
+      <capacitor name={`C${p}IN`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.DGND" }} />
       <capacitor name={`C${p}B1`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       <capacitor name={`C${p}B2`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       {/* floating secondary: rectifier -> VCC ; zener splits winding return -> VEE (-5.1) */}
@@ -166,8 +180,9 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <chip name={`UF${id}`} footprint={SmdFP(8)} {...gp()}
         pinLabels={{ pin1: "COMP", pin2: "FB", pin3: "CS", pin4: "RTCT", pin5: "GND", pin6: "OUT", pin7: "VCC", pin8: "VREF" }}
         connections={{ COMP: `net.FCO_${id}`, FB: fb, CS: `net.FSI_${id}`, RTCT: `net.FCT_${id}`, GND: "net.DGND", OUT: `net.FDR_${id}`, VCC: vcc, VREF: vr }} />
-      <chip name={`QF${id}`} footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "S2", pin4: "D" }}
-        connections={{ G: `net.FG_${id}`, S: cs, S2: cs, D: sw }} />
+      {/* BUK9Y14-80E LFPAK56 real allocation: source 1/2/3, gate 4, drain = mounting base */}
+      <chip name={`QF${id}`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "S1", pin2: "S2", pin3: "S3", pin4: "G", pin5: "D" }}
+        connections={{ S1: cs, S2: cs, S3: cs, G: `net.FG_${id}`, D: sw }} />
       <resistor name={`RF${id}G`} resistance="10" footprint="0603" {...gp()} connections={{ pin1: `net.FDR_${id}`, pin2: `net.FG_${id}` }} />
       <resistor name={`RF${id}GO`} resistance="20" footprint="0603" {...gp()} connections={{ pin1: `net.FG_${id}`, pin2: `net.FGO_${id}` }} />
       <diode name={`DF${id}G`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FGO_${id}`, cathode: `net.FDR_${id}` }} />
@@ -190,10 +205,15 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <resistor name={`RF${id}EN`} resistance="100k" footprint="0603" {...gp()} connections={{ pin1: vr, pin2: `net.FEN_${id}` }} />
       <chip name={`QF${id}E2`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
         connections={{ G: `net.FEN_${id}`, S: "net.DGND", D: `net.FCO_${id}` }} />
-      {/* snubber + clamp on the switch node */}
+      {/* switch-node RC snubber + leakage clamp ACROSS THE PRIMARY: fast blocking diode into
+          a 13 V TVS returned to the rail. Reflected flyback voltage (~7.4 V) stays below the
+          TVS standoff, the leakage spike is clamped to rail+~21 V, so the 80 V FET sees
+          <=60 V even during a clamped-load-dump input (rev A.4 — replaces the SMBJ85A that
+          forward-conducted every OFF interval and had a 94 V breakdown vs the 80 V FET). */}
       <resistor name={`RF${id}SN`} resistance="100" footprint="0805" {...gp()} connections={{ pin1: sw, pin2: `net.FSN_${id}` }} />
       <capacitor name={`CF${id}SN`} capacitance="100pF" footprint="1206" {...gp()} connections={{ pin1: `net.FSN_${id}`, pin2: v12 }} />
-      <diode name={`DF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: sw, cathode: v12 }} />
+      <diode name={`DF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: sw, cathode: `net.FCL_${id}` }} />
+      <diode name={`ZF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: v12, cathode: `net.FCL_${id}` }} />
       {/* VCC: trickle start from the 12 V rail, then the aux winding takes over
           (the aux-only wiring could never start — startup feed added at DFM review) */}
       <resistor name={`RF${id}ST`} resistance="4.7k" footprint="0805" {...gp()} connections={{ pin1: v12, pin2: vcc }} />
@@ -204,17 +224,21 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <capacitor name={`CF${id}A`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
       <resistor name={`RF${id}FB1`} resistance="56k" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: fb }} />
       <resistor name={`RF${id}FB2`} resistance="15k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: "net.DGND" }} />
-      {/* three transformers, primaries paralleled on the switch node; TF?1 carries the aux */}
-      {/* VGT12EEM-200S1A4 real map (TDK DS p.3): NP=1-2, NF(feedback)=3-4, NS=5..8
-          (6/7 are winding taps — series/parallel per TDK drawing, NC at schematic level) */}
+      {/* three transformers, primaries paralleled on the switch node; TF?1 carries the aux.
+          VGT12EEM-200S1A4 REAL circuit (TDK DS p.3/9): NP1||NP2 = pins 1-2 with DOTS AT PIN 2;
+          NF = pins 3(dot)-4; NS = pins 8(dot)-5; pins 6/7 exist mechanically but are NOT
+          connected internally. Primary drive P1(rail)/P2(drain) makes the dotted ends negative
+          during ON — so the secondary RECTIFIER MUST HANG ON PIN 8 (dot) to conduct only
+          during the OFF interval (flyback). Rev A.4: S-winding use was inverted (pin 5 fed
+          the rectifier = forward-mode ~2.9x Vin, over the module's +22 V gate abs max). */}
       {[1, 2, 3].map((k) => (
         <chip key={k} name={`TF${id}${k}`} footprint={XfmrEEFP(8)} {...gp()}
-          pinLabels={{ pin1: "P1", pin2: "P2", pin3: "F1", pin4: "F2", pin5: "S1", pin6: "T1", pin7: "T2", pin8: "S2" }}
+          pinLabels={{ pin1: "P1", pin2: "P2", pin3: "F1", pin4: "F2", pin5: "S2", pin6: "NC1", pin7: "NC2", pin8: "S1" }}
           connections={{
             P1: v12, P2: sw,
             F1: k === 1 ? `net.FAX_${id}` : `net.NC_TF${id}${k}F1`, F2: k === 1 ? "net.DGND" : `net.NC_TF${id}${k}F2`,
             S1: `net.W_${["U", "V", "W"][k - 1]}${id}_A`, S2: `net.VEE_${["U", "V", "W"][k - 1]}${id}`,
-            T1: `net.NC_TF${id}${k}T1`, T2: `net.NC_TF${id}${k}T2`,
+            NC1: `net.NC_TF${id}${k}T1`, NC2: `net.NC_TF${id}${k}T2`,
           }} />
       ))}
     </group>

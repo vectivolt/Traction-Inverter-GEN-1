@@ -3,7 +3,7 @@
 // energy). Carries the always-on passive bleeder + the commanded active discharge, and takes
 // V15 / QDIS_CMD / DGND from the power board over a 4-way header.
 // RULE (also in the title block): never energize the inverter without this board fitted.
-import { StudFP, AxialFP, TO247_4L, Header, SmdFP, Smd2FP, gp } from "../packages/cells";
+import { StudFP, AxialFP, TO247_4L, Header, SmdFP, Smd2FP, Sip7FP, gp } from "../packages/cells";
 
 const NO_ROUTE = process.env.TSCI_NO_ROUTE === "1";
 
@@ -32,8 +32,9 @@ export default () => (
     )))}
 
     {/* ---- active discharge: default-OFF opto + DCN-referenced bias + 1200V SiC + 4x 470R 10W ---- */}
-    <chip name="PSQD" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin3: "P18", pin4: "COM" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", P18: "net.V18Q", COM: "net.DCN" }} />
+    {/* QA01C-18 real SIP-7: 1=Vin 2=GND(in) 5=-Vo 6=0V 7=+Vo — +18 V used, -Vo unloaded */}
+    <chip name="PSQD" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
+      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSQDN", COM: "net.DCN", VOP: "net.V18Q" }} />
     <chip name="UQD" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.QDA", CAT: "net.DGND", GND: "net.DCN", VO: "net.QDVO", VCC: "net.V18Q" }} />
     <resistor name="RQDL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.QDIS_CMD", pin2: "net.QDA" }} />

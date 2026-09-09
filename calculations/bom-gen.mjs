@@ -53,7 +53,7 @@ const SUBSYS = [
   ["Hall sensors + AFE", /^(USNS|JLEM|[ULRC][UVW]B\d?|C[UVW]S[12])/],
   ["VDC receivers (card)", /^([RUC]VD[12])/],
   ["CAN-FD x2", /^(UCAN|LCAN|TVSC|RCT|CCT|CCAN)/],
-  ["Temps (module/board/motor)", /^(RSN|CSN|JT(HS|AMB)|RT(HS|AMB)|CT(HS|AMB)|FMT|DMT|UMT|RMT|CMT)/],
+  ["Temps (module/board/motor)", /^(RSN|CSN|JT(HS|AMB)|RT(HS|AMB)|CT(HS|AMB)|FMT|TVSM|UMT|RMT|CMT)/],
   ["Vehicle connector + prot", /^(JVEH|FVS|LVS)/],
 ];
 const subTotal = new Map();

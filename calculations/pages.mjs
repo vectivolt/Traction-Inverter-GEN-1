@@ -44,8 +44,8 @@ const PAGES = {
       ["DRIVE-WL", [/^(U|R|C|D|Z)WL/]],
     ], ["MODULE-W", "DRIVE-WH", "DRIVE-WL"]],
     ["GATE-POWER", [
-      ["FLY-HS", [/^(U|Q)FH/, /^[RCD]FH/, /^ZFHG$/, /^TFH[123]$/]],
-      ["FLY-LS", [/^(U|Q)FL/, /^[RCD]FL/, /^ZFLG$/, /^TFL[123]$/]],
+      ["FLY-HS", [/^(U|Q)FH/, /^[RCD]FH/, /^ZFH(G|SN)$/, /^TFH[123]$/]],
+      ["FLY-LS", [/^(U|Q)FL/, /^[RCD]FL/, /^ZFL(G|SN)$/, /^TFL[123]$/]],
     ], ["FLY-HS", "FLY-LS"]],
     ["HV-SENSING", [
       ["SENSE-VDC", [/^RVDD[1-6]$/, /^RVDDL$/, /^CVDDF$/, /^UIVDC$/]],
@@ -56,8 +56,8 @@ const PAGES = {
     ["LV-POWER", [
       ["PROT-H", [/^FH1$/, /^DRH$/, /^DTVH$/, /^LFH1$/, /^CLVH[12]$/]],
       ["PROT-L", [/^FL1$/, /^DRL$/, /^DTVL$/, /^LFL1$/, /^CLVL[12]$/]],
-      ["VCC1-LDO", [/^UGDL$/, /^C5G[12]$/]],
-      ["BOOST-15V", [/^UB15$/, /^LB15$/, /^DB15$/, /^CB15(I|O1|O2|C)$/, /^RB15F[12]$/]],
+      ["VCC1-LDO", [/^UGDL$/, /^RGDLE$/, /^C5G[12]$/]],
+      ["BOOST-15V", [/^UB15$/, /^LB15$/, /^DB15$/, /^CB15(I|O1|O2|C|S)$/, /^RB15F[12]$/, /^RB15Q$/]],
     ], ["PROT-H", "PROT-L", "VCC1-LDO", "BOOST-15V"]],
     ["CONTROL-IF", [
       ["HARNESS", [/^JIC$/, /^RPD\d+$/]],
@@ -82,23 +82,23 @@ const PAGES = {
       ["SWD-BOOT", [/^JSWD$/, /^RBOOT$/, /^CRST$/]],
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [
-      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/]],
-      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+$/, /^RSB\d+$/, /^RAGT$/]],
-      ["WAKE", [/^RIGN[12]$/, /^CIGN$/, /^DIGN$/]],
+      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/]],
+      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+$/, /^RSB\d+$/, /^RAGT$/, /^CVDIG$/, /^CVBOS$/, /^CBT[PC]$/, /^RDBG$/]],
+      ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
-      ["GATE-EN", [/^UAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/]],
+      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/]],
       ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/]],
-      ["FLYBK-EN", [/^UOR[12]$/]],
+      ["FLYBK-EN", [/^COR[12]$/, /^UOR[12]$/]],
       ["INTERLOCK", [/^RILK[1-4]$/, /^CILK$/]],
     ], ["GATE-EN", "ASC-LATCH", "FLYBK-EN", "INTERLOCK"]],
     ["VDC-RECEIVE", [
-      ["CH-1", [/^RVD1[A-D]$/, /^UVD1$/, /^CVD1$/]],
+      ["CH-1", [/^UVOF$/, /^ROF[12]$/, /^COF1$/, /^RVD1[A-D]$/, /^UVD1$/, /^CVD1$/]],
       ["CH-2", [/^RVD2[A-D]$/, /^UVD2$/, /^CVD2$/]],
     ], ["CH-1", "CH-2"]],
     ["RESOLVER", [
       ["VMID", [/^RVM[1-4]$/, /^CVM[12]$/, /^UVMB[12]$/]],
-      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/]],
+      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/]],
       ["SIN", [/^RSIN(1|2|F1|F2|R1|R2)$/, /^DSINP$/, /^CSIN[DFA]\d?$/]],
       ["COS", [/^RCOS(1|2|F1|F2|R1|R2)$/, /^DCOSP$/, /^CCOS[DFA]\d?$/]],
     ], ["VMID", "EXCITER", "SIN", "COS"]],
@@ -111,7 +111,7 @@ const PAGES = {
     ["TEMP", [
       ["MOD-NTC", [/^RSN[UVW]P$/, /^CSN[UVW]F$/, /^RTMR$/]],
       ["BOARD-NTC", [/^JT(HS|AMB)$/, /^RT(HS|AMB)P$/, /^CT(HS|AMB)F$/]],
-      ["MOTOR-TEMP", [/^FMT[12]$/, /^DMT[12]$/, /^UMT[12]$/, /^RMT[12][PS]$/, /^CMT[12]F$/]],
+      ["MOTOR-TEMP", [/^FMT[12]$/, /^TVSM[12]$/, /^UMT[12]$/, /^RMT[12][PS]$/, /^CMT[12]F$/]],
     ], ["MOD-NTC", "BOARD-NTC", "MOTOR-TEMP"]],
     ["COMMS", [
       ["CAN-FD1", [/^UCAN1$/, /^LCAN1$/, /^TVSC1$/, /^RCT1[AB]$/, /^CCT1$/, /^CCAN1$/]],
