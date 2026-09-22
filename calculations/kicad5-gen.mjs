@@ -23,7 +23,7 @@ const OUT = join(ROOT, "kicad5/traction");
 const LIB_NAME = "traction-r1";
 import { REV } from "./rev.mjs";
 // Pinned, NOT new Date(): a release sheet carries its release date; bump with REV.
-const DATE = "2026-09-09";
+const DATE = "2026-09-23";
 mkdirSync(OUT, { recursive: true });
 
 // ---- geometry in mils (50 mil grid) ------------------------------------------------------
@@ -431,8 +431,8 @@ const HAND = {
     ["CDC9", "CDC10", "CDC11", "CDC12", "CDC13", "CDC14", "CDC15", "CDC16"],
   ],
   "DISCHARGE / BLEED": [
-    ["RBLD1", "RBLD2", "RBLD3", "RBLD4", "RBLD5"],
-    ["RBLD6", "RBLD7", "RBLD8", "RBLD9", "RBLD10"],
+    ["RBLD1", "RBLD2", "RBLD3", "RBLD4", "RBLD5", "RBLD6"],
+    ["RBLD7", "RBLD8", "RBLD9", "RBLD10", "RBLD11", "RBLD12"],
   ],
   "DISCHARGE / ENTRY": [["JDCP", "JDCN", "JCTL"]],
   // Discharge in work order: bias, opto, LED/gate network | the switch with its string.
@@ -457,13 +457,13 @@ const HAND = {
   "GATE-POWER / FLY-HS": [
     ["UFH", "RFHRT", "CFHVR", "RFHG", "RFHGO", "DFHG", "ZFHG", "RFHGS", "CFHCT", "CFHCO", "CFHCF"],
     ["QFH", "RFHCS", "RFHSI", "CFHSI", "RFHSN", "CFHSN", "DFHSN"],
-    ["QFHE1", "QFHE2", "RFHEN", "RFHST", "DFHA", "CFHA", "RFHFB1", "RFHFB2", "RFHFB3"],
+    ["QFHE1", "QFHE2", "RFHEN", "RFHST", "DFHA", "CFHA", "DFHVZ", "RFHFB1", "RFHFB2"],
     ["TFH1", "TFH2", "TFH3"],
   ],
   "GATE-POWER / FLY-LS": [
     ["UFL", "RFLRT", "CFLVR", "RFLG", "RFLGO", "DFLG", "ZFLG", "RFLGS", "CFLCT", "CFLCO", "CFLCF"],
     ["QFL", "RFLCS", "RFLSI", "CFLSI", "RFLSN", "CFLSN", "DFLSN"],
-    ["QFLE1", "QFLE2", "RFLEN", "RFLST", "DFLA", "CFLA", "RFLFB1", "RFLFB2", "RFLFB3"],
+    ["QFLE1", "QFLE2", "RFLEN", "RFLST", "DFLA", "CFLA", "DFLVZ", "RFLFB1", "RFLFB2"],
     ["TFL1", "TFL2", "TFL3"],
   ],
   // Power enters at the fuse, so the chain reads fuse -> reverse -> clamp -> filter.
@@ -477,7 +477,7 @@ const HAND = {
   "CONTROL-IF / HARNESS": [
     ["JIC"],
     ["RPD0", "RPD1", "RPD2", "RPD3", "RPD4", "RPD5"],
-    ["RPD6", "RPD7", "RPD8", "RPD9", "RPD10"],
+    ["RPD6", "RPD7", "RPD8", "RPD9", "RPD10", "RHWID"],
   ],
   // ---- card ----
   "CONTROL / MCU": [
@@ -498,6 +498,7 @@ const HAND = {
     ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD", "CAND1", "CAND2"],
     ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "CFLTF"],
     ["ULAT2", "DFLT1", "DFLT2", "RFLTC", "RLAT2", "CLAT2"],
+    ["RFLTD", "CFLTD", "CCLR", "DCLR"],
   ],
   "SAFETY / ASC-LATCH": [
     ["ULAT", "RLAT1", "CLAT", "RASCP"],

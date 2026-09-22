@@ -7,13 +7,17 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DB, OVERRIDES, IGBT_VARIANT } from "./parts-db.mjs";
+import { DB, OVERRIDES, SKUS } from "./parts-db.mjs";
 import { REV } from "./rev.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const VARIANT = process.env.BOM_VARIANT === "igbt" ? "igbt" : "";
-const SFX = VARIANT ? `-${VARIANT}` : "";
-// variant rows shadow the base DB (first match wins)
-const XDB = VARIANT ? [...IGBT_VARIANT.map((v) => ({ mfr: "any", alt: "-", fp: "-", ...v })), ...DB] : DB;
+// SKU = BOM_VARIANT (sic8 default; "igbt" kept as the old name of igbt8). Output suffix keeps
+// the historic file names: bom.md (sic8), bom-igbt.md (igbt8), bom-igbt4.md, bom-sic4.md.
+const SKU = { "": "sic8", igbt: "igbt8" }[process.env.BOM_VARIANT ?? ""] ?? process.env.BOM_VARIANT;
+if (!SKUS[SKU]) { console.error(`unknown BOM_VARIANT ${SKU} — one of ${Object.keys(SKUS).join(", ")}`); process.exit(1); }
+const VARIANT = SKU === "sic8" ? "" : SKU;
+const SFX = { sic8: "", igbt8: "-igbt" }[SKU] ?? `-${SKU}`;   // bom.md, bom-igbt.md, bom-igbt4.md, bom-sic4.md
+// SKU rows shadow the base DB (first match wins)
+const XDB = [...SKUS[SKU].rows.map((v) => ({ mfr: "any", alt: "-", fp: "-", ...v })), ...DB];
 
 const eng = (x, unit) => {
   if (!(x > 0)) return "";
@@ -21,10 +25,21 @@ const eng = (x, unit) => {
   for (const [m, sfx] of p) if (x >= m * 0.9999) return `${Number((x / m).toPrecision(3))}${sfx}${unit}`;
   return `${x}${unit}`;
 };
-const valueOf = (c) => c.ftype === "simple_resistor"
+const valueOf0 = (c) => c.ftype === "simple_resistor"
   ? (Number(c.resistance) === 0 ? "0R" : eng(Number(c.resistance), ""))
   : c.ftype === "simple_capacitor" ? eng(Number(c.capacitance), "F")
   : c.ftype === "simple_inductor" ? (Number.isFinite(Number(c.inductance)) ? eng(Number(c.inductance), "H") : String(c.inductance)) : "";
+// Value/MPN agreement gate: a class MPN that encodes a value (R0603-10k, MLCC-4.7uF-50V,
+// R2512-3R3-2W) must encode the value the BOM line prints. F40/F52 fixes once lived only in
+// the netlist while the MPN still ordered the old part — this makes that a build failure.
+const num = (s) => { const m = String(s).match(/^([0-9.]+)([pnumkM]?)/); return m ? Number(m[1]) * ({ p: 1e-12, n: 1e-9, u: 1e-6, m: 1e-3, k: 1e3, M: 1e6, "": 1 }[m[2]]) : NaN; };
+const mpnValue = (mpn) => {
+  let m;
+  if ((m = mpn.match(/^R\d{4}-(\d+)([kMR])(\d*)(?:-|$)/))) return Number(`${m[1]}.${m[3] || 0}`) * { k: 1e3, M: 1e6, R: 1 }[m[2]];
+  if ((m = mpn.match(/-([0-9.]+)(p|n|u)F(?:-|$)/))) return Number(m[1]) * { p: 1e-12, n: 1e-9, u: 1e-6 }[m[2]];
+  return null;
+};
+const mismatches = [];
 
 const CAT = (mpn, desc) =>
   /SiC|module|MOSFET|NFET/i.test(desc) ? "power semiconductors"
@@ -63,7 +78,7 @@ const SUBSYS = [
 ];
 const subTotal = new Map();
 
-let md = `# Traction Inverter${VARIANT ? " — IGBT VARIANT (HCG600FH120D3E1EA)" : ""} — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
+let md = `# Traction Inverter — ${SKUS[SKU].title}, ${SKUS[SKU].bus} bus — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the
@@ -71,7 +86,8 @@ LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
 LEM sensor prices are quote-gated — figures below are the planning assumptions.
 \`CLASS\` = buy to the rating printed on the sheet; \`ALT\` = footprint-compatible second source.
-${VARIANT ? "Base SiC build: [`docs/bom.md`](bom.md)." : "IGBT drop-in variant of the same boards: [`docs/bom-igbt.md`](bom-igbt.md)."}
+Same PCBs for every SKU — this BOM differs from the others only in the rows listed in \`parts-db.mjs\` SKUS.${SKU}.
+All SKUs: [8XX SiC](bom.md) · [8XX IGBT](bom-igbt.md) · [4XX IGBT](bom-igbt4.md) · [4XX SiC](bom-sic4.md) — comparison in [\`variants.md\`](variants.md).
 
 `;
 let grand = 0;
@@ -86,7 +102,9 @@ for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["disch
     if (/^NC_/.test(c.name)) continue;
     const rule = (VARIANT ? undefined : OVERRIDES[c.name]) ?? XDB.find((r) => r.m.test(c.name));
     if (!rule) { unmatched.push(c.name); continue; }
-    const val = valueOf(c);
+    const val = rule.value ?? valueOf0(c);
+    const mv = mpnValue(rule.mpn);
+    if (mv !== null && val && Math.abs(mv - num(val)) > 0.02 * mv) mismatches.push(`${c.name}: value ${val} vs MPN ${rule.mpn}`);
     const key = `${rule.mpn}|${val}`;
     if (!lines.has(key)) lines.set(key, { rule, val, refs: [] });
     lines.get(key).refs.push(c.name);
@@ -143,5 +161,9 @@ for (const [cat, v] of [...catTotal].sort((a, b) => b[1] - a[1]))
 md += `| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **${Math.round(grand).toLocaleString("en-IN")}** | 100% |\n\n`;
 md += `The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.\n`;
+if (mismatches.length) {
+  console.log(`!! VALUE/MPN MISMATCH (${mismatches.length}) — fix parts-db:\n   ${mismatches.join("\n   ")}`);
+  process.exitCode = 1;
+}
 writeFileSync(join(ROOT, "docs", `bom${SFX}.md`), md);
 console.log(`→ docs/bom${SFX}.md + per-board CSVs · TOTAL ≈ ₹${Math.round(grand).toLocaleString("en-IN")} @1k`);

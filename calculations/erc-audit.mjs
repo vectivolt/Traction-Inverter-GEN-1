@@ -53,7 +53,8 @@ function load(board) {
     if (!netPins.has(net)) netPins.set(net, []);
     netPins.get(net).push(`${ref}.${p.name ?? p.pin_number}`);
   }
-  return { comps, compName, pinNet, netPins };
+  const vals = new Map(comps.map((c) => [c.name, Number(c.resistance ?? c.capacitance ?? c.inductance)]));
+  return { comps, compName, pinNet, netPins, vals };
 }
 
 const PWR = load("power");
@@ -65,6 +66,8 @@ const B = (k) => CB.pinNet.get(k);
 const D = (k) => DIS.pinNet.get(k);
 const C = (k) => CARD.pinNet.get(k);
 const same = (a, b) => a !== undefined && a === b;
+const V = (DD, ref) => DD.vals.get(ref);
+const near = (x, y) => Number.isFinite(x) && Math.abs(x - y) <= 1e-3 * Math.abs(y);
 
 // ---------- generic: single-pin named nets (dead labels) ----------
 for (const [b, DD] of [["power", PWR], ["capbank", CB], ["discharge", DIS], ["card", CARD]]) {
@@ -136,10 +139,11 @@ ok(same(D("UQD.GND"), "DCN") && same(D("PSQD.COM"), "DCN"), "discharge bias DCN-
 ok(same(P("ZASC.cathode"), "ASC_DRV") && same(P("ZASC.anode"), "DCN"), "ASC 5.1 V clamp fitted (F28)");
 ok(same(P("RASCG.pin2"), "ASC_DRV") && same(P("RASCPD.pin1"), "ASC_DRV") && same(P("RASCPD.pin2"), "DCN"), "ASC drive series + default-OFF pulldown");
 for (const st of [0, 1]) {
-  ok(same(D(`RBLD${st * 5 + 1}.pin1`), "DCP") && same(D(`RBLD${st * 5 + 5}.pin2`), "DCN"), `bleeder string ${st + 1} spans DCP->DCN`);
-  for (let k = 1; k < 5; k++)
-    ok(same(D(`RBLD${st * 5 + k}.pin2`), D(`RBLD${st * 5 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
+  ok(same(D(`RBLD${st * 6 + 1}.pin1`), "DCP") && same(D(`RBLD${st * 6 + 6}.pin2`), "DCN"), `bleeder string ${st + 1} spans DCP->DCN`);
+  for (let k = 1; k < 6; k++)
+    ok(same(D(`RBLD${st * 6 + k}.pin2`), D(`RBLD${st * 6 + k + 1}.pin1`)), `bleeder string ${st + 1} link ${k}`);
 }
+ok(DIS.comps.filter((c) => /^RBLD\d+$/.test(c.name)).length === 12, "bleeder = 2 strings x 6 (review A.6 F24 voltage margin)");
 let nCDC = 0;
 for (let k = 1; k <= 16; k++) if (same(B(`CDC${k}.pin1`), "DCP") && same(B(`CDC${k}.pin2`), "DCN")) nCDC++;
 ok(nCDC === 16, "cap bank: 16 link cans across DCP/DCN", `${nCDC}`);
@@ -257,7 +261,7 @@ ok(same(C("DIGN.cathode"), "IGN_D") && same(C("RIGNS1.pin1"), "IGN_D") && same(C
 ok(same(C("UAND1.VCC"), "V5A") && same(C("UAND2.VCC"), "V5A") && same(C("UOR1.VCC"), "V5A") && same(C("UOR2.VCC"), "V5A"),
   "single-gate logic has VCC bound");
 // Card: hardware fault latch gates DRV_EN; either bank FLT sets it; MCU clears it
-ok(same(C("UAND2.C"), "FLT_OK"), "DRV_EN chain includes the fault latch");
+ok(same(C("UAND2.C"), "FLT_OKD") && same(C("RFLTD.pin1"), "FLT_OK") && same(C("RFLTD.pin2"), "FLT_OKD"), "DRV_EN chain includes the fault latch (through the soft-off delay RC)");
 ok(same(C("DFLT1.cathode"), "FLT_HS_N") && same(C("DFLT2.cathode"), "FLT_LS_N") && same(C("DFLT1.anode"), "FLT_CMB_N"),
   "FLT diode-OR into the latch preset");
 ok(same(C("ULAT2.PRE_N"), "FLT_CMB_N") && same(C("ULAT2.QN"), "FLT_OK") && same(C("ULAT2.CLR_N"), "FLT_CLR_N"),
@@ -336,6 +340,27 @@ ok(same(C("UCAN1.TXD"), "CAN0_TX") && same(C("UCAN1.RXD"), "CAN0_RX"), "CAN1 TX/
 ok(same(C("UCAN2.TXD"), "CAN1_TX") && same(C("UCAN2.RXD"), "CAN1_RX"), "CAN2 TX/RX not swapped");
 ok(same(C("RTMR.pin1"), "TMOD_RTN") && same(C("RTMR.pin2"), "AGND"), "module-NTC return star-tied to AGND on card");
 ok(same(C("RAGT.pin1"), "AGND") && same(C("RAGT.pin2"), "DGND"), "single-point AGND-DGND tie on card");
+
+// ---------- rev A.6 lock-ins (review A.6 — see docs/review-A6-disposition.md) ----------
+for (const x of ["U", "V", "W"]) for (const s of ["H", "L"]) {
+  ok(near(V(PWR, `R${x}${s}ON`), 3.3) && near(V(PWR, `R${x}${s}OFF`), 6.8), `R${x}${s}ON 3.3 R (DS point) / OFF 6.8 R (overshoot start value, F01/F40)`);
+  ok(near(V(PWR, `C${x}${s}BL`), 47e-12), `C${x}${s}BL 47 pF on the SiC base build`);
+}
+for (const k of ["H", "L"]) {
+  ok(same(P(`RF${k}ST.pin1`), `V12${k}`) && same(P(`RF${k}ST.pin2`), `FVCC_${k}`) && near(V(PWR, `RF${k}ST`), 2.2e3), `flyback ${k} trickle start 2.2 k from V12${k} (F18)`);
+  ok(same(P(`CF${k}A.pin1`), `FVCC_${k}`) && near(V(PWR, `CF${k}A`), 47e-6), `flyback ${k} VDD reservoir 47 uF (F18 — 0.4 V UVLO hysteresis)`);
+  ok(same(P(`DF${k}VZ.cathode`), `FVCC_${k}`) && same(P(`DF${k}VZ.anode`), "DGND"), `flyback ${k} VDD 18 V clamp (no internal clamp; 2.2 k start path)`);
+}
+ok(DIS.comps.filter((c) => /^RBLD\d+$/.test(c.name)).every((c) => near(Number(c.resistance), 22e3)), "bleeder parts 22 k (66 k total)");
+ok(same(P("RHWID.pin1"), "HW_ID") && same(P("RHWID.pin2"), "DGND"), "SKU identity resistor on the power board (platform)");
+ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.PTB4_HWID"), "HW_ID"), "SKU identity read by the MCU ADC");
+ok(same(C("UMCU.PTB1_VOFS"), "VOFS"), "shared VDC receiver offset monitored by the MCU (F11 common cause)");
+ok(same(C("JVEH.SHLDR"), "DGND") && same(C("JVEH.SHLDS"), "DGND"), "resolver shields return at the connector ground, not AGND (F35)");
+ok(same(C("CFLTD.pin1"), "FLT_OKD") && same(C("CFLTD.pin2"), "DGND") && near(V(CARD, "CFLTD"), 3.3e-9) && near(V(CARD, "RFLTD"), 10e3),
+  "global fault drop delayed 10 k/3.3 nF past the driver soft turn-off (F05)");
+ok(same(C("UMCU.PTD9_FLTCLR"), "FLT_CLR_M") && same(C("CCLR.pin1"), "FLT_CLR_M") && same(C("CCLR.pin2"), "FLT_CLR_N")
+  && same(C("RLAT2.pin2"), "FLT_CLR_N") && same(C("DCLR.anode"), "FLT_CLR_N") && same(C("DCLR.cathode"), "V5A"),
+  "fault-latch clear is a hardware one-shot (stuck MCU pin cannot hold the chain permissive — F06)");
 
 // ---------- report ----------
 console.log(`\nERC AUDIT: ${pass} pass · ${warn} warn · ${fail} fail`);

@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.6, generated 2026-09-22)
+# Traction Inverter — 4XX · SiC (HCS600FH120D3C1), 250–500 V bus — BOM (rev A.6, generated 2026-09-22)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -6,12 +6,12 @@ LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
 LEM sensor prices are quote-gated — figures below are the planning assumptions.
 `CLASS` = buy to the rating printed on the sheet; `ALT` = footprint-compatible second source.
-Same PCBs for every SKU — this BOM differs from the others only in the rows listed in `parts-db.mjs` SKUS.sic8.
+Same PCBs for every SKU — this BOM differs from the others only in the rows listed in `parts-db.mjs` SKUS.sic4.
 All SKUs: [8XX SiC](bom.md) · [8XX IGBT](bom-igbt.md) · [4XX IGBT](bom-igbt4.md) · [4XX SiC](bom-sic4.md) — comparison in [`variants.md`](variants.md).
 
 ## power — 295 components, 87 BOM lines, ≈ ₹59,409 @1k
 
-CSV: [`docs/bom-power.csv`](bom-power.csv). Top cost lines:
+CSV: [`docs/bom-power-sic4.csv`](bom-power-sic4.csv). Top cost lines:
 
 | Qty | MPN | Description | ₹ ext @1k | Alt |
 |---|---|---|---|---|
@@ -30,27 +30,27 @@ CSV: [`docs/bom-power.csv`](bom-power.csv). Top cost lines:
 
 ## capbank — 26 components, 4 BOM lines, ≈ ₹4,940 @1k
 
-CSV: [`docs/bom-capbank.csv`](bom-capbank.csv). Top cost lines:
+CSV: [`docs/bom-capbank-sic4.csv`](bom-capbank-sic4.csv). Top cost lines:
 
 | Qty | MPN | Description | ₹ ext @1k | Alt |
 |---|---|---|---|---|
-| 16 | C3D1M206KFSA382 | DC-link film 20 uF 1100 V p37.5 | 4,800 | TDK B32778G0406K000 40 uF 4-lead (1 per  |
+| 16 | FILM-50uF-600V-P37.5 | DC-link film 50 uF 600 V | 4,800 | - |
 | 2 | STUD-M8 | cap-bank busbar HV entry lug | 56 | M10 |
 | 6 | TAB-M6 | cap-bank busbar DC tab onto EconoDUAL module terminal | 48 | per busbar drawing |
 | 2 | STUD-M6 | cap-bank busbar stud for the bolt-on discharge board | 36 | M8 |
 
 ## discharge — 26 components, 11 BOM lines, ≈ ₹678 @1k
 
-CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
+CSV: [`docs/bom-discharge-sic4.csv`](bom-discharge-sic4.csv). Top cost lines:
 
 | Qty | MPN | Description | ₹ ext @1k | Alt |
 |---|---|---|---|---|
 | 1 | HCM75S12T4K3 | SiC MOSFET 1200 V 75 mR TO-247-4L | 350 | any 1200 V >=5 A SiC/Si FET, TO-247 |
-| 4 | WW-470R-10W-AX | 470 R 10 W axial ceramic wirewound, fail-open/flameproof cla | 112 | TE SQP500JB / Vishay AC10 / RX27-1 |
+| 4 | WW-220R-10W-AX | 220 R 10 W axial ceramic wirewound, fail-open/flameproof cla | 112 | - |
 | 1 | QA01C-18 | iso 15 V-in SiC-driver bias module >=6 kVDC, OUTPUTS +20/-4  | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
 | 1 | TLP152 | opto gate driver | 42 | TLP2745 / EL3182 |
 | 2 | STUD-M6 | discharge-board bolt terminal onto the cap bank / busbar | 36 | M8 |
-| 12 | R2512-22k-2W | 22 k 2512 2 W standard thick-film | 36 | TE CRGP2512F68K C2073426 (101 pcs LCSC)  |
+| 12 | R2512-15k-2W | 15 k 2512 2 W thick film | 36 | - |
 | 1 | HDR-1x4-2.54 | discharge-board control link | 6 | JST-XH 4p |
 | 1 | R0603-470R | discharge opto LED series | 0 | any |
 | 1 | R0603-47R | discharge gate resistor | 0 | any |
@@ -59,7 +59,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 
 ## control-card — 255 components, 89 BOM lines, ≈ ₹5,938 @1k
 
-CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
+CSV: [`docs/bom-control-card-sic4.csv`](bom-control-card-sic4.csv). Top cost lines:
 
 | Qty | MPN | Description | ₹ ext @1k | Alt |
 |---|---|---|---|---|
@@ -111,14 +111,14 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 56,156 | 79.1% |
-| drive + control ICs | 5,467 | 7.7% |
-| capacitors | 4,903 | 6.9% |
+| drive + control ICs | 5,431 | 7.7% |
+| capacitors | 5,051 | 7.1% |
 | magnetics | 2,183 | 3.1% |
 | connectors + sensors | 1,230 | 1.7% |
 | misc | 451 | 0.6% |
 | isolation | 231 | 0.3% |
-| resistors | 184 | 0.3% |
 | protection + diodes | 162 | 0.2% |
+| resistors | 72 | 0.1% |
 | **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **70,965** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every

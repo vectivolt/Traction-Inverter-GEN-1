@@ -1,4 +1,4 @@
-# Traction Inverter — Design Basis (rev A.5)
+# Traction Inverter — Design Basis (rev A.6)
 
 A standalone product: an economical, ASIL-D-capable **220 kW-class, 800 V** SiC traction
 inverter (passenger EV / commercial traction, NOT an LEV drive). Two boards: **Power (HV)** +
@@ -12,9 +12,9 @@ the direct references; NXP EV-INVERTERGEN3 (S32K396) is the control architecture
 
 | Parameter | Value | Basis |
 |---|---|---|
-| DC link voltage | 500–850 V (700 V nom) | 800 V-class pack (charging excursion to 850 V) |
-| Peak power | 220 kW / 30 s | 2XX kW class target |
-| Continuous power | 120 kW | thermal design point |
+| DC link voltage | 500–850 V (700 V nom) — 8XX SKUs; 250–500 V (400 V nom) — 4XX SKUs | 800 V-class pack (charging excursion to 850 V) |
+| Peak power | 220 kW / 30 s **from 654 V up** (168 kW at 500 V) | 2XX kW class target; current-limited below — firmware P(V_dc) (A.6, R-F09) |
+| Continuous power | 120 kW **from 656 V up** (91 kW at 500 V) | thermal design point |
 | Peak phase current | 340 Arms (480 A pk) | 220 kW at 700 V, PF 0.85, SVPWM linear |
 | Continuous phase current | 185 Arms | 120 kW same point |
 | DC feed current | 314 A pk / 171 A cont | P/V_dc |
@@ -24,13 +24,19 @@ the direct references; NXP EV-INVERTERGEN3 (S32K396) is the control architecture
 
 Max SVPWM line-line voltage at 700 V: V_ll = V_dc/√2 = 495 Vrms.
 P = √3 · 495 · 340 · 0.85 ≈ 248 kW available; 220 kW rating leaves modulation/PF margin.
+**Rev A.6 (review R-F09):** the ratings are current-limited below ≈655 V — with a 5 %
+modulation reserve, P = √(3/2)·0.95·V·I·0.85 gives 220 kW at 654 V and 168 kW at 500 V. The
+full per-SKU envelope and the firmware derating rule are in [`firmware-contract.md`](firmware-contract.md) §3.
 
-### Ratings apply to BOTH silicon builds
+### One platform, four SKUs (rev A.6)
 
-The 220 kW pk / 120 kW cont / 500–850 V ratings hold for the SiC build (8–10 kHz) **and**
-the IGBT variant (4–6 kHz) — verified independently (report "IGBT variant" block + S4
-transient: Tj 89 °C SiC / 110 °C IGBT at the end of the 30 s peak). Efficiency @120 kW:
-≈98.4 % SiC / ≈97.3 % IGBT. Full comparison: [`variants.md`](variants.md).
+The same power PCB, control card, discharge PCB and cap-bank busbar build every SKU; the
+difference is the module (SiC HCS600 / IGBT HCG600 — same D3 outline and pin map), the 16
+film cans (1100 V/20 µF for 8XX, 600 V/50 µF for 4XX), a handful of resistor/capacitor values,
+an identity resistor and the firmware parameter set. End of the 30 s peak at V_max with the
+corrected loss model (S4): 8XX SiC 122 °C · 8XX IGBT 127 °C (5 kHz) · 4XX IGBT 121 °C; the rev
+A.5 "89 °C / 110 °C" figures used the wrong conduction formula (R-F02/F26). Matrix, costs and
+the launch recommendation: [`variants.md`](variants.md).
 
 ## 2. Power stage — SiC module selection (hiitio primary, standard EconoDUAL 3 footprint)
 
@@ -41,24 +47,32 @@ level: **EconoDUAL 3** is the most second-sourced power-module outline in the in
 
 **Choice: 3 × hiitio HCS600FH120D3C1 — 1200 V / 600 A SiC MOSFET half-bridge, EconoDUAL 3.**
 
-- Footprint-compatible alternates (same outline, same bolt pattern, aux-pin layout to VERIFY
-  per vendor): Infineon **FF6MR12W2M1H_B11** (SiC), Starpower **GD600HTT120C6S**-class SiC
-  EconoDUAL clones, hiitio **HCS800FH120D4B3** (ED3H, 800 A) for a 300 kW stretch.
-- Per-switch loading at peak (340 Arms phase): conduction I_rms ≈ 240 A vs 600 A rating;
-  ≈ 175 W conduction (3 mΩ-class hot) + ≈ 80 W switching @700 V/10 kHz → ≈ 255 W/switch for
-  30 s; ≈ 95 W/switch continuous. Coldplate at 65 °C, module RthJC ≈ 0.04–0.06 K/W-class ✓.
-  (Verify against the HCS600 datasheet thermal impedance at DVT — module datasheet is
-  quote-gated; hiitio publishes IEC 60747 test data.)
+- Drop-in alternates with the **pin map verified against their datasheets** (rev A.6 catalogue
+  scan): hiitio **HCG600FH120D3E1EA** (1200 V/600 A IGBT — the IGBT SKUs), **HCS900FH120D3C1**
+  (1200 V/900 A SiC, 2.8 mΩ hot) and **HCG900FH120D3RC** (1200 V/900 A IGBT, SC 8 µs at
+  600 V/150 °C) — the higher-current upgrade path. **Not** drop-ins, despite earlier listing:
+  HCS800FH120D4B3 ("ED3H": lettered press-fit pins with split Kelvin/power sources) and
+  Infineon FF6MR12W2M1H (not an EconoDUAL-3 package code). No 650/750 V part exists in this
+  outline, so 4XX SKUs use the same 1200 V silicon. Third-party EconoDUAL-3 parts need their
+  own pin-map check before listing.
+- Per-switch loading at peak (340 A rms, 850 V, 10 kHz — rev A.6): conduction **330 W**
+  (½·I²·R, 5.7 mΩ hot — synchronous rectification carries the current in both directions) +
+  switching ≈200 W (DS energies at RG_ON 3.3 / RG_OFF 6.8 Ω) + Qrr + dead-time diode ≈ **554 W
+  per switch** for 30 s; ≈200 W continuous. Tj at the end of the 30 s peak 122 °C at 65 °C
+  coolant (coldplate 0.045 K/W assumed — thermal test). DS Rth(j-c) 0.066 + 0.015 grease.
 - 1200 V at 850 V max bus = 71 % utilization — the same margin the XM3/TIDM run.
 - Per-module DC-side film snubber 1 µF/1200 V across DC+/DC− at the terminals; laminated
-  busbar keeps the loop ≤ 15 nH (reference: XM3 busbar 5.3 nH + module 6.7 nH).
+  busbar target ≤ 5 nH external. The **module's own stray inductance is not published** (the
+  XM3 figures do not transfer to a D3 package — R-F29). With the DS fall time (13 ns cold at
+  3.3 Ω) the 850 V turn-off overshoot is the binding constraint: RG_OFF starts at 6.8 Ω and the
+  double-pulse test at 850 V/481 A, cold and hot, sets it within 3.3–10 Ω (R-F01, S8).
 - Module NTC (2 pins) → conditioned on the power board, read by MCU.
 
 Why not discrete TO-247 (the 30–60 kW answer): 6-parallel × 6 switches of 13 mΩ discretes
 matches neither the loop inductance nor the assembly economics of one module per phase at
 this current.
 
-## 2b. IGBT drop-in variant (cost SKU — same boards, same layout)
+## 2b. IGBT SKUs (same boards, same layout — values per SKU BOM)
 
 **HCG600FH120D3E1EA** (hiitio, 1200 V/600 A IGBT half-bridge) shares the **D3 EconoDUAL-3
 outline and the exact 11-pin map** of the SiC module (its DS p.8 circuit diagram: 1=G_L
@@ -66,24 +80,30 @@ outline and the exact 11-pin map** of the SiC module (its DS p.8 circuit diagram
 change. Facts: VCEsat 1.50/1.82 V (25/175 °C, 600 A, VGE 15 V) · Eon+Eoff 143.7 mJ hot ·
 Qg 4.36 µC · Isc 1800 A · Tvjop 150 °C · NTC B25/50 3375.
 
-**The entire variant is two value swaps + firmware** (`BOM_VARIANT=igbt`, `npm run bom:igbt`
-→ `docs/bom-igbt.md`):
-- R⟨ph⟩⟨HL⟩DS 100 Ω → **4.7 kΩ** (DESAT trip 8.1 → **5.75 V** ≈ 3.2× VCEsat hot)
-- C⟨ph⟩⟨HL⟩BL 47 pF → **150 pF** (blanking ≈ 2.8 µs, inside the 10 µs-class SC withstand)
-- firmware: f_sw 4–6 kHz, dead-time 2.5 µs, NTC B3375
+**The SKU is value swaps + firmware** (`npm run bom:igbt` → `docs/bom-igbt.md`; 4XX:
+`npm run bom:igbt4`):
+- R⟨ph⟩⟨HL⟩DS 100 Ω → **4.7 kΩ** (DESAT trip 4.2–7.2 V at the collector vs VCEsat 1.8 V hot)
+- C⟨ph⟩⟨HL⟩BL 47 pF → **82 pF** C0G — rev A.6 (R-F03): the DS short-circuit rating is **tP ≤ 6 µs**
+  at 800 V/175 °C/15 V, not the 10 µs class used before; 150 pF alone took 4.5 µs to detect.
+  82 pF: 2.98 µs worst detection + ≈1.5 µs soft-off < 5 µs derated; contained SC test gates it
+- R⟨ph⟩⟨HL⟩ON/OFF → **1.0/1.0 Ω** (IGBT Eon rises steeply with Rg — DS Fig.5)
+- RF⟨HL⟩RT 10 k → **8.2 k** (≈308 kHz: the IGBT-class gate charge needs +22 % bias capacity)
+- firmware: f_sw **5 kHz**, dead-time 2.5 µs, same NTC curve
 - gate rails **unchanged** (+15.6/−5.1): the DS characterizes at ±15 V, VGE(th) is a high
   5.0–6.2 V, and the NSI6611 Miller clamp holds the off-state — dv/dt shoot-through stays a
   bench row.
 
-Verified in the report's "IGBT variant" block (and S4 transient sim: 110 °C): Tj 97 °C continuous / 118 °C static-worst at the 30 s
-peak (65 °C coolant, 0.045 K/W coldplate assumption), gate-power 1.63 W/bank vs 3.87 W
-throughput. Trade: ≈1.1 pt efficiency at 120 kW for **₹25.5k/unit** (BOM ₹45,434 vs
-₹70,934) — the natural pairing for the <500 V-pack derate.
+Rev A.6 re-verification with the diode die, m·cosφ and energies at our gate network (R-F26):
+IGBT Tj 127 °C at the end of the 30 s peak at 850 V/5 kHz (was quoted 110 °C), 98 °C
+continuous; semiconductor efficiency 98.5 % vs 99.0 % SiC at the continuous point. 4XX is a
+separate SKU of the same boards with its own cap bank (see §3 and `variants.md`).
 
 ## 3. DC link (film) + ripple
 
-Capacitor RMS current (2-level SVPWM): I_c,rms ≈ 0.62 · I_ph,rms → **211 Arms peak-30 s /
-115 Arms continuous**.
+Capacitor RMS current (2-level SVPWM): worst case **0.65 · I_ph,rms** (Kolar, M ≈ 0.6, cosφ = 1;
+rev A.6 — 0.62 was the rated point) → **221 A rms peak-30 s (13.8 A/can) / 120 A continuous**.
+4XX SKUs: 16 × 50 µF/600 V (≥18 A/can) in the same positions — 260 A worst case at 400 A rms
+(16.2 A/can).
 
 **Choice: 16 × 20 µF 1100 V DC film (Faratronic C3D1M206KFSA382, LCSC C2840809) = 320 µF.**
 - DFM rev A.2: no 40 µF/1100 V can is LCSC-stocked in any brand; 16 × Faratronic 20 µF is
@@ -112,19 +132,19 @@ arrive from the power board over a 4-way header (V15 / QDIS_CMD / 2× GND); the 
 keeps its default-OFF pulldown on the power board, and the sheet's title block carries the
 rule "NEVER energize without this board fitted".
 
-**Passive (always on):** 10 × standard **27 kΩ 2512 2 W** thick-film as 5-series ×
-2-parallel = **67.5 kΩ net** (DFM rev A.2 — electrically the XM3 68 k network, built from
-any-vendor 200 V-working parts instead of the TTI-only TE CRGP 500 V line).
-- τ = 67.5 k · 320 µ = 21.6 s → 850→60 V in τ·ln(14.2) = **57.3 s** ✓ (< 60 s, matches XM3)
-- At 850 V: 10.7 W total, 1.07 W per resistor (54 % of 2 W) ✓; 170 V per resistor (85 % of
-  a standard 2512's 200 V working) ✓; alt: TE CRGP2512F68K (LCSC C2073426) in 3s×3p
+**Passive (always on):** 12 × standard **22 kΩ 2512 2 W** thick-film as 6-series ×
+2-parallel = **66 kΩ net** (rev A.6, R-F24: with ±5 % parts the low-tolerance resistor of the
+old 5 × 27 k string carried 184 V at 850 V — 92 % of a plain 2512's 200 V working rating).
+- 850→60 V in **56.5 s nominal / 65.3 s worst** (R +5 %, C +10 % incl. the 3 µF local caps) ✓
+- At 850 V: 0.96 W per resistor worst (48 % of 2 W); worst-tolerance resistor **154 V (77 %)**
+- 4XX SKUs: 12 × 15 kΩ = 45 kΩ → 500→60 V in 76.6 s / 88.5 s worst, 91 V per resistor
 - Rule printed on the discharge sheet: never energize without this board fitted.
 
 **Active (commanded):** 1200 V SiC FET + 4 × series **470 Ω 10 W ceramic-cased wirewound
 (SQP/RX27-class, axial)** = 1.88 kΩ (rev A.3 / F26: the 560 Ω string missed the 2 s crash
 target at the R+5 %/C+10 % worst case — 2.19 s).
-- τ = 1.88 k · 320 µ = 0.60 s → 850→60 V in **1.60 s nominal / 1.84 s worst-case** ✓
-  (≤ 2 s OEM crash target even at tolerance corners; ECE R100 5 s with 2.7× margin)
+- 850→60 V in **1.57 s nominal / 1.81 s worst-case** with the bleeder counted once (rev A.6
+  S5 fix) ✓ (≤ 2 s OEM crash target; ECE R100 5 s). 4XX: 4 × 220 Ω → 1.47 / 1.70 s
 - Peak 0.45 A / 384 W total decaying; energy 115.6 J → **28.9 J nominal / 31.8 J worst per
   resistor** (10 W ceramic wirewound single-pulse capability ≥ 100 J) ✓; 213 V per resistor ✓
 - Switch: hiitio **HCM75S12T4K3** (1200 V, 75 mΩ, TO-247-4L — vendor consolidation; any
@@ -132,8 +152,11 @@ target at the R+5 %/C+10 % worst case — 2.19 s).
 - Control: default-OFF — TLP152-class opto driver on a DCN-referenced isolated bias (QA01C),
   gate pulldown to DCN so a floating control line means OFF.
 - Verification: MCU commands discharge and witnesses V_DC fall on **both** isolated senses
-  (§6): stuck-off is detected within 200 ms (no ΔV), stuck-on is detected as a 2.2 kΩ bus
-  load. Discharge command is also fired by the HVIL-open path.
+  (§6): stuck-off is detected within 200 ms (no ΔV). **Stuck-on with the battery connected is
+  NOT visible as a bus load** (rev A.6, R-F23 — the battery holds the bus; 384 W into four
+  10 W parts): QDIS fires only with the contactors reported open + 5 s timeout (FW-17), a
+  shorted QDIS is caught at the next precharge (FW-19), and the wirewounds are specified
+  fail-open/flameproof. Resistor spec: ≥ 3 × 32 J pulses per 5 min.
 
 ## 5. Phase current sensing (torque path, ASIL D)
 
@@ -147,23 +170,36 @@ Card-side conditioning per phase: supply bead + 47 nF/4.7 nF, 100 Ω + 3.3 nF in
 - ±900 A range covers the 480 A peak with OC observability to full scale ✓
 - Redundancy: Ia+Ib+Ic = 0 plausibility (any single-channel fault detectable); per-switch
   DESAT is the independent second technology.
+- **Insulation is completed by the busbar (N7).** The HC5FW 900-S/SP1 is LEM's low-voltage-
+  application, *reduced-insulation* variant ("cover without sleeve"): 2.5 kV/1 min per IEC 60664-1,
+  creepage 3.6 mm, clearance 2.7 mm, CTI 550 (DS p.1, p.3). On its own that is short of basic
+  insulation at 850 V (IEC 60664-1 Table F.5, PD2, material group II: ≈6 mm creepage). Each phase
+  busbar therefore carries an insulating sleeve through the aperture (≥1 kV DC-rated heat-shrink
+  or powder coat, ≥10 mm past both faces) — a mechanical-drawing note, ≈₹20/phase, no PCB change.
+  Release gate: LEM confirms the sleeve spec for 850 V DC working.
 
 ## 6. DC-link voltage sensing — two independent channels
 
 2 × (6 × 470 kΩ series top + 6.2 kΩ bottom → 850 V ≈ 1.87 V; full-scale 2 V = **911 V**, so
-the OV witness never saturates — rev A.3 / F27) into **AMC1311-class** (0–2 V input) isolated
+the OV witness never saturates — rev A.3 / F27) into **AMC1311B** (0–2 V input) isolated
 amps, **each with its own reinforced bias module** (F4), read on different ADCs.
-- 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓; ±0.7 % RSS uncalibrated
+- 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓; uncalibrated error
+  **±2.1 % worst case** (correlated top string — rev A.6, R-F37; the old ±0.7 % was an RSS),
+  ≈±0.3 % after EOL calibration; worst-corner linear FS 902 V vs the 880 V OV trip
 - Channel 2 is the discharge witness and OV cross-check (disagreement > 5 % ⇒ fault).
+- **Not fully independent (R-F11):** the receivers share VREF5/V5A and the +0.5 V offset
+  buffer UVOF, whose failure moves both channels together. Rev A.6 reads `VOFS` on its own ADC
+  pin (FW-07) and cross-checks the BMS pack voltage with contactors closed.
 - (References use AMC0386-Q1 integrated-divider parts — the divider+AMC1311 chain is the
   economical equivalent with the same reinforced barrier.)
 
 ## 7. Gate drive (per switch × 6)
 
 **NSI6611A-Q1** (AEC-Q100, 10 A source/sink, SOIC-16W, reinforced, CMTI ≥150 V/ns): DESAT
-(2 × US1M 1 kV series sense diodes + blanking C ≈ 1.5 µs to match the reference SC window),
+(2 × US1M 1 kV series sense diodes + 47 pF blanking: 0.9 µs typ / 1.9 µs worst to detection),
 active Miller clamp (CLAMP wired to gate), UVLO, RDY/FLT# feedback, separate RG_ON/RG_OFF
-(start 1.5 Ω / 1.0 Ω for the 600 A module — tune at double-pulse), gate-source 10 k pulldown.
+(**3.3 Ω / 6.8 Ω** — rev A.6: the DS-characterized turn-on point and an overshoot-limited
+turn-off start value; the old 1.5/1.0 Ω was faster than any published point), gate-source 10 k.
 10 A peak drive on a ~2.5–4 µC module gate ⇒ no booster stage needed (the XM3 driver does the
 same class of module directly).
 
@@ -175,7 +211,11 @@ gate, F56 — with a US1M + SMAJ13A primary clamp, F38), each driving **three VG
 transformers with primaries paralleled — one floating secondary per phase → six independent
 domains**, secondary rectifier on the **dot end (pin 8, F37)**;
 per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15.6 V / −5.1 V about
-each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side regulated (18k/15k/1.3k divider off the aux winding).
+each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side regulated (56k/15k divider off the aux winding, F33).
+**Start-up (rev A.6, R-F18):** the UCC28C40 has only 0.4 V of UVLO hysteresis and no VDD clamp.
+2.2 kΩ trickle start + **47 µF** VDD reservoir make one start burst reach aux-winding takeover in
+every corner (75–295 ms at KL30 9–14 V, S1); an **18 V zener** protects VDD when the flyback is
+held off during a 24 V jump start. The rev A.5 values (4.7 k / 4.7 µF) could not start at 9 V.
 Gate power at 10 kHz: Qg·ΔV·f ≈ 3 µC·19 V·10 kHz ≈ 0.6 W per switch — well inside a small
 EE core. −5.1 V off-bias + Miller clamp holds the SiC off; +15 V matches the
 Infineon/Starpower EconoDUAL alternates (hiitio dies accept +15…18/−5, abs −10).
@@ -186,10 +226,12 @@ keeps gate power alive for ASC** — GEN3's exact 74LVC1G32 arrangement.
 
 ASC: the three **low-side** ASC pins (driver secondary side; all LS aux-sources share the
 DCN-referenced domain) are driven together from a DCN-referenced buffer on its own QA01C
-bias — commanded by the latched ASC_CMD line. Above the overspeed threshold the safe state is
-ASC (3-phase short via LS); below it, 3-phase open. *Limitation (documented, TI-pattern
-upgrade path): ASC hold during total KL30 loss needs an HV-fed aux supply; this revision
-documents SPO as the KL30-loss safe state.*
+bias — commanded by the latched ASC_CMD line. Which safe state applies is a motor- and
+fault-dependent **firmware decision** (`firmware-contract.md` §6: e.g. a DESAT on a low-side
+switch permits SPO only). *Limitation: ASC cannot be held through total KL30 loss (S10: 1.1–
+3.2 ms of gate reservoir, ≈1 ms of command path). SPO at dead LV is energy-safe only if the
+motor's E_LL,pk at n_max is below the cap rating (1000 V 8XX / 600 V 4XX); otherwise the
+HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
 
 ## 8. Control card (ASIL D brain)
 
@@ -197,13 +239,19 @@ documents SPO as the KL30-loss safe state.*
   EV-INVERTERGEN3 architecture), LQFP-176.
 - **FS26 SBC** (ASIL-D): VPRE/VCORE/VDDIO/VREF rails from KL30, challenge-response watchdog,
   FCCU error inputs, **FS0B** safe output.
-- Safety chain (hardware): GATE_EN = FS0B ∧ MCU_GATE_EN ∧ DRV_RDY (74HC11 wired-AND);
-  FLT# wired-OR → FCCU + latch. Watchdog escalation deasserts FS0B with no software.
+- Safety chain (hardware): DRV_EN = FS0B ∧ MCU_GATE_EN ∧ RDY_HS ∧ RDY_LS ∧ FLT_OK (two
+  74LVC1G11); FLT# wired-OR → MCU + fault latch. Rev A.6: the latch output reaches the AND
+  through 10 k/3.3 nF (12–40 µs, so a DESAT-ing driver finishes its soft turn-off first) and
+  the MCU clear is a hardware one-shot (a stuck pin cannot hold the chain permissive). The
+  latch cannot be made fault-dominant: the NSI6611 releases FLT only on an EN rising edge
+  (recovery sequence: `firmware-contract.md` §7). Watchdog escalation deasserts FS0B.
 - Resolver AFE: exciter op-amp + push-pull buffer (10 kHz carrier, from V15 via card),
   sin/cos dividers + filters into the S32K396 RDC pins (per SPF-91122).
 - 2 × CAN-FD (**TCAN1042HGV-Q1** class), vehicle + diagnostic.
-- HVIL: card sources a current loop through the HV connector chain; window comparator on the
-  return; loop-open ⇒ controlled shutdown + discharge command.
+- HVIL: card sources a resistor ladder through the HV connector chain; the MCU reads the
+  signature on an ADC pin (3.0 / 2.0 / 2.5 V) — **there is no hardware comparator** (rev A.6,
+  R-F12). Loop-open ⇒ torque ramp to zero and the §6 safe state; the discharge command follows
+  only once the contactors are reported open.
 - Motor temp (2 × PT1000/NTC), SWD debug, boot straps, 40-way harness with default-OFF
   pulldowns on every enable/PWM line the harness can float.
 
@@ -252,10 +300,10 @@ guarantee it (review round 3/5 item):
 | 2 | FS26 Q&A watchdog + supply monitors → FS0B | independent silicon, no SW |
 | 3 | FS0B ∧ MCU_EN ∧ RDY hardware AND → all 6 driver enables | discrete gate, no SW |
 | 4 | 3 × phase current + ΣI = 0 plausibility | 3rd channel = redundancy |
-| 5 | 2 × independent isolated V_DC senses (Δ > 5 % ⇒ fault) | separate dividers + bias |
+| 5 | 2 × isolated V_DC senses (Δ > 5 % ⇒ fault) + shared-offset monitor + BMS pack cross-check | separate dividers, amps + bias; receivers share VREF5/offset (monitored — R-F11) |
 | 6 | Per-switch DESAT OC, driver-local, latching | different technology vs halls |
 | 7 | ASC via LS drivers, latched, overspeed-gated | separate command + bias path |
-| 8 | HVIL loop monitor → discharge + shutdown | continuous hardware window |
+| 8 | HVIL loop monitor → torque off + safe state | MCU-read ADC signature (no hardware comparator — R-F12) |
 | 9 | Active discharge commanded + witnessed on both V_DC channels | §4 |
 | 10 | Default-OFF pulldowns on every harness-floatable control line | passive |
 
@@ -280,35 +328,47 @@ one net, joined only at that named interface (rule printed in every NET NAMING p
 QDIS_CMD's default-OFF pulldown lives on the **power board** (not only the discharge board),
 so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction.
 
-### ASC hold-up operating limit (S10)
+### ASC hold-up operating limit (S10, corrected in rev A.6)
 
-Simulated: after a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for only
-**≈15 ms** (15.6 → 10.4 V UVLO at ~5 mA/channel). Sustained ASC therefore **requires KL30
-present** — the FS26 (GPIO1) holds the flybacks up through faults, but not through a dead
-12 V system. Vehicle-level allocation: the safe-state argument above overspeed credits ASC
-only while LV is alive; a dead-LV coast-down relies on three-phase-open (gates parked low
-by UVLO) and the passive bleeder. Bench: measure the real hold window and the FS26
-entry/exit sequence.
+After a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for **1.1–3.2 ms** (two series
+reservoirs, DC-bias-derated MLCC, bleeder + gate loads — the old "≈15 ms" put the VEE cap in
+parallel with VCC2), and the ASC command path (boost → V15 → QA01C → TLP152) collapses within
+≈1 ms. Sustained ASC therefore **requires KL30 present** — the FS26 (GPIO1) holds the flybacks
+up through faults, but not through a dead 12 V system. A dead-LV coast-down is three-phase-
+open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
+(`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.5)
+## 11. Verification status (current release: rev A.6)
 
 Three independent verification layers gate every release (see
-[`verification-report.md`](verification-report.md)):
-geometric pin-verify **1695/1695 (100 %)** · structural ERC **782 checks, 0 fail** ·
-numeric worst-case verification **82 PASS / 4 WARN / 0 FAIL** (incl. the IGBT-variant block) · operating-point
-simulation (`sim-verify.mjs`, S1–S10 across BOTH silicon builds: cycle-by-cycle flyback at 9/12/16 V, boost loop Bode
-with the A.4.3 compensation, SVPWM switching-state DC-link ripple at 340/216 A, junction
-thermal transient through the 30 s / 220 kW peak, discharge ODE with bias-startup delay,
-current-loop phase margin, parametric double-pulse, SC/DESAT timelines, ASC hold-up — **23 PASS / 2 WARN / 0 FAIL**, plots in
-`docs/simulation-report.md`; the S6 result fixes the firmware current-loop bandwidth
-ceiling at **≤1.2 kHz** for ≥45° margin with the drawn filter chain), every constant
-datasheet-real. The rev A.3 campaign found and fixed 18 defects (F1–F36), and the rev A.4
-external-review response confirmed and fixed 10 more (F37–F46), the second round 5 more (F47–F51), the third round 6 more (F52–F57), and the fourth round 2 more (F58–F59 in the report),
-including four HIGH-severity ones only the real datasheets could reveal: the flyback
-controller UVLO grade, the 10 µH/1:1.6:2.9 transformer reality (frequency + feedback
-re-derived), the FS26 VMONEXT 0.8 V reference, and the ASC abs-max level — flyback CS scaling + FB reference + start
-path, net-alias floats, Y-cap class, common-cause sense bias, load-dump cap ratings,
-discharge worst-case, OV-witness headroom.
+[`verification-report.md`](verification-report.md)): geometric pin-verify **1717/1717
+(100 %)** · structural ERC **816 checks, 0 fail** (every fixed finding has a lock-in) ·
+numeric worst-case verification **100 PASS / 11 WARN / 0 FAIL** across all four SKUs ·
+operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
+**24 PASS / 4 WARN / 0 FAIL**. Every WARN names the bench or vendor gate that closes it. The
+BOM generator now fails on any value/MPN disagreement. Rev A.6 answered the sixth external
+review (46 findings) line by line — [`review-A6-disposition.md`](review-A6-disposition.md) —
+with every contested number recomputed by an independent second model; firmware obligations
+are in [`firmware-contract.md`](firmware-contract.md).
+
+Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
+reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
+(A.4.3), F60–F62 (A.5 docs audit) and F63–F76 (A.6).
+
+## 11f. Rev A.6 — review round six (summary)
+
+- **Calculation layer rebuilt** (R-F01/F02/F09/F14/F25/F26/F32): overshoot in SI units on the
+  DS fall time, exact SiC conduction (½·I²·R), IGBT diode die, published P(V_dc) envelope,
+  corrected S5/S10, per-SKU current-loop ceilings — one shared loss model.
+- **Hardware (eleven low-cost changes, +₹31/unit):** SiC gate 3.3/6.8 Ω; IGBT blanking 82 pF
+  (6 µs SC rating); flyback start 2.2 k/47 µF + 18 V VDD clamp (the A.5 values never started
+  at 9 V); fault-latch → AND delay 10 k/3.3 nF; hardware one-shot clear; bleeder 2 × 6 × 22 k;
+  VOFS and HW_ID on MCU ADC pins; resolver shields to the connector ground; IGBT RT 8.2 k.
+- **Rejected with evidence:** the "fault-dominant latch" fix (deadlocks the NSI6611 FLT reset);
+  a brake chopper, contactors, duplicate V_DC chains, a hardware OV comparator, high-side ASC,
+  an HV backup bias by default (motor-dependent option in the contract).
+- **Platform:** one set of boards builds 8XX SiC, 8XX IGBT, 4XX IGBT (and 4XX SiC on request);
+  see [`variants.md`](variants.md).
 
 ## 11a. Rev A.4 — external design review, answered line-by-line
 
@@ -362,13 +422,15 @@ list. Every fix is locked into `erc-audit.mjs` so it cannot regress.
   match this design basis §4/§5; pulse ratings were already dimensioned (24.8 J vs 100 J
   single-pulse wirewound; 0.95 W vs 2 W per bleeder resistor).
 
-**Regeneration / battery-disconnect strategy (review §5.4)** — the discharge resistors are
-*shutdown bleeders*, not a regen dump, by design: the reaction to load-dump or contactor
-opening under regeneration is **ASC** (three-phase short via the low side, FS26-backed gate
-power hold-up), which circulates the machine current in the motor and cannot pump the bus.
-Below the ASC/open crossover speed the reaction is three-phase-open (body diodes see less
-than the bus). This is the printed safe-state concept on sheet 1; the discharge path only
-ever handles the stored 116 J.
+**Regeneration / battery-disconnect strategy (review §5.4; sharpened in rev A.6, R-F15)** —
+the discharge resistors are *shutdown bleeders*, not a regen dump, by design. The reaction to
+contactor opening under regeneration is **ASC** above the motor's crossover speed and
+three-phase-open below it — but the time budget is short: at the SKU's full 220 kW the link
+charges at ≈0.9 V/µs and reaches the 880 V trip 34 µs after the battery path opens. So it runs
+on the S32K396 ADC **hardware compare** into the ASC request on a free-running V_DC conversion
+slot, **≤ 20 µs** (FW-06; rev A.6 N9 — the earlier 100 µs budget, sized at 100 kW, would end at
+962 V, 96 % of the cans' 85 °C rating), not in a scheduled task. The discharge path only ever
+handles the stored 116 J.
 
 ## 11b. Rev A.4.1 — review round two
 

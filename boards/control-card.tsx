@@ -35,9 +35,12 @@ const MCU_PINS: [string, string][] = [
   ["PTD16_GATEEN", "MCU_GATE_EN"],
   ["PTD30_ENFLYH", "MCU_EN_FLYBK_HS"], ["PTD31_ENFLYL", "MCU_EN_FLYBK_LS"],
   ["PTD6_ASCREQ", "ASC_REQ"], ["PTD8_ASCCLR", "ASC_CLR_M"], ["PTD5_QDIS", "QDIS_CMD"],
-  ["PTD9_FLTCLR", "FLT_CLR_N"],
+  ["PTD9_FLTCLR", "FLT_CLR_M"],
   // analog
   ["PTA0_VDC1", "VDC1_SE"], ["PTB0_VDC2", "VDC2_SE"],
+  // review A.6: the receivers' shared +0.5 V offset (VOFS) and the SKU identity are read too —
+  // a failed UVOF would shift BOTH VDC channels equally (invisible to the 5 % cross-check)
+  ["PTB1_VOFS", "VOFS"], ["PTB4_HWID", "HW_ID"],
   ["PTA8_ISU", "ISNS_U"], ["PTB8_ISV", "ISNS_V"], ["PTB13_ISW", "ISNS_W"],
   ["PTA9_TMU", "TMOD_U"], ["PTB2_TMV", "TMOD_V"], ["PTB3_TMW", "TMOD_W"],
   ["PTA10_NTCA", "NTC_A"], ["PTA11_NTCH", "NTC_H"],
@@ -180,6 +183,8 @@ export default () => (
     <capacitor name="CIGN" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.WAKE1", pin2: "net.DGND" }} />
     {/* AGND-DGND single-point tie */}
     <resistor name="RAGT" resistance="0" footprint="0805" {...gp()} connections={{ pin1: "net.AGND", pin2: "net.DGND" }} />
+    {/* SKU identity pull-up (with the power board's RHWID on harness pin 40) */}
+    <resistor name="RHWP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.HW_ID" }} />
 
     {/* ---- MCU: S32K396 + clock + decoupling ---- */}
     <chip name="UMCU" footprint={SmdFP(MCU_PINS.length)} {...gp()}
@@ -211,21 +216,31 @@ export default () => (
     <chip name="UAND1" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
       connections={{ A: "net.FS0B_N", GND: "net.DGND", B: "net.MCU_GATE_EN", Y: "net.ENX1", VCC: "net.V5A", C: "net.RDY_HS" }} />
     <chip name="UAND2" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
-      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OK" }} />
+      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OKD" }} />
     <capacitor name="CAND1" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     <capacitor name="CAND2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
-    {/* hardware fault latch (rev A.4): either driver-bank FLT pulls FLT_CMB_N low ->
-        async-PRESET -> /Q(FLT_OK) low -> DRV_EN low on ALL six channels within the gate
-        delay; the drivers' own DESAT soft-shutdown handles the faulted switch in ~us.
-        Latched: EN dropping resets the driver's FLT, but the latch holds until the MCU
-        pulses FLT_CLR_N after diagnosis. */}
+    {/* hardware fault latch (rev A.4, A.6): either driver-bank FLT pulls FLT_CMB_N low ->
+        async-PRESET -> /Q (FLT_OK) low -> RC -> DRV_EN low on ALL six channels.
+        A.6 (review F05/F06, NSI6611 DS 1.2):
+        - 10 k / 3.3 nF into the AND's Schmitt input holds the global drop 12-40 us, past the
+          faulted driver's own soft turn-off (the DS is silent on RST/EN during soft-off).
+        - The driver releases FLT ONLY on an RST/EN rising edge after >=1.3 ms low, so the
+          clear MUST briefly re-enable DRV_EN while FLT is still low (PRE=CLR=L gives /Q=H):
+          a "fault-dominant" latch would deadlock recovery. The clear is therefore a hardware
+          ONE-SHOT: 15 nF from the MCU pin into the 10 k pull-up gives ~55-90 us per falling
+          edge, so a stuck-low pin or runaway code cannot hold the chain permissive; the diode
+          clamps the rising-edge overshoot to V5A. Firmware keeps PWM inputs low around it. */}
     <diode name="DFLT1" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_HS_N" }} />
     <diode name="DFLT2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_LS_N" }} />
     <resistor name="RFLTC" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CMB_N" }} />
     <chip name="ULAT2" footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "CLK", pin2: "D", pin3: "QN", pin4: "GND", pin5: "Q", pin6: "CLR_N", pin7: "PRE_N", pin8: "VCC" }}
       connections={{ CLK: "net.DGND", D: "net.DGND", QN: "net.FLT_OK", GND: "net.DGND", Q: "net.NC_FLTQ", CLR_N: "net.FLT_CLR_N", PRE_N: "net.FLT_CMB_N", VCC: "net.V5A" }} />
+    <resistor name="RFLTD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_OK", pin2: "net.FLT_OKD" }} />
+    <capacitor name="CFLTD" capacitance="3.3nF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_OKD", pin2: "net.DGND" }} />
     <resistor name="RLAT2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CLR_N" }} />
+    <capacitor name="CCLR" capacitance="15nF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_CLR_M", pin2: "net.FLT_CLR_N" }} />
+    <diode name="DCLR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CLR_N", cathode: "net.V5A" }} />
     <capacitor name="CLAT2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     <resistor name="RGPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.DRV_EN", pin2: "net.DGND" }} />
     <resistor name="RFLTP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_HS_N" }} />
@@ -390,7 +405,7 @@ export default () => (
     {/* ---- VEHICLE CONNECTOR (fused + beaded lines per GEN3) ---- */}
     <chip name="JVEH" footprint={Header(23)} {...gp()}
       pinLabels={{ pin1: "KL30", pin2: "GND1", pin3: "KL15", pin4: "CANH1", pin5: "CANL1", pin6: "CANH2", pin7: "CANL2", pin8: "FAULT", pin9: "MT1P", pin10: "MT1R", pin11: "MT2P", pin12: "MT2R", pin13: "R1", pin14: "R2", pin15: "S1", pin16: "S3", pin17: "S2", pin18: "S4", pin19: "SHLDR", pin20: "SHLDS", pin21: "GND2", pin22: "SP1", pin23: "SP2" }}
-      connections={{ KL30: "net.KL30", GND1: "net.DGND", KL15: "net.KL15R", CANH1: "net.VCANH1", CANL1: "net.VCANL1", CANH2: "net.VCANH2", CANL2: "net.VCANL2", FAULT: "net.FAULT_OUT", MT1P: "net.MT1_RAW", MT1R: "net.AGND", MT2P: "net.MT2_RAW", MT2R: "net.AGND", R1: "net.VREX_P", R2: "net.VREX_N", S1: "net.RSLV_S1", S3: "net.RSLV_S3", S2: "net.RSLV_S2", S4: "net.RSLV_S4", SHLDR: "net.AGND", SHLDS: "net.AGND", GND2: "net.DGND", SP1: "net.NC_VSP1", SP2: "net.NC_VSP2" }} />
+      connections={{ KL30: "net.KL30", GND1: "net.DGND", KL15: "net.KL15R", CANH1: "net.VCANH1", CANL1: "net.VCANL1", CANH2: "net.VCANH2", CANL2: "net.VCANL2", FAULT: "net.FAULT_OUT", MT1P: "net.MT1_RAW", MT1R: "net.AGND", MT2P: "net.MT2_RAW", MT2R: "net.AGND", R1: "net.VREX_P", R2: "net.VREX_N", S1: "net.RSLV_S1", S3: "net.RSLV_S3", S2: "net.RSLV_S2", S4: "net.RSLV_S4", SHLDR: "net.DGND", SHLDS: "net.DGND", GND2: "net.DGND", SP1: "net.NC_VSP1", SP2: "net.NC_VSP2" }} />
     <chip name="FVS1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.KL15R", B: "net.KL15" }} />
     {[["LVS1", "VCANH1", "CANH1"], ["LVS2", "VCANL1", "CANL1"], ["LVS3", "VCANH2", "CANH2"], ["LVS4", "VCANL2", "CANL2"]].map(([n, a, b]) => (

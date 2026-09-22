@@ -12,19 +12,34 @@
 export const OVERRIDES = {};   // per-designator {mpn} overrides (none yet)
 
 // Rows printed on the power sheet's safety/discharge panels (kicad5-gen consumes these).
-// ---- IGBT drop-in variant (same PCB, same pads — value/MPN swaps only) --------------
-// HCG600FH120D3E1EA: 1200 V/600 A IGBT half-bridge, SAME D3 EconoDUAL-3 outline and the
-// SAME 11-pin map as the SiC HCS600FH120D3C1 (DS p.8 circuit diagram: 1=G_L 2=E_L 3=DC-
-// 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=HS C-sense 10/11=AC). VGE(th) 5.0-6.2 V + NSI6611 Miller
-// clamp -> the +15.6/-5.1 gate rails carry over unchanged. Only the DESAT network moves:
-// trip from ~8.1 V (SiC) to ~5.75 V (IGBT VCEsat 1.82 V hot) via the series resistor, and
-// blanking from 47 pF to 150 pF (~2.8 us) against the 10 us-class SC withstand (Isc 1800 A).
-// Firmware deltas (no hardware): fsw 4-6 kHz, dead-time 2.5 us, NTC B25/50 = 3375.
-export const IGBT_VARIANT = [
-  { m: /^MOD[UVW]$/, mpn: "HCG600FH120D3E1EA", mfr: "HIITIO", desc: "IGBT half-bridge module 1200 V 600 A, SAME D3 EconoDUAL 3 footprint + pin map as the SiC part (VCEsat 1.50/1.82 V, Eon+Eoff 143.7 mJ hot, Qg 4.36 uC, Isc 1800 A, Tvjop 150 C) — quote-gated", price1k: 9500 },
-  { m: /^R[UVW][HL]DS$/, mpn: "R0805-4k7-1%", desc: "DESAT series (IGBT variant: trip ~5.75 V = 9.3 - 2*0.6 - 0.5mA*4.7k vs VCEsat 1.82 V hot)", price1k: 0.3 },
-  { m: /^C[UVW][HL]BL$/, mpn: "MLCC-150pF-50V", desc: "DESAT blanking 150 pF -> ~2.8 us (IGBT turn-on tail; < 10 us-class SC withstand)", price1k: 0.3 },
+// ---- platform SKUs (review A.6): ONE power PCB, ONE control card, ONE discharge PCB, ONE
+// cap-bank busbar drawing. A SKU = base DB + these rows (first match wins). A row's `value`
+// replaces the drawn value in that SKU's BOM, so value and MPN can never disagree (bom-gen
+// fails the build if they do). The drawn schematic is the SiC-8XX build.
+// Silicon: HCG600FH120D3E1EA shares the D3 outline and the 11-pin map of HCS600FH120D3C1
+// (DS p.8: 1=G_L 2=E_L 3=DC- 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=HS C-sense 10/11=AC).
+// Bus: 4XX swaps the 16 film cans for a 600 V class in the SAME 37.5 mm positions and
+// rescales the discharge resistors on the same discharge PCB.
+const IGBT_DRIVE = [
+  { m: /^MOD[UVW]$/, mpn: "HCG600FH120D3E1EA", mfr: "HIITIO", desc: "IGBT half-bridge module 1200 V 600 A, SAME D3 EconoDUAL 3 footprint + pin map as the SiC part (VCEsat 1.50/1.82 V, Eon+Eoff 143.7 mJ hot @0.51 R, SC 1800 A for tP <= 6 us @800 V/175 C/15 V, Tvjop 150 C) — quote-gated", price1k: 9500 },
+  { m: /^R[UVW][HL]DS$/, value: "4.7k", mpn: "R0805-4k7-1%", desc: "DESAT series (IGBT: collector trip 5.75 V typ, 4.2-7.2 V corners = V_TH - 2 Vf - I_CHG*4.7k, vs VCEsat 1.82 V hot)", price1k: 0.3 },
+  { m: /^C[UVW][HL]BL$/, value: "82pF", mpn: "MLCC-82pF-100V-C0G", desc: "DESAT blanking 82 pF C0G (IGBT: 1.2 us min blank vs turn-on tail; 3.1 us worst detect + soft-off inside the 6 us SC rating — review A.6 F03, was 150 pF = 4.5 us)", price1k: 0.3 },
+  { m: /^R[UVW][HL]ON$/, value: "1", mpn: "R2512-1R0-2W", desc: "gate turn-on 1.0 R (IGBT: Eon ~60 mJ vs ~85 mJ at 1.5 R, HCG DS Fig.5; peak 10.4 A inside the driver)", price1k: 4 },
+  { m: /^R[UVW][HL]OFF$/, value: "1", mpn: "R2512-1R0-2W", desc: "gate turn-off 1.0 R (IGBT tf ~385 ns: overshoot is not the constraint)", price1k: 4 },
+  { m: /^RF[HL]RT$/, value: "8.2k", mpn: "R0603-8k2-1%", desc: "flyback RT 8.2 k -> ~308 kHz (IGBT gate charge: +22 % bias-bank capacity, DCM kept above 6 V; S1b)", price1k: 0.3 },
 ];
+const BUS_4XX = [
+  { m: /^CDC\d+$/, value: "50uF", mpn: "FILM-50uF-600V-P37.5", mfr: "Faratronic (C3D family)", desc: "DC-link film 50 uF 600 V (U_N at 85 C) in the SAME 37.5 mm / 42x45x30 can positions, >=18 A rms @10 kHz/70 C each (16x = 800 uF; worst-case bank ripple 260 A at 400 A rms = 16.2 A/can) — bind the exact MPN at RFQ", price1k: 300 },
+  { m: /^RDIS[1-4]$/, value: "220", mpn: "WW-220R-10W-AX", desc: "220 R 10 W axial ceramic wirewound, fail-open/flameproof class (4XX: 4x = 880 R, 500->60 V in 1.73 s worst at 883 uF; 28 J/resistor)", price1k: 28 },
+  { m: /^RBLD\d+$/, value: "15k", mpn: "R2512-15k-2W", desc: "15 k 2512 2 W thick film (4XX bleeder 6s x 2p = 45 k: 89 s worst to 60 V; 83 V/resistor at 500 V)", price1k: 3 },
+];
+const hwid = (value, code, what) => ({ m: /^RHWID$/, value, mpn: `R0603-${code}-1%`, desc: `SKU identity (${what}) — harness pin 40 against the card's 10 k pull-up to VREF5; firmware refuses DRV_EN unless it matches the loaded parameter set`, price1k: 0.3 });
+export const SKUS = {
+  sic8: { title: "8XX · SiC (HCS600FH120D3C1)", bus: "500–850 V", rows: [] },
+  igbt8: { title: "8XX · IGBT (HCG600FH120D3E1EA)", bus: "500–850 V", rows: [hwid("4.7k", "4k7", "8XX IGBT"), ...IGBT_DRIVE] },
+  igbt4: { title: "4XX · IGBT (HCG600FH120D3E1EA)", bus: "250–500 V", rows: [hwid("2.2k", "2k2", "4XX IGBT"), ...IGBT_DRIVE, ...BUS_4XX] },
+  sic4: { title: "4XX · SiC (HCS600FH120D3C1)", bus: "250–500 V", rows: [hwid("22k", "22k", "4XX SiC"), ...BUS_4XX] },
+};
 
 export const SAFETY_ROWS = [
   "1 lockstep S32K396 (ASIL-D core) runs torque path",
@@ -33,28 +48,28 @@ export const SAFETY_ROWS = [
   "4 FS1B strap -> LS ASC latch (HS strapped OFF)",
   "5 flyback EN = MCU OR FS26-GPIO1 (ASC gate power)",
   "6 3x hall + sum(I)=0 plausibility (torque path)",
-  "7 2x isolated VDC senses, >5% mismatch = fault",
-  "8 DESAT per switch, ~1.5 us blanking, latching",
-  "9 HVIL open = VDDIO/2 signature -> discharge",
+  "7 2x iso VDC senses >5% = fault, VOFS monitored",
+  "8 DESAT per switch (SiC <=1.9 us detect), latching",
+  "9 HVIL open = VDDIO/2 signature -> torque off (FW)",
 ];
 export const DISCHARGE_ROWS = [
-  "PASSIVE 10x 27k 2512-2W (5s x 2p = 67.5k): 57 s to 60 V",
+  "PASSIVE 12x 22k 2512-2W (6s x 2p = 66k): 56 s to 60 V",
   "ACTIVE QDIS + 4x 470R 10W = 1.88k: 1.6 s to 60 V",
-  "E = 116 J @850 V - 32 J/res worst (>=100 J rated)",
+  "E = 116 J @850 V - 32 J/res worst; 4XX: 220R/15k",
   "VERIFY: MCU fires QDIS, watches BOTH VDC channels",
   "RULE: never energize w/o the DISCHARGE BOARD fitted",
 ];
 
 export const DB = [
   // ---- power stage ----
-  { m: /^MOD[UVW]$/, mpn: "HCS600FH120D3C1", mfr: "HIITIO", desc: "SiC MOSFET half-bridge module 1200 V 600 A, EconoDUAL 3 footprint (DIRECT hiitio relationship — supply secured; aux-pin numbering VERIFY vs vendor drawing)", fp: "EconoDUAL3", price1k: 18000, alt: "Infineon FF6MR12W2M1H_B11 / Starpower GD600HTT120C6S class (same outline)" },
+  { m: /^MOD[UVW]$/, mpn: "HCS600FH120D3C1", mfr: "HIITIO", desc: "SiC MOSFET half-bridge module 1200 V 600 A, hiitio D3 outline 152 x 62 mm, 11-pin map verified (DIRECT hiitio relationship)", fp: "EconoDUAL3", price1k: 18000, alt: "pin-map-verified hiitio drop-ins only: HCG600FH120D3E1EA (IGBT SKU), HCS900FH120D3C1 (900 A SiC), HCG900FH120D3RC (900 A IGBT) — NOT HCS800FH120D4B3 (lettered press-fit pins); third-party EconoDUAL-3 SiC needs its own pin-map check" },
   { m: /^C[UVW]SN$/, mpn: "FILM-1uF-1200V", mfr: "Kemet/TDK", desc: "1 uF 1200 V film snubber at module DC terminals (B32774 class; exact value via DigiKey — LCSC stocks near-values, e.g. 5 uF/1.1 kV C3809992)", fp: "FilmP27.5", price1k: 180, alt: "B32774D0505K000 5 uF C3809992 (retune) / Kemet C4AQ" },
   { m: /^CDC\d+$/, mpn: "C3D1M206KFSA382", mfr: "Faratronic", desc: "DC-link film 20 uF 1100 V p37.5 (16x = 320 uF; LCSC-stocked DFM pick, ~$3.4 ea)", fp: "FilmCan37.5", lcsc: "C2840809", price1k: 300, alt: "TDK B32778G0406K000 40 uF 4-lead (1 per 2 positions, DigiKey) / Vishay MKP1848C" },
   // ---- discharge (checked - see DISCHARGE_ROWS) ----
-  { m: /^RBLD\d+$/, mpn: "R2512-27k-2W", mfr: "any", desc: "27 k 2512 2 W standard thick-film (passive bleeder 5s x 2p = 67.5k; 170 V/resistor at 850 V — inside plain-2512 200 V working, DFM rev replacing the TTI-only TE CRGP)", fp: "R2512", price1k: 3, alt: "TE CRGP2512F68K C2073426 (101 pcs LCSC) in 3s x 3p if the XM3 arrangement is preferred" },
-  { m: /^RDIS[1-4]$/, mpn: "WW-470R-10W-AX", mfr: "TT/Vitrohm", desc: "470 R 10 W axial ceramic wirewound, >=100 J single pulse (active discharge string; F26 — 4x = 1.88k closes 850->60 V in 1.84 s WORST case). DigiKey (TE SQP500JB / Vishay AC10) or RX27-1 via 1688", fp: "AxialWW10W", price1k: 28, alt: "TE SQP500JB / Vishay AC10 / RX27-1" },
+  { m: /^RBLD\d+$/, mpn: "R2512-22k-2W", mfr: "any", desc: "22 k 2512 2 W standard thick-film (passive bleeder 6s x 2p = 66 k; 154 V worst-tolerance/resistor at 850 V = 77 % of a plain 2512 200 V working rating — review A.6: 5 x 27 k put 184 V (92 %) on the low-tolerance part)", fp: "R2512", price1k: 3, alt: "TE CRGP2512F68K C2073426 (101 pcs LCSC) in 3s x 3p if the XM3 arrangement is preferred" },
+  { m: /^RDIS[1-4]$/, mpn: "WW-470R-10W-AX", mfr: "TT/Vitrohm", desc: "470 R 10 W axial ceramic wirewound, fail-open/flameproof class, >=100 J single pulse (active discharge string; F26 — 4x = 1.88k closes 850->60 V in 1.81 s worst with the bleeder counted once; spec: >=3 x 32 J pulses per 5 min, opens without flame under sustained 10x overload). DigiKey (TE SQP500JB / Vishay AC10) or RX27-1 via 1688", fp: "AxialWW10W", price1k: 28, alt: "TE SQP500JB / Vishay AC10 / RX27-1" },
   { m: /^QDIS$/, mpn: "HCM75S12T4K3", mfr: "HIITIO", desc: "SiC MOSFET 1200 V 75 mR TO-247-4L (discharge switch — vendor consolidation)", fp: "TO247-4L", price1k: 350, alt: "any 1200 V >=5 A SiC/Si FET, TO-247" },
-  { m: /^UQD$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto gate driver (isolated discharge control, default-OFF)", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745 / EL3182" },
+  { m: /^UQD$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto gate driver (isolated discharge control, default-OFF). BARRIER GATE (N8): base TLP152 is UL1577-only (3750 Vrms/1 min, CPG 5.0 mm, no V_IORM) - order the VDE (V4) option and confirm V_IORM >= 850 Vpk reinforced (IEC 60747-5-5/-17), else an SO6L-class reinforced part", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745 / EL3182" },
   { m: /^PSQD$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15 V-in SiC-driver bias module >=6 kVDC, OUTPUTS +20/-4 V per DS (F61 — rail historically named V18Q; clamps sized for +20 V) (discharge driver bias, DCN-referenced). Genuine Mornsun via Mouser/direct; LCSC stocks spec-matched clones (YLPTEC C5369865) — qualify before production", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
   { m: /^RQDG$/, mpn: "R0603-47R", mfr: "any", desc: "discharge gate resistor", fp: "R0603", price1k: 0.4, alt: "any" },
   { m: /^RQDL$/, mpn: "R0603-470R", mfr: "any", desc: "discharge opto LED series", fp: "R0603", price1k: 0.4, alt: "any" },
@@ -62,8 +77,8 @@ export const DB = [
   { m: /^CQD$/, mpn: "MLCC-100nF-25V", mfr: "any", desc: "discharge bias decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- gate drivers (per switch x6) ----
   { m: /^U[UVW][HL]G$/, mpn: "NSI6611ASC-Q1SWR", mfr: "NOVOSENSE", desc: "iso gate driver 10 A (FULL ordering code — the ASC-capable variant; family label alone is not procurement control), DESAT/Miller clamp/UVLO/RDY/FLT, SOIC-16W reinforced. Pin map CONFIRMED vs DS 1.2 Table 1.1 (1=ASC 2=DESAT 3=GND2 4=OUTH 5=VCC2 6=OUTL 7=CLAMP 8=VEE2 / 9=GND1 10=IN+ 11=IN- 12=RDY 13=FLT 14=RST/EN 15=VCC1 16=TEST); VCC2 UVLO 11.2 typ/12.8 max rising; RDY/FLT current-limited reporters (ganging valid); ASC forces OUTH high, abs GND2+6 V", fp: "SOIC16W", lcsc: "C7470934", price1k: 85, alt: "NSI6602B / UCC21750-Q1 (map differs)" },
-  { m: /^R[UVW][HL]ON$/, mpn: "R2512-1R5-2W", mfr: "any", desc: "gate turn-on resistor 1.5 R 2512 2 W (600 A module — tune at double-pulse)", fp: "R2512", price1k: 4, alt: "any thick-film pulse 2512" },
-  { m: /^R[UVW][HL]OFF$/, mpn: "R2512-1R0-2W", mfr: "any", desc: "gate turn-off resistor 1.0 R 2512 2 W", fp: "R2512", price1k: 4, alt: "any" },
+  { m: /^R[UVW][HL]ON$/, mpn: "R2512-3R3-2W", mfr: "any", desc: "gate turn-on 3.3 R 2512 (HCS600 DS characterized point: Eon 17.85 mJ @600 A/150 C — the loss model uses exactly these energies; DPT may lower it only inside the overshoot/EMC budget)", fp: "R2512", price1k: 4, alt: "any thick-film pulse 2512" },
+  { m: /^R[UVW][HL]OFF$/, mpn: "R2512-6R8-2W", mfr: "any", desc: "gate turn-off 6.8 R 2512 — DPT start value: at the DS 3.3 R point tf is 13 ns cold (~30 kA/us at 481 A), which cannot hold 1080 V at 850 V with an EconoDUAL-class loop; 6.8 R ~halves di/dt for ~+15 mJ Eoff (review A.6 F01/F40). DPT moves it within 3.3-10 R", fp: "R2512", price1k: 4, alt: "any" },
   { m: /^R[UVW][HL]MC$/, mpn: "R0805-0R", mfr: "any", desc: "Miller-clamp link CLAMP->gate node (0 R, per GEN3 practice)", fp: "R0805", price1k: 0.3, alt: "any" },
   { m: /^R[UVW][HL]GS$/, mpn: "R0805-10k", mfr: "any", desc: "gate-source bleed 10 k at driver", fp: "R0805", price1k: 0.3, alt: "any" },
   { m: /^R[UVW][HL]PD$/, mpn: "HV73-1M-1206", mfr: "Vishay", desc: "1 M HV-rated gate pulldown AT the module pins (GEN3: do not substitute non-HV)", fp: "R1206", price1k: 2, alt: "TT HVC class" },
@@ -72,7 +87,7 @@ export const DB = [
   { m: /^D[UVW][HL]S[12]$/, mpn: "US1M", mfr: "Yageo/MDD", desc: "1 kV 1 A fast diode SMA (DESAT chain, 2 in series)", fp: "SMA", lcsc: "C412437", price1k: 1.2, alt: "US1MDFQ-13 / M7" },
   { m: /^D[UVW][HL]SB$/, mpn: "BAT64-04", mfr: "Infineon", desc: "dual Schottky SOT-23 (DESAT charge path, per GEN3)", fp: "SOT23", price1k: 3, alt: "BAT54S" },
   { m: /^R[UVW][HL]DS$/, mpn: "R0805-100R", mfr: "any", desc: "DESAT series resistor", fp: "R0805", price1k: 0.3, alt: "any" },
-  { m: /^C[UVW][HL]BL$/, mpn: "MLCC-47pF-100V", mfr: "any", desc: "DESAT blanking 47 pF (~1.5 us with chain — matches reference SC window)", fp: "C0603", price1k: 0.3, alt: "C0G only" },
+  { m: /^C[UVW][HL]BL$/, mpn: "MLCC-47pF-100V", mfr: "any", desc: "DESAT blanking 47 pF C0G (SiC: 0.9 us typ / 1.4 us worst blank; <=1.9 us to detection)", fp: "C0603", price1k: 0.3, alt: "C0G only" },
   { m: /^C[UVW][HL]B1$/, mpn: "MLCC-100nF-50V", mfr: "any", desc: "driver VCC2 decoupling", fp: "C0603", price1k: 0.3, alt: "any X7R" },
   { m: /^C[UVW][HL]B2$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "driver VCC2 bulk (3x on layout)", fp: "C1206", price1k: 1.5, alt: "any X7R" },
   { m: /^C[UVW][HL]B3$/, mpn: "MLCC-100nF-50V", mfr: "any", desc: "driver VEE2 decoupling", fp: "C0603", price1k: 0.3, alt: "any X7R" },
@@ -84,11 +99,13 @@ export const DB = [
   { m: /^RF[HL]CS$/, mpn: "R1210-0R33-0.75W", mfr: "any", desc: "flyback current sense 0.33 R -> 3.0 A pk limit (F1 corrected the 0.033 R no-limit; F32 sized the limit as the 10 uH core saturation guard, 2.5x the 1.2 A DCM operating peak)", fp: "R1210", price1k: 2, alt: "2x 0R68 0805 parallel" },
   { m: /^DF[HL]G$/, mpn: "PMEG4010EH", mfr: "Nexperia", desc: "40 V Schottky (gate turn-off steer)", fp: "SOD123", lcsc: "C282566", price1k: 1, alt: "B5819W" },
   { m: /^ZF[HL]G$/, mpn: "BZT52-C15", mfr: "any", desc: "15 V protective gate zener — dark at the 11.8 V drive (rev A.4.2: 5.6 V part conducted all ON-time)", fp: "SOD123", price1k: 0.5, alt: "any" },
-  { m: /^RF[HL](G|GO|GS|SI|RT|EN|ST)$/, mpn: "R0603-CLASS", mfr: "any", desc: "flyback gate/timing network (10R drive, 20R off, 49.9k G-S)", fp: "R0603", price1k: 0.3, alt: "any" },
-  { m: /^CF[HL](CT|CO|CF|SI|VR)$/, mpn: "MLCC-CLASS", mfr: "any", desc: "flyback CT 560 pF / comp 22 nF + 47 pF", fp: "C0603", price1k: 0.3, alt: "C0G for CT" },
-  { m: /^RF[HL](FB1|FB2|FB3)$/, mpn: "R0603-1%", mfr: "any", desc: "primary-side regulation divider 18k/15k/1.3k (adjust for VCC level — GEN3 note)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
+  { m: /^RF[HL]ST$/, mpn: "R1206-2k2", mfr: "any", desc: "UCC28C40 VDD trickle-start 2.2 k 1206 (review A.6 F18: 4.7 k needed 8.47 V at the 12 V node worst-case; 2.2 k needs 7.95 V; 0.1 W at a 24 V jump start)", fp: "R1206", price1k: 0.4, alt: "any 1206" },
+  { m: /^RF[HL](G|GO|GS|SI|RT|EN)$/, mpn: "R0603-CLASS", mfr: "any", desc: "flyback gate/timing network (10R drive, 20R off, 51k G-S, 100R CS filter, 10k RT, 100k EN)", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^CF[HL](CT|CO|CF|SI|VR)$/, mpn: "MLCC-CLASS", mfr: "any", desc: "flyback CT 680 pF / comp 22 nF + 47 pF / CS filter 100 pF / VREF 100 nF", fp: "C0603", price1k: 0.3, alt: "C0G for CT" },
+  { m: /^RF[HL](FB1|FB2|FB3)$/, mpn: "R0603-1%", mfr: "any", desc: "primary-side regulation divider 56k/15k -> VDD 11.8 V on the NF winding (F33)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^DF[HL]A$/, mpn: "US1M", mfr: "any", desc: "aux-winding rectifier", fp: "SMA", lcsc: "C412437", price1k: 1.2, alt: "M7" },
-  { m: /^CF[HL]A$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "aux/VCC reservoir", fp: "C1206", price1k: 1.5, alt: "any" },
+  { m: /^DF[HL]VZ$/, mpn: "BZT52-C18", mfr: "any", desc: "UCC28C40 VDD clamp 18 V (no internal clamp; with the flyback disabled the 2.2 k start path would lift VDD past 18 V rec / 20 V abs at jump start / clamped load dump — review A.6)", fp: "SOD123", price1k: 0.5, alt: "MMSZ5248B" },
+  { m: /^CF[HL]A$/, mpn: "MLCC-47uF-25V-X7R", mfr: "any", desc: "UCC28C40 VDD reservoir 47 uF 1210 X7R/X6S (~37 uF effective at 7 V; review A.6 F18: the C40 has only 0.4 V UVLO hysteresis — one start burst must reach aux-winding takeover; 4.7 uF never starts at 9 V, 22 uF stalls at the all-worst corner — S1)", fp: "C1210", price1k: 10, alt: "any" },
   { m: /^RF[HL]SN$/, mpn: "R0805-100R", mfr: "any", desc: "RCD snubber R", fp: "R0805", price1k: 0.3, alt: "any" },
   { m: /^CF[HL]SN$/, mpn: "MLCC-100pF-500V", mfr: "any", desc: "RCD snubber C", fp: "C1206", price1k: 0.8, alt: "C0G" },
   { m: /^DF[HL]SN$/, mpn: "US1M", mfr: "any", desc: "flyback primary clamp blocking diode (drain -> TVS node; rev A.4 — SMBJ85A forward path removed)", fp: "SMA", lcsc: "C412437", price1k: 1.2, alt: "ES1J" },
@@ -98,7 +115,7 @@ export const DB = [
   { m: /^Z[UVW][HL]V$/, mpn: "BZT52-C5V1", mfr: "any", desc: "5.1 V zener splitting the winding -> VCC2 +15 / VEE2 -5.1 vs Kelvin (HCS600 DS recommended +15/-5 combo; F30 — value shared with the gate clamp zener)", fp: "SOD123", price1k: 0.5, alt: "MMSZ5231B" },
   { m: /^C[UVW][HL]V[12]$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "VCC2 reservoir (2x)", fp: "C1206", price1k: 1.5, alt: "any X7R" },
   { m: /^C[UVW][HL]E[12]$/, mpn: "MLCC-10uF-25V", mfr: "any", desc: "VEE2 reservoir", fp: "C1206", price1k: 1.5, alt: "any X7R" },
-  { m: /^R[UVW][HL]BL$/, mpn: "R0805-4k99", mfr: "any", desc: "secondary bleeder", fp: "R0805", price1k: 0.3, alt: "any" },
+  { m: /^R[UVW][HL]BL$/, mpn: "R0805-5k1", mfr: "any", desc: "secondary bleeder VCC2-VEE2 5.1 k", fp: "R0805", price1k: 0.3, alt: "any" },
   // ---- module NTC routing (to card ADC; basic-iso barrier note in design basis) ----
   { m: /^R[UVW]TS$/, mpn: "R0603-100R", mfr: "any", desc: "module NTC series protection", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^C[UVW]TF$/, mpn: "MLCC-2.2nF-50V", mfr: "any", desc: "module NTC filter", fp: "C0603", price1k: 0.3, alt: "any" },
@@ -113,7 +130,8 @@ export const DB = [
   { m: /^CVBDF$/, mpn: "MLCC-1nF-50V", mfr: "any", desc: "ch2 input filter", fp: "C0603", price1k: 0.3, alt: "C0G" },
   { m: /^UIVB$/, mpn: "AMC1311BDWVR", mfr: "TI", desc: "iso voltage amp (VDC channel 2 — discharge witness / OV cross-check)", fp: "SOIC8W", lcsc: "C456277", price1k: 115, alt: "NSI1311 class" },
   { m: /^PS5[BC]$/, mpn: "MGJ2D150505SC", mfr: "Murata", desc: "iso 15->+5/-5 V 2 W SIP-7 gate-drive-grade bias, +5 V used (ONE PER VDC CHANNEL). PROCUREMENT GATE before PO: verify Murata reinforced-insulation characterization (IEC 60664-1/62368-1) covers 850 VDC working + confirm SIP-7 pin map vs drawn footprint. RECOM R15P05S REJECTED in review round 5: BASIC grade, 250 VACrms working — its 6.4 kV figure is a 1 s test, not a barrier class", fp: "SIP7", price1k: 480, alt: "NO basic-insulation substitutes; Mornsun QA-family 5 V variant if released (same cert gate)" },
-  { m: /^C5[BC][12]$/, mpn: "MLCC-1uF-25V", mfr: "any", desc: "iso 5 V rail decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^C5[BC]2$/, mpn: "MLCC-100nF-25V", mfr: "any", desc: "iso 5 V rail HF decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^C5[BC]1$/, mpn: "MLCC-1uF-25V", mfr: "any", desc: "iso 5 V rail decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- HVIL + Y-caps + entry ----
   { m: /^JHV[PN]$/, mpn: "STUD-M8", mfr: "local", desc: "HV DC entry M8 stud (busbar)", fp: "StudM8", price1k: 28, alt: "M10" },
   { m: /^JM[UVW]$/, mpn: "STUD-M8", mfr: "local", desc: "phase output M8 stud (busbar)", fp: "StudM8", price1k: 28, alt: "M10" },
@@ -135,7 +153,8 @@ export const DB = [
   { m: /^CLV[HL][12]$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "12 V entry filter — 50 V rated for the ~39 V load-dump clamp (F25)", fp: "C1206", price1k: 1.2, alt: "any X7R 50 V" },
   { m: /^ULDO(15|EX)$/, mpn: "NCV4276CDTADJRKG", mfr: "onsemi", desc: "V15 protective post-regulator: 40 V-in 400 mA adjustable LDO (DPAK-5) — clamps the boost pass-through path at 15.0 V for the QA01C window", fp: "DPAK5", price1k: 14, alt: "any 40 V 0.4 A adj LDO (NCV4275A)" },
   { m: /^UGDL$/, mpn: "NCV4276CDT50RKG", mfr: "onsemi", desc: "5 V 400 mA LDO (driver VCC1 logic rail, INH from EN_FLYBK_LS — GEN3 exact)", fp: "DPAK", price1k: 32, alt: "NCV4949 class" },
-  { m: /^C5G[12]$/, mpn: "MLCC-10uF-25V", mfr: "any", desc: "VCC1 5 V rail caps", fp: "C1206", price1k: 1, alt: "any" },
+  { m: /^C5G1$/, mpn: "MLCC-1uF-50V", mfr: "any", desc: "V5GD LDO input cap (12 V node, 50 V for load dump)", fp: "C0805", price1k: 0.5, alt: "any X7R 50 V" },
+  { m: /^C5G2$/, mpn: "MLCC-10uF-25V", mfr: "any", desc: "VCC1 5 V output cap", fp: "C1206", price1k: 1, alt: "any" },
   { m: /^UB15$/, mpn: "TPS55340QRTERQ1", mfr: "TI", desc: "boost 12->15.0 V (sense-bias rail V15, ~6 W) — automotive grade stocked on LCSC", fp: "WQFN16", lcsc: "C2070860", price1k: 140, alt: "LM5155-Q1 / commercial TPS55340RTER C169167" },
   { m: /^LB15$/, mpn: "XAL4040-103MEC", mfr: "Coilcraft", desc: "boost inductor 10 uH molded shielded, AEC-Q200 (UB15 ~580 kHz; Ipk < 1 A at 0.33 A load)", fp: "XAL4040", price1k: 35, alt: "XGL4040-103 / any 10 uH Isat>=3 A" },
   { m: /^DB15$/, mpn: "SS34", mfr: "any", desc: "boost rectifier 40 V 3 A", fp: "SMA", price1k: 1, alt: "B340A" },
@@ -144,7 +163,7 @@ export const DB = [
   { m: /^RB15F[12]$/, mpn: "R0603-1%", mfr: "any", desc: "boost feedback divider (15.0 V)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   // ---- ASC buffer (DCN-referenced, drives 3x LS ASC pins) ----
   { m: /^PSASC$/, mpn: "QA01C-18", mfr: "MORNSUN", desc: "iso 15 V-in SiC-driver bias module, OUTPUTS +20/-4 V per DS (F61 — rail historically named V18A; ASC path clamped 5.1 V regardless) (ASC buffer bias, DCN-referenced domain). Genuine via Mouser/direct; LCSC clone C5369865 — qualify first", fp: "SIP7", price1k: 95, alt: "B1518S-3WR3HD / YLPTEC QA01C-18 C5369865" },
-  { m: /^UASC$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto buffer: latched ASC_CMD -> LS driver ASC pins (secondary side)", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745" },
+  { m: /^UASC$/, mpn: "TLP152", mfr: "Toshiba", desc: "opto buffer: latched ASC_CMD -> LS driver ASC pins (secondary side). BARRIER GATE (N8): base TLP152 is UL1577-only (3750 Vrms/1 min, CPG 5.0 mm, no V_IORM) - order the VDE (V4) option and confirm V_IORM >= 850 Vpk reinforced (IEC 60747-5-5/-17), else an SO6L-class reinforced part", fp: "SO6", lcsc: "C17255258", price1k: 42, alt: "TLP2745" },
   { m: /^RASCG$/, mpn: "R0603-2k2", mfr: "any", desc: "ASC drive series (with ZASC clamps the 18 V opto to <=5.1 V — NSI6611 ASC abs max GND2+6 V, F28)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RASCL$/, mpn: "R0603-470R", mfr: "any", desc: "ASC opto LED series", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RASCPD$/, mpn: "R0603-10k", mfr: "any", desc: "ASC default-OFF pulldown (DCN domain)", fp: "R0603", price1k: 0.3, alt: "any" },
@@ -152,13 +171,15 @@ export const DB = [
   { m: /^CASC$/, mpn: "MLCC-100nF-25V", mfr: "any", desc: "ASC bias decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- harness + default-OFF (power board) ----
   { m: /^JIC$/, mpn: "MICROFIT3-40", mfr: "Molex", desc: "40-way Micro-Fit 3.0 harness to control card", fp: "MicroFit40", price1k: 120, alt: "TE MATE-N-LOK eq" },
+  { m: /^RHWID$/, mpn: "R0603-10k-1%", mfr: "any", desc: "SKU identity (8XX SiC = 10 k -> 2.5 V) — harness pin 40 against the card's 10 k pull-up; firmware refuses DRV_EN unless it matches the loaded parameter set (review A.6 platform)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^RPD\d+$/, mpn: "R0603-10k", mfr: "any", desc: "default-OFF pulldown (PWM x6, EN_FLYBK x2, ASC_CMD, QDIS_CMD)", fp: "R0603", price1k: 0.3, alt: "any" },
   // ---- control card: MCU ----
   { m: /^UMCU$/, mpn: "S32K396", mfr: "NXP", desc: "lockstep M7 motor-control MCU (ASIL-D), eTPU/SDADC/SWG, 289-MAPBGA (GEN3; ball map VERIFY vs RM — symbolic here). Production via NXP direct/franchise; LCSC marketplace lists S32K396EHT1MJBST C25786933 in tens only (proto)", fp: "BGA289", price1k: 1400, alt: "S32K388 (same family)" },
   { m: /^Y1$/, mpn: "CX3225GA40000D0PTVCC", mfr: "Kyocera", desc: "40 MHz crystal (GEN3 exact; LCSC 20 pcs — thin, second-source noted)", fp: "X3225", lcsc: "C6009848", price1k: 45, alt: "NX3225GA-40M / SOSET 3225 40 MHz C5380316 (PROTO ONLY: not AEC-Q200, 85 C, CL 12 pF retune)" },
   { m: /^CY[AB]2?$/, mpn: "MLCC-12pF-50V", mfr: "any", desc: "crystal load caps", fp: "C0603", price1k: 0.3, alt: "C0G" },
   { m: /^CMD\d+$/, mpn: "MLCC-100nF-16V", mfr: "any", desc: "MCU per-pin decoupling (bulk 22u/4.7u/1u per domain on layout)", fp: "C0402", price1k: 0.2, alt: "any X7R" },
-  { m: /^CMA[12]$/, mpn: "MLCC-1uF-16V", mfr: "any", desc: "VREF/analog domain caps", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^CMA2$/, mpn: "MLCC-100nF-16V", mfr: "any", desc: "VREF5 HF cap (counted in the VREF rail window)", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^CMA1$/, mpn: "MLCC-1uF-16V", mfr: "any", desc: "VREF/analog domain cap", fp: "C0603", price1k: 0.3, alt: "any" },
   { m: /^RMRST$/, mpn: "R0603-10k", mfr: "any", desc: "RESET_B pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^JSWD$/, mpn: "HDR2X10-JTAG", mfr: "any", desc: "20-pin ARM JTAG/SWD", fp: "HDR2x10", price1k: 15, alt: "any" },
   { m: /^RBOOT$/, mpn: "R0603-10k", mfr: "any", desc: "boot strap", fp: "R0603", price1k: 0.3, alt: "any" },
@@ -169,29 +190,37 @@ export const DB = [
   { m: /^QBAL$/, mpn: "SQ2310ES", mfr: "Vishay", desc: "core ballast NMOS V15S->V11 1.14 V, BCTRL-regulated (S32K39 DS Table 11 topology; GEN3-exact part — F36)", fp: "SOT23", price1k: 6, alt: "AO3400A class" },
   { m: /^LCOR$/, mpn: "XAL4020-222MEC", mfr: "Coilcraft", desc: "VCORE buck inductor 2.2 uH molded shielded, AEC-Q200 (FS26 Table 106, CORE_LSEL_OTP=0x02; eff window 1.5-2.9 uH; Isat per XAL4000 DS)", fp: "XAL4020", price1k: 25, alt: "XGL4020-222 / any 2.2 uH Isat>=4 A shielded" },
   { m: /^CSB\d+$/, mpn: "MLCC-CLASS", mfr: "any", desc: "SBC rail caps (ESR windows per FS26 DS — do not substitute blindly, GEN3 note)", fp: "C0805", price1k: 0.5, alt: "per DS" },
-  { m: /^RSB\d+$/, mpn: "R0603-CLASS", mfr: "any", desc: "SBC straps/monitors (VMONEXT divider 10k/18.7k, pulls)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
+  { m: /^RSB\d+$/, mpn: "R0603-CLASS", mfr: "any", desc: "SBC straps/monitors (VMONEXT divider 52.3k/10k = 0.794 V, AMUX 220R, INTB 5.1k)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^DBAT$/, mpn: "BAT46ZFILM", mfr: "ST", desc: "BATSENSE diode (GEN3 exact; LCSC-stocked)", fp: "SOD123", lcsc: "C283255", price1k: 1.5, alt: "CDBW46-G" },
   { m: /^(FLVC|FVB[HL])$/, mpn: "MF-LSMF300/24X-2", mfr: "Bourns", desc: "card 12 V polyfuse (exact part on LCSC)", fp: "PTC2920", lcsc: "C719172", price1k: 8, alt: "RUILON SMD2920 class" },
   { m: /^DREVC$/, mpn: "STPS5L60S", mfr: "ST", desc: "series Schottky reverse protection 60 V 5 A SMC (GEN3 part family; LCSC-stocked)", fp: "SMC", lcsc: "C140620", price1k: 8, alt: "SS56 class" },
   { m: /^DTVSC$/, mpn: "TPSMC24CA", mfr: "Littelfuse", desc: "24 V TVS on card 12 V entry (LCSC as -VR packing)", fp: "SMC", lcsc: "C1975284", price1k: 6, alt: "SMCJ24CA" },
   { m: /^LFC$/, mpn: "FB-120R-3A", mfr: "any", desc: "card 12 V bead", fp: "FB1206", price1k: 1, alt: "any" },
-  { m: /^CLVC[12]$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "card 12 V filter — 50 V rated for load dump (F25)", fp: "C1206", price1k: 1.2, alt: "any X7R 50 V" },
-  { m: /^RIGN[12]$/, mpn: "R0603-5k1", mfr: "any", desc: "ignition wake divider", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^CLVC2$/, mpn: "MLCC-22uF-50V", mfr: "any", desc: "FS26 VPRE input 22 uF 1210 50 V (F52: >=10 uF effective at 14 V)", fp: "C1210", price1k: 6, alt: "any X7R 50 V" },
+  { m: /^CLVC1$/, mpn: "MLCC-4.7uF-50V", mfr: "any", desc: "card 12 V filter — 50 V rated for load dump (F25)", fp: "C1206", price1k: 1.2, alt: "any X7R 50 V" },
+  { m: /^RIGN2$/, mpn: "R0603-10k", mfr: "any", desc: "ignition wake divider (bottom)", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^RIGN1$/, mpn: "R0603-5k1", mfr: "any", desc: "ignition wake divider (top)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^DIGN$/, mpn: "1N4148WS", mfr: "any", desc: "wake steering diode", fp: "SOD323", lcsc: "C2128", price1k: 0.4, alt: "BAS316" },
   { m: /^CIGN$/, mpn: "MLCC-100nF-50V", mfr: "any", desc: "wake filter", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- control card: safety chain ----
   { m: /^UOR[12]$/, mpn: "74LVC1G32GW-Q100", mfr: "Nexperia", desc: "OR gate: EN_FLYBK = MCU_EN | FS26_GPIO1 (SBC keeps gate power for ASC — GEN3 exact; Q100H grade LCSC-stocked)", fp: "SOT353", lcsc: "C548334", price1k: 6, alt: "SN74LVC1G32-Q1" },
   { m: /^UAND[12]$/, mpn: "74LVC1G11GW-Q100", mfr: "Nexperia", desc: "3-in AND: DRV_EN = FS0B_OK & MCU_GATE_EN & RDY_ALL — Q100H grade stocked on LCSC", fp: "SOT363", lcsc: "C548242", price1k: 6, alt: "SN74LVC1G11-Q1 / commercial 74LVC1G11GW C282348" },
-  { m: /^RFS[1-4]$/, mpn: "R0603-120R", mfr: "any", desc: "FSS/FSEN strap ladder 120 R (+DNP options — LS-ASC select per FS1B, GEN3 pattern)", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^RFS2$/, mpn: "R0603-10k", mfr: "any", desc: "ASC-latch PRE pull-up 10 k (F40)", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^RFS[134]$/, mpn: "R0603-1k", mfr: "any", desc: "ASC-latch strap/clear series 1 k (F40: asserted level 0.45 V; the old 120 R ladder gave an indeterminate 2.5 V)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RENP[12]$/, mpn: "R0603-1k", mfr: "any", desc: "FS0B/FS1B pull-ups (1 k -> 4.6 mA, inside the 4-22 mA low-side clamp — F35)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RGPD$/, mpn: "R0603-10k", mfr: "any", desc: "GATE_EN pulldown (default OFF)", fp: "R0603", price1k: 0.3, alt: "any" },
-  { m: /^RFLTP$/, mpn: "R0603-5k1", mfr: "any", desc: "FLT# wired-OR pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^RFLTP[12]$/, mpn: "R0603-5k1", mfr: "any", desc: "FLT# wired-OR pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^CFLTF$/, mpn: "MLCC-100pF-16V", mfr: "any", desc: "FLT line filter", fp: "C0603", price1k: 0.3, alt: "any" },
-  { m: /^RRDYP$/, mpn: "R0603-5k1", mfr: "any", desc: "RDY wired-AND pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^RRDYP[12]$/, mpn: "R0603-5k1", mfr: "any", desc: "RDY wired-AND pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RASCP$/, mpn: "R0603-10k", mfr: "any", desc: "ASC_CMD pulldown", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^ULAT2?$/, mpn: "SN74LVC1G74DCUR", mfr: "TI", desc: "D-latch: ASC_CMD latched (survives MCU reset; LCSC-stocked 6k+)", fp: "VSSOP8", lcsc: "C70285", price1k: 8, alt: "74LVC1G175" },
   { m: /^RLAT[12]$/, mpn: "R0603-10k", mfr: "any", desc: "latch set/clear pulls", fp: "R0603", price1k: 0.3, alt: "any" },
-  { m: /^CLAT$/, mpn: "MLCC-100nF-16V", mfr: "any", desc: "latch decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^CLAT2?$/, mpn: "MLCC-100nF-16V", mfr: "any", desc: "latch decoupling", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^RFLTD$/, mpn: "R0603-10k", mfr: "any", desc: "fault-latch -> AND delay 10 k (with CFLTD 12-40 us into the Schmitt input: a DESAT-ing driver finishes its soft turn-off before the global DRV_EN drop — NSI6611 DS is silent on RST/EN during soft-off; review A.6 F05)", fp: "R0603", price1k: 0.3, alt: "any" },
+  { m: /^CFLTD$/, mpn: "MLCC-3.3nF-50V-C0G", mfr: "any", desc: "fault-latch delay 3.3 nF C0G (tau 33 us: 12-40 us across the Schmitt window — covers the IGBT soft-off even at the DS-minimum 100 mA)", fp: "C0603", price1k: 0.3, alt: "C0G only" },
+  { m: /^CCLR$/, mpn: "MLCC-15nF-50V-X7R", mfr: "any", desc: "fault-latch CLEAR one-shot 15 nF (into the 10 k pull-up: >=54 us guaranteed low per MCU falling edge; a stuck pin cannot hold the chain permissive — review A.6 F06)", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^DCLR$/, mpn: "BAT46ZFILM", mfr: "ST", desc: "one-shot overshoot clamp to V5A (same part as DBAT)", fp: "SOD123", lcsc: "C283255", price1k: 1.5, alt: "CDBW46-G" },
+  { m: /^RHWP$/, mpn: "R0603-10k-1%", mfr: "any", desc: "SKU-ID pull-up to VREF5 (divider with the power board RHWID -> MCU ADC)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^RINT[12]$/, mpn: "R0603-5k1", mfr: "any", desc: "INTB/INTA pull-ups", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^RILK[1-4]$/, mpn: "R0603-10k", mfr: "any", desc: "interlock ladder 10 k (open = VDDIO/2 signature — GEN3)", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^CILK$/, mpn: "MLCC-2.2nF-50V", mfr: "any", desc: "interlock filter", fp: "C0603", price1k: 0.3, alt: "any" },
@@ -210,13 +239,15 @@ export const DB = [
   { m: /^R(SIN|COS)R[12]$/, mpn: "R0603-120R", mfr: "any", desc: "SDADC input series 120 R", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^C(SIN|COS)A[12]?$/, mpn: "MLCC-CLASS", mfr: "any", desc: "SDADC input 100 pF/2200 pF", fp: "C0603", price1k: 0.3, alt: "C0G" },
   // ---- control card: phase-current hall chain (GEN3 exact) ----
-  { m: /^USNS[UVW]$/, mpn: "HC5FW900-S", mfr: "LEM", desc: "open-loop hall 900 A busbar transducer, 5 V ratiometric (GEN3 exact). SOURCING: LEM franchise/direct, listed-not-stocked at DigiKey — secure lead time early; only LCSC busbar hall (HAH1BVW S/06 600 A, C454763) is under-ranged and 0-stock", fp: "OffBoard", price1k: 700, alt: "HAH1BVW S/08 900 A class (LEM)" },
+  { m: /^USNS[UVW]$/, mpn: "HC5FW900-S", mfr: "LEM", desc: "open-loop hall 900 A busbar transducer, 5 V ratiometric (GEN3 exact). INSULATION (N7): /SP1 is the reduced-insulation no-sleeve variant (2.5 kV/1 min, 3.6/2.7 mm) - phase busbar carries a >=1 kV DC insulating sleeve through the aperture, LEM to confirm for 850 VDC. SOURCING: LEM franchise/direct, listed-not-stocked at DigiKey — secure lead time early; only LCSC busbar hall (HAH1BVW S/06 600 A, C454763) is under-ranged and 0-stock", fp: "OffBoard", price1k: 700, alt: "HAH1BVW S/08 900 A class (LEM)" },
   { m: /^JLEM$/, mpn: "T2M-105-01-L-D-TH-WT", mfr: "Samtec", desc: "2x5 2 mm hall-sensor harness header, latching (GEN3 exact; DigiKey ships-today)", fp: "HDR2x5", price1k: 45, alt: "generic 2.0 mm 2x5 C64617 (no latch — debug builds only)" },
   { m: /^U[UVW]B[12]$/, mpn: "OPA376AQDBVRQ1", mfr: "TI", desc: "phase-current buffer (2 per phase — GEN3 chain)", fp: "SOT23-5", price1k: 28, alt: "OPA320-Q1 / OPA376AQDBVRQ1 listed C485910 (0 stock — DigiKey for Q1); commercial clones stocked" },
   { m: /^R[UVW]B[123]$/, mpn: "R0603-100R", mfr: "any", desc: "buffer series 100 R", fp: "R0603", price1k: 0.3, alt: "any" },
-  { m: /^C[UVW]B[12]$/, mpn: "MLCC-3.3nF-50V", mfr: "any", desc: "hall input filter 3300 pF / 0.1 uF", fp: "C0603", price1k: 0.3, alt: "C0G" },
+  { m: /^C[UVW]B2$/, mpn: "MLCC-100nF-25V", mfr: "any", desc: "hall buffer RC 0.1 uF (15.9 kHz pole)", fp: "C0603", price1k: 0.3, alt: "any X7R" },
+  { m: /^C[UVW]B1$/, mpn: "MLCC-3.3nF-50V", mfr: "any", desc: "hall input filter 3300 pF", fp: "C0603", price1k: 0.3, alt: "C0G" },
   { m: /^L[UVW]B$/, mpn: "FB-220R-1A", mfr: "any", desc: "hall 5 V supply bead", fp: "FB0805", price1k: 0.5, alt: "any" },
-  { m: /^C[UVW]S[12]$/, mpn: "MLCC-47nF-25V", mfr: "any", desc: "hall supply filter 0.047u + 4700p", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^C[UVW]S2$/, mpn: "MLCC-4.7nF-50V", mfr: "any", desc: "hall supply HF filter 4700 pF", fp: "C0603", price1k: 0.3, alt: "any" },
+  { m: /^C[UVW]S1$/, mpn: "MLCC-47nF-25V", mfr: "any", desc: "hall supply filter 0.047 uF", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- control card: CAN ----
   { m: /^UCAN[12]$/, mpn: "TCAN1042HGVDRQ1", mfr: "TI", desc: "CAN-FD 5 Mbps transceiver, VIO, AEC-Q100 — automotive grade stocked on LCSC", fp: "SOIC8", lcsc: "C132550", price1k: 55, alt: "TCAN1042DRQ1 C118837 (loses 70 V fault tol.) / TJA1443" },
   { m: /^RCT[12][AB]$/, mpn: "R0603-60R4-1%", mfr: "any", desc: "split termination 60.4 R x2 (GEN3 values)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
@@ -236,7 +267,7 @@ export const DB = [
   { m: /^R(THS|TAMB)P$/, mpn: "R0603-10k-1%", mfr: "any", desc: "board NTC pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^C(THS|TAMB)F$/, mpn: "MLCC-47nF-25V", mfr: "any", desc: "board NTC filter", fp: "C0603", price1k: 0.3, alt: "any" },
   { m: /^JT(HS|AMB)$/, mpn: "NTC-10k-0603", mfr: "any", desc: "board NTC 10 k (heatsink / ambient)", fp: "R0603", price1k: 1, alt: "any 1%" },
-  { m: /^R(SNU|SNV|SNW)P$/, mpn: "R0603-4k99", mfr: "any", desc: "module NTC pull-up to VDDA (card side)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
+  { m: /^R(SNU|SNV|SNW)P$/, mpn: "R0603-5k1-1%", mfr: "any", desc: "module NTC pull-up to VREF5 (card side)", fp: "R0603", price1k: 0.3, alt: "any 1%" },
   { m: /^C(SNU|SNV|SNW)F$/, mpn: "MLCC-47nF-25V", mfr: "any", desc: "module NTC filter (card side)", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- card interface ----
   { m: /^JICC$/, mpn: "MICROFIT3-40", mfr: "Molex", desc: "40-way Micro-Fit 3.0 harness (card side)", fp: "MicroFit40", price1k: 120, alt: "TE eq" },

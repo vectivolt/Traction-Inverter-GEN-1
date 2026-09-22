@@ -83,6 +83,6 @@ Qty,Designators,Value,MPN,Manufacturer,Description,LCSC,Footprint,Price1k_INR,Ex
 1,"RLD1","49.9k","R0603-CLASS","any","resistor, buy to value/tolerance on sheet",CLASS,"R0603",0.3,0.3,"any"
 1,"CLDC","220pF","MLCC-CLASS","any","MLCC, buy to value/voltage on sheet",CLASS,"C0603",0.3,0.3,"any"
 1,"CLD15","22uF","MLCC-CLASS","any","MLCC, buy to value/voltage on sheet",CLASS,"C0603",0.3,0.3,"any"
-1,"RHWID","10k","R0603-10k-1%","any","SKU identity (8XX SiC = 10 k -> 2.5 V) — harness pin 40 against the card's 10 k pull-up; firmware refuses DRV_EN unless it matches the loaded parameter set (review A.6 platform)",CLASS,"R0603",0.3,0.3,"any 1%"
+1,"RHWID","22k","R0603-22k-1%","any","SKU identity (4XX SiC) — harness pin 40 against the card's 10 k pull-up to VREF5; firmware refuses DRV_EN unless it matches the loaded parameter set",CLASS,"-",0.3,0.3,"-"
 1,"RPET","1M","R0603-CLASS","any","resistor, buy to value/tolerance on sheet",CLASS,"R0603",0.3,0.3,"any"
 1,"CPET","4.7nF","MLCC-CLASS","any","MLCC, buy to value/voltage on sheet",CLASS,"C0603",0.3,0.3,"any"

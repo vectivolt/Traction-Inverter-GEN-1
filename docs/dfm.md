@@ -1,11 +1,11 @@
-# Manufacturability (DFM) — rev A.5
+# Manufacturability (DFM) — rev A.6
 
 Goal: with the hiitio module supply secured by the direct relationship, **everything else
 builds at any competent CEM from LCSC + DigiKey stock** — no exotic distribution, no
 single-source jellybeans, one clean flow across the four assemblies (power PCB, cap-bank
 busbar assembly, bolt-on discharge PCB, control card). Grounded in two live sourcing sweeps
 (LCSC exact-MPN + DigiKey/Mouser alternates, 2026-09-09) and five external review rounds
-(findings F1–F62, all closed — see `verification-report.md`). Silicon-variant comparison: [`variants.md`](variants.md).
+(findings F1–F76, all closed — see `verification-report.md`). Platform/SKU comparison: [`variants.md`](variants.md).
 
 ## 1. Sourcing tiers (how the buy is organized)
 
@@ -32,9 +32,10 @@ NCV4276CDTADJRKG — family labels caused F45/F57).
    can exists on LCSC in any brand. Same 320 µF, better ripple spread, BOM −₹2.8k; TDK B32778
    remains the drop-in alt (one per two positions). The cans live on the **cap-bank busbar
    assembly** (sheet 2), not FR4.
-3. **Passive bleeder 9× TE CRGP (TTI-only) → 10× standard 27 k 2512 2 W in 5s×2p**
-   (170 V/resistor at 850 V — inside plain-2512 200 V working). Same 67.5 kΩ; 57 s to 60 V;
-   any resistor vendor builds it. Lives on the **bolt-on discharge board** (sheet 3).
+3. **Passive bleeder 9× TE CRGP (TTI-only) → 12× standard 22 k 2512 2 W in 6s×2p** (rev A.6:
+   six per string keeps the worst-tolerance resistor at 154 V = 77 % of a plain 2512's 200 V
+   working; five 27 k parts reached 92 %). 66 kΩ; 57 s to 60 V; any resistor vendor builds
+   it. Lives on the **bolt-on discharge board** (sheet 3); the 4XX SKUs fit 15 k parts.
 4. **Flyback switch BUK9Y14-80E → BUK7Y14-80E** (F56): logic-level ±10 V gate was illegal at
    the 11.8 V drive; the standard-level sibling is the same LFPAK56/price class.
 5. **Value consolidation**: 4.99 k→5.1 k, 12.1 k→12 k where firmware-calibrated; MCU
@@ -45,12 +46,13 @@ NCV4276CDTADJRKG — family labels caused F45/F57).
 7. **Resolver driver ALM2402Q-Q1** stays (LCSC-stocked, GEN3-exact), now fed from its own
    protective 12 V LDO (F55).
 
-### IGBT drop-in variant on the same line
+### Four SKUs on the same line (rev A.6)
 
-`BOM_VARIANT=igbt` (`npm run bom:igbt` → `bom-igbt.md`) builds the **identical boards** with
-three line swaps: the module MPN, R⟨ph⟩⟨HL⟩DS 100 Ω→4.7 kΩ, C⟨ph⟩⟨HL⟩BL 47→150 pF — same
-feeders otherwise, so both SKUs run on one SMT program with a two-reel changeover plus the
-module pick. EOL limits differ only in firmware constants (f_sw, dead-time, NTC B-value).
+`npm run bom:all` builds the **identical boards** for 8XX SiC / 8XX IGBT / 4XX IGBT / 4XX SiC.
+IGBT SKUs swap the module and five values on existing pads (R⟨ph⟩⟨HL⟩DS 4.7 kΩ, C⟨ph⟩⟨HL⟩BL
+82 pF, R⟨ph⟩⟨HL⟩ON/OFF 1.0 Ω, RF⟨HL⟩RT 8.2 kΩ); 4XX SKUs swap the 16 cans and the discharge
+values (RDIS 220 Ω, RBLD 15 kΩ). Every SKU sets RHWID (its identity resistor). One SMT program,
+reel changeovers per SKU; EOL reads HW_ID and rejects a unit whose parameter set disagrees.
 
 ## 3. Assembly flow (box build, four assemblies)
 

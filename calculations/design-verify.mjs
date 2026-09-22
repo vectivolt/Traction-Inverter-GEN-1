@@ -10,6 +10,7 @@
 
 import { writeFileSync } from "node:fs";
 import { REV } from "./rev.mjs";
+import { OP as LOP, MOD, SKU, lossOf, rthT, rthD, tjLimit, pAvail } from "./loss-model.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,32 +18,32 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 // ---------------- operating conditions ----------------
 const OP = {
   vbusNom: 700, vbusMax: 850, vbusMin: 500,
-  fsw: 10e3, iphPk: 340, iphCont: 185, pf: 0.85,
-  kl30: { min: 9, nom: 13.5, max: 16 }, plate: 65,
+  fsw: 10e3, iphPk: 340, iphCont: 185, pf: 0.85, mres: 0.95,
+  kl30: { min: 9, nom: 13.5, max: 16 }, coolant: LOP.coolant, rthPlate: LOP.rthPlate,
 };
 
 // ---------------- datasheet / design constants ----------------
 const P = {
-  // module — REAL HCS600FH120D3C1 datasheet values (rev X.0.1): Rds 5.2 mΩ chip @+15 V/175 °C
-  // + 0.5 mΩ terminal resistance; Eon+Eoff 41 mJ @600 V/600 A/150 °C; Rth(j-c) 0.066 + 0.015 grease
-  mod: { rdsHot: 5.7e-3, eswPerA600: 68.3e-6, rthJC: 0.066, rthCH: 0.015, tjMax: 175, vds: 1200, src: "HCS600 datasheet" },
-  // link cap — REAL Faratronic C3D DS: 15.4 A rms @10 kHz/70 °C, ESR 7.8 mΩ, U_N 1100 V @70 °C
-  cap: { c: 20e-6, n: 16, vr: 1100, irmsEach: 15.4, esr: 7.8e-3, tolC: 0.10, src: "C3D datasheet" },
-  // NSI6611A-Q1 — DS 1.2: VCC2 UVLO rising 11.2 typ / 12.8 MAX, falling 11.8 max; Icc2 7 mA max;
-  // VCC2-VEE2 abs 35 V / recommended 13–32 V; RDY/FLT current-limited reporters; ASC abs GND2+6 V
-  drv: { ipk: 10, uvlo2On: 12.8, uvlo2Off: 11.8, vccRecMin: 13, vdesat: 9.0, idesat: 0.5e-3, tblankInt: 0.3e-6, vcc2Rec: 32, vcc2Abs: 35, icc2: 7e-3, src: "NSI6611 DS 1.2 (DESAT constants pending §6 extract)" },
-  // UCC28C40 (F31 — the C43 grade is 8.4/7.6 V UVLO and cannot cold-crank-start)
-  pwm: { vref: 2.5, vcs: 1.0, uvloOn: 7.0, uvloOnMax: 7.8, uvloOff: 6.6, vccAbs: 20, istart: 100e-6, irun: 2.3e-3, kOsc: 1.72, src: "SLUS458I (C40 grade; osc from curve anchors)" },
-  // gate charge — HCS600 DS: QG 1240 nC @800 V/360 A, +18/−5
+  mod: MOD.sic, igbt: MOD.igbt,
+  // link cap — REAL Faratronic C3D DS: 15.4 A rms @10 kHz/70 °C, ESR 7.8 mΩ, U_N 1100 V @70 °C / 1000 V @85 °C
+  cap: { c: 20e-6, n: 16, vr: 1100, vr85: 1000, irmsEach: 15.4, esr: 7.8e-3, tolC: 0.10, src: "C3D datasheet" },
+  // NSI6611A-Q1 DS 1.2: UVLO2 on 9.8/11.2/12.8, off 9.0/10.4/11.8; ICC2 1/3.3/7 mA; DESAT 8.5/9.3/10 V,
+  // I_CHG 350/500/650 µA, LEB 200 ns, deglitch 100/200/320 ns; soft-off I_STO 100/400/570 mA;
+  // FLT latched until an RST/EN RISING edge after ≥ t_FLT_MUTE (0.55–1.3 ms) low
+  drv: { ipk: 10, uvlo2On: 12.8, uvlo2Off: 11.8, uvlo2OffTyp: 10.4, vccRecMin: 13, vcc2Rec: 32, vcc2Abs: 35, icc2: 7e-3, icc2Typ: 3.3e-3,
+    vth: [8.5, 9.3, 10], ichg: [350e-6, 500e-6, 650e-6], leb: 0.2e-6, deg: [0.1e-6, 0.2e-6, 0.32e-6], isto: [0.1, 0.4, 0.57], tMute: 1.3e-3, src: "NSI6611 DS 1.2" },
+  // UCC28C40 (SLUS458I): VDD_ON 6.5/7.0/7.5, VDD_OFF 6.1/6.6/7.1 V, I_START 50/100 µA, IVDD 2.3/3.0 mA
+  pwm: { vref: 2.5, vcs: 1.0, uvloOn: 7.0, uvloOnMax: 7.5, uvloOff: 6.6, vccAbs: 20, istart: 100e-6, irun: 3.0e-3, kOsc: 1.72, src: "SLUS458I (C40 grade)" },
+  // gate charge — HCS600 DS: QG 1240 nC @800 V/360 A, +18/−5 (Fig.11: ≈1.09 µC for −5.1→+15.6 V)
   qg: { total: 1.24e-6, vswing: 20.1, src: "HCS600 datasheet" },
   // flyback magnetics — REAL VGT12EEM-200S1A4: NP:NF:NS = 1:1.6:2.9, Lp 10 uH ±20 %
   xfmr: { lp: 10e-6, nf: 1.6, ns: 2.9, isat: 4.5, src: "TDK datasheet (Isat unpublished — CS limit is the guard)" },
   // TPS55340
-  boost: { vref: 1.229, ilim: 5.25, vinAbs: 45, src: "assumed pending TPS55340 DS" },
+  boost: { vref: 1.229, ilim: 5.25, vinAbs: 45, src: "TPS55340 DS" },
   // LEM HC5FW 900-S — DS: 2.22 mV/A ratiometric @5 V, 2.5 V @0 A, BW >=40 kHz
   hall: { sens: 2.22e-3, v0: 2.5, src: "LEM datasheet" },
-  // AMC1311
-  amc: { vinFs: 2.0, gainErr: 0.005, src: "assumed pending AMC1311 DS" },
+  // AMC1311B (the drawn DWVR grade): gain error ±0.2 % max, offset ±1.5 mV, linear 0–2 V
+  amc: { vinFs: 2.0, gainErr: 0.002, vos: 1.5e-3, src: "AMC1311 DS SBAS786C" },
   // resistor tolerances
   tolR: 0.05, tolRp: 0.01,
 };
@@ -58,71 +59,116 @@ const judge = (sec, name, value, limit, ratio, warnAt, note = "") => {
 };
 const f = (x, d = 1) => Number(x.toFixed(d));
 
-// ============ 1. POWER STAGE ============
+// ============ 1. POWER STAGE (every SKU) ============
 {
-  const vll = OP.vbusNom / Math.SQRT2;
-  const pAvail = Math.sqrt(3) * vll * OP.iphPk * OP.pf / 1e3;
-  judge("Power stage", "SVPWM power capability @700 V", `${f(pAvail)} kW avail`, "220 kW target", 220 / pAvail, 0.95);
-  // per-switch losses (each of 6 switches conducts half the phase current RMS-wise)
-  // standard 2-level result: I_sw,rms = I_ph,rms · sqrt(1/8 + m·cosφ/(3π)), m ≈ 0.9
-  const kSw = Math.sqrt(0.125 + 0.9 * OP.pf / (3 * Math.PI));
-  const irmsSw = OP.iphPk * kSw;
-  const pCond = irmsSw * irmsSw * P.mod.rdsHot;
-  const eswA = P.mod.eswPerA600 * (OP.vbusNom / 600);      // J per amp switched, V-scaled
-  const pSw = eswA * (OP.iphPk * Math.SQRT2 / Math.PI) * OP.fsw; // (1/π)·fsw·k·Î per switch
-  const pSwitchPk = pCond + pSw;
-  const irmsCont = OP.iphCont * kSw;
-  const pSwitchCont = irmsCont * irmsCont * P.mod.rdsHot + eswA * (OP.iphCont * Math.SQRT2 / Math.PI) * OP.fsw;
-  add("Power stage", "Per-switch loss (220 kW pk / 120 kW cont)", `${f(pSwitchPk)} W / ${f(pSwitchCont)} W`, "-", "INFO");
-  const dTj = pSwitchPk * (P.mod.rthJC + P.mod.rthCH);
-  const tj = OP.plate + dTj;
-  judge("Power stage", "Tj at 220 kW peak (65 °C plate)", `${f(tj)} °C`, `${P.mod.tjMax} °C`, tj / P.mod.tjMax, 0.80, "steady-state bound; 30 s Zth is lower");
-  const tjCont = OP.plate + pSwitchCont * (P.mod.rthJC + P.mod.rthCH);
-  judge("Power stage", "Tj continuous 120 kW", `${f(tjCont)} °C`, `${P.mod.tjMax} °C`, tjCont / P.mod.tjMax, 0.75);
-  judge("Power stage", "Module switch RMS current", `${f(irmsSw)} A`, "600 A rating (620 A @Tc60)", irmsSw / 600, 0.7);
-  // switching-node voltage incl. overshoot: L_loop ~20 nH, di/dt ~5 kA/us
-  const vov = OP.vbusMax + 20e-9 * 5e9;
-  judge("Power stage", "Vds peak (850 V + 20 nH · 5 kA/µs)", `${f(vov)} V`, "1200 V", vov / 1200, 0.85);
+  for (const [id, s] of Object.entries(SKU)) {
+    const sec = `Power stage — ${s.name}`;
+    // envelope (F09): the rectangle "220 kW over 500–850 V" was not true at 340 A
+    const vFullPk = s.pTarget[0] * 1e3 / (Math.sqrt(1.5) * OP.mres * s.iPk * OP.pf);
+    const vFullCont = s.pTarget[1] * 1e3 / (Math.sqrt(1.5) * OP.mres * s.iCont * OP.pf);
+    add(sec, "Current-limited envelope P_pk / P_cont", `${f(pAvail(s.vMin, s.iPk), 0)}/${f(pAvail(s.vMin, s.iCont), 0)} kW @${s.vMin} V · ${f(Math.min(s.pTarget[0], pAvail(s.vNom, s.iPk)), 0)}/${f(Math.min(s.pTarget[1], pAvail(s.vNom, s.iCont)), 0)} kW @${s.vNom} V`,
+      `${s.pTarget[0]}/${s.pTarget[1]} kW from ${f(vFullPk, 0)}/${f(vFullCont, 0)} V up`, "INFO",
+      `${s.iPk}/${s.iCont} A rms, PF ${OP.pf}, 5 % modulation reserve — firmware derates P(V_dc) below these voltages (review A.6 F09)`);
+    for (const [tag, I, V] of [["peak 30 s", s.iPk, s.vMax], ["continuous", s.iCont, s.vNom]]) {
+      const L = lossOf(s, I, V);
+      const Lr = s.sil !== "sic" ? lossOf(s, I, V, -0.85) : L;
+      const tj = OP.coolant + L.sw_die * rthT(s);
+      const detail = s.sil === "sic" ? `cond ${f(L.cond, 0)} + sw ${f(L.sw, 0)} + Qrr ${f(L.rr, 0)} + dead-time ${f(L.dt, 0)} W`
+        : `IGBT ${f(L.condT, 0)}+${f(L.swT, 0)} W · diode ${f(L.condD, 0)}+${f(L.rec, 0)} W (motoring)`;
+      judge(sec, `Tj steady-state bound, ${tag} (${I} A, ${V} V, ${s.fsw / 1e3} kHz)`, `${f(tj, 0)} °C (${f(L.sw_die, 0)} W/switch)`,
+        `${tjLimit(s)} °C ${s.sil === "sic" ? "Tj max" : "Tvjop"}`, tj / tjLimit(s), tag === "continuous" ? 0.75 : 0.9,
+        `${detail}; 65 °C coolant + 0.045 K/W coldplate assumption; the 30 s transient is in S4`);
+      if (s.sil !== "sic") {
+        const tjd = OP.coolant + Lr.d_die * rthD(s);
+        judge(sec, `Diode Tj bound, ${tag} regeneration (cosφ −0.85)`, `${f(tjd, 0)} °C (${f(Lr.d_die, 0)} W)`, `${P[s.sil].tvjop} °C`,
+          tjd / P[s.sil].tvjop, 0.9, "F26 — the FWD is its own die (Rth 0.10 K/W); regen loads it hardest");
+      }
+    }
+    const Lc = lossOf(s, s.iCont, s.vNom);
+    const pOut = Math.min(s.pTarget[1], pAvail(s.vNom, s.iCont)) * 1e3;
+    const pSemi = 6 * (Lc.sw_die + Lc.d_die);
+    add(sec, `Semiconductor efficiency @ continuous (${f(pOut / 1e3, 0)} kW, ${s.vNom} V)`, `${f(100 * pOut / (pOut + pSemi), 2)} % (${f(pSemi, 0)} W)`, "-", "INFO",
+      "six switches, conservative 175 °C R_DS(on); caps/busbar/LV add ≈0.1–0.2 pt");
+  }
+  // module current and sensing headroom at the highest SKU currents
+  judge("Power stage — all SKUs", "Peak switch current vs module rating", "566 A pk (4XX, 400 A rms)", "600 A DC / 1200 A 1 ms", 566 / 1200, 0.5,
+    "8XX SKUs: 481 A pk");
+  judge("Power stage — all SKUs", "Phase-current sensing headroom", "≈620 A (566 A pk + 10 % ripple, 4XX)", "±900 A LEM range", 620 / 900, 0.8,
+    "8XX ≈530 A — the ±900 A sensor covers every SKU (review F33 assumed 600 A rms; above ≈480 A rms a 4XX-HP frame needs a larger sensor)");
+  // turn-off overshoot (F01): the DS fall time at the characterized 3.3 Ω is the di/dt input
+  const didtHot = 0.8 * 481 / P.mod.tfHot, didtCold = 0.8 * 481 / P.mod.tfCold;
+  const vpk = OP.vbusMax + 15e-9 * didtCold;
+  add("Power stage — all SKUs", "Turn-off overshoot, SiC 850 V / 481 A, cold (RG_OFF 6.8 Ω)", `${f(vpk, 0)} V at 15 nH (${f(didtCold / 1e9, 1)} kA/µs est.)`,
+    "1080 V repetitive guard · 1200 V abs", vpk <= 1080 ? "PASS" : vpk <= 1200 ? "WARN" : "FAIL",
+    `hot ${f(OP.vbusMax + 15e-9 * didtHot, 0)} V. DPT GATE, not closed on paper: module Ls unpublished (hiitio RFQ); at the DS 3.3 Ω tf (13 ns) the same loop would reach ${f(OP.vbusMax + 15e-9 * 0.8 * 481 / 13e-9, 0)} V. Levers: RG_OFF → 10 Ω (≈+30 mJ Eoff, +11 °C at peak) and/or firmware I_pk(V_dc) above 800 V. The old S8 0.3 V term was a 1000× unit error (F01). IGBT SKUs: tf 200–385 ns ⇒ <40 V`);
 }
 
-// ============ 2. DC LINK ============
+// ============ 2. DC LINK (every SKU) ============
+// Capacitor RMS current, 2-level SVPWM (Kolar): I_C = I·√(2M[√3/4π + cos²φ(√3/π − 9M/16)]).
+// Its maximum over M and cosφ is 0.65·I (M ≈ 0.61, cosφ = 1) — the old 0.62 was the rated point.
 {
-  const icPk = 0.62 * OP.iphPk, icCont = 0.62 * OP.iphCont;
-  judge("DC link", "Ripple per can, continuous", `${f(icCont / P.cap.n)} A`, `${P.cap.irmsEach} A`, (icCont / P.cap.n) / P.cap.irmsEach, 0.8);
-  judge("DC link", "Ripple per can, 30 s peak", `${f(icPk / P.cap.n)} A`, `${P.cap.irmsEach} A DS rating @10 kHz/70 °C`, (icPk / P.cap.n) / P.cap.irmsEach, 0.9, "inside the CONTINUOUS rating — no transient allowance needed");
-  judge("DC link", "Voltage margin", `${OP.vbusMax} V`, `${P.cap.vr} V`, OP.vbusMax / P.cap.vr, 0.85);
-  const cTot = P.cap.c * P.cap.n;
-  const dv = icPk / (2 * Math.PI * 2 * OP.fsw * cTot);   // dominant 2·fsw component
-  add("DC link", "Bus ripple voltage (capacitive term)", `${f(dv, 2)} V pk`, "-", "INFO", "ESL/busbar dominates in layout");
-  const pEsr = (icCont / P.cap.n) ** 2 * P.cap.esr;
-  judge("DC link", "ESR heating per can, continuous", `${f(pEsr, 2)} W`, "~2 W film-can class", pEsr / 2, 0.6);
-  add("DC link", "Stored energy @850 V", `${f(0.5 * cTot * OP.vbusMax ** 2)} J`, "-", "INFO");
+  const kolar = (M, c) => Math.sqrt(2 * M * (Math.sqrt(3) / (4 * Math.PI) + c * c * (Math.sqrt(3) / Math.PI - 9 * M / 16)));
+  let kMax = 0;
+  for (let M = 0.05; M <= 1.15; M += 0.005) for (let c = 0; c <= 1.0001; c += 0.01) kMax = Math.max(kMax, kolar(M, c));
+  for (const s of [SKU.sic8, SKU.igbt4]) {
+    const sec = `DC link — ${s.name.slice(0, 3)} bank (${s.name})`;
+    const perCan = kMax * s.iPk / 16, perCanC = kMax * s.iCont / 16;
+    judge(sec, `Ripple per can, 30 s peak (worst M/cosφ, ${s.iPk} A)`, `${f(perCan)} A`, `${s.can.irms} A @10 kHz/70 °C`, perCan / s.can.irms, 0.95,
+      `bank ${f(kMax * s.iPk, 0)} A = ${f(kMax, 3)}·I (Kolar max); 30 s is far inside the can's thermal τ`);
+    judge(sec, `Ripple per can, continuous (${s.iCont} A)`, `${f(perCanC)} A`, `${s.can.irms} A`, perCanC / s.can.irms, 0.8);
+    judge(sec, `Voltage vs U_N at 85 °C, OV trip ${s.ovTrip} V`, `${s.ovTrip} V`, `${s.can.vr85} V`, s.ovTrip / s.can.vr85, 0.9,
+      `normal max ${s.vMax} V = ${f(100 * s.vMax / s.can.vr85, 0)} %`);
+    const cTot = 16 * s.can.c;
+    add(sec, "Stored energy at V_max (C +10 % + 3 µF local)", `${f(0.5 * (cTot * 1.1 + 3.3e-6) * s.vMax ** 2)} J`, "-", "INFO", `${f(cTot * 1e6, 0)} µF nominal`);
+  }
+  const pEsr = (kMax * SKU.sic8.iCont / 16) ** 2 * P.cap.esr;
+  judge("DC link — 8XX bank (8XX SiC)", "ESR heating per can, continuous", `${f(pEsr, 2)} W`, "1.85 W (15.4 A²·7.8 mΩ = the 15 K rise)", pEsr / 1.85, 0.6);
+  add("DC link — 4XX bank (4XX IGBT)", "4XX can binding", "50 µF / 600 V (85 °C) in the same 37.5 mm positions", "≥18 A rms @10 kHz/70 °C", "WARN",
+    "CLASS part until the Faratronic RFQ returns the exact MPN + ripple/ESR/life data (review F20/F21) — the busbar drawing is unchanged");
 }
 
-// ============ 3. DISCHARGE (worst-case corners) ============
+// ============ 2b. REGENERATION WITH THE BATTERY PATH LOST (FW-06/FW-08, rev A.6 N9) ============
+// Constant regen power into the link after the contactor opens: C·V·dV/dt = P ⇒ V(t)² = V0² + 2·P·t/C,
+// from V_max to the OV trip, then for the FW-06 response time; C at −10 % tolerance.
 {
-  const cMax = P.cap.c * P.cap.n * (1 + P.cap.tolC);
-  const cMin = P.cap.c * P.cap.n * (1 - P.cap.tolC);
-  const ln = Math.log(OP.vbusMax / 60);
-  // passive: 2 strings x 5 x 27k
-  const rp = (5 * 27e3) / 2;
-  const t60p = rp * (1 + P.tolR) * cMax * ln;
-  judge("Discharge", "Passive 850→60 V, worst (R+5 %, C+10 %)", `${f(t60p)} s`, "120 s service rule", t60p / 120, 0.6, `nominal ${f(rp * P.cap.c * P.cap.n * ln)} s`);
-  const pRes = (OP.vbusMax / 5) ** 2 / (27e3 * (1 - P.tolR));
-  judge("Discharge", "Bleeder W/resistor @850 V (R−5 %)", `${f(pRes, 2)} W`, "2 W", pRes / 2, 0.65);
-  judge("Discharge", "Bleeder V/resistor @850 V", `${f(OP.vbusMax / 5)} V`, "200 V working (std 2512)", (OP.vbusMax / 5) / 200, 0.9, "700 V nom ⇒ 140 V (70 %)");
-  // active: 4 x 560R + Rds(75 mΩ, negligible)
-  const ra = 4 * 470;
-  const t60a = ra * (1 + P.tolR) * cMax * ln;
-  judge("Discharge", "Active 850→60 V, worst (R+5 %, C+10 %)", `${f(t60a, 2)} s`, "2 s crash target", t60a / 2.0, 0.95, `nominal ${f(4 * 470 * P.cap.c * P.cap.n * ln, 2)} s · 5 s R100 ⇒ ${f(100 * t60a / 5)} %`);
-  const eRes = 0.5 * cMax * OP.vbusMax ** 2 / 4;
-  judge("Discharge", "Energy per 10 W wirewound (C+10 %)", `${f(eRes)} J`, "100 J single-pulse", eRes / 100, 0.5);
-  judge("Discharge", "V per wirewound @850 V", `${f(OP.vbusMax / 4)} V`, "≥350 V axial class", (OP.vbusMax / 4) / 350, 0.8);
-  const ipk = OP.vbusMax / ra;
-  add("Discharge", "QDIS stress", `${f(ipk, 2)} A pk · ${f(ipk * ipk * 0.075, 3)} W`, "1200 V / 42 A part", "PASS", "fully-enhanced switch, no linear region");
-  // combined (both paths active)
-  const rc = 1 / (1 / ra + 1 / rp);
-  add("Discharge", "Both paths together 850→60 V", `${f(rc * P.cap.c * P.cap.n * ln, 2)} s`, "-", "INFO");
+  for (const s of [SKU.sic8, SKU.igbt4]) {
+    const sec = `Regeneration, battery path lost — ${s.name.slice(0, 3)} bus`;
+    const C = 16 * s.can.c * 0.9 + 2.7e-6, P = s.pTarget[0] * 1e3;
+    const tTrip = C * (s.ovTrip ** 2 - s.vMax ** 2) / (2 * P), vp = (t) => Math.sqrt(s.ovTrip ** 2 + 2 * P * t / C);
+    add(sec, `Link charging at ${s.pTarget[0]} kW regen (C_min ${f(C * 1e6, 0)} µF)`, `${f(P / (C * s.vMax) / 1e6, 2)} V/µs; ${s.vMax}→${s.ovTrip} V trip in ${f(tTrip * 1e6, 0)} µs`, "-", "INFO",
+      `a 100 µs response would end at ${f(vp(100e-6), 0)} V and a once-per-PWM-period sample at 5 kHz (200 µs) at ${f(vp(200e-6), 0)} V — why FW-06 is 20 µs on a free-running V_DC slot`);
+    judge(sec, "Link peak with the FW-06 response (20 µs → zero torque + ASC)", `${f(vp(20e-6), 0)} V`, `${s.can.vr85} V can U_N at 85 °C`, vp(20e-6) / s.can.vr85, 0.92,
+      "the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x) — dyno gate: contactor opening under full regen");
+  }
+}
+
+// ============ 3. DISCHARGE (every bus class; worst-case corners, both paths applied ONCE) ============
+{
+  for (const s of [SKU.sic8, SKU.igbt4]) {
+    const sec = `Discharge — ${s.vMax === 850 ? "8XX" : "4XX"} values`;
+    const cN = 16 * s.can.c + 3e-6, cMax = 16 * s.can.c * 1.1 + 3.3e-6, ln = Math.log(s.vMax / 60);
+    const rp = s.rp, ra = s.ra;
+    judge(sec, `Passive ${s.vMax}→60 V, worst (R+5 %, C+10 %)`, `${f(rp * 1.05 * cMax * ln)} s`, "120 s service rule",
+      rp * 1.05 * cMax * ln / 120, 0.8, `nominal ${f(rp * cN * ln)} s (${s.rpN * 2} × ${s.rpPer / 1e3} k, 2 strings)`);
+    const vRes = s.vMax * 1.05 / (1.05 + (s.rpN - 1) * 0.95);        // one +5 % part among −5 % parts
+    judge(sec, `Bleeder V on the worst-tolerance resistor @${s.vMax} V`, `${f(vRes)} V`, "200 V working (plain 2512)", vRes / 200, 0.8,
+      `review A.6 F24: 5 × 27 k put 184 V (92 %) on it at 850 V`);
+    const pRes = (s.vMax / (s.rpN * s.rpPer * 0.95)) ** 2 * s.rpPer * 0.95;
+    judge(sec, `Bleeder W/resistor @${s.vMax} V (R−5 %)`, `${f(pRes, 2)} W`, "2 W", pRes / 2, 0.65);
+    const rc = (x) => 1 / (1 / x + 1 / (rp * 1.05));
+    const t60a = rc(ra * 1.05) * cMax * ln + 2.5e-3;
+    judge(sec, `Active + passive ${s.vMax}→60 V, worst corner`, `${f(t60a, 2)} s`, "2 s crash target", t60a / 2.0, 0.95,
+      `nominal ${f(1 / (1 / ra + 1 / rp) * cN * ln, 2)} s; paths combined ONCE + 2.5 ms bias delay (F25: S5 counted the bleeder twice)`);
+    const eRes = 0.5 * cMax * s.vMax ** 2 / 4;
+    judge(sec, "Energy per 10 W wirewound (C+10 %)", `${f(eRes)} J`, "100 J single-pulse", eRes / 100, 0.5,
+      `peak ${f(s.vMax ** 2 / (ra * 0.95) / 4, 0)} W/resistor decaying τ = ${f(ra * cMax, 2)} s; firmware ≤ 3 discharges/5 min (thermal recovery)`);
+    judge(sec, "V per wirewound", `${f(s.vMax / 4)} V`, "≥350 V axial class", (s.vMax / 4) / 350, 0.8);
+    const pStuck = s.vMax ** 2 / ra;
+    add(sec, "QDIS stuck ON with the battery connected", `${f(pStuck, 0)} W continuous (${f(pStuck / 4, 0)} W/resistor)`,
+      "not survivable by 10 W parts", "WARN",
+      "F23: bounded, not survived — firmware fires QDIS only with contactors reported OPEN + auto-timeout; a pre-existing FET short is caught at the next precharge (link plateaus ≈5 % low, abnormal τ); the fail-open flameproof wirewound class opens the string. Never demonstrated on a live battery");
+  }
+  add("Discharge — 8XX values", "QDIS stress", `${f(850 / 1880, 2)} A pk (4XX ${f(500 / 880, 2)} A)`, "1200 V / 42 A part", "PASS", "fully-enhanced switch, no linear region");
 }
 
 // ============ 4. GATE DRIVE ============
@@ -131,23 +177,49 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   judge("Gate drive", "VCC2 (+15) vs UVLO-rising MAX", `${vcc} V`, `${P.drv.uvlo2On} V`, P.drv.uvlo2On / vcc, 0.90, "flyback ±5 % ⇒ 14.25 V worst, still above 12.8 V");
   judge("Gate drive", "VCC2 worst vs recommended-min", "14.25 V (−5 %)", `${P.drv.vccRecMin} V rec-min`, P.drv.vccRecMin / 14.25, 0.95, "trim flyback to 15.2 V nom if bench shows droop");
   judge("Gate drive", "VCC2−VEE2 span", `${f(vcc - vee)} V`, `${P.drv.vcc2Rec} V recommended (35 abs)`, (vcc - vee) / P.drv.vcc2Rec, 0.8);
-  const igPk = (vcc - vee) / (1.5 + 1.0 / 2 + 0.5);  // Rg_on + share, ~2.5 Ω eff loop + Rg,int
-  judge("Gate drive", "Peak gate current demand", `${f(igPk)} A`, `${P.drv.ipk} A driver`, igPk / P.drv.ipk, 0.85);
-  const pGate = P.qg.total * P.qg.vswing * OP.fsw;
-  add("Gate drive", "Gate power per switch @10 kHz", `${f(pGate, 2)} W`, "-", "INFO");
-  const pDrv = pGate + Math.abs(vee) * 0 + vcc * P.drv.icc2;
-  judge("Gate drive", "Per-domain bias load", `${f(pDrv, 2)} W`, "~1.5 W per secondary budget", pDrv / 1.5, 0.75);
-  // zener stack clamp vs gate abs-max (assumed HCS die ±22/−10 class per hiitio Gen3)
-  judge("Gate drive", "Positive gate clamp (18 V zener + Vf)", "18.8 V", "+22 V abs Vgs", 18.8 / 22, 0.9);
+  // NSI6611 DS §9.6: I = min[(VCC2−VEE)/(R_G + R_OH|OL + R_Gint), 10 A]; R_OH 2.2 Ω, R_OL 0.3 Ω typ
+  const ig = (rg, rdrv, rint) => Math.min(20.7 / (rg + rdrv + rint), 10);
+  add("Gate drive", "Peak gate current on/off (DS §9.6 formula)", `SiC ${f(ig(3.3, 2.2, 1.1))}/${f(ig(6.8, 0.3, 1.1))} A · IGBT ${f(ig(1, 2.2, 0.5))}/${f(ig(1, 0.3, 0.5))} A`,
+    `${P.drv.ipk} A driver`, "PASS", "SiC 3.3/6.8 Ω, IGBT 1.0/1.0 Ω (SKU BOM); the IGBT sink sits at the driver's own 10 A limit");
+  const qSic = 1.09e-6;   // HCS600 Fig.11: −5.1 → +15.6 V
+  // bank capacity at 100 % of the CS limit, 92 % transfer efficiency: typ (1.0 V, 3.33 µH) and
+  // worst (0.9 V CS, Lp −20 %) — the old "3.87 W" was the typical limit before losses
+  const cap = (fosc, vcs = 1.0, lp = 10e-6 / 3) => 0.5 * lp * (vcs / 0.33) ** 2 * fosc * 0.92;
+  for (const [tag, q, fs, fosc] of [["SiC @10 kHz", qSic, 10e3, 253e3], ["SiC @20 kHz option", qSic, 20e3, 253e3],
+    ["IGBT @5 kHz (full 4.36 µC, RT 8.2 k)", P.igbt.qg, 5e3, 308e3]]) {
+    const pBank = 3 * (q * 20.7 * fs + 20.7 * P.drv.icc2Typ + 20.7 ** 2 / 5.1e3) + 0.2;
+    const cW = cap(fosc, 0.9, 8e-6 / 3);
+    judge("Gate drive", `Gate-power demand per bank, ${tag}`, `${f(pBank, 2)} W`, `${f(cW, 2)} W worst-part capacity (typ ${f(cap(fosc), 2)} W) at ${f(fosc / 1e3, 0)} kHz`, pBank / cW, 0.8,
+      "Qg·ΔV·f + ICC2 + 5.1 k bleeder per domain; F27: IGBT uses the full ±15 V Qg (no scaling); IGBT SKUs fit RT 8.2 k (~308 kHz)");
+  }
+  judge("Gate drive", "Positive gate clamp (18 V zener + Vf)", "18.8 V", "+22 V abs Vgs (SiC) / ±20 V (IGBT)", 18.8 / 20, 0.95);
   judge("Gate drive", "Negative gate clamp (5.1 V zener + Vf)", "−5.9 V", "−10 V abs Vgs", 5.9 / 10, 0.85);
   add("Gate drive", "HS DESAT sense point", "module aux drain pin 9 (DSH)", "-", "PASS", "F29 — real HCS600 pin map; kelvin sensing, no busbar drop in the trip level");
-  add("Gate drive", "ASC drive level", "5.1 V clamp at ganged pins", "GND2+6 V abs", "PASS", "F28 — 2.2 k + zener from the 18 V opto rail");
-  // DESAT: trip level & blanking
-  const vTrip = P.drv.vdesat - 2 * 1.1;   // two US1M hot
-  add("Gate drive", "DESAT trip at switch", `${f(vTrip, 1)} V ≈ ${f(vTrip / P.mod.rdsHot / 1000, 1)} kA`, "-", "INFO", "detects hard faults, not overload — halls cover overload");
-  const tBlank = 47e-12 * P.drv.vdesat / P.drv.idesat + P.drv.tblankInt;
-  judge("Gate drive", "DESAT blanking (47 pF)", `${f(tBlank * 1e6, 2)} µs`, "≤3 µs SiC SCWT", tBlank / 3e-6, 0.7, "≥0.5 µs needed to ride through turn-on");
+  add("Gate drive", "ASC drive level", "5.1 V clamp at ganged pins", "GND2+6 V abs", "PASS", "F28 — 2.2 k + zener from the +20 V opto rail");
+  // DESAT trip level (collector/drain) and worst-case DETECTION time (review A.6 F03/F05)
+  const d = P.drv, vf = 0.6;
+  const trip = (r, i) => [d.vth[0] - 2 * vf - d.ichg[2] * r, d.vth[2] - 2 * vf - d.ichg[0] * r];
+  const [tsMin, tsMax] = trip(100, 0), [tiMin, tiMax] = trip(4.7e3, 0);
+  add("Gate drive", "DESAT trip at the switch (corners)", `SiC ${f(tsMin, 1)}–${f(tsMax, 1)} V ≈ ${f(tsMin / P.mod.rdsHot / 1e3, 1)}+ kA · IGBT ${f(tiMin, 1)}–${f(tiMax, 1)} V`,
+    "-", "INFO", "short-circuit detection, not overload — halls + firmware own the operating current limit (F46)");
+  for (const [tag, c, lim, soft] of [["SiC 47 pF", 47e-12, null, 0.46e-6 / 0.4], ["IGBT 82 pF", 82e-12, P.igbt.tsc, 106e-9 * 5.6 / 0.4]]) {
+    const tMin = c * 0.95 * d.vth[0] / d.ichg[2] + d.leb;
+    const tDet = c * 1.05 * d.vth[2] / d.ichg[0] + d.leb + d.deg[2];
+    if (lim) judge("Gate drive", `DESAT worst detection + soft-off, ${tag}`, `${f((tDet + soft) * 1e6, 2)} µs (detect ${f(tDet * 1e6, 2)} + STO ${f(soft * 1e6, 2)} @400 mA)`,
+      "6 µs SC rating @800 V/15 V (≈5 µs derated to 850 V/15.6 V)", (tDet + soft) / 5e-6, 0.95,
+      `min blank ${f(tMin * 1e6, 2)} µs vs the turn-on tail (DPT gate). F03: 150 pF gave ${f((150e-12 * 1.05 * 10 / 350e-6 + 0.52e-6) * 1e6, 1)} µs detect alone. At the DS-minimum 100 mA soft-off the IGBT gate needs ≈6 µs — contained SC test is a release gate`);
+    else add("Gate drive", `DESAT worst detection + soft-off, ${tag}`, `${f((tDet + soft) * 1e6, 2)} µs (detect ${f(tDet * 1e6, 2)} + STO ${f(soft * 1e6, 2)} @400 mA)`,
+      "SiC tSC NOT published — vendor letter", "WARN", `min blank ${f(tMin * 1e6, 2)} µs; release gate: hiitio SC envelope at 850 V/150 °C/+15.6 V or a contained SC test (F04)`);
+  }
   add("Gate drive", "Shoot-through lockout", "IN+/IN− complementary pairing", "-", "PASS", "verified structurally in erc-audit (12 checks)");
+  const tauD = 10e3 * 3.3e-9, dLo = tauD * Math.log(5 / 3.5), dHi = tauD * Math.log(5 / 1.5);   // Schmitt window 1.5–3.5 V
+  judge("Gate drive", "Global DRV_EN drop after a DESAT vs the faulted driver's soft turn-off", `${f(dLo * 1e6, 0)}–${f(dHi * 1e6, 0)} µs RC delay (+0.4–0.8 µs FLT)`,
+    "IGBT soft-off 10.6 µs at the DS-minimum 100 mA", 10.6e-6 / dLo, 1.0,
+    "F71: NSI6611 DS is silent on RST/EN during soft turn-off — 10 k/3.3 nF into the AND's Schmitt input makes the design independent of it; FS0B/MCU paths stay undelayed");
+  const tOs = 10e3 * 15e-9 * Math.log(5 / 3.5);
+  judge("Gate drive", "Fault-latch CLEAR one-shot (15 nF into 10 k)", `≥${f(tOs * 1e6, 0)} µs guaranteed low per falling edge`, `≥ ${f(dHi * 1e6 + 1, 0)} µs to deliver the drivers' reset edge through the delay`,
+    (dHi + 1e-6) / tOs, 1.0,
+    "review F06 disposition: PRE=CLR=L (both outputs high) is the ONLY way to give the NSI6611s their RST/EN rising edge while FLT is still asserted — a fault-dominant latch would deadlock recovery. The one-shot bounds that window in hardware (a stuck-low pin re-arms the latch after ≈0.5 ms); firmware keeps PWM low and waits ≥1.3 ms before clearing");
 }
 
 // ============ 5. GATE-POWER FLYBACKS (real VGT winding: NP:NF:NS = 1:1.6:2.9, Lp 10 µH) ============
@@ -165,8 +237,13 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   const ilim = P.pwm.vcs / 0.33;
   judge("Flyback", "DCM peak current vs CS limit", `${f(ipkOp, 2)} A op`, `${f(ilim, 2)} A limit (0.33 Ω)`, ipkOp / ilim, 0.75, "F1+F32 — real Lp: energy/cycle ½·10µ·Ipk²");
   judge("Flyback", "CS limit as the saturation guard", `${f(ilim, 2)} A`, `${P.xfmr.isat} A (Isat unpublished — guard band)`, ilim / P.xfmr.isat, 1.0, "bench-verify core at current limit");
-  const iStartAvail = (OP.kl30.min - P.pwm.uvloOnMax) / 4.7e3;
-  judge("Flyback", "Trickle-start current @9 V KL30", `${f(iStartAvail * 1e6)} µA`, `${P.pwm.istart * 1e6} µA start`, P.pwm.istart / iStartAvail, 0.85, "F31 — UCC28C40's 7.8 V max UVLO-on leaves 255 µA; the C43 grade left NOTHING");
+  // start condition (review A.6 F18): the rail must push I_START AND the 71 k divider current into VDD at VDD_ON(max)
+  const vNeed = (r) => P.pwm.uvloOnMax + r * (P.pwm.istart + P.pwm.uvloOnMax / 71e3);
+  const v12at9 = OP.kl30.min - 0.95;                     // two reverse Schottkys + 3 polyfuses at ~1 A
+  judge("Flyback", "Start threshold at the 12 V node, worst (2.2 k)", `${f(vNeed(2.2e3), 2)} V needed`, `${f(v12at9, 2)} V at KL30 = 9 V`, vNeed(2.2e3) / v12at9, 0.99,
+    `4.7 k needed ${f(vNeed(4.7e3), 2)} V (> the node: no start at the worst corner). Burst-to-takeover energy is S1's job`);
+  judge("Flyback", "Start resistor dissipation @24 V jump start", `${f((24 - 11.8) ** 2 / 2.2e3, 3)} W`, "0.25 W (1206)", (24 - 11.8) ** 2 / 2.2e3 / 0.25, 0.5,
+    `${f((16 - 11.8) ** 2 / 2.2e3 * 1e3, 0)} mW at 16 V; VDD sits at the aux-regulated 11.8 V`);
   const pRcs = (ipkOp / Math.sqrt(3)) ** 2 * 0.33;
   judge("Flyback", "CS resistor power", `${f(pRcs, 3)} W`, "0.75 W (1210)", pRcs / 0.75, 0.6);
 }
@@ -178,12 +255,8 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   judge("Flyback A.4", "Reflected voltage vs clamp-TVS standoff", `${f(vRefl, 1)} V`, "13 V SMAJ13A standoff",
     vRefl / 13, 0.75, "F38 — TVS must stay dark in normal OFF; dots per TDK p.3/9");
   const vDrainLD = 39 + 21.5 + 0.7;     // clamped load-dump rail + TVS clamp + blocking Vf
-  judge("Flyback A.4", "Drain worst case (clamped load dump)", `${f(vDrainLD, 1)} V`, "80 V BUK9Y14-80E",
+  judge("Flyback A.4", "Drain worst case (clamped load dump)", `${f(vDrainLD, 1)} V`, "80 V BUK7Y14-80E",
     vDrainLD / 80, 0.85, "F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF)");
-  const pGateBank = 3 * 1.24e-6 * 20.7 * 10e3 + 3 * 5e-3 * 20.7 + 0.2; // Qg + driver Iq + bleed
-  const pBankCap = 0.5 * (10e-6 / 3) * (3.03 * 0.9) ** 2 * 253e3;      // DCM throughput at 90% of CS limit
-  judge("Flyback A.4", "Gate-power demand vs DCM throughput", `${f(pGateBank, 2)} W`, `${f(pBankCap, 2)} W per bank`,
-    pGateBank / pBankCap, 0.6, "10 kHz PWM; reviewer's 20 kHz doubles Qg term — still inside");
   // F39 DESAT clamp direction is topological (erc-audit); F40 ASC latch levels:
   const vSetLow = 5 * 1e3 / 11e3;
   judge("Safety A.4", "ASC latch asserted-low level (1k into 10k)", `${f(vSetLow, 2)} V`, "1.5 V VIL @5 V LVC",
@@ -212,8 +285,6 @@ const f = (x, d = 1) => Number(x.toFixed(d));
     33 / 40, 0.9, "F51 — TPSMC24CA clamp level on the 12 V node");
   judge("LV A.4", "ULDO15 dissipation @24 V sustained", `${f((24 - 0.5 - 15) * 0.33, 1)} W`, "TSD-protected (survival case, not an operating mode)",
     0.5, 0.9, "jump start is stationary service — brief V15 brown-out via TSD is acceptable; passive bleeder unaffected");
-  add("Discharge", "Passive-only 850→60 V at +10 % C / +5 % R", "66.9 s", "60 s XM3 reference (non-regulatory)", "ℹ️",
-    "R100 compliance rides the ACTIVE path (1.84 s worst); the 60 s figure is reference practice, met nominally (57.3 s)");
 
   // ---- rev A.4.2 (third review round, F52–F57) ----
   // FS26 buck passives: effective capacitance at bias/temperature/tolerance corners
@@ -246,36 +317,15 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   judge("Discharge", "QDIS gate at the QA01C rail (+20 V per DS)", "≈19.5 V", "+22 V abs (+18 V rec) HCM75S12T4K3",
     19.5 / 22, 0.85, "F61 — the base QA01C row is +20/−4 V; inside abs, above rec — gate divider option at proto if bench confirms 20 V");
 
-  // ---------- IGBT drop-in variant: HCG600FH120D3E1EA (same D3 pads + pin map) ----------
-  // BOM_VARIANT=igbt swaps ONLY: module MPN, DESAT series R 100→4.7 k, blanking 47→150 pF.
-  // Firmware: fsw 4–6 kHz, dead-time 2.5 µs, NTC B3375. Numbers from the HCG DS in docs/.
-  {
-    const V0 = 0.9, rce = (1.82 - 0.9) / 600;           // hot VCEsat linearization
-    const eswHot = 143.7e-3, Itest = 600, Vtest = 600;  // Eon+Eoff, DS test point
-    const rth = 0.07 + 0.015 + 0.045;                    // JC + TIM + coldplate assumption
-    for (const [tag, Iph, fsw, tvj] of [["cont 120 kW @6 kHz", 216, 6000, 150], ["peak 220 kW/30 s @6 kHz", 340, 6000, 150]]) {
-      const Ipk = Math.SQRT2 * Iph;
-      const pCond = 0.5 * (V0 * Ipk / Math.PI + rce * Ipk * Ipk / 4);
-      const pSw = fsw * eswHot * (800 / Vtest) * (Ipk / Itest) / Math.PI;
-      const tj = 65 + (pCond + pSw) * rth;
-      judge("IGBT variant", `Tj, ${tag}`, `${f(tj, 0)} °C (${f(pCond, 0)}+${f(pSw, 0)} W/sw)`, `${tvj} °C Tvjop`,
-        tj / tvj, 0.85, "diode recovery/conduction adds on the FWD — thermal test closes; coldplate 0.045 K/W assumed");
-    }
-    judge("IGBT variant", "DESAT trip vs VCEsat hot", "5.75 V (4.7 k swap)", "≥3× VCEsat(1.82 V) headroom",
-      (3 * 1.82) / 5.75, 0.98, "9.3 − 2·0.6 − 0.5 mA·4.7 k; SiC build keeps 100 Ω/8.1 V");
-    judge("IGBT variant", "DESAT blanking vs SC withstand", "≈2.8 µs (150 pF)", "10 µs-class (Isc 1800 A)",
-      2.8 / 10, 0.6, "blank+deglitch+soft-off budget; bench-verify the reaction chain");
-    judge("IGBT variant", "Gate rails legality (+15.6/−5.1)", "on 15.6 V · off −5.1 V", "±20 V abs; VGE(th) min 5.0 V",
-      15.6 / 20, 0.85, "DS characterizes at ±15; high Vth + Miller clamp justify −5.1 off-bias — dv/dt shoot-through is a bench row");
-    const qgEff = 4.36e-6 * 20.7 / 30;
-    const pBank = 3 * qgEff * 20.7 * 6000 + 3 * 5e-3 * 20.7 + 0.2;
-    judge("IGBT variant", "Gate-power demand @6 kHz (Qg 4.36 µC)", `${f(pBank, 2)} W/bank`, "3.87 W DCM throughput",
-      pBank / 3.87, 0.75, "Qg scaled to the 20.7 V swing (≈3.0 µC)");
-    add("IGBT variant", "Efficiency vs SiC @120 kW/6 kHz", "≈97.3 % vs ≈98.4 %", "-", "ℹ️",
-      "~1.5 kW extra silicon loss buys ₹25.5k/unit BOM — the 400 V-class / cost-focused SKU trade");
-    add("IGBT variant", "Pin map / footprint", "IDENTICAL to HCS600FH120D3C1 (DS p.8: 1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=C-sense 10/11=AC)", "-", "PASS",
-      "zero layout change; MODx pinLabels carry over (KS labels = Kelvin emitter)");
-  }
+  // ---------- IGBT SKUs: HCG600FH120D3E1EA (same D3 pads + pin map) ----------
+  // Losses/thermal/DESAT timing now live in the per-SKU blocks above (review A.6 F03/F26/F27);
+  // what stays here is what the silicon swap itself must satisfy.
+  judge("IGBT SKUs", "Gate rails legality (+15.6/−5.1)", "on 15.6 V · off −5.1 V", "±20 V abs; VGE(th) min 5.0 V",
+    15.6 / 20, 0.85, "DS characterizes at ±15; high Vth + Miller clamp justify −5.1 off-bias — dv/dt shoot-through is a DPT row");
+  add("IGBT SKUs", "Pin map / footprint", "IDENTICAL to HCS600FH120D3C1 (DS p.8: 1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=C-sense 10/11=AC)", "-", "PASS",
+    "zero layout change; MODx pinLabels carry over (KS labels = Kelvin emitter)");
+  add("IGBT SKUs", "Short-circuit rating used for DESAT timing", "tP ≤ 6 µs @800 V, 175 °C, VGE 15 V (DS Table 5)", "-", "PASS",
+    "F03: docs and S9 carried a 10 µs class; 850 V/15.6 V operation shortens it — treated as ≈5 µs");
 
   // ---- rev A.4.3 (fourth review round, F58–F59) ----
   const D15 = 1 - 12 / 15.4, Rld15 = 15.4 / 0.33;
@@ -314,8 +364,15 @@ const f = (x, d = 1) => Number(x.toFixed(d));
 {
   const vtap = OP.vbusMax * 6.2e3 / (6 * 470e3 + 6.2e3);
   judge("Sensing", "VDC divider @850 V (6.2 k bottom)", `${f(vtap, 3)} V`, `${P.amc.vinFs} V AMC FS (= 911 V readable)`, vtap / P.amc.vinFs, 0.96, "OV witness keeps headroom above V_bus,max — F27");
-  const gTol = Math.sqrt(6) * P.tolRp / 6 + 0.001 + P.amc.gainErr;
-  add("Sensing", "VDC chain accuracy (RSS, uncal)", `±${f(gTol * 100, 2)} %`, "5 % cross-check window", "PASS");
+  // F37: correlated top string (one lot, one temperature) does NOT shrink by √6 — worst case is linear.
+  const top = P.tolRp, bot = 0.001, amc = P.amc.gainErr + P.amc.vos / 1.87, rx = 2 * 0.001, ref = 0.005;
+  const gWc = top + bot + amc + rx + ref, gRss = Math.sqrt((top / Math.sqrt(6)) ** 2 + bot ** 2 + amc ** 2 + rx ** 2 + ref ** 2);
+  judge("Sensing", "VDC chain error, WORST CASE uncalibrated", `±${f(gWc * 100, 2)} % (±${f(gWc * 880, 0)} V at the 880 V OV trip)`, "OV trip below the 1000 V can rating",
+    (880 * (1 + gWc)) / 1000, 0.95, `top 1 % correlated + bottom 0.1 % + AMC1311B 0.2 %+offset + receiver 0.2 % + VREF5 0.5 %; RSS would claim ±${f(gRss * 100, 2)} %`);
+  add("Sensing", "VDC chain error after EOL gain/offset calibration", "≈±0.3 % (residual drift/nonlinearity)", "5 % cross-check window", "PASS",
+    "calibrated values feed protection only after the stored record passes CRC + range checks (F42)");
+  add("Sensing", "Shared receiver offset VOFS monitored", "UVOF output → MCU ADC (PTB1)", "±5 % of 0.5 V", "PASS",
+    "F11: a failed UVOF would shift BOTH channels by up to 0.5 V (≈228 V) and pass the 5 % cross-check — now read directly; BMS pack voltage is the third witness when contactors are closed");
   const pDiv = OP.vbusMax ** 2 / (6 * 470e3 + 6.2e3);
   judge("Sensing", "Divider dissipation @850 V", `${f(pDiv * 1e3)} mW total`, "6× 1206 (250 mW ea)", (pDiv / 6) / 0.25, 0.5, `${f(OP.vbusMax / 6)} V per 200 V-rated 1206 — 71 %`);
   const vHall = P.hall.v0 + OP.iphPk * Math.SQRT2 * P.hall.sens;
@@ -345,14 +402,32 @@ End-to-end verification of the 220 kW / 800 V traction inverter at actual operat
 (V_bus 500–850 V · KL30 9–16 V · 10 kHz · 65 °C coldplate), worst-case component tolerances.
 Three independent layers:
 
-1. **Geometric pin-verify** (sheets vs netlist): **1523/1523 pins, 100 %**
-2. **Structural ERC audit** (netlist vs design intent, \`erc-audit.mjs\`): **654 checks, 0 fail, 0 warn**
+1. **Geometric pin-verify** (sheets vs netlist, \`kicad5-verify.mjs\`) — the sheets ship only at 100 %
+2. **Structural ERC audit** (netlist vs design intent, \`erc-audit.mjs\`) — 0 fail, incl. a lock-in per fixed finding
 3. **Numeric verification** (this report, \`design-verify.mjs\`): **${counts.PASS} PASS · ${counts.WARN} WARN · ${counts.FAIL} FAIL** (+${counts.INFO} info)
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit — all fixed)
+A WARN is an item this analysis cannot close on paper — each names its bench or vendor gate.
+Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
+same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
+
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
+| F63 | **HIGH** | S8 turn-off overshoot used \`Ln·20e12·1e-6\` for 20 kA/µs — 1000× too small (0.3 V instead of 300 V at 15 nH), so its PASS was void; with the DS fall time (13 ns cold at 3.3 Ω ≈ 30 kA/µs at 481 A) no EconoDUAL-class loop holds 1080 V at 850 V (review R-F01) | SI units; overshoot budget from the DS tf; RG_OFF start value 6.8 Ω (Eoff booked in the loss model), RG_ON 3.3 Ω (the only characterized point, was 1.5/1.0); DPT gate at 850 V cold/hot; module Ls requested from hiitio |
+| F64 | **HIGH** | SiC conduction loss used the IGBT transistor-only formula \`I·√(1/8+m·cosφ/3π)\`: synchronous SiC conducts ½·I²·R per switch — understated 2.4× (136 → 330 W/switch at 340 A) (R-F02) | exact ½·I²R + switching at the fitted Rg + Qrr + dead-time diode; thermal and efficiency restated (peak 30 s Tj 122 °C at 850 V, not 89 °C; 99.0 % semiconductor efficiency at the continuous point) |
+| F65 | **HIGH** | IGBT short-circuit rating carried as "10 µs class"; HCG600 DS Table 5 says tP ≤ 6 µs at 800 V/175 °C/15 V; 150 pF blanking = 4.5 µs worst detection alone (R-F03) | IGBT blanking 82 pF C0G: 2.98 µs worst detection + ~1.5 µs soft-off < 5 µs derated; contained SC test is the release gate (the DS-minimum 100 mA soft-off current is not coverable) |
+| F66 | **HIGH** | Gate-power flyback could not start at KL30 9 V: 4.7 k needed 8.47 V at the 12 V node (divider current omitted) AND the UCC28C40's 0.4 V UVLO hysteresis gave ~0.15 ms bursts on 4.7 µF (R-F17/F18, cycle-by-cycle S1) | 2.2 k 1206 start + 47 µF VDD (one-burst start in every corner) + 18 V VDD zener (the C40 has no internal clamp — the lower start resistor would lift VDD past 18 V at jump start with the flyback disabled) |
+| F67 | MED | "220 kW / 120 kW over 500–850 V" is not deliverable at 340/185 A: full power needs ≥654/656 V (PF 0.85, 5 % modulation reserve) (R-F09) | published P(V_dc) envelope per SKU; firmware derates by V_dc |
+| F68 | MED | Passive bleeder 5 × 27 k: the low-tolerance part carries 184 V at 850 V = 92 % of a plain 2512's 200 V working rating (R-F24 at 850 V) | 2 × 6 × 22 k = 66 k: 154 V (77 %), 56 s / 65 s to 60 V |
+| F69 | MED | Global DRV_EN drop (≈0.5–0.9 µs after DESAT) could interrupt the faulted driver's soft turn-off — the NSI6611 DS does not state RST/EN priority during soft-off (R-F05) | 10 k/3.3 nF between the latch and the AND's Schmitt input: 12–40 µs; FS0B/MCU paths undelayed |
+| F70 | MED | Fault-latch clear was level-sensitive: a stuck-low MCU pin held PRE=CLR=L (both outputs high) and silently disabled the global latch (residual of R-F06; the proposed "fault-dominant" fix would deadlock the NSI6611 FLT reset) | clear is a hardware one-shot (15 nF into the 10 k pull-up + BAT46 clamp): ≥54 µs per falling edge, re-arms by itself |
+| F71 | MED | IGBT build thermal/efficiency omitted the FWD die, used m·cosφ = 0 and DS energies at 0.51 Ω; Qg scaled linearly (R-F26/F27) | separate IGBT/diode dies with m·cosφ (motoring + regen), energies referred to our driver, full Qg; 8XX IGBT rated at 5 kHz (127 °C end of 30 s, not 110 °C) |
+| F72 | MED | Both V_DC receivers share the +0.5 V offset buffer UVOF: its failure shifts both channels by up to 228 V and passes the 5 % cross-check — OV and discharge witness blinded (R-F11) | VOFS routed to an MCU ADC (zero parts); BMS pack voltage is the third witness; the "fully independent" wording corrected |
+| F73 | MED | BOM class MPNs had drifted from the netlist: RFS1–4 printed R0603-120R (re-creating F40), CLVC2 4.7 µF (re-creating F52), 10 more lines; the IGBT variant BOM printed the SiC value next to the IGBT MPN | parts-db fixed; SKU rows carry their value; bom-gen FAILS on any value/MPN disagreement |
+| F74 | LOW | Simulation defects: S5 counted the bleeder twice; S10 hold-up put the VEE cap in parallel with VCC2 and ignored the bleeder/gate loads (15 ms claimed, 1.1–3.2 ms real); S4 started cold; S6 applied the 10 kHz bandwidth to the 4–6 kHz IGBT; S1 had no startup model (R-F14/F17/F25/F28/F32) | all rewritten on the shared loss model; ASC through total LV loss not credited (unchanged conclusion, corrected number) |
+| F75 | LOW | Resolver cable shields terminated into AGND at the vehicle connector (R-F35) | shields on the connector ground (DGND); AGND keeps its single-point tie |
+| F76 | LOW | Documentation overstated: HVIL "hardware window comparator" (it is an MCU ADC signature), RSS labelled worst case (±0.7 % → ±2.1 % worst), 0.62 ripple factor (worst 0.65), XM3 inductance reused for a D3 module, bias-bank "3.87 W" (100 % CS limit before losses; 2.3 W worst parts), and two "drop-in" module alternates that are not (HCS800FH120D4B3 has a lettered press-fit pin map; FF6MR12W2M1H is not an EconoDUAL-3 package code) (R-F12/F21/F29/F37) | wording and numbers corrected; IGBT SKUs fit RT 8.2 k (~308 kHz) for gate-power margin; alternates list limited to pin-map-verified parts |
 | F1 | **HIGH** | Flyback CS resistor 0.033 Ω vs UCC28C43's 1 V threshold ⇒ 30 A "limit" = no overcurrent protection (value was scaled for the NJW4140's low CS threshold) | 0.22 Ω/1210 ⇒ 4.5 A limit vs 2.4 A worst-case operating peak |
 | F7 | **HIGH** | FB divider (18k/15k/1.3k, GEN3 values for the NJW ref) regulates VCC at **5.26 V** with the 2.5 V UCC28C43 reference ⇒ UVLO lockout, gate supply never starts | 75k/15k ⇒ VCC 15.0 V |
 | F21 | **HIGH** | Flyback VCC had **no start path** (aux-winding-only feed cannot bootstrap) | 4.7 k trickle-start from the 12 V rail (425 µA @9 V vs 100 µA start spec) |
@@ -413,20 +488,25 @@ for (const r of rows) {
   md += `| ${r.name} | ${r.value} | ${r.limit} | ${badge} | ${r.note} |\n`;
 }
 md += `
-## Assumptions pending datasheet extraction
+## Open vendor/bench inputs (every WARN above names one)
 
-Constants tagged *assumed* above (module Rth/Esw class values, NSI6611 UVLO/DESAT/RDY drive
-type, C3D ripple rating, VGT12EEM Lp/Isat/turns, LEM sensitivity, UCC28C43 exact thresholds)
-are being replaced by extracted datasheet values in \`docs/datasheets/EXTRACTED-PARAMS.md\`;
-any check whose verdict changes will be re-flagged. The two genuinely open items remain the
-**NSI6611 ASC-vs-EN behaviour** and the **hiitio module aux-pin drawing** (VERIFY list).
+hiitio: module stray inductance Ls (SiC D3), SiC short-circuit envelope at 850 V ·
+NOVOSENSE: RST/EN behaviour during DESAT soft turn-off and the I_STO distribution · TDK:
+VGT12EEM saturation current and working-insulation rating · Faratronic: the 4XX 50 µF/600 V
+can (ripple/ESR/life) · Murata: MGJ2 reinforced certificate · coldplate Rth (thermal test) ·
+motor data (flux linkage, n_max, Ld/Lq) for the safe-state decision. Datasheet values used are
+in \`docs/datasheets/EXTRACTED-PARAMS.md\`.
 
 ## Method
 
 Closed-form worst-case analysis (tolerance corners: R ±5 %, precision ±1 %, C +10 %,
-KL30 9–16 V, V_bus to 850 V) — the correct tool at schematic phase; SPICE adds nothing
-without vendor switch models, and the double-pulse/discharge/thermal items are already
-flagged for bench verification at EVT in \`docs/design-basis.md\`.
+KL30 9–16 V, V_bus to 850 V / 500 V) — the correct tool at schematic phase; the time-domain
+companion is \`sim-verify.mjs\`. Review A.6 added an independent cross-check: every
+contested number (losses, overshoot, DESAT timing, startup, hold-up, discharge, ripple,
+sensing) was recomputed in a separate script by a second reviewer; the two agree within
+model assumptions. SPICE adds nothing without vendor switch models; the double-pulse,
+short-circuit, thermal and EMC items are bench gates listed in \`docs/firmware-contract.md\`
+and \`docs/review-A6-disposition.md\`.
 `;
 writeFileSync(join(ROOT, "docs", "verification-report.md"), md);
 console.log(`design-verify: ${counts.PASS} PASS · ${counts.WARN} WARN · ${counts.FAIL} FAIL · ${counts.INFO} info → docs/verification-report.md`);

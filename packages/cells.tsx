@@ -115,6 +115,10 @@ export const gp = () => {
 // 15 VCC1, 16 TEST.
 // GEN3 patterns carried: complementary PWM on IN- (shoot-through lockout), DESAT via
 // BAT64-04 + 100R + 2x US1M to drain, 47 pF blanking, Miller clamp linked 0R to gate,
+// RG_ON 3.3 R = the HCS600 datasheet's characterized point; RG_OFF 6.8 R — at 3.3 R the DS
+// fall time (13 ns cold at 600 A) is ~30 kA/us, more than any EconoDUAL-class loop can carry
+// at 850 V under a 1080 V guard (review A.6 F01/F40). The loss model books Eoff at 6.8 R;
+// DPT tunes RG_OFF within 3.3-10 R. IGBT/hybrid SKUs fit 1.0/1.0 R (SKU BOM),
 // 10k G-S bleed + 18V/5V1 zener stack at driver, 1M HV pulldown at module pin, secondary
 // winding zener-split +15/-5.1 vs Kelvin (HCS600 DS Note1 recommends +15/-5).
 export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy, asc, wA }: {
@@ -134,8 +138,8 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
           OUTH: `net.OH_${p}`, OUTL: `net.OL_${p}`, CLAMP: `net.CLP_${p}`,
         }} />
       {/* gate network */}
-      <resistor name={`R${p}ON`} resistance="1.5" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OH_${p}`, pin2: gate }} />
-      <resistor name={`R${p}OFF`} resistance="1" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OL_${p}`, pin2: gate }} />
+      <resistor name={`R${p}ON`} resistance="3.3" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OH_${p}`, pin2: gate }} />
+      <resistor name={`R${p}OFF`} resistance="6.8" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OL_${p}`, pin2: gate }} />
       <resistor name={`R${p}MC`} resistance="0" footprint="0805" {...gp()} connections={{ pin1: `net.CLP_${p}`, pin2: gate }} />
       <resistor name={`R${p}GS`} resistance="10k" footprint="0805" {...gp()} connections={{ pin1: gate, pin2: ks }} />
       <resistor name={`R${p}PD`} resistance="1M" footprint="1206" {...gp()} connections={{ pin1: gate, pin2: ks }} />
@@ -217,13 +221,21 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
       <diode name={`DF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: sw, cathode: `net.FCL_${id}` }} />
       <diode name={`ZF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: v12, cathode: `net.FCL_${id}` }} />
       {/* VCC: trickle start from the 12 V rail, then the aux winding takes over
-          (the aux-only wiring could never start — startup feed added at DFM review) */}
-      <resistor name={`RF${id}ST`} resistance="4.7k" footprint="0805" {...gp()} connections={{ pin1: v12, pin2: vcc }} />
+          (the aux-only wiring could never start — startup feed added at DFM review).
+          Review A.6 (F18): 2.2 k so VDD_ON (7.5 V max) is reached with the start current AND
+          the 71 k feedback divider at a 7.95 V rail (4.7 k needed 8.47 V; a 9 V KL30 leaves
+          ~8.0-8.3 V here), and 47 uF on VDD because the UCC28C40 has only 0.4 V of UVLO
+          hysteresis — the reservoir must carry ONE start burst to aux-winding takeover (S1:
+          22 uF still stalls with every parameter at its worst corner). The UCC28C4x has NO
+          internal VDD clamp: with the flyback disabled, 2.2 k would float VDD to ~18 V at a
+          24 V jump start and past the 20 V abs max at a clamped load dump — 18 V zener. */}
+      <resistor name={`RF${id}ST`} resistance="2.2k" footprint="1206" {...gp()} connections={{ pin1: v12, pin2: vcc }} />
       {/* primary-side regulation via the NF feedback winding (VGT NP:NF:NS = 1:1.6:2.9):
           VCC_reg = (NF/NS)*(Vsec+Vf) ~= 11.8 V -> 56k/15k on the 2.5 V ref (F33 — a 15 V
           target is unreachable through NF and would drive the secondaries to ~27 V) */}
       <diode name={`DF${id}A`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: vcc }} />
-      <capacitor name={`CF${id}A`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
+      <capacitor name={`CF${id}A`} capacitance="47uF" footprint="1210" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
+      <diode name={`DF${id}VZ`} footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: vcc }} />
       <resistor name={`RF${id}FB1`} resistance="56k" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: fb }} />
       <resistor name={`RF${id}FB2`} resistance="15k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: "net.DGND" }} />
       {/* three transformers, primaries paralleled on the switch node; TF?1 carries the aux.
@@ -342,7 +354,7 @@ export const HARNESS40: [number, string][] = [
   [21, "VDC2_P"], [22, "VDC2_N"], [23, "AGND"], [24, "TMOD_U"], [25, "TMOD_V"],
   [26, "TMOD_W"], [27, "TMOD_RTN"], [28, "HVIL_A"], [29, "HVIL_B"], [30, "DGND"],
   [31, "VBAT_H"], [32, "VBAT_H"], [33, "DGND"], [34, "DGND"], [35, "VBAT_L"],
-  [36, "VBAT_L"], [37, "DGND"], [38, "DGND"], [39, "DGND"], [40, "DGND"],
+  [36, "VBAT_L"], [37, "DGND"], [38, "DGND"], [39, "DGND"], [40, "HW_ID"],
 ];
 export const Harness = ({ name }: { name: string }) => (
   <chip name={name} footprint={Header(40, 2)} {...gp()}

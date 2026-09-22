@@ -174,6 +174,10 @@ export default () => (
       <resistor key={n} name={`RPD${i}`} resistance="10k" footprint="0603" {...gp()}
         connections={{ pin1: `net.${n}`, pin2: "net.DGND" }} />
     ))}
+    {/* SKU identity (review A.6 platform): one resistor per build variant on harness pin 40,
+        read by the card ADC against its 10 k pull-up — 8XX-SiC 10k, 8XX-IGBT 4.7k, 4XX-IGBT
+        2.2k, 4XX-SiC 22k (values per SKU BOM). Open/short = invalid = no DRV_EN. */}
+    <resistor name="RHWID" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.HW_ID", pin2: "net.DGND" }} />
     {/* AGND-DGND single-point tie lives on the card; PE bond here */}
     <resistor name="RPET" resistance="1M" footprint="1206" {...gp()} connections={{ pin1: "net.DGND", pin2: "net.PE" }} />
     <capacitor name="CPET" capacitance="4.7nF" footprint={FilmBoxFP(10)} {...gp()} connections={{ pin1: "net.DGND", pin2: "net.PE" }} />

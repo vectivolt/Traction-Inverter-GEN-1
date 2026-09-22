@@ -3,6 +3,8 @@
 Source PDFs live in this directory. Citations reference the section/table of each datasheet.
 Rev A.5 refresh: facts updated to the released part set (F1–F61 closed); superseded parts'
 sections are replaced, and their PDFs are retained only where they serve as review evidence.
+Rev A.6: rows marked (A.6) were re-extracted for the round-6 review (NSI6611 DESAT/soft-off/FLT
+reset, UCC28C40 UVLO corners, AMC1311B, HCS600 switching table, HCG600 SC 6 µs, HCH900 hybrid).
 
 ## 1. NSI6611A-Q1 (NSI66x1A-Q1 datasheet EN 1.2, `NSI6611A-Q1.pdf`)
 
@@ -19,6 +21,12 @@ sections are replaced, and their PDFs are retained only where they serve as revi
 | Recommended VCC2 range | VCC2−GND2 = **13 to 32 V**; VCC2−VEE2 ≤ 32 V; VEE2−GND2 abs −17.5 to +0.3 V | §4 Recommended Operating Conditions |
 | Peak source / sink current | I_OUTH 11 A typ source; I_OUTL 12 A typ sink (8 A at V_OUT = VEE2+2.5 V); pulse < 10 µs | §6.1 Output Pin Characteristic |
 | Abs max VCC2−VEE2 | **35 V** (−0.3 min) | §2 Absolute Maximum Ratings |
+| DESAT timing (A.6) | LEB 200 ns typ · deglitch 100/200/320 ns · DESAT→OUT 90 % low 150/250/360 ns (0.1 nF load) · DESAT→FLT low 400/650/800 ns | §6.1 Desaturation |
+| Soft turn-off (A.6) | I_STO **100/400/570 mA** (one level; duration not specified) | §6.1; §8.9 |
+| FLT latch / reset (A.6) | FLT held low until an **RST/EN rising edge** after RST/EN low ≥ t_FLT_MUTE **0.55–1.3 ms**; resets ignored during the mute time; no auto-clear. RST/EN low during an ongoing soft turn-off: **NOT STATED** | §8.10; §9.4; §6.1 |
+| RST/EN pin (A.6) | active-high enable, internal ≈50 k pull-down (Fig 8.1); V_INH 2.5/2.9/3.5 V, V_INL 1.5/2.1/2.5 V; t_RST_FIL 480/600/800 ns | §6.1; §8.x |
+| ICC2 / R_OH / R_OL (A.6) | ICC2 1/3.3/7 mA (OUT high); R_OH 2.2 Ω, R_OL 0.3 Ω typ @0.1 A; peak sink 8 A at V_OUT = VEE2+2.5 V | §6.1 |
+| ASC priority (A.6) | VCC2 UVLO > DESAT > ASC > VCC1 UVLO; ASC overrides RST/EN and IN; with VCC1 open DESAT is not available | §8.11; §8.12 |
 
 ## 2. UCC28C4x family — **design uses UCC28C40DR** (SLUS458I covers C40–C45, `UCC28C43.pdf`)
 
@@ -26,10 +34,13 @@ sections are replaced, and their PDFs are retained only where they serve as revi
 |---|---|---|
 | FB (error-amp) reference | 2.5 V ±1 %: V_FB 2.475/2.5/2.525 V @25 °C; 2.45–2.55 V over temp | §6.5 Electrical Char. (Error Amplifier) |
 | CS threshold V_CS | 0.9 / 1.0 / 1.1 V (max input signal, V_FB < 2.4 V) | §6.5, Current Sense |
-| VCC UVLO on/off | **UCC28C40/42 grade (used): VDD_ON 7.0/7.8 V max, VDD_OFF 6.6 V** — the C43/45 grade (8.4/9.0 V start) cannot start at 9 V crank, F31 | §6.5, Undervoltage Lockout |
+| VCC UVLO on/off | **UCC28C40/41 grade (used): VDD_ON 7.0 V typ (7.5 V max), VDD_OFF 6.6 V typ** — the C43/45 grade (8.4 V start) cannot start at 9 V crank, F31; C42/C44 start at 14.5 V. (A.6 re-read: the earlier "7.8 V max" was not the table value) | §6.5, Undervoltage Lockout |
 | Abs max VCC | VDD = 20 V abs max (I_VDD 30 mA); recommended operating VVDD ≤ 18 V | §6.1 Abs Max; §6.3 Rec. Operating |
 | Oscillator formula | **No closed-form equation given.** CCT charged from VREF (5 V) through RRT between 0.7 V and 3.0 V thresholds; trimmed 8.4 mA discharge sink. Frequency set from curves "Oscillator Frequency vs Timing Resistance and Capacitance" (Fig. 6-13). Anchors: RRT=10 kΩ + CCT=3.3 nF → f_OSC 50.5/53/55 kHz (spec); RRT=15.4 kΩ + CCT=1 nF → 110 kHz (design example). (These fit f ≈ 1.72/(R_RT·C_CT) within a few %.) | §7.3.5 Oscillator, Fig 7-4; §6.5 Oscillator; §7.3.1.4 |
 | Max duty cycle | D_MAX 94–96 % (UCC28C42/43/40); D_MIN 0 % | §6.5, PWM |
+| C40 UVLO corners (A.6) | VDD_ON **6.5/7.0/7.5 V**, VDD_OFF **6.1/6.6/7.1 V** (≈0.4 V hysteresis — one start burst lasts C_VDD·0.4 V / I_run) | §6.5 Undervoltage Lockout |
+| Start / run current (A.6) | I_START 50/100 µA at VDD_ON−0.5 V; IVDD 2.3/3.0 mA no load (+ Qg·f of the FET) | §6.5 Current Supply |
+| VDD clamp (A.6) | **none internal** — "the VDD pin must be protected from external sources which could exceed the 20 V level" | §7.3.1.7 |
 
 ## 3. AMC1311 / AMC1311B (`AMC1311.pdf`)
 
@@ -41,6 +52,8 @@ sections are replaced, and their PDFs are retained only where they serve as revi
 | Gain error | AMC1311: ±1 % max (0.4 % typ); AMC1311B: ±0.2 % max (±0.05 % typ), @25 °C | §7.5 Electrical Char., E_G |
 | Output common-mode | V_CMout 1.39 / 1.44 / 1.49 V | §7.5, Analog Output |
 | Fail-safe output on VDD1 loss | V_FAILSAFE = −2.6 to −2.5 V differential (active when SHTDN high, VDD1 undervoltage, or VDD1 missing). VDD1UV rising 2.5/2.7/2.9 V | §7.5; §8.3.2 Fail-Safe Output |
+| Beyond the linear range (A.6) | V_Clipping 2.516 V typ: between 2.0 and ≈2.5 V the output keeps rising with reduced linearity, then clips (V_CLIPout 2.49 V) | §7.3; §8.3.3 |
+| AMC1311**B** (the fitted DWVR grade) | gain error ±0.2 % max, offset ±1.5 mV max, BW ≥220 kHz | §7.9 |
 
 ## 4. Faratronic C3D 20 µF / 1100 V (C3D1M206KFSA382, `C3D1M206KFSA382.pdf`)
 
@@ -81,6 +94,8 @@ sections are replaced, and their PDFs are retained only where they serve as revi
 | Accuracy | Global accuracy @0 A: ±13 (table row X_G, @25 °C incl. hysteresis); sensitivity error ±0.6 %; linearity ±1 % FS; electrical offset ±2.5 mV; magnetic offset ±2 mV; TCV_OE ±0.08 mV/°C; TCG ±0.03 %/°C | Performance Data table p.3 |
 | Bandwidth | BW ≥ **40 kHz** (−3 dB); step response 2–6 µs to 90 % @ 100 A/µs | Performance Data table p.3 |
 | (Ranges) | I_PM = ±900 A measuring range; U_C = 4.75–5.25 V | Electrical Data table p.3 |
+| Insulation (N7) | **"Cover without sleeve (reduced insulation)"**; family intro: "low voltage application" | Special feature + Features, p.1 |
+| U_d / creepage / clearance / CTI | 2.5 kV rms 50 Hz 1 min (IEC 60664-1) / **3.6 mm** / **2.7 mm** / 550; R_IS ≥ 500 MΩ; no working-voltage rating | Absolute ratings table p.3 |
 
 ## 8. HIITIO HCM75S12T4K3 (`HCM75S12T4K3.pdf`, datasheet A2)
 
@@ -98,6 +113,7 @@ sections are replaced, and their PDFs are retained only where they serve as revi
 | VCC operating range | **10–30 V** (abs max 35 V) | Recommended Operating Conditions; Abs Max Ratings |
 | Peak output current | ±2.5 A abs max (I_OPH/I_OPL, exp. waveform ≤0.2 µs); recommended max ±2.0 A; measured I_OPH −2.2 A typ / −1.0 A min, I_OPL +2.4 A typ / +1.0 A min @ VCC = 15 V | Abs Max; Rec. Operating; Electrical Char. |
 | UVLO | V_UVLO+ = 7.8/8.7/9.7 V rising; V_UVLO− = 7.5/8.4/9.4 V falling; hysteresis 0.3 V typ | Electrical Characteristics |
+| Isolation (N8) | BVS **3750 Vrms / 60 s** (UL1577, file E67349); creepage/clearance **5.0/5.0 mm**, DTI 0.4 mm; **no V_IORM/V_IOWM**; VDE EN 60747-5-5 only with the **(V4)** option; CMTI ±20 kV/µs | Abs Max + Isolation Characteristics p.3–4; Mechanical Parameters p.2; Safety standards p.1 Note 1 |
 
 ## 10. S32K39x (`S32K39.pdf` = S32K39/S32K37 Data Sheet Rev.3 03/2024, 119 pp)
 
@@ -215,6 +231,31 @@ insulation grade **basic**, 250 VACrms working; its 6.4 kV figure is a 1 s test 
 `TE-776231-1.pdf` is retained as F60 evidence: that drawing is the **35-position** header
 (mates plug 776164) and was the previously-bound wrong part.
 
+## 24a. HIITIO HCS600FH120D3C1 switching data (A.6 — `HCS600FH120D3C1.pdf` p.4/5/8)
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Switching @600 V/600 A, +18/−5 V, Rg 3.3/3.3 Ω | td(on) 93/81 ns, tr 58/50 ns, td(off) 182/221 ns, **tf 13/22 ns** (25/150 °C); Eon 18.68/17.85 mJ, Eoff 21.30/23.12 mJ | p.4 table |
+| Body diode | VSD 6.3/5.6 V @600 A, −5 V gate (25/175 °C); Qrr 1.99/5.87 µC; Err 0.56/1.99 mJ | p.5 table |
+| Eoff vs Rg (150 °C, 600 A) | ≈15.5 mJ @1.7 Ω · 23 @3.3 · ≈38.5 @6.8 · ≈55 @10 Ω (Fig.14 read) | p.8 Fig.14 |
+| Gate / capacitance | RGint 1.1 Ω; Ciss 34.8 nF; QG 1240 nC (+18/−5); ≈1.09 µC for −5.1→+15.6 V (Fig.11) | p.4; p.7 |
+| Module stray inductance | **NOT STATED** — hiitio RFQ item (sets the 850 V overshoot budget) | — |
+| Short-circuit withstand | **NOT STATED** — vendor letter / contained SC test | — |
+
+## 24b. HIITIO HCH900FH120D3ME7 (`HCH900FH120D3ME7.pdf`, RevX.0.1) — SiC/Si hybrid, EVALUATED in A.6, not adopted (platform stays SiC + IGBT)
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Construction / package | IGBT chips + **SiC Schottky diodes**, half-bridge, **152 × 62 mm D3 outline with the identical 11-pin map** (1 G_L, 2 E_L, 3 DC−, 4 DC+, 5/6 NTC, 7 G_H, 8 E_H, 9 HS C-sense, 10/11 AC) | p.1 Fig.1; p.2 Fig.2 |
+| Ratings | 1200 V; IC **900 A** @Tc 75 °C; ICM 1800 A (1 ms); VGES ±20 V; Tvjop −40…175 °C (>150 °C only for overload) | p.3 |
+| VCEsat (chip) @900 A, 15 V | 1.72 (25) / 2.00 (125) / 2.10 (150) / 2.18 (175 °C) V; lead resistance terminals–chip **0.8 mΩ** | p.4; p.3 |
+| Switching @600 V/900 A, +15/−8 V, Rg 2.0 Ω | Eon 46.1/65.4 mJ, Eoff 95.1/104.6 mJ (25/150 °C); tf 142/146 ns | p.4 |
+| SiC SBD | VF 1.85/2.60/2.90/3.10 V @900 A (25/125/150/175 °C); Qrr 2.51/1.44 µC; **Err 0.62/0.27 mJ** | p.5 |
+| Gate | VGE(th) 5.0–6.5 V; QG 7.6 µC (±15 V), ≈5.4 µC for −5.1→+15.6 V (Fig.13); Cies 133.8 nF; RGint 0.5 Ω | p.4; p.8 |
+| Thermal | Rth(j-c) **0.040** IGBT / **0.070** SBD; Rth(c-s) 0.015 / 0.025 (2.8 W/m·K grease) | p.4; p.5 |
+| NTC | R25 5 kΩ, B25/50 3375 K (same as HCS600/HCG600) | p.3 |
+| Short-circuit withstand | **NOT STATED** (unlike HCG900FH120D3RC, which publishes 3550 A for tP ≤ 8 µs at 600 V/150 °C) | — |
+
 ## 24. HIITIO HCG600FH120D3E1EA (`HCG600FH120D3E1EA.pdf`) — IGBT drop-in variant
 
 | Parameter | Value | Citation |
@@ -224,8 +265,11 @@ insulation grade **basic**, 250 VACrms working; its 6.4 kV figure is a 1 s test 
 | VGE / VGE(th) | ±20 V abs; threshold **5.0/5.6/6.2 V** | Tables 3/4 |
 | Eon+Eoff | 17.7+74.0 mJ @25 °C; **39.7+104 mJ hot** (Rg 0.51 Ω test) | Table 5 |
 | Qg / Cres | **4.36 µC**; 0.49 nF | Table 4 |
-| Isc / Tvjop | **1800 A**; −40…+150 °C | Table 3 |
-| RthJC | 0.07 K/W per IGBT · 0.10 per diode | Table 7 |
+| Isc / Tvjop | **1800 A for tP ≤ 6 µs** at Tvj 175 °C, VCC 800 V, VGE 15 V (A.6: the "10 µs class" used before was wrong); Tvjop −40…+150 °C | Table 5 (SC); Table 2 (Tvjop) |
+| Diode (A.6) | VF 1.75/1.70 V terminal @600 A (25/175 °C); Erec 20.6/43.2 mJ @0.51 Ω, ≈40 mJ @1 Ω (Fig.11); Qrr 36.8/93.1 µC | Table 4; Table 6 |
+| Eon vs Rg (175 °C, 600 A) | ≈40 mJ @0.5 Ω · ≈60 @1 Ω · ≈85 @1.5 Ω · ≈150 @3.3 Ω; Eoff ≈104–115 mJ, flat (Fig.5) | p.5 Fig.5 |
+| Stray inductance | NOT STATED | — |
+| RthJC | 0.07 K/W per IGBT · 0.10 per diode | Table 3 |
 | NTC | B25/50 = **3375 K** | Table 8 |
 
 ---
@@ -251,6 +295,7 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | C3D1M206KFSA382.pdf | 541,956 | OK |
 | CX3225GA.pdf | 596,614 | OK |
 | HCG600FH120D3E1EA.pdf | (see dir) | IGBT drop-in variant module |
+| HCH900FH120D3ME7.pdf | 684,436 | SiC/Si hybrid — evaluated in A.6, not adopted (evidence) |
 | FS26.pdf | 5,421,631 | OK |
 | HC5FW-900-S.pdf | 835,088 | OK |
 | HCM75S12T4K3.pdf | 2,538,054 | OK |

@@ -1,7 +1,7 @@
-# Traction Inverter — Full unit cost @1,000 units (rev A.5)
+# Traction Inverter — Full unit cost @1,000 units (rev A.6)
 
 Complete ex-works build cost per inverter at a 1,000-unit run (India assembly, India+China
-supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹70,934 @1k** across
+supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹70,965 @1k** across
 the four assemblies). Figures are planning numbers (RFQ ±25 %); the two lines that move the
 answer are flagged in §3.
 
@@ -9,7 +9,7 @@ answer are flagged in §3.
 
 | # | Block | Low | Baseline | High | Notes |
 |---|---|---|---|---|---|
-| 1 | Electronics BOM (power + cap bank + discharge + card) | 65,000 | 70,934 | 95,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
+| 1 | Electronics BOM (power + cap bank + discharge + card) | 65,000 | 70,965 | 95,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
 | 2 | PCBs (power 6L 2–3 oz ~0.12 m² + card 6L + discharge 2L) | 4,500 | 5,300 | 6,100 | India/China fab @1k |
 | 3 | PCBA (SMT ~750 placements + TH + AOI, 3 boards) | 2,500 | 3,300 | 4,100 | discharge board panelized 4-up |
 | 4 | Liquid coldplate (FSW/gun-drilled Al, 3× EconoDUAL footprint, fittings) | 4,500 | 6,000 | 8,000 | ~360×160 mm, ≤0.05 K/W per switch to coolant (the S4 thermal-sim assumption — verify at thermal test) |
@@ -24,12 +24,15 @@ answer are flagged in §3.
 **Baseline: ≈ ₹1.15 lakh / unit ≈ $1,390 ≈ ₹525/kW ($6.3/kW).**
 1,000 units ⇒ **≈ ₹11.5 Cr** parts + build (range ₹10.0–15.1 Cr).
 
-### IGBT cost SKU (same boards — full comparison in [`variants.md`](variants.md))
+### IGBT and 4XX SKUs (same boards — full comparison in [`variants.md`](variants.md))
 
-Swapping to the HCG600FH120D3E1EA IGBT variant (₹9.5k/module planning vs ₹18k SiC) drops
-line 1 to **₹45,434** and the ex-works baseline to **≈ ₹90k/unit (≈ ₹410/kW)** — at
-~1.1 pt efficiency and 4–6 kHz switching. Everything else in the rollup is unchanged; the
-natural pairing is the <500 V-pack derated SKU. Both quotes ride the same hiitio RFQ.
+Swapping to the HCG600FH120D3E1EA IGBT (₹9.5k/module planning vs ₹18k SiC) drops line 1 to
+**₹45,465** and the ex-works baseline to **≈ ₹90k/unit (≈ ₹410/kW at 220 kW)** — at ≈0.45 pt
+efficiency at the continuous point and 5 kHz switching. The 4XX IGBT SKU has the same
+electronics BOM (600 V cans at the same planning price) plus ≈₹1.5k of heavier DC busbar and
+HV connector for its ≈400 A DC peak: ≈ ₹0.92 L, **≈ ₹610/kW** at its 150 kW rating. Rev A.6
+added +₹31/unit of fixes to every SKU (review round 6). Both module quotes ride the same
+hiitio RFQ.
 
 ## 2. One-time NRE (not in the per-unit number)
 
@@ -45,12 +48,14 @@ natural pairing is the <500 V-pack derated SKU. Both quotes ride the same hiitio
 
 1. **The hiitio module quote is 76 % of the electronics BOM.** Baseline assumes ₹18k (~$215)
    per HCS600FH120D3C1 at 3,000 pcs (3 × 18k = ₹54k of the ₹70.9k BOM). Chinese 600 A SiC
-   EconoDUAL parts land $180–260 at this volume — get the written quote first. If forced onto
-   Infineon FF6MR12W2M1H (~₹40–50k each at 1k), add **+₹70–95k/unit** and the inverter
-   becomes a ₹2 L product.
+   EconoDUAL parts land $180–260 at this volume — get the written quote first. A Western
+   module (~₹40–50k each at 1k) would add **+₹70–95k/unit** and make the inverter a ₹2 L
+   product — and needs its own pin-map check (rev A.6: the Infineon FF6MR12W2M1H listed
+   earlier is not an EconoDUAL-3 package).
 2. **DC-link film caps**: 16 × Faratronic 20 µF at ₹300/can baseline (₹4.8k). Distributor
    pricing for Western 4-lead 40 µF alternates runs 2–4× that — stay on the Faratronic/
-   Jianghai volume channel to hold baseline.
+   Jianghai volume channel to hold baseline. The 4XX SKUs use 50 µF/600 V cans in the same
+   positions (class part until the Faratronic RFQ).
 3. **CNC vs cast housing**: at exactly 1k units billet CNC costs ~₹4k/unit more than
    casting+machining; casting pays for itself after ~250 units. Keep CNC for the first
    hundreds, tool the casting when the schedule firms.

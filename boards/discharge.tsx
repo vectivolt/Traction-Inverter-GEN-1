@@ -22,12 +22,15 @@ export default () => (
       pinLabels={{ pin1: "V15", pin2: "CMD", pin3: "GND1", pin4: "GND2" }}
       connections={{ V15: "net.V15", CMD: "net.QDIS_CMD", GND1: "net.DGND", GND2: "net.DGND" }} />
 
-    {/* ---- passive bleeder: 2 strings x 5 series 27k 2512 2W = 67.5k (always on) ---- */}
-    {[0, 1].map((st) => [1, 2, 3, 4, 5].map((k) => (
-      <resistor key={`${st}-${k}`} name={`RBLD${st * 5 + k}`} resistance="27k" footprint="2512" {...gp()}
+    {/* ---- passive bleeder: 2 strings x 6 series 22k 2512 2W = 66k (always on) ----
+        Review A.6 (F24): with +/-5 % parts the low-tolerance resistor of a 5 x 27k string
+        carried 184 V at 850 V (92 % of a plain 2512's 200 V working); six per string holds
+        154 V (77 %). Same 56 s / 65 s (nom / worst) to 60 V. 4XX SKU: 15k parts, same PCB. */}
+    {[0, 1].map((st) => [1, 2, 3, 4, 5, 6].map((k) => (
+      <resistor key={`${st}-${k}`} name={`RBLD${st * 6 + k}`} resistance="22k" footprint="2512" {...gp()}
         connections={{
           pin1: k === 1 ? "net.DCP" : `net.BL${st}${k - 1}`,
-          pin2: k === 5 ? "net.DCN" : `net.BL${st}${k}`,
+          pin2: k === 6 ? "net.DCN" : `net.BL${st}${k}`,
         }} />
     )))}
 

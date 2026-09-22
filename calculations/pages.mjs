@@ -60,7 +60,7 @@ const PAGES = {
       ["BOOST-15V", [/^UB15$/, /^LB15$/, /^DB15$/, /^CB15(I|O1|O2|C|CC|S)$/, /^RB15F[12]$/, /^RB15[QC]$/, /^ULDO15$/, /^RLD[12]$/, /^CLD(15|C)$/]],
     ], ["PROT-H", "PROT-L", "VCC1-LDO", "BOOST-15V"]],
     ["CONTROL-IF", [
-      ["HARNESS", [/^JIC$/, /^RPD\d+$/]],
+      ["HARNESS", [/^JIC$/, /^RPD\d+$/, /^RHWID$/]],
     ], ["HARNESS"]],
   ],
   capbank: [
@@ -87,7 +87,7 @@ const PAGES = {
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
-      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/]],
+      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/]],
       ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/]],
       ["FLYBK-EN", [/^COR[12]$/, /^UOR[12]$/]],
       ["INTERLOCK", [/^RILK[1-4]$/, /^CILK$/]],
@@ -121,7 +121,7 @@ const PAGES = {
       ["CONNECTOR", [/^JVEH$/, /^FVS\d+$/, /^LVS\d+$/]],
     ], ["CONNECTOR"]],
     ["CARD-IF", [
-      ["HARNESS", [/^JICC$/, /^RCPD\d+$/]],
+      ["HARNESS", [/^JICC$/, /^RCPD\d+$/, /^RHWP$/]],
     ], ["HARNESS"]],
   ],
 };
