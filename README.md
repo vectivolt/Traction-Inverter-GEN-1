@@ -47,6 +47,10 @@
 **GEN-1** is a complete, netlist-verified schematic set + costed BOM for a four-assembly traction
 inverter, generated from a single **tscircuit** source of truth:
 
+> **Marine Series** (M8 · M10 propulsion cells, ferries to tugs) is a separate product line built
+> on this design — see [`marine/README.md`](marine/README.md).
+
+
 | Board | Domain | Contents | Parts |
 |---|---|---|---|
 | 🔴 **Power board** | HV (500–850 V) | 3× HIITIO `HCS600FH120D3C1` SiC half-bridges (EconoDUAL™ 3), 6× isolated gate-drive channels, dual gate-power flybacks, 2× isolated V<sub>DC</sub> senses, ASC buffer, HVIL loop | **274** |

@@ -11,7 +11,8 @@
     "bom:igbt4": "BOM_VARIANT=igbt4 node calculations/bom-gen.mjs",
     "bom:sic4": "BOM_VARIANT=sic4 node calculations/bom-gen.mjs",
     "bom:all": "npm run bom && npm run bom:igbt && npm run bom:igbt4 && npm run bom:sic4",
-    "verify": "node calculations/erc-audit.mjs && node calculations/design-verify.mjs && node calculations/sim-verify.mjs"
+    "verify": "node calculations/erc-audit.mjs && node calculations/design-verify.mjs && node calculations/sim-verify.mjs",
+    "marine": "node marine/calc/marine-verify.mjs"
   },
   "dependencies": {
     "circuit-json": "^0.0.481",
