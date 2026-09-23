@@ -1,4 +1,4 @@
-# GEN-1 platform — one set of boards, four SKUs (rev A.6)
+# GEN-1 platform — one set of boards, four SKUs (rev A.7)
 
 **Short answer to "can one board do SiC/IGBT and 4XX/8XX?" — yes.** The power PCB, control
 card, discharge PCB and cap-bank busbar are the same for every SKU. A SKU is a module choice,
@@ -44,10 +44,10 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | Phase current pk (30 s) / cont | 340 / 185 A rms | 340 / 185 A rms | 400 / 250 A rms | 400 / 250 A rms |
 | Peak / continuous power | **220 / 120 kW** from 654 V | **220 / 120 kW** from 654 V | **150 / 90 kW** from 379 V | 150 / 90 kW from 379 V |
 | …at the bottom of the range | 168 / 91 kW at 500 V | 168 / 91 kW at 500 V | 99 / 62 kW at 250 V | 99 / 62 kW at 250 V |
-| Tj end of 30 s peak at V_max (S4) | 122 °C (175 °C max) | 127 °C (150 °C Tvjop) | 121 °C (150 °C) | 130 °C (175 °C) |
+| Tj end of 30 s peak at V_max (S4; IGBT and diode share the plate — RR07) | 122 °C (175 °C max) | 129 °C (150 °C Tvjop) | 123 °C (150 °C) | 130 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
-| Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.5 µs vs 6 µs rating (82 pF) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹70,965** | **₹45,465** | **₹45,465** | ₹70,965 |
+| Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04) | same as 8XX IGBT | as 8XX SiC |
+| Electronics BOM @1k | **₹71,022** | **₹45,522** | **₹45,522** | ₹71,022 |
 | Ex-works cost (cost-rollup method) | ≈ ₹1.15 L | ≈ ₹0.90 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.17 L |
 | Cost per peak kW | ≈ ₹525/kW | **≈ ₹410/kW** | ≈ ₹610/kW | ≈ ₹780/kW |
 | Status | **launch** | **launch** | **launch** | on request |

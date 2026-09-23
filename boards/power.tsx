@@ -88,12 +88,23 @@ export default () => (
       connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSASCN", COM: "net.DCN", VOP: "net.V18A" }} />
     <chip name="UASC" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.ASCA", CAT: "net.DGND", GND: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
-    <resistor name="RASCL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
+    {/* TLP152 I_FLH is 7.5 mA max (DS §9): 270 R gives >= 10 mA at V5A 4.85 V / V_F 1.8 V
+        (round 7 — 470 R gave 5.4-7 mA, below the guaranteed turn-on current) */}
+    <resistor name="RASCL" resistance="270" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
     {/* NSI6611 ASC abs max = GND2+6 V (DS 1.2 §2) — series 2.2k + 5.1 V zener clamp the
         18 V opto swing to a legal ASC level (F28) */}
     <resistor name="RASCG" resistance="2.2k" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />
     <diode name="ZASC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DCN", cathode: "net.ASC_DRV" }} />
     <resistor name="RASCPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
+    {/* ASC break-before-make, delay half (round 7, RR05): 12 nF on the 1.8 k Thevenin holds
+        ASC below its 2.7 V rising threshold for >= 3.0 us (fast corner: 24 V rail, C -5 %),
+        so with tASC_r (0.39 us min) the low sides start >= 3.4 us after the latch sets. The
+        high sides are already turning off: FS0B dropped DRV_EN (FS1B path) or the eFlexPWM
+        fault forced PWM off (MCU path) before ASC_REQ. Entry completes <= 7.0 us; release is
+        fast through DASCR into the opto output (<= 0.75 us). Each LS ASC pin has its own 1 k
+        (GateDrive cell). The ASC input has hysteresis (2.7-3.2 / 1.3-1.7 V). */}
+    <capacitor name="CASCD" capacitance="12nF" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
+    <diode name="DASCR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.ASC_DRV", cathode: "net.ASCVO" }} />
     <capacitor name="CASC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18A", pin2: "net.DCN" }} />
 
     {/* ---- ISOLATED DC-LINK SENSING: two independent channels + shared reinforced bias ---- */}

@@ -60,6 +60,13 @@ export function igbtLoss(Irms, V, fsw, mcos, g = MOD.igbt) {
 export const lossOf = (s, Irms, V, mcos = 0.85) => s.sil === "sic" ? sicLoss(Irms, V, s.fsw) : igbtLoss(Irms, V, s.fsw, mcos, MOD[s.sil]);
 export const rthT = (s) => (s.sil === "sic" ? MOD.sic.rthJC : MOD[s.sil].rthJC) + MOD.sic.rthCH + OP.rthPlate;
 export const rthD = (s) => MOD[s.sil].rthJCd + MOD[s.sil].rthCHd + OP.rthPlate;
+// Junction temperatures of ONE switch position (round 7, RR07): the IGBT and its diode sit on
+// the same coldplate footprint, so the plate term carries BOTH losses; each die keeps its own
+// j-c and c-h (datasheet Rth are per die). SiC: d_die = 0, so this equals the old per-die sum.
+export const tjPos = (s, L) => {
+  const g = s.sil === "sic" ? MOD.sic : MOD[s.sil], plate = OP.coolant + (L.sw_die + L.d_die) * OP.rthPlate;
+  return { T: plate + L.sw_die * (g.rthJC + MOD.sic.rthCH), D: plate + L.d_die * ((g.rthJCd ?? 0) + (g.rthCHd ?? 0)), plate };
+};
 export const tjLimit = (s) => s.sil === "sic" ? MOD.sic.tjMax : MOD[s.sil].tvjop;
 // current-limited AC power, linear SVPWM with modulation reserve
 export const pAvail = (V, I) => Math.sqrt(1.5) * OP.mres * V * I * OP.pf / 1e3;

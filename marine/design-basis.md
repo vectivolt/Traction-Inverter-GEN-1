@@ -336,8 +336,10 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at rev A.6:
-same PCBs and supply chain, but its own part number, its own firmware build, and a distinct
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.7**.
+It carries the round-7 safety-logic, ASC break-before-make and gate-supply fixes
+(`../docs/review-A7-disposition.md`), and it has
+the same PCBs and supply chain, but its own part number, its own firmware build, and a distinct
 identity resistor — **RHWID 47 k (4.12 V on HW_ID)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
 (FW-01/02 mechanism; the marine ratings assume 45 °C coolant, the Road's 65 °C). A Road change

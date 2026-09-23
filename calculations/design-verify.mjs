@@ -10,7 +10,7 @@
 
 import { writeFileSync } from "node:fs";
 import { REV } from "./rev.mjs";
-import { OP as LOP, MOD, SKU, lossOf, rthT, rthD, tjLimit, pAvail } from "./loss-model.mjs";
+import { OP as LOP, MOD, SKU, lossOf, rthT, rthD, tjPos, tjLimit, pAvail } from "./loss-model.mjs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -48,6 +48,41 @@ const P = {
   tolR: 0.05, tolRp: 0.01,
 };
 
+// ---------------- round-7 shared models ----------------
+// Gate rail from the separate FB-sense rectifier (A6-R06): the divider holds FFS at V_FB·(R1+R2)/R2,
+// the aux plateau is FFS + Vf_FS, the secondary plateau is that ×NS/NF, and VCC2 is what is left
+// after the secondary rectifier and the 5.1 V split zener. Corners: V_FB 2.45–2.55 V (SLUS458I),
+// 1 % divider, 1N4148WS 0.45–0.65 V, US1M 0.7–1.3 V (FFS peak-detects at the secondary's peak
+// current, where the US1M drop is highest — cross-check 6a), BZT52-C5V1 4.8–5.4 V; the low corner
+// also carries the FB bias current (≤ 2 µA into the 11.7 k divider Thevenin → −0.19 V on VCC2).
+const vcc2Of = (vfb, r1, r2, vfFs, vfSec, vz) => (vfb * (r1 + r2) / r2 + vfFs) * (P.xfmr.ns / P.xfmr.nf) - vfSec - vz;
+const VCC2 = {
+  nom: vcc2Of(2.5, 52.3e3, 15e3, 0.55, 0.85, 5.1),
+  lo: vcc2Of(2.45, 52.3e3 * 0.99, 15e3 * 1.01, 0.45, 1.3, 5.4) - 2e-6 * 11.7e3 * (67.3 / 15) * (P.xfmr.ns / P.xfmr.nf),
+  hi: vcc2Of(2.55, 52.3e3 * 1.01, 15e3 * 0.99, 0.65, 0.7, 4.8),
+  old: vcc2Of(2.5, 56e3, 15e3, 0.8, 0.85, 5.1),   // A.6: 56 k on VDD, i.e. behind the US1M aux diode
+};
+// 74LVC3G17-Q100 (Nexperia DS Table 8, −40…125 °C, V_CC 4.5–5.5 V) as fractions of V_CC
+const SCH = { tpLo: Math.min(1.90 / 4.5, 2.20 / 5.5), tpHi: Math.max(3.30 / 4.5, 3.80 / 5.5),
+  tnLo: Math.min(1.00 / 4.5, 1.20 / 5.5), tnHi: Math.max(2.20 / 4.5, 2.50 / 5.5) };
+// ASC entry (round 7, RR05). Power board: TLP152 → RASCG 2.2 k / RASCPD 10 k (1.8 k Thevenin) → CASCD 12 nF
+// → NSI6611 ASC (V_ASCH 2.7–3.2 V, tASC_r 0.39–1.1 µs). The +20 V QA01C rail is taken as 18–24 V at this
+// light load (DS curve: +6 % at 10 % load). The high sides start turning off first: FS0B drops DRV_EN
+// (FS1B path) or the eFlexPWM fault forces the high-side PWM off (MCU path) — EN is NOT used for ASC ordering,
+// because the NSI6611 honours DESAT over ASC only with EN high (DS §8.12, round-7 cross-check).
+const ASC = (() => {
+  const rTh = 2.2e3 * 10e3 / 12.2e3, c = 12e-9, vTh = (v) => (v - 0.3) * 10 / 12.2;
+  const tRc = (r, cc, vth, vt) => r * cc * Math.log(vth / (vth - vt));
+  return {
+    tLsMin: tRc(rTh * 0.99, c * 0.95, vTh(24), 2.7) + 0.39e-6,
+    tEntryMax: 0.17e-6 + tRc(rTh * 1.01, c * 1.05, vTh(18), 3.2) + 1.1e-6,
+    tHsEn: 5.4e-9 + 2 * 4.4e-9 + 5e-9 + 60e-9 + 130e-9,   // FS1B path: USCH, two ANDs, harness, EN deglitch, EN→OUT (≈tpHL max)
+  };
+})();
+// FW-06 over-voltage budget (round 7, RR06/A6-R08): link crossing the trip → ASC request
+const OVP = { tDiv: (2.82e6 * 6.2e3 / (2.82e6 + 6.2e3)) * 1e-9, tAmc: 2.1e-6, tRx: 0.3e-6, tSample: 1 / 200e3, tConv: 1.0e-6, tAct: 1.0e-6 };
+OVP.tReq = OVP.tDiv + OVP.tAmc + OVP.tRx + OVP.tSample + OVP.tConv + OVP.tAct;
+
 // ---------------- check engine ----------------
 const rows = [];   // {sec, name, value, limit, margin, status, note}
 const add = (sec, name, value, limit, status, note = "") => rows.push({ sec, name, value, limit, status, note });
@@ -72,16 +107,16 @@ const f = (x, d = 1) => Number(x.toFixed(d));
     for (const [tag, I, V] of [["peak 30 s", s.iPk, s.vMax], ["continuous", s.iCont, s.vNom]]) {
       const L = lossOf(s, I, V);
       const Lr = s.sil !== "sic" ? lossOf(s, I, V, -0.85) : L;
-      const tj = OP.coolant + L.sw_die * rthT(s);
+      const tj = tjPos(s, L).T;   // RR07: IGBT + diode heat share the coldplate footprint
       const detail = s.sil === "sic" ? `cond ${f(L.cond, 0)} + sw ${f(L.sw, 0)} + Qrr ${f(L.rr, 0)} + dead-time ${f(L.dt, 0)} W`
         : `IGBT ${f(L.condT, 0)}+${f(L.swT, 0)} W · diode ${f(L.condD, 0)}+${f(L.rec, 0)} W (motoring)`;
       judge(sec, `Tj steady-state bound, ${tag} (${I} A, ${V} V, ${s.fsw / 1e3} kHz)`, `${f(tj, 0)} °C (${f(L.sw_die, 0)} W/switch)`,
         `${tjLimit(s)} °C ${s.sil === "sic" ? "Tj max" : "Tvjop"}`, tj / tjLimit(s), tag === "continuous" ? 0.75 : 0.9,
-        `${detail}; 65 °C coolant + 0.045 K/W coldplate assumption; the 30 s transient is in S4`);
+        `${detail}; 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4`);
       if (s.sil !== "sic") {
-        const tjd = OP.coolant + Lr.d_die * rthD(s);
+        const tjd = tjPos(s, Lr).D;
         judge(sec, `Diode Tj bound, ${tag} regeneration (cosφ −0.85)`, `${f(tjd, 0)} °C (${f(Lr.d_die, 0)} W)`, `${P[s.sil].tvjop} °C`,
-          tjd / P[s.sil].tvjop, 0.9, "F26 — the FWD is its own die (Rth 0.10 K/W); regen loads it hardest");
+          tjd / P[s.sil].tvjop, 0.9, `F26 — the FWD is its own die (Rth 0.10 K/W); regen loads it hardest; RR07 — the IGBT's ${f(Lr.sw_die, 0)} W heats the shared coldplate too`);
       }
     }
     const Lc = lossOf(s, s.iCont, s.vNom);
@@ -137,10 +172,17 @@ const f = (x, d = 1) => Number(x.toFixed(d));
     const tTrip = C * (s.ovTrip ** 2 - s.vMax ** 2) / (2 * P), vp = (t) => Math.sqrt(s.ovTrip ** 2 + 2 * P * t / C);
     add(sec, `Link charging at ${s.pTarget[0]} kW regen (C_min ${f(C * 1e6, 0)} µF)`, `${f(P / (C * s.vMax) / 1e6, 2)} V/µs; ${s.vMax}→${s.ovTrip} V trip in ${f(tTrip * 1e6, 0)} µs`, "-", "INFO",
       `a 100 µs response would end at ${f(vp(100e-6), 0)} V and a once-per-PWM-period sample at 5 kHz (200 µs) at ${f(vp(200e-6), 0)} V — why FW-06 is 20 µs on a free-running V_DC slot`);
-    judge(sec, "Link peak with the FW-06 response (20 µs → zero torque + ASC)", `${f(vp(20e-6), 0)} V`, `${s.can.vr85} V can U_N at 85 °C`, vp(20e-6) / s.can.vr85, 0.92,
-      "the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x) — dyno gate: contactor opening under full regen");
+    // regen power until the high-side-off/ASC request, then all six switches off: the phase current (up to
+    // I_pk) rectifies into the link until the LS are on (cross-check item 9)
+    const vPk = vp(OVP.tReq) + s.iPk * Math.SQRT2 * ASC.tEntryMax / C;
+    judge(sec, `Link peak with the FW-06 response (${f(OVP.tReq * 1e6, 1)} µs to HS-off + ASC request, then ${f(ASC.tEntryMax * 1e6, 1)} µs all-off at ${f(s.iPk * Math.SQRT2, 0)} A)`, `${f(vPk, 0)} V`, `${s.can.vr85} V can U_N at 85 °C`, vPk / s.can.vr85, 0.92,
+      "round 7: the whole chain, not a written 20 µs — the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x); HIL event-to-ASC measurement + dyno contactor opening under full regen are the gates");
   }
 }
+
+add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC request (RR06/A6-R08)",
+  `${f(OVP.tReq * 1e6, 1)} µs = divider lag ${f(OVP.tDiv * 1e6, 2)} + AMC1311B ${f(OVP.tAmc * 1e6, 1)} + receiver ${f(OVP.tRx * 1e6, 1)} + sample wait ${f(OVP.tSample * 1e6, 1)} (≥ 200 kS/s per channel) + conversion ${f(OVP.tConv * 1e6, 1)} + compare→fault→ASC_REQ ${f(OVP.tAct * 1e6, 1)}`,
+  "allocated in FW-06", "INFO", "the divider's 6.2 µs is the lag of a first-order filter behind a ramp; the route (ADC analog watchdog → eFlexPWM fault + ASC_REQ) is a firmware deliverable measured on HIL — no comparator is added unless that measurement misses the budget");
 
 // ============ 3. DISCHARGE (every bus class; worst-case corners, both paths applied ONCE) ============
 {
@@ -173,12 +215,13 @@ const f = (x, d = 1) => Number(x.toFixed(d));
 
 // ============ 4. GATE DRIVE ============
 {
-  const vcc = 15.6, vee = -5.1;   // from the regulated secondary (F33 derivation below); +15/−5 combo (F30)
-  judge("Gate drive", "VCC2 (+15) vs UVLO-rising MAX", `${vcc} V`, `${P.drv.uvlo2On} V`, P.drv.uvlo2On / vcc, 0.90, "flyback ±5 % ⇒ 14.25 V worst, still above 12.8 V");
-  judge("Gate drive", "VCC2 worst vs recommended-min", "14.25 V (−5 %)", `${P.drv.vccRecMin} V rec-min`, P.drv.vccRecMin / 14.25, 0.95, "trim flyback to 15.2 V nom if bench shows droop");
-  judge("Gate drive", "VCC2−VEE2 span", `${f(vcc - vee)} V`, `${P.drv.vcc2Rec} V recommended (35 abs)`, (vcc - vee) / P.drv.vcc2Rec, 0.8);
+  const span = VCC2.nom + 5.1;   // regulated secondary (§5 model, round 7), +15/−5 combo (F30)
+  judge("Gate drive", "VCC2 low corner vs UVLO-rising MAX", `${f(VCC2.lo, 2)} V`, `${P.drv.uvlo2On} V`, P.drv.uvlo2On / VCC2.lo, 0.95, "§5 corner stack: V_FB, divider, both rectifiers, split zener");
+  judge("Gate drive", "VCC2 low corner vs recommended-min", `${f(VCC2.lo, 2)} V`, `${P.drv.vccRecMin} V rec-min`, P.drv.vccRecMin / VCC2.lo, 0.95);
+  const spanHi = VCC2.hi + 4.8;
+  judge("Gate drive", "VCC2−VEE2 span (high corner)", `${f(spanHi)} V`, `${P.drv.vcc2Rec} V recommended (35 abs)`, spanHi / P.drv.vcc2Rec, 0.8);
   // NSI6611 DS §9.6: I = min[(VCC2−VEE)/(R_G + R_OH|OL + R_Gint), 10 A]; R_OH 2.2 Ω, R_OL 0.3 Ω typ
-  const ig = (rg, rdrv, rint) => Math.min(20.7 / (rg + rdrv + rint), 10);
+  const ig = (rg, rdrv, rint) => Math.min(span / (rg + rdrv + rint), 10);
   add("Gate drive", "Peak gate current on/off (DS §9.6 formula)", `SiC ${f(ig(3.3, 2.2, 1.1))}/${f(ig(6.8, 0.3, 1.1))} A · IGBT ${f(ig(1, 2.2, 0.5))}/${f(ig(1, 0.3, 0.5))} A`,
     `${P.drv.ipk} A driver`, "PASS", "SiC 3.3/6.8 Ω, IGBT 1.0/1.0 Ω (SKU BOM); the IGBT sink sits at the driver's own 10 A limit");
   const qSic = 1.09e-6;   // HCS600 Fig.11: −5.1 → +15.6 V
@@ -187,7 +230,7 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   const cap = (fosc, vcs = 1.0, lp = 10e-6 / 3) => 0.5 * lp * (vcs / 0.33) ** 2 * fosc * 0.92;
   for (const [tag, q, fs, fosc] of [["SiC @10 kHz", qSic, 10e3, 253e3], ["SiC @20 kHz option", qSic, 20e3, 253e3],
     ["IGBT @5 kHz (full 4.36 µC, RT 8.2 k)", P.igbt.qg, 5e3, 308e3]]) {
-    const pBank = 3 * (q * 20.7 * fs + 20.7 * P.drv.icc2Typ + 20.7 ** 2 / 5.1e3) + 0.2;
+    const pBank = 3 * (q * span * fs + span * P.drv.icc2Typ + span ** 2 / 5.1e3) + 0.2;
     const cW = cap(fosc, 0.9, 8e-6 / 3);
     judge("Gate drive", `Gate-power demand per bank, ${tag}`, `${f(pBank, 2)} W`, `${f(cW, 2)} W worst-part capacity (typ ${f(cap(fosc), 2)} W) at ${f(fosc / 1e3, 0)} kHz`, pBank / cW, 0.8,
       "Qg·ΔV·f + ICC2 + 5.1 k bleeder per domain; F27: IGBT uses the full ±15 V Qg (no scaling); IGBT SKUs fit RT 8.2 k (~308 kHz)");
@@ -202,50 +245,66 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   const [tsMin, tsMax] = trip(100, 0), [tiMin, tiMax] = trip(4.7e3, 0);
   add("Gate drive", "DESAT trip at the switch (corners)", `SiC ${f(tsMin, 1)}–${f(tsMax, 1)} V ≈ ${f(tsMin / P.mod.rdsHot / 1e3, 1)}+ kA · IGBT ${f(tiMin, 1)}–${f(tiMax, 1)} V`,
     "-", "INFO", "short-circuit detection, not overload — halls + firmware own the operating current limit (F46)");
-  for (const [tag, c, lim, soft] of [["SiC 47 pF", 47e-12, null, 0.46e-6 / 0.4], ["IGBT 82 pF", 82e-12, P.igbt.tsc, 106e-9 * 5.6 / 0.4]]) {
+  for (const [tag, c, lim, soft] of [["SiC 47 pF", 47e-12, null, 0.46e-6 / 0.4], ["IGBT 82 pF", 82e-12, P.igbt.tsc, 106e-9 * (VCC2.hi - 10) / 0.4]]) {
     const tMin = c * 0.95 * d.vth[0] / d.ichg[2] + d.leb;
     const tDet = c * 1.05 * d.vth[2] / d.ichg[0] + d.leb + d.deg[2];
-    if (lim) judge("Gate drive", `DESAT worst detection + soft-off, ${tag}`, `${f((tDet + soft) * 1e6, 2)} µs (detect ${f(tDet * 1e6, 2)} + STO ${f(soft * 1e6, 2)} @400 mA)`,
-      "6 µs SC rating @800 V/15 V (≈5 µs derated to 850 V/15.6 V)", (tDet + soft) / 5e-6, 0.95,
-      `min blank ${f(tMin * 1e6, 2)} µs vs the turn-on tail (DPT gate). F03: 150 pF gave ${f((150e-12 * 1.05 * 10 / 350e-6 + 0.52e-6) * 1e6, 1)} µs detect alone. At the DS-minimum 100 mA soft-off the IGBT gate needs ≈6 µs — contained SC test is a release gate`);
+    // round 7, RR04/A6-R04: judged at BOTH soft-off corners; the 100 mA DS minimum does not close
+    // against the 6 µs rating, and the 850 V derating is not documented — an OPEN release gate, not PASS
+    if (lim) add("Gate drive", `DESAT worst detection + soft-off, ${tag}`, `${f((tDet + soft) * 1e6, 2)} µs @400 mA typ · ${f((tDet + soft * 4) * 1e6, 2)} µs @100 mA DS min (detect ${f(tDet * 1e6, 2)} µs)`,
+      "tP ≤ 6 µs @800 V/15 V/175 °C (DS Table 5)", "WARN",
+      `RELEASE GATE: typ closes (${f(100 * (tDet + soft) / 6e-6, 0)} % of 6 µs), the 100 mA corner does not — NOVOSENSE I_STO distribution + hiitio SC envelope at 850 V and the actual gate bias (§5: ${f(VCC2.nom, 1)} V nom, soft-off here from the ${f(VCC2.hi, 1)} V high corner) + contained SC test with integrated energy. Min blank ${f(tMin * 1e6, 2)} µs vs the turn-on tail (DPT)`);
     else add("Gate drive", `DESAT worst detection + soft-off, ${tag}`, `${f((tDet + soft) * 1e6, 2)} µs (detect ${f(tDet * 1e6, 2)} + STO ${f(soft * 1e6, 2)} @400 mA)`,
-      "SiC tSC NOT published — vendor letter", "WARN", `min blank ${f(tMin * 1e6, 2)} µs; release gate: hiitio SC envelope at 850 V/150 °C/+15.6 V or a contained SC test (F04)`);
+      "SiC tSC NOT published — vendor letter", "WARN", `min blank ${f(tMin * 1e6, 2)} µs; release gate: hiitio SC envelope at 850 V/150 °C/+${f(VCC2.hi, 1)} V (high corner) or a contained SC test (F04)`);
   }
   add("Gate drive", "Shoot-through lockout", "IN+/IN− complementary pairing", "-", "PASS", "verified structurally in erc-audit (12 checks)");
-  const tauD = 10e3 * 3.3e-9, dLo = tauD * Math.log(5 / 3.5), dHi = tauD * Math.log(5 / 1.5);   // Schmitt window 1.5–3.5 V
+  // round 7 (RR01/RR02): both RC nodes now end in the 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit);
+  // delays use its V_T−/V_T+ windows as fractions of V_CC, R ±1 %, C0G ±5 %, X7R −20/+15 %
+  const tauDlo = 9.9e3 * 3.3e-9 * 0.95, tauDhi = 10.1e3 * 3.3e-9 * 1.05;
+  const dLo = tauDlo * Math.log(1 / SCH.tnHi), dHi = tauDhi * Math.log(1 / SCH.tnLo), dRise = tauDhi * Math.log(1 / (1 - SCH.tpHi));
+  const tSoft = 106e-9 * (VCC2.hi - 5.6) / P.drv.isto[0];   // IGBT Cies from the high-corner rail to below V_th at the DS-minimum I_STO
   judge("Gate drive", "Global DRV_EN drop after a DESAT vs the faulted driver's soft turn-off", `${f(dLo * 1e6, 0)}–${f(dHi * 1e6, 0)} µs RC delay (+0.4–0.8 µs FLT)`,
-    "IGBT soft-off 10.6 µs at the DS-minimum 100 mA", 10.6e-6 / dLo, 1.0,
-    "F71: NSI6611 DS is silent on RST/EN during soft turn-off — 10 k/3.3 nF into the AND's Schmitt input makes the design independent of it; FS0B/MCU paths stay undelayed");
-  const tOs = 10e3 * 15e-9 * Math.log(5 / 3.5);
-  judge("Gate drive", "Fault-latch CLEAR one-shot (15 nF into 10 k)", `≥${f(tOs * 1e6, 0)} µs guaranteed low per falling edge`, `≥ ${f(dHi * 1e6 + 1, 0)} µs to deliver the drivers' reset edge through the delay`,
-    (dHi + 1e-6) / tOs, 1.0,
-    "review F06 disposition: PRE=CLR=L (both outputs high) is the ONLY way to give the NSI6611s their RST/EN rising edge while FLT is still asserted — a fault-dominant latch would deadlock recovery. The one-shot bounds that window in hardware (a stuck-low pin re-arms the latch after ≈0.5 ms); firmware keeps PWM low and waits ≥1.3 ms before clearing");
+    `IGBT soft-off ${f(tSoft * 1e6, 1)} µs at the DS-minimum 100 mA`, tSoft / dLo, 1.0,
+    "F71: NSI6611 DS is silent on RST/EN during soft turn-off — 10 k/3.3 nF to the USCH Schmitt threshold (V_T− 0.22–0.49 V_CC) makes the design independent of it; FS0B/MCU paths stay undelayed");
+  const tOsLo = 9.9e3 * 15e-9 * 0.95 * Math.log(1 / (1 - SCH.tpLo)), tOsHi = 10.1e3 * 15e-9 * 1.05 * Math.log(1 / (1 - SCH.tpHi));   // CCLR C0G ±5 % (round 7 cross-check)
+  const tReset = dRise + 0.8e-6 + 1.5e-6;   // FLT_OKD to V_T+ max, NSI6611 t_RST_FIL 0.8 µs, FLT/FLT_CMB pull-up rise
+  judge("Gate drive", "Fault-latch CLEAR one-shot (15 nF into 10 k, at the USCH output)", `${f(tOsLo * 1e6, 0)}–${f(tOsHi * 1e6, 0)} µs low per falling edge`, `≥ ${f(tReset * 1e6, 0)} µs to deliver the drivers' reset edge through the delay`,
+    tReset / tOsLo, 0.9,
+    "review F06 disposition: PRE=CLR=L (both outputs high) is the ONLY way to give the NSI6611s their RST/EN rising edge while FLT is still asserted — a fault-dominant latch would deadlock recovery. The one-shot bounds one stuck-low pin in hardware; a re-pulsing pin is RR03 → FW-15 (eFlexPWM fault lock), the drivers' own latch and the FS26 watchdog");
+  add("Gate drive", "Slow edges at LVC inputs (Δt/ΔV 5–10 ns/V)", "RC nodes and FS0B via USCH (no limit); ASC_SET_N ≈32 ns/V, FLT_CMB_N ≈64 ns/V, RDY ≈0.2 µs/V remain", "-", "INFO",
+    "round 7 RR01/RR02: the two RC nodes were 14,000–63,500 ns/V — buffered. The remaining open-drain release edges only return a latch or AND input to its idle level with no output change (PRE release with CLR high holds; RDY releases while MCU_GATE_EN is low per §9 sequencing and FW-14)");
 }
 
 // ============ 5. GATE-POWER FLYBACKS (real VGT winding: NP:NF:NS = 1:1.6:2.9, Lp 10 µH) ============
 {
-  const vccReg = P.pwm.vref * (56 + 15) / 15;           // F33: 56k/15k on the NF winding
-  const vsec = vccReg * (P.xfmr.ns / P.xfmr.nf);        // reflected through NF:NS
-  const vcc2 = vsec - 0.7 - 5.1;                        // rectifier Vf + zener split
-  judge("Flyback", "VCC regulation point on NF (56k/15k)", `${f(vccReg, 2)} V`, `${P.pwm.vccAbs} V abs`, vccReg / P.pwm.vccAbs, 0.75, "F33 — a 15 V target through NF would push the secondaries to ~27 V");
-  judge("Flyback", "Derived gate rail VCC2", `${f(vcc2, 1)} V (+/−5.1)`, "13–32 V driver window", 13 / vcc2, 0.9, `Vsec ${f(vsec, 1)} V; UVLO-max 12.8 V cleared`);
+  // round 7 (A6-R06/R07): the divider senses its own aux rectifier (FFS), so VDD is the aux plateau
+  // minus the US1M drop and the start feed can no longer hold FB above the reference
+  const vFfs = P.pwm.vref * (52.3 + 15) / 15, vdd = vFfs + 0.55 - 0.85;
+  const vcc2 = VCC2.nom;
+  judge("Flyback", "VDD in regulation (FFS 52.3k/15k, aux plateau − US1M)", `${f(vdd, 1)} V (FFS ${f(vFfs, 2)} V)`, `${P.pwm.vccAbs} V abs`, vdd / P.pwm.vccAbs, 0.75, "F33 — a 15 V target through NF would push the secondaries to ~27 V");
+  const inWin = VCC2.lo >= 13.5 && VCC2.hi <= 17.0;
+  add("Flyback", "Derived gate rail VCC2 (both diodes, all corners)", `${f(VCC2.nom, 1)} V nom · ${f(VCC2.lo, 2)}–${f(VCC2.hi, 1)} V (VEE −4.8…−5.4 V)`, "13.5–17.0 V bias window", inWin ? "WARN" : "FAIL",
+    `A6-R06: VCC2 = (V_FFS + Vf_FS)·NS/NF − Vf_sec − Vz. The A.6 model dropped the aux diode (15.6 V claimed, ${f(VCC2.old, 1)} V real). Window: NSI6611 rec-min 13 V + margin; ≤ 17 V keeps the SC current near the 15 V DS data. The low corner sits at the window edge (US1M at peak current, FB bias) — BENCH GATE: six-domain VCC2 at start, full gate load, ASC and no-load, KL30 9–16 V, 24 V and 33 V`);
+  const iqLow = 1.5e-3, vStopOld = (16 - 2.2e3 * iqLow) / (1 + 2.2e3 / 71e3);
+  add("Flyback", "Restart after a stopped interval (start feed vs FB)", "FB from the aux-only FFS node", "the start feed must not hold FB ≥ 2.5 V", "PASS",
+    `A6-R07: with the A.6 VDD sense a stopped converter sat at ${f(vStopOld, 1)} V (> the 11.83 V target) on a 16 V rail for a ${iqLow * 1e3} mA part (DS: 2.3 typ, no min), and at the 18 V clamp at a 24 V jump start — no restart, gate power lost. FFS decays through the 67 k divider (τ 6.7 ms) and the controller restarts`);
   const fsw = P.pwm.kOsc / (10e3 * 680e-12);
   add("Flyback", "Switching frequency (10k/680p)", `${f(fsw / 1e3)} kHz`, "-", "INFO", "F32 — Lp 10 µH demands small per-cycle energy; osc anchors per SLUS458I curves");
   const pOut = 3 * (P.qg.total * P.qg.vswing * OP.fsw + vcc2 * P.drv.icc2) + 0.3;
   const pin = pOut / 0.78;
-  const ipkOp = Math.sqrt(2 * pin / (P.xfmr.lp * fsw));  // DCM peak at the real Lp/fsw
+  const ipkOp = Math.sqrt(2 * pin / ((P.xfmr.lp / 3) * fsw));  // DCM peak of the BANK: three 10 µH primaries in parallel (A6-R14)
   const ilim = P.pwm.vcs / 0.33;
-  judge("Flyback", "DCM peak current vs CS limit", `${f(ipkOp, 2)} A op`, `${f(ilim, 2)} A limit (0.33 Ω)`, ipkOp / ilim, 0.75, "F1+F32 — real Lp: energy/cycle ½·10µ·Ipk²");
+  judge("Flyback", "DCM peak current vs CS limit (bank)", `${f(ipkOp, 2)} A op`, `${f(ilim, 2)} A limit (0.33 Ω)`, ipkOp / ilim, 0.75, "A6-R14 — the common switch/shunt carries all three primaries: bank Lp = 10 µH/3 (the old check used one transformer's 10 µH: 1.18 A)");
   judge("Flyback", "CS limit as the saturation guard", `${f(ilim, 2)} A`, `${P.xfmr.isat} A (Isat unpublished — guard band)`, ilim / P.xfmr.isat, 1.0, "bench-verify core at current limit");
   // start condition (review A.6 F18): the rail must push I_START AND the 71 k divider current into VDD at VDD_ON(max)
-  const vNeed = (r) => P.pwm.uvloOnMax + r * (P.pwm.istart + P.pwm.uvloOnMax / 71e3);
+  const vNeed = (r) => P.pwm.uvloOnMax + r * P.pwm.istart;   // round 7: the 67 k divider hangs on FFS, not VDD
   const v12at9 = OP.kl30.min - 0.95;                     // two reverse Schottkys + 3 polyfuses at ~1 A
   judge("Flyback", "Start threshold at the 12 V node, worst (2.2 k)", `${f(vNeed(2.2e3), 2)} V needed`, `${f(v12at9, 2)} V at KL30 = 9 V`, vNeed(2.2e3) / v12at9, 0.99,
-    `4.7 k needed ${f(vNeed(4.7e3), 2)} V (> the node: no start at the worst corner). Burst-to-takeover energy is S1's job`);
-  judge("Flyback", "Start resistor dissipation @24 V jump start", `${f((24 - 11.8) ** 2 / 2.2e3, 3)} W`, "0.25 W (1206)", (24 - 11.8) ** 2 / 2.2e3 / 0.25, 0.5,
-    `${f((16 - 11.8) ** 2 / 2.2e3 * 1e3, 0)} mW at 16 V; VDD sits at the aux-regulated 11.8 V`);
-  const pRcs = (ipkOp / Math.sqrt(3)) ** 2 * 0.33;
-  judge("Flyback", "CS resistor power", `${f(pRcs, 3)} W`, "0.75 W (1210)", pRcs / 0.75, 0.6);
+    `A.6 needed 7.95 V (divider on VDD). Burst-to-takeover energy is S1's job`);
+  judge("Flyback", "Start resistor dissipation @24 V jump start", `${f((24 - vdd) ** 2 / 2.2e3, 3)} W`, "0.25 W (1206)", (24 - vdd) ** 2 / 2.2e3 / 0.25, 0.5,
+    `${f((16 - vdd) ** 2 / 2.2e3 * 1e3, 0)} mW at 16 V; VDD sits at the aux-derived ${f(vdd, 1)} V`);
+  // DCM shunt RMS = Ipk·√(D_on/3), D_on = t_on·f with t_on = L_bank·Ipk/V_in — worst at the 9 V-crank node
+  const dOn = (P.xfmr.lp / 3) * ipkOp / (OP.kl30.min - 0.95) * fsw, pRcs = ipkOp ** 2 * (dOn / 3) * 0.33;
+  judge("Flyback", "CS resistor power (bank, DCM)", `${f(pRcs, 3)} W`, "0.75 W (1210)", pRcs / 0.75, 0.6, `D_on ${f(dOn, 3)} at 8.05 V in; the old (Ipk/√3)² assumed a 100 % duty triangle`);
 }
 
 // ---------- rev A.4 corrections (external design review F37–F46) ----------
@@ -258,11 +317,31 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   judge("Flyback A.4", "Drain worst case (clamped load dump)", `${f(vDrainLD, 1)} V`, "80 V BUK7Y14-80E",
     vDrainLD / 80, 0.85, "F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF)");
   // F39 DESAT clamp direction is topological (erc-audit); F40 ASC latch levels:
-  const vSetLow = 5 * 1e3 / 11e3;
-  judge("Safety A.4", "ASC latch asserted-low level (1k into 10k)", `${f(vSetLow, 2)} V`, "1.5 V VIL @5 V LVC",
-    vSetLow / 1.5, 0.5, "F40 — the 120/120 divider made 2.5 V = indeterminate");
-  judge("Safety A.4", "FS1B sink at assertion", `${f(5 / 1e3 + 5 / 11e3, 1)} mA-scale (≈5.5 mA)`, "22 mA FS26 clamp",
-    ((5 / 1e3) + (5 / 11e3)) / 22e-3 / 1e3, 0.5);
+  // round 7 (A6-R01): FS1B holds V_OL ≤ 0.4 V only up to 2 mA and may current-limit at 4 mA. Budget at
+  // V5A 5.1 V, 1 % parts: RENP2 5.1 k + the RFS1/RFS2 strap + a FAULT_OUT VCU load of ≥ 10 k to ≤ 5.1 V.
+  const vOL = 0.4, v5 = 5.1;
+  const iRenp = (v5 - vOL) / (5.1e3 * 0.99), iStrap = (v5 - vOL) / (11e3 * 0.99), iFout = (v5 - vOL - 0.3) / (9.9e3 + 0.99e3), iFs1b = iRenp + iStrap + iFout;   // FAULT_OUT sinks through DFO (BAT46 ≈0.3 V)
+  judge("Safety A.7", "FS1B load at its V_OL point (5.1 k + strap + FAULT_OUT)", `${f(iFs1b * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V; current limit ≥ 4 mA)", iFs1b / 2e-3, 0.95,
+    `A6-R01: the 1 k pulls took ${f((5 / 1e3 + 5 / 11e3) * 1e3, 2)} mA — a 4 mA-limit part sat at 1.33 V, ASC_SET_N at 1.67 V (> VIL); the old row compared with the 22 mA maximum and divided by 1000 again`);
+  const vSetLow = vOL + (v5 - vOL) * 1.01e3 / (1.01e3 + 9.9e3);
+  judge("Safety A.7", "ASC latch asserted-low level (FS1B at V_OL, 1k into 10k)", `${f(vSetLow, 2)} V`, "1.35 V VIL (0.3·V_CC at 4.5 V)",
+    vSetLow / 1.35, 0.75, "F40/A6-R01 — the old row assumed FS1B at 0 V");
+  judge("Safety A.7", "FS0B load at its V_OL point (5.1 k into the USCH input)", `${f(iRenp * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V)", iRenp / 2e-3, 0.6,
+    "pin ≤ 0.4 V: under the SBC's own 0.7 V read-back threshold and the buffer's 1.0 V V_T− minimum");
+  const vFoutLo = vOL + 0.3 + iFout * 1.01e3;
+  judge("Safety A.7", "FAULT_OUT asserted level at the VCU (10 k to 5 V)", `${f(vFoutLo, 2)} V`, "1.5 V (5 V CMOS V_IL)", vFoutLo / 1.5, 0.85,
+    "sink-only through DFO: the VCU must pull up (firmware-contract §9)");
+  const vk = 16, vFs1bShort = (vk - 0.3 + 5 / 5.1 + 5.3) / (1 + 1 / 5.1 + 1);
+  add("Safety A.7", "FAULT_OUT wire faults (FS1B released)", `to ground: ASC_SET_N stays 5.0 V (A.6: 2.83 V, first A.7 draft: 1.47 V = preset) · to KL30 16 V: ASC_SET_N clamped 5.3 V, RFS4 ${f((vk - 0.3 - vFs1bShort), 1)} mA`, "no unintended ASC preset; ≤ 6.5 V at the latch", "PASS",
+    "round 7 cross-check item 2: DFO blocks a ground short, a dead VCU input and negative spikes; DSET clamps a battery short. While shorted to KL30 FS1B cannot pull the node low — the FS26 read-back reports FS1B short-to-high (degraded, detected)");
+  judge("Safety A.7", "ASC break-before-make: HS off before LS on", `LS starts ≥ ${f(ASC.tLsMin * 1e6, 2)} µs after the latch sets`,
+    `HS off by ${f((ASC.tHsEn + 2.5e-6) * 1e6, 2)} µs (${f(ASC.tHsEn * 1e6, 2)} µs to EN + 2.5 µs IGBT dead time)`, (ASC.tHsEn + 2.5e-6) / ASC.tLsMin, 0.9,
+    "RR05, FS1B path shown (FS0B → USCH → ANDs → EN); the MCU path is faster (eFlexPWM fault on the high-side outputs → IN+ low, tpHL ≤ 0.13 µs), and its low sides come on by PWM after the dead time. EN stays high on the MCU path so LS DESAT keeps priority (DS §8.12). SiC dead time is 1.0 µs — more margin");
+  add("Safety A.7", "ASC entry, latch set → LS gates on (worst)", `${f(ASC.tEntryMax * 1e6, 2)} µs`, "counted in the FW-06 budget (§2b)", "INFO",
+    "release ≤ 0.75 µs (TLP152 tpHL 0.19 µs + DASCR discharge + tASC_f 0.48 µs); exit is MCU-sequenced (FW-06a)");
+  const iLed = (4.9 - 0.24 - 1.8) / 270, iLedMax = (5.1 - 0.05 - 1.4) / 270;
+  judge("Safety A.7", "ASC opto LED current (RASCL 270 R) vs TLP152 I_FLH", `${f(iLed * 1e3, 1)} mA min · ${f(iLedMax * 1e3, 1)} mA max`, "7.5 mA I_FLH max · 15 mA recommended max",
+    7.5e-3 / iLed, 0.8, "round 7 (self-found, N10): 470 R gave 5.4–7.0 mA, under the guaranteed turn-on current. V5A 4.9 V, LVC V_OH drop 0.24 V at 11 mA, V_F 1.8 V max");
   // F41 KL15 sense:
   judge("LV A.4", "IGN_SNS at 16 V KL15", `${f((16 - 0.7) * 10 / 57, 2)} V`, "5 V ADC range",
     ((16 - 0.7) * 10 / 57) / 5, 0.75, "F41 — was a raw diode into PTA25 (13.3 V)");
@@ -283,6 +362,8 @@ const f = (x, d = 1) => Number(x.toFixed(d));
     15.0 / 16.5, 0.95, "F51 — boost pass-through clamped; LDO input 23.5 V << 40 V rating");
   judge("LV A.4", "ULDO15 input at clamped load dump", "≈33 V", "40 V NCV4276C operating max",
     33 / 40, 0.9, "F51 — TPSMC24CA clamp level on the 12 V node");
+  judge("LV A.7", "CB15O1/2 (V15B) at clamped load dump", "≈33 V", "50 V MLCC rating",
+    33 / 50, 0.8, "round 7 RR10 — V15B follows V12L−Vf in pass-through; the 25 V parts were overstressed");
   judge("LV A.4", "ULDO15 dissipation @24 V sustained", `${f((24 - 0.5 - 15) * 0.33, 1)} W`, "TSD-protected (survival case, not an operating mode)",
     0.5, 0.9, "jump start is stationary service — brief V15 brown-out via TSD is acceptable; passive bleeder unaffected");
 
@@ -310,7 +391,7 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   // Gate-power switch drive legality + clamp loading
   judge("Flyback A.4", "QF gate drive vs BUK7Y14-80E VGS abs", "11.8 V", "±20 V DC (was BUK9Y: ±10 V)",
     11.8 / 20, 0.8, "F56 — logic-level part was outside abs max at the VDD drive");
-  add("Flyback A.4", "Gate zener standing load", "0 W (BZT52-C15 dark at 11.8 V)", "was ~0.4 W/zener all ON-time", "PASS",
+  add("Flyback A.4", "Gate zener standing load", "0 W (BZT52-C15 dark at the ≈11 V VDD)", "was ~0.4 W/zener all ON-time", "PASS",
     "F56 — the 5.6 V clamp conducted ~0.29 A through every ON interval (historical estimate, not carried into the new budget)");
 
   // ---- rev A.5 documentation-audit findings (F60–F61) ----
@@ -346,7 +427,6 @@ const f = (x, d = 1) => Number(x.toFixed(d));
   const i5 = 6 * 0.005 + 0.02;
   judge("LV", "NCV4276 5 V load (6 driver VCC1 + optos)", `${f(i5 * 1e3)} mA`, "400 mA", i5 / 0.4, 0.5);
   judge("LV", "FS26 VMONEXT divider (52.3k/10k @5 V)", "0.794 V", "0.8 V fixed reference ±window", Math.abs(0.794 - 0.8) / 0.8 / 0.12, 0.5, "F34 — old 10k/18.7k fed 3.26 V = permanent OV; OTP window set around 100 %");
-  judge("LV", "FS0B/FS1B pull-up sink current (1 k)", "4.6 mA", "22 mA low-side clamp", 4.6 / 22, 0.6, "F35 — 120 Ω would have forced 42 mA");
   add("LV", "S32K39 core topology", "FS26 VCORE→V15S 1.5 V → QBAL ballast → V11 1.14 V", "-", "PASS", "F36 — per DS Table 11; direct VCORE→V11 is not a supported topology");
   const pLdo = (12 - 5) * i5;
   judge("LV", "NCV4276 dissipation @12 V", `${f(pLdo, 2)} W`, "~1.5 W DPAK on copper", pLdo / 1.5, 0.6);
@@ -410,10 +490,23 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
 same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md) and [\`review-A7-disposition.md\`](review-A7-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
+| F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
+| F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
+| F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |
+| F80 | **HIGH** | Flyback FB divider on VDD: the 2.2 k start feed could hold FB above 2.5 V with the converter stopped (12.3 V at a 16 V rail for a 1.5 mA controller; 18 V clamp at a 24 V jump start) → no restart, gate power lost (A6-R07); the VCC2 model omitted the aux diode — the real rail was 16.9 V, not 15.6 V (A6-R06) | FB senses its own aux rectifier (1N4148WS + 100 Ω + 100 nF), 52.3k/15k: VCC2 15.4 V nom, 14.0–16.7 V corners in a 13.5–17.0 V window |
+| F81 | MED | CB15O1/2 22 µF/25 V on V15B, which follows V12L − Vf to ≈33 V in pass-through (RR10) | 22 µF/50 V 1210 (same part as CLVC2); boost PM 72–84° over 20–35 µF effective |
+| F82 | MED | TLP152 ASC opto LED at 5.4–7.0 mA through 470 Ω — below its 7.5 mA guaranteed turn-on current (self-found, N10) | RASCL 270 Ω: 10.6–13.5 mA |
+| F83 | MED | The one-shot comment claimed runaway code could not hold the chain permissive; repeated clear pulses do (RR03) | claim corrected; FW-15 locked eFlexPWM fault inputs (PWM forced low while FLT) + FW-12 WD_ERR_LIMIT 2 → FS0B |
+| F84 | MED | DESAT timing row judged PASS at the 400 mA soft-off only; the 100 mA DS minimum needs 8.9–10.1 µs vs tP ≤ 6 µs (RR04/A6-R04) | both corners shown, WARN = release gate (I_STO distribution, SC envelope at 850 V and actual gate bias, contained SC test) |
+| F85 | LOW | Thermal: S4/steady-state put only the switch die into the coldplate term; the diode heats the same plate (RR07) | tjPos: plate carries IGBT + diode; 8XX/4XX IGBT 30 s peak 129/123 °C |
+| F86 | LOW | 8 kHz SiC mode allowed a 1.2 kHz current-loop crossover (43.3° PM) (RR08) | ≤ 1.1 kHz at 8 kHz (47.2°) in the SKU table |
+| F87 | LOW | bom-gen exited 0 with missing inputs; JSWD 10-pin source vs a 20-pin BOM part (A6-R09/R10) | preflight aborts before any write (missing/empty/malformed/stale); Samtec FTSH-105-01-L-DV-K + contact-count check |
+| F88 | LOW | Flyback peak-current check used one transformer's Lp for the bank current; README kept pre-A.6 loss numbers (A6-R14, README note) | bank Lp = 10 µH/3 (2.05 A, 68 %); README sizing regenerated from the loss model |
+| F89 | LOW | ULAT/ULAT2 were TI SN74LVC1G74DCUR, a catalog part with no AEC-Q100 variant (self-found, N11) | Nexperia 74LVC1G74DC-Q100, pin-identical |
 | F63 | **HIGH** | S8 turn-off overshoot used \`Ln·20e12·1e-6\` for 20 kA/µs — 1000× too small (0.3 V instead of 300 V at 15 nH), so its PASS was void; with the DS fall time (13 ns cold at 3.3 Ω ≈ 30 kA/µs at 481 A) no EconoDUAL-class loop holds 1080 V at 850 V (review R-F01) | SI units; overshoot budget from the DS tf; RG_OFF start value 6.8 Ω (Eoff booked in the loss model), RG_ON 3.3 Ω (the only characterized point, was 1.5/1.0); DPT gate at 850 V cold/hot; module Ls requested from hiitio |
 | F64 | **HIGH** | SiC conduction loss used the IGBT transistor-only formula \`I·√(1/8+m·cosφ/3π)\`: synchronous SiC conducts ½·I²·R per switch — understated 2.4× (136 → 330 W/switch at 340 A) (R-F02) | exact ½·I²R + switching at the fitted Rg + Qrr + dead-time diode; thermal and efficiency restated (peak 30 s Tj 122 °C at 850 V, not 89 °C; 99.0 % semiconductor efficiency at the continuous point) |
 | F65 | **HIGH** | IGBT short-circuit rating carried as "10 µs class"; HCG600 DS Table 5 says tP ≤ 6 µs at 800 V/175 °C/15 V; 150 pF blanking = 4.5 µs worst detection alone (R-F03) | IGBT blanking 82 pF C0G: 2.98 µs worst detection + ~1.5 µs soft-off < 5 µs derated; contained SC test is the release gate (the DS-minimum 100 mA soft-off current is not coverable) |

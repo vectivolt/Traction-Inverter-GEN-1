@@ -113,7 +113,7 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs. It adds:
+**M8** keeps the Road PCBs, frozen at **rev A.7** (the round-7 safety-logic, ASC and gate-supply fixes are included). It adds:
 
 - the marine kit, about ₹27–56k per cell:
   - IP54 enclosure;

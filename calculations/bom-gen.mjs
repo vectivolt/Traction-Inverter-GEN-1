@@ -4,7 +4,7 @@
 // UNMATCHED components are listed loudly — the BOM is not done until that list is empty.
 // Run (after tsci builds): node calculations/bom-gen.mjs
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB, OVERRIDES, SKUS } from "./parts-db.mjs";
@@ -61,14 +61,14 @@ const SUBSYS = [
   ["Gate drivers + networks", /^(U[UVW][HL]G|[RDCZ][UVW][HL])/],
   ["Gate-power flybacks", /^([UQ]F[HL]|[RCD]F[HL]|ZF[HL]|TF[HL])/],
   ["VDC iso sensing + bias", /^(RV[DB]D|CV[DB]DF|UIV|PS5B|C5B)/],
-  ["ASC buffer", /^(PSASC|UASC|RASC|CASC)/],
+  ["ASC buffer", /^(PSASC|UASC|RASC|CASC|DASCR)/],
   ["LV power (prot+LDO+boost)", /^(F[HL]1|DR[HL]|DTV[HL]|LF[HL]1|CLV[HL]|UGDL|C5G|UB15|LB15|DB15|CB15|RB15)/],
   ["HV entry/Y-caps/HVIL/studs", /^(JHV|JPE|JM[UVW]|CY[12]|RPET|CPET|JHVIL|RHVL|DTVSH)/],
   ["Harness + pulldowns", /^(JIC$|RPD\d+|JICC|RCPD)/],
   ["Module NTC routing", /^([RC][UVW]T[SF]|D[UVW]TP)/],
   ["MCU + clock + debug", /^(UMCU|Y1|CY[AB]|CMD|CMA|RMRST|JSWD|RBOOT|CRST)/],
   ["FS26 SBC + LV input + wake", /^(USBC|DBAT|LSBC|LCOR|CSB|RSB|RAGT|FLVC|DREVC|DTVSC|LFC|CLVC|RIGN|DIGN|CIGN)/],
-  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|REN|RFS|RGPD|RFLTP|RRDYP|CFLTF|RLAT|RASCP|CLAT|RILK|CILK)/],
+  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|USCH|CSCH|RSCH|REN|RFS|RGPD|RFLT|DFLT|CFLT|CCLR|DCLR|DFO|DSET|RDRB|RARB|RRDYP|RLAT|RASCP|CLAT|RILK|CILK)/],
   ["Resolver AFE", /^(UEX|UVMB|REX|CEX|RVM|CVM|[RDC](SIN|COS))/],
   ["Hall sensors + AFE", /^(USNS|JLEM|[ULRC][UVW]B\d?|C[UVW]S[12])/],
   ["VDC receivers (card)", /^([RUC]VD[12])/],
@@ -92,10 +92,26 @@ All SKUs: [8XX SiC](bom.md) · [8XX IGBT](bom-igbt.md) · [4XX IGBT](bom-igbt4.m
 `;
 let grand = 0;
 const catTotal = new Map();
-for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["discharge", "discharge"], ["control-card", "control-card"]]) {
+// Preflight (round 7, A6-R09): all four board inputs must exist, parse, carry components and be
+// newer than their sources BEFORE any file is written — a partial build must fail, not ship a BOM.
+const BOARDS = [["power", "power"], ["capbank", "capbank"], ["discharge", "discharge"], ["control-card", "control-card"]];
+const INPUTS = new Map(), bad = [];
+for (const [board, path] of BOARDS) {
   const p = join(ROOT, "dist", "boards", path, "circuit.json");
-  if (!existsSync(p)) { console.log(`!! missing build: ${board} — run npm run build first`); continue; }
-  const j = JSON.parse(readFileSync(p, "utf8"));
+  if (!existsSync(p)) { bad.push(`${board}: missing ${p} — run npm run build`); continue; }
+  let j;
+  try { j = JSON.parse(readFileSync(p, "utf8")); } catch (e) { bad.push(`${board}: unreadable circuit.json (${e.message})`); continue; }
+  if (!Array.isArray(j) || !j.some((e) => e.type === "source_component")) { bad.push(`${board}: circuit.json has no components`); continue; }
+  const built = statSync(p).mtimeMs;
+  const stale = [join(ROOT, "boards", `${path}.tsx`), join(ROOT, "packages", "cells.tsx")].filter((src) => existsSync(src) && statSync(src).mtimeMs > built);
+  if (stale.length) { bad.push(`${board}: circuit.json older than ${stale.map((s) => s.slice(ROOT.length + 1)).join(", ")} — rebuild`); continue; }
+  INPUTS.set(board, j);
+}
+if (bad.length) { console.error(`BOM ABORTED — no file written:\n  ${bad.join("\n  ")}`); process.exit(1); }
+for (const [board] of BOARDS) {
+  const j = INPUTS.get(board);
+  const ports = new Map();
+  for (const e of j) if (e.type === "source_port") ports.set(e.source_component_id, (ports.get(e.source_component_id) ?? 0) + 1);
   const lines = new Map();
   const unmatched = [];
   for (const c of j.filter((e) => e.type === "source_component")) {
@@ -103,6 +119,9 @@ for (const [board, path] of [["power", "power"], ["capbank", "capbank"], ["disch
     const rule = (VARIANT ? undefined : OVERRIDES[c.name]) ?? XDB.find((r) => r.m.test(c.name));
     if (!rule) { unmatched.push(c.name); continue; }
     const val = rule.value ?? valueOf0(c);
+    // connector contact count (A6-R10): the bound part must have as many contacts as the symbol has pins
+    if (rule.pins && ports.get(c.source_component_id) !== rule.pins)
+      mismatches.push(`${c.name}: symbol has ${ports.get(c.source_component_id)} pins, ${rule.mpn} has ${rule.pins} contacts`);
     const mv = mpnValue(rule.mpn);
     if (mv !== null && val && Math.abs(mv - num(val)) > 0.02 * mv) mismatches.push(`${c.name}: value ${val} vs MPN ${rule.mpn}`);
     const key = `${rule.mpn}|${val}`;

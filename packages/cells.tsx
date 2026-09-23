@@ -133,10 +133,14 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
       <chip name={`U${p}G`} footprint={SmdFP(16)} {...gp()}
         pinLabels={{ pin1: "ASC", pin2: "DESAT", pin3: "GND2", pin4: "OUTH", pin5: "VCC2", pin6: "OUTL", pin7: "CLAMP", pin8: "VEE2", pin9: "GND1", pin10: "INP", pin11: "INN", pin12: "RDY", pin13: "FLT", pin14: "EN", pin15: "VCC1", pin16: "TEST" }}
         connections={{
-          ASC: asc ?? ks, DESAT: dst, GND2: ks, VCC2: vcc, VEE2: vee,
+          ASC: asc ? `net.ASCP_${p}` : ks, DESAT: dst, GND2: ks, VCC2: vcc, VEE2: vee,
           GND1: "net.DGND", INP: pwmP, INN: pwmN, RDY: rdy, FLT: flt, EN: en, VCC1: "net.V5GD", TEST: "net.DGND",
           OUTH: `net.OH_${p}`, OUTL: `net.OL_${p}`, CLAMP: `net.CLP_${p}`,
         }} />
+      {/* LS ASC pin through 1 k at the driver (round 7 cross-check item 5): the shared ASC_DRV node
+          (12 nF to DC-) is stiff, while each pin is referenced to its own Kelvin source — the
+          L_s·di/dt between them must not drive the pin's clamp cells hard (abs GND2-0.3/+6 V) */}
+      {asc && <resistor name={`R${p}AS`} resistance="1k" footprint="0603" {...gp()} connections={{ pin1: asc, pin2: `net.ASCP_${p}` }} />}
       {/* gate network */}
       <resistor name={`R${p}ON`} resistance="3.3" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OH_${p}`, pin2: gate }} />
       <resistor name={`R${p}OFF`} resistance="6.8" footprint={SmdFP(2)} {...gp()} connections={{ pin1: `net.OL_${p}`, pin2: gate }} />
@@ -230,13 +234,22 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
           internal VDD clamp: with the flyback disabled, 2.2 k would float VDD to ~18 V at a
           24 V jump start and past the 20 V abs max at a clamped load dump — 18 V zener. */}
       <resistor name={`RF${id}ST`} resistance="2.2k" footprint="1206" {...gp()} connections={{ pin1: v12, pin2: vcc }} />
-      {/* primary-side regulation via the NF feedback winding (VGT NP:NF:NS = 1:1.6:2.9):
-          VCC_reg = (NF/NS)*(Vsec+Vf) ~= 11.8 V -> 56k/15k on the 2.5 V ref (F33 — a 15 V
-          target is unreachable through NF and would drive the secondaries to ~27 V) */}
+      {/* primary-side regulation via the NF feedback winding (VGT NP:NF:NS = 1:1.6:2.9).
+          Round 7 (A6-R06/R07): the divider senses its OWN small aux rectifier (FFS), not VDD.
+          On VDD the 2.2 k start feed could hold FB above 2.5 V with the switch stopped (from
+          ~15.5 V at the rail for a low-I_q part, certainly at a 24 V jump start) -> no restart,
+          gate power lost. FFS is fed only by the winding, so a stopped converter always
+          restarts. VCC2 = (V_FFS + Vf_FS)*NS/NF - Vf_sec - Vz: 52.3k/15k -> V_FFS 11.22 V ->
+          VCC2 15.4 V nominal, 13.5-16.7 V corners (the 56k/VDD sense gave ~16.9 V once the aux
+          diode drop is counted). 100 R/100 nF is the leakage-spike filter — bench knob; CF?FS is
+          a soft-termination MLCC (a cracked short would force FB = 0, full duty). */}
       <diode name={`DF${id}A`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: vcc }} />
       <capacitor name={`CF${id}A`} capacitance="47uF" footprint="1210" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
       <diode name={`DF${id}VZ`} footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: vcc }} />
-      <resistor name={`RF${id}FB1`} resistance="56k" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: fb }} />
+      <diode name={`DF${id}FS`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: `net.FFD_${id}` }} />
+      <resistor name={`RF${id}FS`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: `net.FFD_${id}`, pin2: `net.FFS_${id}` }} />
+      <capacitor name={`CF${id}FS`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: `net.FFS_${id}`, pin2: "net.DGND" }} />
+      <resistor name={`RF${id}FB1`} resistance="52.3k" footprint="0603" {...gp()} connections={{ pin1: `net.FFS_${id}`, pin2: fb }} />
       <resistor name={`RF${id}FB2`} resistance="15k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: "net.DGND" }} />
       {/* three transformers, primaries paralleled on the switch node; TF?1 carries the aux.
           VGT12EEM-200S1A4 REAL circuit (TDK DS p.3/9): NP1||NP2 = pins 1-2 with DOTS AT PIN 2;

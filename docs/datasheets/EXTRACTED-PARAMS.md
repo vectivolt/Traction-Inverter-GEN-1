@@ -272,6 +272,56 @@ insulation grade **basic**, 250 VACrms working; its 6.4 kV figure is a 1 s test 
 | RthJC | 0.07 K/W per IGBT · 0.10 per diode | Table 3 |
 | NTC | B25/50 = **3375 K** | Table 8 |
 
+## 25. Round-7 safety-logic data (rev A.7)
+
+**74LVC3G17-Q100** (USCH). Nexperia, Rev. 5, 24 Aug 2023 —
+https://assets.nexperia.com/documents/data-sheet/74LVC3G17_Q100.pdf. **Not yet archived**; the
+URL is cited.
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Input transition rate | **no Δt/ΔV row** in the operating conditions (Schmitt buffer) | Table 6 |
+| V_T+ (−40…125 °C) | 1.90–3.30 V at 4.5 V · 2.20–3.80 V at 5.5 V | Table 8 |
+| V_T− | 1.00–2.20 V at 4.5 V · 1.20–2.50 V at 5.5 V | Table 8 |
+| t_pd max | 5.4 ns (−40…125 °C, V_CC 4.5–5.5 V) | Table 9 |
+| Pins (DC, VSSOP-8) | 1=1A · 2=3Y · 3=2A · 4=GND · 5=2Y · 6=3A · 7=1Y · 8=VCC | Table 3 |
+| Grade | AEC-Q100 Grade 1 | §1 |
+
+**74LVC1G74-Q100** (ULAT/ULAT2). Nexperia, Rev. 7, 22 Sep 2025 —
+https://assets.nexperia.com/documents/data-sheet/74LVC1G74_Q100.pdf. **Not yet archived**.
+
+- Pin-identical to TI DCU (1=CP, 2=D, 3=Q̄, 4=GND, 5=Q, 6=R̄D, 7=S̄D, 8=VCC).
+- **Table 4 (asynchronous operation): SD = L, RD = L ⇒ Q = H, Q̄ = H**, the same as TI. The
+  fault-latch recovery depends on this row (read from the Rev 7 PDF during the round-7
+  cross-check).
+- AEC-Q100 Grade 1.
+- Δt/ΔV ≤ 10 ns/V at 2.7–5.5 V, despite the "Schmitt-trigger action" prose. The same applies
+  to the 74LVC1G11-Q100 and 74LVC1G08-Q100.
+- The archived TI SN74LVC1G74 (SCES794G) is a catalog part with no AEC-Q100 statement:
+  Δt/Δv ≤ 5 ns/V at 5 V, no hysteresis.
+
+**Other round-7 values, all from the archived PDFs:**
+
+| Part | Parameter | Value | Citation |
+|---|---|---|---|
+| FS26 | FS0B/FS1B current limit · V_OL · read-back low/high | 4–22 mA · ≤ 0.4 V at 2 mA · < 0.7 V / > 1.5 V | Tables 196/197 |
+| FS26 | recommended pull-up to VDDIO | 5.1 kΩ | §22.11.2 |
+| FS26 | FS1B at power-up | **asserted low after each POR or wake-up**, until the MCU releases it (drives the §9 boot order) | §22.11.3 |
+| FS26 | reference FS1B network | 10 nF at the pin; 5.1 kΩ to VDDIO or 10 kΩ to VSUP; 22 nF toward the fail-safe circuitry (EMC-phase item) | Fig. 62 |
+| FS26 | FS1B_TDELAY / TDUR | 0 or 5 ms…10 s / 100 ms default … infinite | Tables 95/96 |
+| FS26 | WD_ERR_LIMIT / WD_FS_REACTION | 8/6/4/2 (6 default) / RSTB+FS0B default | Tables 75/76 |
+| NSI6611 | ASC thresholds (rising / falling) | 2.7–3.2 V / 1.3–1.7 V | p.7 |
+| NSI6611 | ASC rising / falling delay | tASC_r 0.39–1.1 µs · tASC_f 0.15–0.48 µs | p.7 |
+| NSI6611 | EN deglitch · t_RST_FIL · t_FLT_MUTE | 28–60 ns · 0.48–0.8 µs · 0.55–1.3 ms | p.7/p.9 |
+| NSI6611 | protection priority | VCC2-UVLO > DESAT > ASC > VCC1-UVLO | §8.11 |
+| NSI6611 | **DESAT vs ASC by EN state** | function table: EN/RST **low** + ASC high ⇒ OUT high, DESAT "X" (irrelevant), FLT HIZ. DESAT wins over ASC only in the row EN high, IN+ high, IN− low. Hence ASC is held as PWM-ASC with EN high (firmware-contract §4c) | §8.12 table, Fig. 8.11 |
+| NSI6611 | RST/EN internal pull-down | 50 kΩ (block diagram); none is drawn on ASC | Fig. 8.1 |
+| TLP152 | I_FLH (turn-on threshold) | typ 1.5 / **max 7.5 mA**; recommended I_F(ON) 10–15 mA; V_F 1.40–1.80 V at 10 mA | §8/§9 |
+| TLP152 | t_pLH / t_pHL max (−40…100 °C) | 170 / 190 ns | §11 |
+| UCC28C4x | I_VDD | typ 2.3 / max 3 mA, **no minimum**; no internal VDD clamp (20 V abs) | §6.5, §7.3.1.7 |
+| TPS55340 | abs max VIN / SW | 34 V / 40 V; no pass-through statement | §6.1 |
+| AMC1311B | IN→OUT delay 50–50 % | typ 1.6 / max 2.1 µs | §7.10 |
+
 ---
 
 # Archive index (48 PDFs, verified `%PDF` headers)

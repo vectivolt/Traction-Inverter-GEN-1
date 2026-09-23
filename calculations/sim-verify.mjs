@@ -66,8 +66,11 @@ function plot(file, title, series, xlab, ylab) {
     "PASS", "t_on + t_reset < T above ≈6 V, so the rail regulates at any KL30 once running — startup is the separate question below");
 
   function flyStart(V12, Rst, Cvdd, o = {}, tr = null) {
-    const k = { Von: 7.0, Voff: 6.6, Ist: 100e-6, Iic: 3.0e-3, Qg: 25e-9, Lp: 10e-6 / 3, Vcs: 1.0, Iea: 1e-3, Icc2: 1.5e-3, ...o };
-    const T = 1 / 253e3, nf = 1.6, Rfb = 71e3, C1 = 9.5e-6, C2 = 10e-6, Ccomp = 22e-9, Cvref = 100e-9;
+    // round 7 (A6-R07): the 67 k divider sits on the separate FFS sense node, so VDD carries no divider
+    // (Rfb = ∞) and aux takeover is VDD back above 10 V while running (regulation ≈10.9 V); the A.5
+    // historical case keeps its 71 k on VDD and the old 11 V criterion
+    const k = { Von: 7.0, Voff: 6.6, Ist: 100e-6, Iic: 3.0e-3, Qg: 25e-9, Lp: 10e-6 / 3, Vcs: 1.0, Iea: 1e-3, Icc2: 1.5e-3, Rfb: Infinity, vOk: 10.0, ...o };
+    const T = 1 / 253e3, nf = 1.6, Rfb = k.Rfb, C1 = 9.5e-6, C2 = 10e-6, Ccomp = 22e-9, Cvref = 100e-9;
     let t = 0, vdd = 0, v1 = 0, v2 = 0, iL = 0, comp = 0, run = false, bursts = 0, pk = 0;
     const loads = (dt) => {
       const vt = v1 + v2, icc = (v1 < 11.2 ? k.Icc2 : 3e-3) * Math.min(1, vt / 4), ib = vt / 5.1e3;
@@ -98,7 +101,7 @@ function plot(file, title, series, xlab, ylab) {
         offtime(T - ton);
         vdd -= (iload * T + qg) / Cvdd; loads(T); t += T; pk = Math.max(pk, v1 + v2);
         if (tr && Math.round(t / T) % 64 === 0) { tr.t.push(t * 1e3); tr.vdd.push(vdd); tr.vs.push(v1 + v2); }
-        if (vdd >= 11.0) return { ok: true, t, bursts };
+        if (vdd >= k.vOk) return { ok: true, t, bursts };
         if (vdd < k.Voff) { run = false; offtime(20e-6); iL = 0; }
       }
     }
@@ -106,13 +109,14 @@ function plot(file, title, series, xlab, ylab) {
   }
   const WORST = { Iic: 3.5e-3, Vcs: 0.9, Iea: 0.5e-3, Lp: 8e-6 / 3, Von: 7.5, Voff: 7.1, Icc2: 3e-3, Qg: 45e-9 };
   const trN = { t: [], vdd: [], vs: [] }, trO = { t: [], vdd: [], vs: [] };
-  flyStart(8.15, 2.2e3, 37e-6, WORST, trN); flyStart(8.15, 4.7e3, 3.8e-6, {}, trO);
-  plot("s1-flyback-startup.svg", "S1 gate-power start-up at KL30 9 V: rev A.6 (2.2 k / 47 µF, worst parts) vs rev A.5 (4.7 k / 4.7 µF, typical)",
-    [{ name: "A.6 V_sec (V)", x: trN.t, y: trN.vs }, { name: "A.6 VDD (V)", x: trN.t, y: trN.vdd },
+  const A5 = { Rfb: 71e3, vOk: 11.0 };
+  flyStart(8.15, 2.2e3, 37e-6, WORST, trN); flyStart(8.15, 4.7e3, 3.8e-6, A5, trO);
+  plot("s1-flyback-startup.svg", "S1 gate-power start-up at KL30 9 V: rev A.7 (2.2 k / 47 µF, FB off VDD, worst parts) vs rev A.5 (4.7 k / 4.7 µF, typical)",
+    [{ name: "A.7 V_sec (V)", x: trN.t, y: trN.vs }, { name: "A.7 VDD (V)", x: trN.t, y: trN.vdd },
      { name: "A.5 V_sec (V) — never starts", x: trO.t.filter((x) => x <= trN.t.at(-1)), y: trO.vs.slice(0, trO.t.filter((x) => x <= trN.t.at(-1)).length) }], "time (ms)", "V");
   const cell = (r) => r.ok ? `${f(r.t * 1e3, 0)} ms (${r.bursts} burst${r.bursts > 1 ? "s" : ""})` : `NO START (secondaries peak ${f(r.pk ?? 0, 1)} V)`;
-  for (const [tag, Rst, Cv] of [["A.5 as drawn: 4.7 k / 4.7 µF", 4.7e3, 3.8e-6], ["A.6: 2.2 k / 47 µF (≈37 µF eff)", 2.2e3, 37e-6]]) {
-    const typ9 = flyStart(8.15, Rst, Cv), w9 = flyStart(8.15, Rst, Cv, WORST), w14 = flyStart(13.15, Rst, Cv, WORST);
+  for (const [tag, Rst, Cv, base] of [["A.5 as drawn: 4.7 k / 4.7 µF", 4.7e3, 3.8e-6, A5], ["A.7: 2.2 k / 47 µF (≈37 µF eff), FB on the FFS node", 2.2e3, 37e-6, {}]]) {
+    const typ9 = flyStart(8.15, Rst, Cv, base), w9 = flyStart(8.15, Rst, Cv, { ...WORST, ...base }), w14 = flyStart(13.15, Rst, Cv, { ...WORST, ...base });
     const ok = typ9.ok && w9.ok && w14.ok;
     add("S1", `Gate-power STARTUP, ${tag}`, `KL30 9 V: typ ${cell(typ9)} · worst ${cell(w9)} · KL30 14 V worst ${cell(w14)}`,
       "one-burst start at every corner, KL30 9–16 V", ok ? "PASS" : "FAIL",
@@ -126,7 +130,7 @@ function plot(file, title, series, xlab, ylab) {
 {
   const cap = 0.5 * (10e-6 / 3) * (0.9 * 3.03) ** 2 * 253e3 * 0.92;
   for (const [tag, q, fs, fo] of [["SiC @10 kHz (1.09 µC)", 1.09e-6, 10e3, 253e3], ["IGBT @5 kHz (4.36 µC, unscaled, RT 8.2 k)", 4.36e-6, 5e3, 308e3]]) {
-    const Pload = 3 * (q * 20.7 * fs + 3.3e-3 * 20.7 + 20.7 ** 2 / 5.1e3) + 0.2;
+    const Pload = 3 * (q * 20.5 * fs + 3.3e-3 * 20.5 + 20.5 ** 2 / 5.1e3) + 0.2;   // span 15.4 + 5.1 V (round 7 rail)
     const capW = 0.5 * (8e-6 / 3) * (0.9 / 0.33) ** 2 * fo * 0.92;
     add("S1", `Flyback bank load, ${tag}`, `${f(Pload, 2)} W demand`, `${f(capW, 2)} W at worst parts (CS 0.9 V, Lp −20 %, 100 % limit)`, Pload < 0.8 * capW ? "PASS" : "WARN", "same rails, same transformer for every SKU");
   }
@@ -136,6 +140,7 @@ function plot(file, title, series, xlab, ylab) {
 // Current-mode CCM model (TI SLVSBD4E §8.2.1.2.11 form): power stage Gps with output pole,
 // RHP zero; EA gm=360 µS, Ro=10 MΩ, Zc = Rc + 1/sCc (∥ Cp). Vin 12/9 V, load 0.33 A.
 {
+  // Cout 35 µF is the PM-worst corner: 2 × 22 µF/50 V 1210 keep ≈ 20 µF at 15.4 V, which gives 80°+ (RR10)
   const Vout = 15.4, Cout = 35e-6, gm = 360e-6, Ro = 10e6, Vref = 1.229;
   const Rc = 2e3, Cc = 100e-9, Cp = 470e-12, L = 10e-6, Rsense = 0.088; // internal Ri (A/V→V/A est.)
   for (const Vin of [12, 9]) {
@@ -213,19 +218,20 @@ function plot(file, title, series, xlab, ylab) {
   for (const id of ["sic8", "igbt8", "igbt4", "sic4"]) {
     const s = SKU[id];
     const rjc = s.sil === "sic" ? MOD.sic.rthJC : MOD[s.sil].rthJC, rch = 0.015, rha = OP.rthPlate;
-    const Pc = lossOf(s, s.iCont, s.vNom).sw_die, Pp = lossOf(s, s.iPk, s.vMax).sw_die;
+    const Lc = lossOf(s, s.iCont, s.vNom), Lp = lossOf(s, s.iPk, s.vMax);
+    const Pc = Lc.sw_die, Pp = Lp.sw_die, Dc = Lc.d_die, Dp = Lp.d_die;   // RR07: the diode heats the shared coldplate (IGBT SKUs; SiC d_die = 0)
     const Cj = 0.8 / rjc, Cc = 5 / rch, Ch = 60 / rha, dt = 0.01;
-    let Th = Pc * rha, Tc = Th + Pc * rch, Tj = Tc + Pc * rjc, pk = 0;
+    let Th = (Pc + Dc) * rha, Tc = Th + Pc * rch, Tj = Tc + Pc * rjc, pk = 0;
     const tr = { x: [], y: [] };
-    const step = (P) => { const qjc = (Tj - Tc) / rjc, qch = (Tc - Th) / rch, qha = Th / rha;
-      Tj += dt * (P - qjc) / Cj; Tc += dt * (qjc - qch) / Cc; Th += dt * (qch - qha) / Ch; };
-    for (let t = 0; t < 30; t += dt) { step(Pp); pk = Math.max(pk, Tj); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
-    for (let t = 30; t < 90; t += dt) { step(Pc); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
+    const step = (P, D) => { const qjc = (Tj - Tc) / rjc, qch = (Tc - Th) / rch, qha = Th / rha;
+      Tj += dt * (P - qjc) / Cj; Tc += dt * (qjc - qch) / Cc; Th += dt * (qch + D - qha) / Ch; };
+    for (let t = 0; t < 30; t += dt) { step(Pp, Dp); pk = Math.max(pk, Tj); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
+    for (let t = 30; t < 90; t += dt) { step(Pc, Dc); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
     series.push({ name: `Tj ${s.name}`, x: tr.x, y: tr.y });
     const tj = OP.coolant + pk, lim = tjLimit(s);
-    add("S4", `Tj end of 30 s peak — ${s.name} (${s.iPk} A, ${s.vMax} V, ${s.fsw / 1e3} kHz)`, `${f(tj, 0)} °C (from ${f(OP.coolant + Pc * (rjc + rch + rha), 0)} °C continuous)`,
+    add("S4", `Tj end of 30 s peak — ${s.name} (${s.iPk} A, ${s.vMax} V, ${s.fsw / 1e3} kHz)`, `${f(tj, 0)} °C (from ${f(OP.coolant + (Pc + Dc) * rha + Pc * (rjc + rch), 0)} °C continuous)`,
       `${lim} °C ${s.sil === "sic" ? "Tj max" : "Tvjop"}`, tj < 0.9 * lim ? "PASS" : tj < lim ? "WARN" : "FAIL",
-      `${f(Pp, 0)} W/switch peak, ${f(Pc, 0)} W continuous (hottest die); coldplate 0.045 K/W assumed`);
+      `${f(Pp, 0)} W/switch peak, ${f(Pc, 0)} W continuous (hottest die)${Dp ? ` + diode ${f(Dp, 0)}/${f(Dc, 0)} W into the shared coldplate (RR07)` : ""}; coldplate 0.045 K/W assumed`);
   }
   plot("s4-thermal-30s.svg", "S4 junction transient per SKU: continuous → 30 s peak (at V_max) → continuous, 65 °C coolant",
     series, "time from peak start (s)", "°C");
@@ -267,7 +273,7 @@ function plot(file, title, series, xlab, ylab) {
 // ============ S7 — gate switching event vs driver capability ============
 {
   // NSI6611 DS §9.6: I = min[(VCC2−VEE)/(R_G + R_OH|OL + R_Gint), 10 A]
-  const ig = (rg, rd, ri) => Math.min(20.7 / (rg + rd + ri), 10);
+  const ig = (rg, rd, ri) => Math.min(20.5 / (rg + rd + ri), 10);
   add("S7", "Gate peak current on/off, SiC (3.3/6.8 Ω)", `${f(ig(3.3, 2.2, 1.1), 1)} / ${f(ig(6.8, 0.3, 1.1), 1)} A`, "10 A driver", "PASS", "DS formula with R_OH 2.2 / R_OL 0.3 Ω");
   add("S7", "Gate peak current on/off, IGBT (1.0/1.0 Ω)", `${f(ig(1, 2.2, 0.5), 1)} / ${f(ig(1, 0.3, 0.5), 1)} A`, "10 A driver", "PASS", "sink at the driver's own limit");
 }
@@ -294,11 +300,12 @@ function plot(file, title, series, xlab, ylab) {
 // the SC-carrying level / I_STO (400 mA typ; the DS minimum is 100 mA — contained SC test gate).
 {
   const tr = { x: [], y: [] };
-  for (const [tag, C, qSto, lim] of [["SiC 47 pF", 47e-12, 0.46e-6, null], ["IGBT 82 pF", 82e-12, 106e-9 * 5.6, 6e-6]]) {
+  // IGBT soft-off charge from the round-7 high-corner rail (16.7 V) to the ~10 V SC plateau
+  for (const [tag, C, qSto, lim] of [["SiC 47 pF", 47e-12, 0.46e-6, null], ["IGBT 82 pF", 82e-12, 106e-9 * 6.74, 6e-6]]) {
     const det = 0.2e-6 + C * 1.05 * 10 / 350e-6 + 0.32e-6, sto = qSto / 0.4, stoMin = qSto / 0.1;
     add("S9", `DESAT reaction, ${tag}`, `${f((det + sto) * 1e6, 2)} µs (detect ${f(det * 1e6, 2)} + soft-off ${f(sto * 1e6, 2)}; ${f((det + stoMin) * 1e6, 1)} µs at 100 mA)`,
-      lim ? "6 µs @800 V (≈5 µs at 850 V/15.6 V)" : "tSC not published — vendor letter", lim ? ((det + sto) < 0.95 * 5e-6 ? "PASS" : "WARN") : "WARN",
-      lim ? "150 pF gave 4.5 µs detection alone (F03). Global DRV_EN drop is held 12–40 µs past this (RC delay) so it cannot cut the soft-off short"
+      lim ? "6 µs @800 V/15 V/175 °C (DS)" : "tSC not published — vendor letter", "WARN",   // RR04: both corners must close — release gate
+      lim ? "150 pF gave 4.5 µs detection alone (F03). Global DRV_EN drop is held 22–53 µs past this (RC delay into the USCH Schmitt buffer) so it cannot cut the soft-off short"
         : "timeline only — not a device SC validation (F05); contained SC test at 850 V/150 °C is the release gate");
   }
 }
@@ -310,11 +317,12 @@ function plot(file, title, series, xlab, ylab) {
 // VCC2 and ignored the bleeder and gate loads. The ASC COMMAND path (V12L→boost→V15→QA01C→
 // TLP152, UVLO 7.5–9.4 V) collapses first, within ≈1 ms.
 {
-  const hold = (k15, kvee, icc, ides, uvlo, tolc = 1) => {
+  // start at the round-7 rail: 15.4 V nominal, 13.54 V low corner (design-verify §5)
+  const hold = (k15, kvee, icc, ides, uvlo, tolc = 1, v0 = 15.4) => {
     const C1n = 9.4e-6 * tolc, C2n = 10e-6 * tolc;
-    const c1 = (v) => C1n * (1 - (1 - k15) * Math.min(v, 15.6) / 15.6) + 0.1e-6;
+    const c1 = (v) => C1n * (1 - (1 - k15) * Math.min(v, v0) / v0) + 0.1e-6;
     const c2 = (v) => C2n * (1 - (1 - kvee) * Math.min(Math.max(v, 0), 5.1) / 5.1);
-    let v1 = 15.6, v2 = 5.1, t = 0; const dt = 1e-6, tr = { x: [], y: [] };
+    let v1 = v0, v2 = 5.1, t = 0; const dt = 1e-6, tr = { x: [], y: [] };
     while (v1 > uvlo && t < 0.1) {
       const ia = icc + (v1 + v2) / 5.1e3, ib = v1 / 10e3 + v1 / 1e6 + ides;
       v1 -= (ia + ib) * dt / c1(v1); v2 = Math.max(-0.7, v2 - ia * dt / c2(v2)); t += dt;
@@ -322,7 +330,7 @@ function plot(file, title, series, xlab, ylab) {
     }
     return { t, tr };
   };
-  const typ = hold(0.45, 0.75, 3.3e-3, 0.5e-3, 10.4), worst = hold(0.35, 0.65, 7e-3, 0.65e-3, 11.8, 0.9);
+  const typ = hold(0.45, 0.75, 3.3e-3, 0.5e-3, 10.4), worst = hold(0.35, 0.65, 7e-3, 0.65e-3, 11.8, 0.9, 13.54);
   plot("s10-asc-holdup.svg", "S10 LS driver VCC2 decay after total LV loss (typ, DC-bias-derated MLCC)", [{ name: "VCC2 (V)", x: typ.tr.x, y: typ.tr.y }], "time (ms)", "V");
   add("S10", "ASC hold-up after TOTAL LV loss (gate reservoirs)", `${f(typ.t * 1e3, 1)} ms typ · ${f(worst.t * 1e3, 1)} ms worst`, "-", "WARN",
     "and the ASC command path collapses within ≈1 ms: sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract)");
@@ -364,7 +372,7 @@ md += `
 - S6: motor 0.35 mH / 25 mΩ assumed; PI tuned by the L·ωc rule.
 - S8: di/dt from the DS fall time, scaled with the total turn-off resistance for 6.8 Ω — an estimate until DPT.
 - S9: soft-off charge = Cies·ΔV above the SC-carrying gate level at 400 mA; the DS minimum 100 mA is flagged, not assumed away.
-- S10: MLCC DC-bias retention 45 % (typ) / 35 % (worst) at 15.6 V.
+- S10: MLCC DC-bias retention 45 % (typ) / 35 % (worst) at the 15.4 V rail (worst starts at the 13.54 V low corner).
 
 ## What simulation cannot close (bench/vendor gates — the numbers above bound them)
 S8 gives the loop-inductance BUDGET; the real loop and waveform come from double-pulse (module Ls unpublished).

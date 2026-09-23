@@ -89,7 +89,7 @@ Qg 4.36 µC · Isc 1800 A · Tvjop 150 °C · NTC B25/50 3375.
 - R⟨ph⟩⟨HL⟩ON/OFF → **1.0/1.0 Ω** (IGBT Eon rises steeply with Rg — DS Fig.5)
 - RF⟨HL⟩RT 10 k → **8.2 k** (≈308 kHz: the IGBT-class gate charge needs +22 % bias capacity)
 - firmware: f_sw **5 kHz**, dead-time 2.5 µs, same NTC curve
-- gate rails **unchanged** (+15.6/−5.1): the DS characterizes at ±15 V, VGE(th) is a high
+- gate rails **the same as SiC** (+15.4 V nominal, 13.5–16.7 V corners / −5.1 V — round 7): the DS characterizes at ±15 V, VGE(th) is a high
   5.0–6.2 V, and the NSI6611 Miller clamp holds the off-state — dv/dt shoot-through stays a
   bench row.
 
@@ -210,11 +210,18 @@ enable clamp and a 12 V trickle-start feed; switch **BUK7Y14-80E** — standard-
 gate, F56 — with a US1M + SMAJ13A primary clamp, F38), each driving **three VGT12EEM
 transformers with primaries paralleled — one floating secondary per phase → six independent
 domains**, secondary rectifier on the **dot end (pin 8, F37)**;
-per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15.6 V / −5.1 V about
-each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side regulated (56k/15k divider off the aux winding, F33).
+per-secondary rectifier + **BZT52-C5V1 zener splitting the winding into +15.4 V / −5.1 V about
+each Kelvin source** (the HCS600 datasheet's recommended +15/−5 combo — rev A.3/F30); primary-side
+regulated from the aux winding (F33). Round 7 (A6-R06/R07): the 52.3k/15k divider senses its
+**own** small rectifier on the aux winding (1N4148WS + 100 Ω + 100 nF), not VDD. With VDD sensing,
+the 2.2 k start feed could hold FB above the reference while the converter was stopped (from a
+≈16 V rail for a low-current controller, certainly at a 24 V jump start), so it never restarted.
+The old model also left out the aux diode drop: the real rail was ≈16.9 V, not 15.6 V. Counted
+properly (V_FB, divider, both rectifiers at peak current, FB bias, split zener), VCC2 = 15.4 V nominal, 13.5–16.7 V corners,
+inside a 13.5–17.0 V bias window.
 **Start-up (rev A.6, R-F18):** the UCC28C40 has only 0.4 V of UVLO hysteresis and no VDD clamp.
 2.2 kΩ trickle start + **47 µF** VDD reservoir make one start burst reach aux-winding takeover in
-every corner (75–295 ms at KL30 9–14 V, S1); an **18 V zener** protects VDD when the flyback is
+every corner (73–240 ms at KL30 9–14 V, S1 — rev A.7 with the divider off VDD); an **18 V zener** protects VDD when the flyback is
 held off during a 24 V jump start. The rev A.5 values (4.7 k / 4.7 µF) could not start at 9 V.
 Gate power at 10 kHz: Qg·ΔV·f ≈ 3 µC·19 V·10 kHz ≈ 0.6 W per switch — well inside a small
 EE core. −5.1 V off-bias + Miller clamp holds the SiC off; +15 V matches the
@@ -226,10 +233,16 @@ keeps gate power alive for ASC** — GEN3's exact 74LVC1G32 arrangement.
 
 ASC: the three **low-side** ASC pins (driver secondary side; all LS aux-sources share the
 DCN-referenced domain) are driven together from a DCN-referenced buffer on its own QA01C
-bias — commanded by the latched ASC_CMD line. Which safe state applies is a motor- and
+bias — commanded by the latched ASC_CMD line, through 1 k at each driver pin. Entry is
+**break-before-make** (round 7, RR05): a 12 nF delay holds the low sides off ≥ 3.4 µs after the
+latch sets. By then the high sides are off: FS0B has dropped DRV_EN (MCU dead), or the eFlexPWM
+fault has forced PWM low (MCU alive). ASC deliberately does **not** drop EN. The NSI6611 honours
+DESAT over ASC only with EN high and IN+ high (DS §8.12), so a commanded ASC is held as
+**PWM-ASC** with EN high, and a high side that fails short still ends in the low-side DESAT
+(`firmware-contract.md` §4c). Which safe state applies is a motor- and
 fault-dependent **firmware decision** (`firmware-contract.md` §6: e.g. a DESAT on a low-side
-switch permits SPO only). *Limitation: ASC cannot be held through total KL30 loss (S10: 1.1–
-3.2 ms of gate reservoir, ≈1 ms of command path). SPO at dead LV is energy-safe only if the
+switch permits SPO only). *Limitation: ASC cannot be held through total KL30 loss (S10: 0.5–
+3.1 ms of gate reservoir, ≈1 ms of command path). SPO at dead LV is energy-safe only if the
 motor's E_LL,pk at n_max is below the cap rating (1000 V 8XX / 600 V 4XX); otherwise the
 HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
 
@@ -241,10 +254,18 @@ HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
   FCCU error inputs, **FS0B** safe output.
 - Safety chain (hardware): DRV_EN = FS0B ∧ MCU_GATE_EN ∧ RDY_HS ∧ RDY_LS ∧ FLT_OK (two
   74LVC1G11); FLT# wired-OR → MCU + fault latch. Rev A.6: the latch output reaches the AND
-  through 10 k/3.3 nF (12–40 µs, so a DESAT-ing driver finishes its soft turn-off first) and
-  the MCU clear is a hardware one-shot (a stuck pin cannot hold the chain permissive). The
-  latch cannot be made fault-dominant: the NSI6611 releases FLT only on an EN rising edge
-  (recovery sequence: `firmware-contract.md` §7). Watchdog escalation deasserts FS0B.
+  through 10 k/3.3 nF (22–53 µs to the Schmitt threshold, so a DESAT-ing driver finishes its
+  soft turn-off first), and the MCU clear is a hardware one-shot (a stuck pin cannot hold the
+  chain permissive). The latch cannot be made fault-dominant: the NSI6611 releases FLT only on
+  an EN rising edge (recovery sequence: `firmware-contract.md` §7). Watchdog escalation
+  deasserts FS0B.
+  Round 7 changes:
+  - Both RC nodes and the FS0B line reach the logic through a **74LVC3G17-Q100 Schmitt
+    buffer**. The LVC flip-flop/AND inputs allow 5–10 ns/V; the RC nodes were 14,000–63,500 ns/V.
+  - FS0B/FS1B pull-ups are **5.1 k** (NXP's value), so FS1B stays inside its 2 mA V_OL point.
+  - A re-pulsing clear pin is covered by the locked eFlexPWM fault inputs and the FS26 watchdog
+    (RR03).
+  - Both latches are the AEC-Q100 Nexperia part.
 - Resolver AFE: exciter op-amp + push-pull buffer (10 kHz carrier, from V15 via card),
   sin/cos dividers + filters into the S32K396 RDC pins (per SPF-91122).
 - 2 × CAN-FD (**TCAN1042HGV-Q1** class), vehicle + diagnostic.
@@ -330,7 +351,7 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 ### ASC hold-up operating limit (S10, corrected in rev A.6)
 
-After a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for **1.1–3.2 ms** (two series
+After a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for **0.5–3.1 ms** (two series
 reservoirs, DC-bias-derated MLCC, bleeder + gate loads — the old "≈15 ms" put the VEE cap in
 parallel with VCC2), and the ASC command path (boost → V15 → QA01C → TLP152) collapses within
 ≈1 ms. Sustained ASC therefore **requires KL30 present** — the FS26 (GPIO1) holds the flybacks
@@ -338,22 +359,63 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.6)
+## 11. Verification status (current release: rev A.7)
 
 Three independent verification layers gate every release (see
-[`verification-report.md`](verification-report.md)): geometric pin-verify **1717/1717
-(100 %)** · structural ERC **816 checks, 0 fail** (every fixed finding has a lock-in) ·
-numeric worst-case verification **100 PASS / 11 WARN / 0 FAIL** across all four SKUs ·
-operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
-**24 PASS / 4 WARN / 0 FAIL**. Every WARN names the bench or vendor gate that closes it. The
-BOM generator now fails on any value/MPN disagreement. Rev A.6 answered the sixth external
-review (46 findings) line by line — [`review-A6-disposition.md`](review-A6-disposition.md) —
-with every contested number recomputed by an independent second model; firmware obligations
-are in [`firmware-contract.md`](firmware-contract.md).
+[`verification-report.md`](verification-report.md)):
+
+- geometric pin-verify **1761/1761 (100 %)**;
+- structural ERC **845 checks, 0 fail**, with a lock-in for every fixed finding;
+- numeric worst-case verification **105 PASS / 14 WARN / 0 FAIL** across all four SKUs;
+- operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
+  **23 PASS / 5 WARN / 0 FAIL**.
+
+Every WARN names the bench or vendor gate that closes it. The BOM generator fails on any
+value/MPN disagreement and on missing, empty or stale inputs. Rev A.7 answered the seventh
+review round (RR01–RR10, A6-R01–R14) line by line in
+[`review-A7-disposition.md`](review-A7-disposition.md). The implemented fixes were then
+cross-checked adversarially by an independent reviewer, and that caught one critical draft
+defect before release. Firmware obligations are in [`firmware-contract.md`](firmware-contract.md).
 
 Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
-(A.4.3), F60–F62 (A.5 docs audit) and F63–F76 (A.6).
+(A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6) and F77–F89 (A.7).
+
+## 11g. Rev A.7 — review round seven (summary)
+
+Two independent rechecks of `c963794` (RR01–RR10, A6-R01–R14) are answered line by line in
+[`review-A7-disposition.md`](review-A7-disposition.md).
+
+- **Safety-logic interfaces.**
+  - The A.6 RC timing nodes drove LVC inputs at 14,000–63,500 ns/V; the limit is 5–10 ns/V.
+    They now pass through a 74LVC3G17-Q100 Schmitt buffer, as does the FS0B line.
+  - FS0B/FS1B pull-ups are 5.1 k, so FS1B stays inside its 2 mA V_OL point.
+  - The FAULT_OUT load is now specified.
+  - Both latches are AEC-Q100 parts.
+- **ASC break-before-make.** A 12 nF delay holds the low sides off ≥ 3.4 µs after the latch sets;
+  the high sides are already off (FS0B with the MCU dead, the eFlexPWM fault with it alive).
+  A commanded ASC is held as PWM-ASC with EN high, so the low-side DESAT stays active. A draft
+  that dropped EN from the latch was removed after the cross-check (DS §8.12). The ASC opto LED
+  is driven ≥ 10 mA (guaranteed turn-on 7.5 mA), and each LS ASC pin has its own 1 k.
+- **FAULT_OUT is sink-only.** A grounded vehicle wire can no longer preset ASC; a KL30 short is
+  clamped at the latch.
+- **Boot order.** FS1B is asserted at every POR, so the ASC latch is decided from speed before
+  gate power comes up.
+- **Read-backs.** DRV_EN and ASC_CMD are read by the MCU for a boot self-test.
+- **Gate supply.**
+  - The flyback senses its own aux rectifier, so the start feed can no longer lock it out at a
+    high KL30.
+  - The rail equation now counts both diodes, the peak-current drop and the FB bias: 15.4 V
+    nominal, 13.54–16.7 V. It is a bench gate, because the low corner sits at the window edge.
+  - The boost output capacitors are 50 V.
+- **Firmware-owned, specified:**
+  - FW-06 as a measured 15.6 + 7.0 µs budget;
+  - locked eFlexPWM fault inputs plus WD_ERR_LIMIT = 2 against re-pulsed clears;
+  - no automatic retry after DESAT;
+  - the 1.1 kHz loop ceiling at 8 kHz.
+- **Models.** Shared-coldplate thermal coupling; the flyback bank inductance; the SC soft-off
+  from the high-corner rail, now a release gate at both I_STO corners.
+- **Cost:** +₹57/unit, of which +₹30 corrects the debug header.
 
 ## 11f. Rev A.6 — review round six (summary)
 

@@ -51,7 +51,7 @@ const PAGES = {
       ["SENSE-VDC", [/^RVDD[1-6]$/, /^RVDDL$/, /^CVDDF$/, /^UIVDC$/]],
       ["SENSE-VDC2", [/^RVBD[1-6]$/, /^RVBDL$/, /^CVBDF$/, /^UIVB$/]],
       ["ISO-BIAS", [/^PS5[BC]$/, /^C5[BC][12]$/]],
-      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD)$/, /^CASC$/, /^ZASC$/]],
+      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD)$/, /^CASCD?$/, /^ZASC$/, /^DASCR$/]],
     ], ["SENSE-VDC", "SENSE-VDC2", "ISO-BIAS", "ASC-BUFFER"]],
     ["LV-POWER", [
       ["PROT-H", [/^FH1$/, /^DRH$/, /^DTVH$/, /^LFH1$/, /^CLVH[12]$/]],
@@ -87,8 +87,8 @@ const PAGES = {
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
-      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/]],
-      ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/]],
+      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/, /^USCH$/, /^CSCH$/, /^RSCH$/, /^RDRB$/]],
+      ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/, /^D(FO|SET)$/, /^RARB$/]],
       ["FLYBK-EN", [/^COR[12]$/, /^UOR[12]$/]],
       ["INTERLOCK", [/^RILK[1-4]$/, /^CILK$/]],
     ], ["GATE-EN", "ASC-LATCH", "FLYBK-EN", "INTERLOCK"]],

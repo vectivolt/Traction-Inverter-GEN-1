@@ -36,6 +36,7 @@ const MCU_PINS: [string, string][] = [
   ["PTD30_ENFLYH", "MCU_EN_FLYBK_HS"], ["PTD31_ENFLYL", "MCU_EN_FLYBK_LS"],
   ["PTD6_ASCREQ", "ASC_REQ"], ["PTD8_ASCCLR", "ASC_CLR_M"], ["PTD5_QDIS", "QDIS_CMD"],
   ["PTD9_FLTCLR", "FLT_CLR_M"],
+  ["PTD10_DRVENRB", "DRV_EN_RB"], ["PTD11_ASCRB", "ASC_CMD_RB"],
   // analog
   ["PTA0_VDC1", "VDC1_SE"], ["PTB0_VDC2", "VDC2_SE"],
   // review A.6: the receivers' shared +0.5 V offset (VOFS) and the SKU identity are read too —
@@ -209,33 +210,55 @@ export default () => (
     <capacitor name="CRST" capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: "net.RESET_B", pin2: "net.DGND" }} />
 
     {/* ---- SAFETY: gate-enable chain + ASC latch + flyback-EN OR gates + straps ---- */}
-    {/* FS0B/FS1B are open low-side outputs with a 4-22 mA clamp (FS26 DS Table 196):
-        1 k pull-ups sink 4.6 mA — the 120 R GEN3-style pulls would force 42 mA (F35) */}
-    <resistor name="RENP1" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS0B_N" }} />
-    <resistor name="RENP2" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS1B_N" }} />
+    {/* FS0B/FS1B are open low-side outputs: 4-22 mA current limit, V_OL <= 0.4 V only up to
+        2 mA, and the SBC's own read-back calls the pin low only below 0.7 V (FS26 DS Tables
+        196/197). Round 7 (A6-R01): 5.1 k, the NXP value for a VDDIO pull-up. FS1B then sinks
+        0.90 mA + 0.42 mA (RFS1/RFS2) + <= 0.42 mA FAULT_OUT load (VCU: >= 10 k to <= 5 V)
+        = 1.74 mA -> ASC_SET_N <= 0.82 V. The 1 k pulls let a 4 mA-limit part sit at 1.0-1.3 V. */}
+    <resistor name="RENP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS0B_N" }} />
+    <resistor name="RENP2" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS1B_N" }} />
     <chip name="UAND1" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
-      connections={{ A: "net.FS0B_N", GND: "net.DGND", B: "net.MCU_GATE_EN", Y: "net.ENX1", VCC: "net.V5A", C: "net.RDY_HS" }} />
+      connections={{ A: "net.FS0B_B", GND: "net.DGND", B: "net.MCU_GATE_EN", Y: "net.ENX1", VCC: "net.V5A", C: "net.RDY_HS" }} />
     <chip name="UAND2" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
-      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OKD" }} />
+      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OKB" }} />
+    {/* Round 7 (RR01/RR02, A6-R02/R03): the two RC timing nodes and the 5.1 k FS0B edge reach
+        the LVC flip-flop/AND inputs (5-10 ns/V max) only through Schmitt buffers, which carry
+        no input-transition limit (74LVC3G17-Q100 DS Table 6). 1A/1Y = clear one-shot,
+        2A/2Y = soft-off delay, 3A/3Y = FS0B. LVC outputs go Hi-Z unpowered (IOFF), so RSCH
+        pulls FS0B_B low: a dead or open buffer forces DRV_EN low (cross-check item 4). */}
+    <chip name="USCH" footprint={SmdFP(8)} {...gp()}
+      pinLabels={{ pin1: "A1", pin2: "Y3", pin3: "A2", pin4: "GND", pin5: "Y2", pin6: "A3", pin7: "Y1", pin8: "VCC" }}
+      connections={{ A1: "net.FLT_CLR_N", Y3: "net.FS0B_B", A2: "net.FLT_OKD", GND: "net.DGND", Y2: "net.FLT_OKB", A3: "net.FS0B_N", Y1: "net.FLT_CLR_B", VCC: "net.V5A" }} />
+    <capacitor name="CSCH" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
+    <resistor name="RSCH" resistance="100k" footprint="0603" {...gp()} connections={{ pin1: "net.FS0B_B", pin2: "net.DGND" }} />
+    {/* read-backs (round 7 cross-check): the MCU can test the whole FS0B -> DRV_EN chain and the
+        ASC latch at every boot with gate power off — latent faults in USCH/UAND/ULAT no longer
+        wait for the EOL rig (FW-16) */}
+    <resistor name="RDRB" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.DRV_EN", pin2: "net.DRV_EN_RB" }} />
+    <resistor name="RARB" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASC_CMD_RB" }} />
     <capacitor name="CAND1" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     <capacitor name="CAND2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     {/* hardware fault latch (rev A.4, A.6): either driver-bank FLT pulls FLT_CMB_N low ->
         async-PRESET -> /Q (FLT_OK) low -> RC -> DRV_EN low on ALL six channels.
-        A.6 (review F05/F06, NSI6611 DS 1.2):
-        - 10 k / 3.3 nF into the AND's Schmitt input holds the global drop 12-40 us, past the
-          faulted driver's own soft turn-off (the DS is silent on RST/EN during soft-off).
+        A.6 (review F05/F06, NSI6611 DS 1.2), thresholds per round 7 (USCH Schmitt buffer):
+        - 10 k / 3.3 nF holds the global drop 22-53 us, past the faulted driver's own soft
+          turn-off (the DS is silent on RST/EN during soft-off).
         - The driver releases FLT ONLY on an RST/EN rising edge after >=1.3 ms low, so the
           clear MUST briefly re-enable DRV_EN while FLT is still low (PRE=CLR=L gives /Q=H):
           a "fault-dominant" latch would deadlock recovery. The clear is therefore a hardware
-          ONE-SHOT: 15 nF from the MCU pin into the 10 k pull-up gives ~55-90 us per falling
-          edge, so a stuck-low pin or runaway code cannot hold the chain permissive; the diode
-          clamps the rising-edge overshoot to V5A. Firmware keeps PWM inputs low around it. */}
+          ONE-SHOT: 15 nF C0G from the MCU pin into the 10 k pull-up holds CLR low 72-210 us per
+          falling edge, so a stuck-low pin cannot hold the chain permissive; the diode clamps
+          the rising-edge overshoot to V5A. It does NOT stop code that keeps re-pulsing the
+          pin (review RR03): that case is covered by FW-15 (FLT_HS/FLT_LS on the eFlexPWM
+          fault inputs, fail-safe mode, locked: PWM stays forced low while FLT is asserted),
+          the drivers' own FLT latch (no >=0.55 ms-low reset edge while DRV_EN is held high),
+          and the FS26 Q&A watchdog -> FS0B (FW-12). */}
     <diode name="DFLT1" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_HS_N" }} />
     <diode name="DFLT2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_LS_N" }} />
     <resistor name="RFLTC" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CMB_N" }} />
     <chip name="ULAT2" footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "CLK", pin2: "D", pin3: "QN", pin4: "GND", pin5: "Q", pin6: "CLR_N", pin7: "PRE_N", pin8: "VCC" }}
-      connections={{ CLK: "net.DGND", D: "net.DGND", QN: "net.FLT_OK", GND: "net.DGND", Q: "net.NC_FLTQ", CLR_N: "net.FLT_CLR_N", PRE_N: "net.FLT_CMB_N", VCC: "net.V5A" }} />
+      connections={{ CLK: "net.DGND", D: "net.DGND", QN: "net.FLT_OK", GND: "net.DGND", Q: "net.NC_FLTQ", CLR_N: "net.FLT_CLR_B", PRE_N: "net.FLT_CMB_N", VCC: "net.V5A" }} />
     <resistor name="RFLTD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_OK", pin2: "net.FLT_OKD" }} />
     <capacitor name="CFLTD" capacitance="3.3nF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_OKD", pin2: "net.DGND" }} />
     <resistor name="RLAT2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CLR_N" }} />
@@ -252,12 +275,23 @@ export default () => (
     <chip name="ULAT" footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "CLK", pin2: "D", pin3: "QN", pin4: "GND", pin5: "Q", pin6: "CLR_N", pin7: "PRE_N", pin8: "VCC" }}
       connections={{ CLK: "net.ASC_REQ", D: "net.V5A", QN: "net.NC_LATQN", GND: "net.DGND", Q: "net.ASC_CMD", CLR_N: "net.ASC_CLR_N", PRE_N: "net.ASC_SET_N", VCC: "net.V5A" }} />
-    {/* FS1B (open low-side, 1k pull-up) sets through 1k series into a 10k pulled-up node:
-        asserted level 0.45 V << VIL; MCU clear through 1k series against the 10k pull-up */}
+    {/* ASC entry is break-before-make without touching EN (round 7, RR05): the NSI6611 honours
+        DESAT over ASC only with EN HIGH and IN+ high/IN- low (DS 1.2 §8.12) — holding EN low
+        during ASC would switch the low sides' DESAT off. MCU path: eFlexPWM fault -> high-side
+        PWM off, ASC_REQ, then PWM-ASC after the dead time (LS on via IN+, EN high). FS1B path:
+        FS0B drops DRV_EN.
+        Either way the power board's CASCD holds the LS ASC off >= 3.4 us (firmware §4c). */}
+    {/* FS1B (open low-side, 5.1k pull-up) sets through 1k series into a 10k pulled-up node:
+        asserted level <= 0.84 V (FS1B at its 0.4 V V_OL) vs 1.35 V VIL; MCU clear through 1k
+        series against the 10k pull-up. FAULT_OUT (vehicle wire) can only SINK through DFO: a
+        wire shorted to ground, a dead VCU input or a negative spike cannot reach FS1B_N and
+        preset ASC; a short to KL30 is clamped at ASC_SET_N by DSET (cross-check item 2). */}
     <resistor name="RFS1" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.ASC_SET_N" }} />
     <resistor name="RFS2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.ASC_SET_N" }} />
     <resistor name="RFS3" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CLR_M", pin2: "net.ASC_CLR_N" }} />
-    <resistor name="RFS4" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.FAULT_OUT" }} />
+    <resistor name="RFS4" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.FOUT_K" }} />
+    <diode name="DFO" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FAULT_OUT", cathode: "net.FOUT_K" }} />
+    <diode name="DSET" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.ASC_SET_N", cathode: "net.V5A" }} />
     <resistor name="RASCP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.DGND" }} />
     <resistor name="RLAT1" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.ASC_CLR_N" }} />
     <capacitor name="CLAT" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
