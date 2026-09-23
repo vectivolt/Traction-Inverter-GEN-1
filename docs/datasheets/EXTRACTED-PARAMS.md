@@ -149,12 +149,26 @@ reset, UCC28C40 UVLO corners, AMC1311B, HCS600 switching table, HCG600 SC 6 µs,
 | FREQ setting | R_FREQ(kΩ) = 57500·f_sw(kHz)^−1.03 → 80.6 kΩ ≈ 580 kHz | Eq. 1 |
 | Compensation (F59) | series R3/C4 on COMP (start 2 kΩ + 100 nF) + optional small C5; f_z 796 Hz, sim PM 72–75° | §8.2.1.2.11 |
 
-## 13. Mornsun QA01C (`QA01C.pdf`)
+## 13. Mornsun QA01C-18 — the fitted PSASC/PSQD part (round 9, A8-N01)
+
+The archived `QA01C.pdf` (2019.01.11-A/3) is the **base QA01C, +20/−4 V**. The BOM orders **QA01C-18**,
+which has its own sheet: Mornsun `QA01C-18.pdf` rev **2018.12.11-A/0**, fetched from mornsun-power.com for
+round 9 and not archived. F61 (rev A.5) had bound the base part's +20/−4 V figures to the -18 part.
+
+| Parameter (QA01C-18) | Value | Citation |
+|---|---|---|
+| Input voltage window | **13.5–16.5 V** (15 V nominal); surge 21 VDC 1 s max; no-load input 16 mA typ / 30 mA max | Selection Guide; Input Specifications |
+| Output voltage/current | **+18 V / −3 V, ±100 mA** (76/79 % efficiency); only +Vo is used here | Selection Guide p.1 |
+| +18 V tolerance envelope | Fig. 1: max **+9 % → +2 %**, typ +4 % → −3 %, min **0 % → −7 %** over 10–100 % load; load regulation 6 % typ / 10 % max (10–100 %) | p.2 Fig. 1; Output Specifications |
+| Line regulation / tempco | ±1.1 typ / **±1.3 max %/%**; ±0.03 %/°C at 100 % load | Output Specifications |
+| Used here | V15 = 15.0 V ±3 % (NCV4276C-ADJ) and 2–8 % load → **16.9–20.9 V** (the max line extrapolated below 10 % load). The QDIS gate is divided 1.5 k/10 k → 13.4–18.1 V | design-verify QA18 |
+
+Base QA01C, for reference only (not fitted):
 
 | Parameter | Value | Citation |
 |---|---|---|
 | Input voltage window | **13.5–16.5 V** (15 V nominal); surge 21 VDC 1 s max | Selection Guide; Input Specifications |
-| Output voltage/current | **+20 V / −4 V dual output, ±100 mA** (76/80 % efficiency). F61: rails historically named V18A/V18Q — clamps verified for +20 V; QDIS gate ≈19.5 V vs +22 abs | Selection Guide |
+| Output voltage/current | +20 V / −4 V dual output, ±100 mA (76/80 % efficiency) — **the base part, not the fitted -18** | Selection Guide |
 | Real SIP-7 pins | 1 = Vin, 2 = GND(in), 5 = −Vo, 6 = 0 V, 7 = +Vo (positions 3/4 absent) — F45 | Design Reference figure |
 | Isolation | I/O isolation test **3.5 kVAC / 6 kVDC** (6000 VDC @ ≤1 mA leakage); isolation resistance ≥1000 MΩ @500 VDC | Features; Isolation Specifications |
 
@@ -405,6 +419,15 @@ static R_th that S4 uses as its upper bound.
     assertion ends by itself.
   - After a POR, FS1B is held until the MCU releases it.
   - LDO2 UV threshold is OTP-selectable 88–95.5 %, ±1 %, so ≥ 4.35 V at the lowest setting.
+- **FS26 fault-reaction table** (§ fault list): an FS1B short-to-high adds +1 to the fault error counter,
+  does not assert FS0B, and asserts RSTB only if BACKUP_SAFETY_PATH_FS1B = 1 (FS_I_FSSM bit 6; bit 7
+  is the FS0B equivalent). Round 9 sets FS1B's bit to 0 (FW-12).
+- **NSI6611 DS 1.2 absolute maximum ratings:** RDY and FLT (input side) are rated GND1 − 0.3 V to
+  **VCC1**, with no +0.3 V. IN+/IN−/RST are rated to VCC1 + 0.3 V. The FLT/RDY input current is 20 mA.
+  Round 9 moves their pull-ups onto V5GD (= VCC1).
+- **HIITIO HCM75S12T4K3:** V_GS −10/+22 V absolute maximum, −5/+18 V recommended; C_iss 1185 pF.
+- **Toshiba TLP152:** V_CC 10–30 V (35 V absolute maximum); V_OH ≥ 6.0 V at V_CC 10 V, I_O −100 mA;
+  UVLO+ 7.8–9.7 V. The V_F tempco of −1.8 mV/°C is typical only; the model uses a ±28 % band.
 - **ST BAT46:** V_F ≤ 0.25 V at 0.1 mA and ≤ 0.45 V at 10 mA (25 °C). There is no cold curve, so
   0.45 V is taken at 0.45 mA/−40 °C.
 - **NXP S32K39x 5 V GPIO:**

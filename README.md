@@ -4,19 +4,19 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.8%20·%20F1–F105%20closed-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.9%20·%20F1–F119%20closed-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-8XX%20500–850%20V%20·%204XX%20250–500%20V-457b9d?style=for-the-badge"/>
 </p>
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/silicon-SiC%20or%20IGBT%20·%203×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1782%2F1782%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-626%20·%20199%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-1804%2F1804%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-635%20·%20205%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-SiC%20₹71.0k%20·%20IGBT%20₹45.5k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-864%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
-  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-108%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-883%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-116%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2023%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
@@ -468,8 +468,8 @@ Four independent verification layers — each with its own tool, none trusting t
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1782/1782 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats, a lock-in per fixed finding | **864 checks · 0 fail** |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **1804/1804 · 100 %** |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats, a lock-in per fixed finding | **883 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` + `loss-model.mjs` | losses, thermal, envelope, discharge, protection timing, tolerances — **every SKU** | **108 PASS · 14 WARN · 0 FAIL** (each WARN names its bench/vendor gate) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: flyback start-up (cycle-by-cycle), boost Bode, SVPWM ripple, 30 s thermal per SKU, discharge ODE, current-loop PM per f_sw, overshoot budget, DESAT timeline, ASC hold-up | **23 PASS · 6 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 | BOM ⇄ netlist (values) | `bom-gen.mjs` | every class MPN encodes the value the BOM prints; nothing is published unless the whole set validates | **0 mismatches, 4 SKUs** |
@@ -479,12 +479,13 @@ Four independent verification layers — each with its own tool, none trusting t
 An independent reviewer ran five adversarial rounds against the released PDFs. The working
 rule throughout: **no fix without primary-source verification, no rebuttal without evidence**
 — every claim was checked against the manufacturer datasheet (winding diagrams read at
-300 dpi where the dots decided it) before a single edit. Findings log **F1–F105, all closed**;
+300 dpi where the dots decided it) before a single edit. Findings log **F1–F119, all closed**;
 each round's full narrative lives in [`docs/design-basis.md`](docs/design-basis.md) §11.
 Round six (46 findings) is answered line by line in
 [`docs/review-A6-disposition.md`](docs/review-A6-disposition.md), and round seven (24 findings)
-in [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md), and round eight (12 findings plus a 23-item cross-check of the fixes) in
-[`docs/review-A8-disposition.md`](docs/review-A8-disposition.md). Every contested number was
+in [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md), round eight (12 findings plus a 23-item cross-check of the fixes) in
+[`docs/review-A8-disposition.md`](docs/review-A8-disposition.md), and round nine in
+[`docs/review-A9-disposition.md`](docs/review-A9-disposition.md). Every contested number was
 recomputed by an independent second model.
 
 | Round | Release | Fixed | The headline catches |
@@ -495,10 +496,11 @@ recomputed by an independent second model.
 | Review 3 | A.4.2 | 6 (F52–F57) | FS26 buck passives to Table-106, **CAN chokes wound 1-4/2-3** (CANH crossed onto CANL), ALM2402 behind its own LDO, **BUK7Y14-80E** (±20 V gate) |
 | Review 4 | A.4.3 | 2 (F58–F59) | LCOR value/MPN/BOM/OTP agreement, UB15 compensation network (was ~0° screening margin) |
 | Review 5 | A.4.4 | procurement | real MPNs bound; **RECOM R15P05S rejected** — 6.4 kV is a 1 s test, insulation grade *basic*; FS26 OTP table pinned (§8a) |
-| Docs audit | A.5 | 3 (F60–F62) | JVEH rebound to the true 23-pos AMPSEAL **770669-1** (the TE drawing proved 776231-1 is 35-pos); QA01C rails are **+20/−4 V** per DS — clamps re-verified |
+| Docs audit | A.5 | 3 (F60–F62) | JVEH rebound to the true 23-pos AMPSEAL **770669-1** (the TE drawing proved 776231-1 is 35-pos); QA01C rails read as **+20/−4 V** (the base part's sheet — corrected to the fitted QA01C-18, +18/−3 V, in A.9) — clamps re-verified |
 | Review 6 | A.6 | 14 (F63–F76) | S8 overshoot **1000× unit error** (SiC turn-off now 6.8 Ω, DPT-gated); SiC conduction formula 2.4× low; IGBT SC is **6 µs** not 10 (blanking 82 pF); gate supply **never started at 9 V** (0.4 V UVLO hysteresis — 47 µF + 18 V clamp); BOM MPNs that would have re-created F40/F52; proposed "fault-dominant latch" **rejected** (deadlocks the NSI6611 FLT reset) — one-shot clear + soft-off delay instead |
 | Review 7 | A.7 | 13 (F77–F89) | RC timing nodes into non-Schmitt LVC inputs at **63,500 ns/V** (Schmitt buffer); **ASC entry had no break-before-make** (12 nF LS delay; the MCU path holds ASC as PWM-ASC with EN high, because the NSI6611 honours DESAT over ASC only then — found by the round's own cross-check); flyback **locked out at high KL30** (own sense rectifier); FS1B loaded past its V_OL and FAULT_OUT made sink-only; 25 V caps on a 33 V node; ASC opto under its guaranteed turn-on current (self-found); +₹57/unit |
 | Review 8 | A.8 | 16 (F90–F105, incl. its cross-check) | **a DESAT during latched ASC left the healthy low sides on** — the faulted driver holds itself off (NSI6611 Fig. 8.11) but only a ₹5 AND gate (ASC = latch AND no-FLT) guarantees SPO on every path; last slow latch preset buffered (FLT diode-OR now Schottky for the Schmitt threshold); discharge opto under-driven like the ASC one; boot self-test masked by RDY; FAULT_OUT battery-short clamp moved off the logic rail; atomic BOM publish; S4 junction path made static. Cross-check of the fixes: FW-15 always clears ASC, FW-16 on measured no-HV conditions with FS_GPIO1 and FLT-injection steps, dead-buffer pulls, 261 Ω LEDs inside 10–15 mA, B5V6 clamp, discharge header V15-GND-CMD-GND, ERC locks by net and MPN; +₹18/unit |
+| Review 9 | A.9 | 14 (F106–F119, incl. its cross-check) | **the ASC/discharge bias modules were modelled from the wrong datasheet** (QA01C-18 is +18/−3 V, not +20/−4 V) — timing re-derived, discharge gate given a 1.5 k divider; **FLT/RDY pulled above the drivers' VCC1 rating** — pull-ups moved to V5GD on a harness pin; self-test energy-limited; RFS4 made anti-surge; self-found **≈150 mA parking drain** removed with one card-side P-FET. Cross-check of the fixes: V5GD read on an ADC pin (a dead V5GD faked a 0 V bus), harness re-laid for both dual-row numberings, resolver LDO sleeps too, QLVS slew-limited, DESATs kept in NVM; +₹29/unit |
 
 Three review claims were **rebutted with evidence** (900 V divider corner — system max is
 850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; the discharge math —
@@ -530,7 +532,7 @@ can choice, a few values on existing pads, an identity resistor and a firmware p
 | Peak / continuous | 220 / 120 kW (from 654 V) | 220 / 120 kW (from 654 V) | 150 / 90 kW (from 379 V) |
 | Tj end of 30 s peak (S4; static-plate bound 135 / 142 / 133 °C) | 125 °C / 175 °C | 132 °C / 150 °C | 125 °C / 150 °C |
 | Deltas vs SiC | — | module, DESAT 4.7 k/82 pF, gate 1.0/1.0 Ω, RT 8.2 k | as IGBT + 16 × 50 µF/600 V cans, discharge 220 Ω / 15 k |
-| BOM @1k | ₹71,040 | ₹45,540 | ₹45,540 |
+| BOM @1k | ₹71,069 | ₹45,569 | ₹45,569 |
 
 Recommendation (business case in [`docs/variants.md`](docs/variants.md)): lead with 8XX (same
 hardware, best ₹/kW), make IGBT the volume SKU at both voltages, keep SiC as the premium 8XX,
@@ -545,7 +547,7 @@ module plus larger sensors and cap bank, not a new board. Generate: `npm run bom
 time and frequency domain on the shared loss model (`loss-model.mjs`). **23 PASS · 6 WARN ·
 0 FAIL** — full table with per-row modeling assumptions: [`docs/simulation-report.md`](docs/simulation-report.md).
 
-| # | Simulation | Key result (rev A.8) |
+| # | Simulation | Key result (rev A.9) |
 |---|---|---|
 | S1 | Gate-power flyback: drain stress + **cycle-by-cycle start-up** | one burst to the rails in **73–240 ms** at KL30 9–14 V, every corner (FB now on its own aux rectifier — A6-R07); the A.5 values never started at 9 V |
 | S2 | UB15 boost loop Bode (A.4.3 compensation) | f_c 1.9–2.5 kHz, **PM 72–75°** |
@@ -604,12 +606,13 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/bom.md`](docs/bom.md) · [`bom-igbt.md`](docs/bom-igbt.md) · [`bom-igbt4.md`](docs/bom-igbt4.md) · [`bom-sic4.md`](docs/bom-sic4.md) | Generated BOMs, all four SKUs, with subsystem Pareto |
 | [`docs/variants.md`](docs/variants.md) | The platform: four SKUs on one set of boards, economics, recommended launch path |
 | [`docs/firmware-contract.md`](docs/firmware-contract.md) | Hardware → firmware contract: SKU identity, envelope, protection allocation, safe-state matrix, fault-latch recovery |
+| [`docs/review-A9-disposition.md`](docs/review-A9-disposition.md) · [`.csv`](docs/review-A9-disposition.csv) | Review round 9: every finding classified, verified and dispositioned |
 | [`docs/review-A8-disposition.md`](docs/review-A8-disposition.md) · [`.csv`](docs/review-A8-disposition.csv) | Review round 8 and its cross-check: every finding classified, verified and dispositioned |
 | [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md) | Review round 7: every finding classified, verified and dispositioned |
 | [`docs/review-A6-disposition.md`](docs/review-A6-disposition.md) | Review round 6: every finding classified, verified and dispositioned |
 | [`docs/simulation-report.md`](docs/simulation-report.md) | Operating-point simulations (S1–S10) with waveform/Bode plots |
 | [`docs/cost-rollup.md`](docs/cost-rollup.md) | Full unit cost + NRE + pricing guidance |
-| [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F105, per-SKU margin tables, worst-case corners |
+| [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F119, per-SKU margin tables, worst-case corners |
 | [`docs/datasheets/`](docs/datasheets/) | Component datasheet pack (30+ PDFs) + extracted parameters |
 
 ---
@@ -627,6 +630,7 @@ timeline
         Rev A.6 : Review round 6 answered (46 findings) : F63–F76 · one platform, four SKUs (8XX/4XX × SiC/IGBT) : firmware contract
         Rev A.7 : Review round 7 answered (24 findings) : F77–F89 · ASC break-before-make in hardware · Schmitt-buffered safety logic · flyback lock-out fixed
         Rev A.8 : Review round 8 answered (12 findings + 23 cross-check items) : F90–F105 · a latched DESAT masks ASC on every path · every latch preset buffered · both optos inside 10–15 mA · FW-16 covers the FLT paths
+        Rev A.9 : Review round 9 answered (6 findings + 2 gates + 15 cross-check items) : F106–F119 · QA01C-18 bound to its own sheet · FLT/RDY pull-ups on V5GD · FW-16 energy limit · no parking drain
     section Next 🔜
         Pin freeze : S32K396 package + ball map vs the IO-mux sheet : FS26 pins
         RFQ : hiitio Ls + SiC SC letter + module quotes : Faratronic 4XX can : NOVOSENSE soft-off vs EN
@@ -638,7 +642,7 @@ timeline
 ```
 
 > [!NOTE]
-> **⚠️ VERIFY-before-layout list (rev A.8)** — ① S32K396 **package** (parts-db 289-MAPBGA vs
+> **⚠️ VERIFY-before-layout list (rev A.9)** — ① S32K396 **package** (parts-db 289-MAPBGA vs
 > design-basis LQFP-176) and ball map are symbolic — the fabrication blocker · ② **SiC double-
 > pulse at 850 V/481 A, cold and hot** sets RG_OFF (3.3–10 Ω; module Ls unpublished) ·
 > ③ **short-circuit**: hiitio SiC letter, contained SC tests per silicon, NOVOSENSE statement on
@@ -649,7 +653,7 @@ timeline
 > on the phase-busbar insulating sleeve (HC5FW/SP1 is the reduced-insulation variant, N7) · ⑪ TLP152
 > barrier rating: order the (V4) VDE option with V_IORM ≥ 850 Vpk, else an SO6L reinforced opto (N8) ·
 > ⑫ HIL then dyno: contactor opening under full regen. The FW-06 chain is ≤ 15.6 µs to the ASC
-> request plus ≤ 7.0 µs ASC entry, a link peak of ≤ 905 V on 8XX (N9, RR06).
+> request plus ≤ 7.5 µs ASC entry, a link peak of ≤ 906 V on 8XX (N9, RR06; QA01C-18 low end, A.9).
 > ⑬ LV-only gate-supply bench: six-domain VCC2 inside 13.5–17.0 V, from 9 to 16 V KL30 and at a
 > 24 V jump start (A6-R06/R07).
 > ⑭ ASC entry measured on all six V_GS, on every entry path (RR05).
@@ -663,10 +667,12 @@ timeline
 > healthy ones must release (UASCG) until an authorised reset (R7-01).
 > ⑳ FAULT_OUT wire-fault injection with V5A up, sleeping and off, a 35 V pulse, and FS1B asserted into
 > the short (A7-N04, P-01).
-> ㉑ Supply-domain matrix: V5GD off with V5A on, V5A high with V5GD low — FLT, RDY, ASC_CMD (R8X-10).
+> ㉑ V5GD-off state with the pull-ups on V5GD (A8-01): FLT/RDY low → SPO, nothing back-powers the dead domain.
 > ㉒ FW-16 on HIL: skip/stored-pass rule, the FS_GPIO1 steps, FLT injection with the pad rule
 > (R8X-02/03/17); motor commissioning: ASC-entry current vs the DESAT minimum (R8X-13).
-> Full list with owners: [`docs/review-A8-disposition.md`](docs/review-A8-disposition.md).
+> ㉓ Bias and gate levels (A8-N01/N02): QA01C-18 output at no load/start-up/ON, QDIS V_GS, ASC entry at the low end.
+> ㉔ Parking drain with the card in LPOFF (N17) and the self-test energy fixture at ≤ 13 V (A8-N03).
+> Full list with owners: [`docs/review-A9-disposition.md`](docs/review-A9-disposition.md).
 
 ---
 
@@ -684,6 +690,6 @@ timeline
 <p align="center">
   <img alt="Vectivolt" src="https://img.shields.io/badge/⚡-VECTIVOLT-0d1b2a?style=for-the-badge"/>
   <br/>
-  <sub><b>Traction Inverter GEN-1</b> · rev A.8 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
+  <sub><b>Traction Inverter GEN-1</b> · rev A.9 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
   Proprietary — © Vectivolt. Reference designs cited remain property of their respective owners.</sub>
 </p>

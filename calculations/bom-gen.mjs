@@ -69,8 +69,8 @@ const SUBSYS = [
   ["Harness + pulldowns", /^(JIC$|RPD\d+|JICC|RCPD)/],
   ["Module NTC routing", /^([RC][UVW]T[SF]|D[UVW]TP)/],
   ["MCU + clock + debug", /^(UMCU|Y1|CY[AB]|CMD|CMA|RMRST|JSWD|RBOOT|CRST)/],
-  ["FS26 SBC + LV input + wake", /^(USBC|DBAT|LSBC|LCOR|CSB|RSB|RAGT|FLVC|DREVC|DTVSC|LFC|CLVC|RIGN|DIGN|CIGN)/],
-  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|USCH|CSCH|RSCH|REN|RFS|RGPD|RFLT|DFLT|CFLT|CCLR|DCLR|DFO|ZSET|UASCG|CASCG|RQDM|RFCB|RDRB|RARB|RRDYP|RLAT|RASCP|CLAT|RILK|CILK)/],
+  ["FS26 SBC + LV input + wake", /^(USBC|DBAT|LSBC|LCOR|CSB|RSB|RAGT|FLVC|DREVC|DTVSC|LFC|CLVC|RIGN|DIGN|CIGN|QLV|RLVS|ZLVS|CLVS)/],
+  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|USCH|CSCH|RSCH|REN|RFS|RGPD|RFLT|DFLT|CFLT|CCLR|DCLR|DFO|ZSET|UASCG|CASCG|RQDM|RFCB|RV5G|RDRB|RARB|RRDYP|RLAT|RASCP|CLAT|RILK|CILK)/],
   ["Resolver AFE", /^(UEX|UVMB|REX|CEX|RVM|CVM|[RDC](SIN|COS))/],
   ["Hall sensors + AFE", /^(USNS|JLEM|[ULRC][UVW]B\d?|C[UVW]S[12])/],
   ["VDC receivers (card)", /^([RUC]VD[12])/],
@@ -186,5 +186,6 @@ if (mismatches.length || unmatchedAll.length) {
   process.exit(1);
 }
 outputs.set(join(ROOT, "docs", `bom${SFX}.md`), md);
-for (const [path, text] of outputs) { writeFileSync(path + ".tmp", text); renameSync(path + ".tmp", path); }
+for (const [path, text] of outputs) writeFileSync(path + ".tmp", text);   // phase 1: every file staged
+for (const [path] of outputs) renameSync(path + ".tmp", path);          // phase 2: renames only (round 9: shortest mixed-set window)
 console.log(`→ docs/bom${SFX}.md + per-board CSVs · TOTAL ≈ ₹${Math.round(grand).toLocaleString("en-IN")} @1k`);

@@ -302,7 +302,7 @@ guarantee it (review round 3/5 item):
 | WK2PD_OTP / IO2PD_OTP | 1 / 1 | WAKE2, GPIO2 left open |
 | VBST (boost front-end) | disabled | pins terminated per DS unused table |
 | FS0B + FS1B, FCCU1/2 | enabled | safety chain + ASC strap |
-| FS1B_FS0B_EN_OTP; FS1B_TDELAY / TDUR (FS_SAFE_IOS_2, init) | 0 (delayed-assertion mode, OTP default); TDELAY **00000** (with FS0B), TDUR 100 ms; BACKUP_SAFETY_PATH_FS0B/FS1B = 1 — all read back by FW-12 | FW-16 step a reads the ASC preset at once; the FAULT_OUT pulse and a wire-short overload are bounded (round-8 cross-check R8X-03, P-01) |
+| FS1B_FS0B_EN_OTP; FS1B_TDELAY / TDUR (FS_SAFE_IOS_2, init) | 0 (delayed-assertion mode, OTP default); TDELAY **00000** (with FS0B), TDUR 100 ms; BACKUP_SAFETY_PATH_FS0B = 1, **BACKUP_SAFETY_PATH_FS1B = 0** (round 9, A8-03: an FS1B short-to-high is a DTC, not an MCU-reset loop) — all read back by FW-12 | FW-16 step a reads the ASC preset at once; the FAULT_OUT pulse and a wire-short overload are bounded (round-8 cross-check R8X-03, P-01) |
 | GPIO1STAGE_OTP / GPIO1 power-up slot | push-pull (or high-side driver), **not slotted** — stays low until the MCU sets it over SPI | flyback-enable OR input: a slotted GPIO1 would raise gate power at every POR while FS1B still presets the ASC latch, engaging LS-ASC at boot (round 8, N15; firmware-contract §9) |
 
 ## 9. LV power
@@ -314,12 +314,15 @@ guarantee it (review round 3/5 item):
   NRVBAF360T3G + TVS + bead each) feed the two gate flybacks directly (they regulate
   primary-side over the full 9–16 V window — no pre-regulator needed);
   **NCV4276C 5 V LDO** (INH tied on via 100 k since A.4 — VCC1 and the AMC1311 LV sides
-  stay alive whenever KL30 is present) for driver VCC1 logic;
+  stay alive whenever the card is awake) for driver VCC1 logic. Round 9 (N17): both feeds come
+  from a card-side P-FET switch (QLVS) that follows V5A, so the power board is unpowered while
+  the vehicle sleeps. It had drawn ≈ 150 mA from unswitched KL30;
   **TPS55340-Q1 boost → 15.4 V (V15B) → NCV4276C-ADJ post-regulator → V15 = 15.0 V**
   (F51 — a boost passes its input through above the setpoint; the LDO clamps jump-start/
   load-dump pass-through away from the bias modules) feeding the four isolated bias
-  modules (Murata MGJ2 ×2 for the V_DC senses + Mornsun QA01C ×2 for ASC/discharge —
-  13.5–16.5 V windows; QA01C outputs are **+20/−4 V** per DS, F61).
+  modules (Murata MGJ2 ×2 for the V_DC senses + Mornsun **QA01C-18** ×2 for ASC/discharge —
+  13.5–16.5 V windows; QA01C-18 outputs **+18/−3 V**, 16.9–20.9 V at these light loads. Round 9,
+  A8-N01: F61 had read the base QA01C's +20/−4 V sheet).
 - Budget ≈ 20 W total LV on the power board at full gate load.
 
 ## 10. ASIL D concept (decomposition summary — printed on sheet 1)
@@ -368,15 +371,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.8)
+## 11. Verification status (current release: rev A.9)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **1778/1778 (100 %)**;
-- structural ERC **864 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **1804/1804 (100 %)**;
+- structural ERC **883 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **108 PASS / 14 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **116 PASS / 14 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -389,8 +392,42 @@ defect before release. Firmware obligations are in [`firmware-contract.md`](firm
 
 Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
-(A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8) and F98–F105
-(the A.8 cross-check).
+(A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
+(the A.8 cross-check), F106–F113 (A.9) and F114–F119 (the A.9 cross-check).
+
+## 11i. Rev A.9 — review round nine (summary)
+
+Two rechecks of `0da9014` (A8-01…03, A8-N01…N03, gates A8-G01/G02) are answered in
+[`review-A9-disposition.md`](review-A9-disposition.md). Both reviewers kept the round-8 fixes and
+recommended no power-stage change.
+
+- **Bias module binding (A8-N01).** PSASC/PSQD are QA01C-18 (+18/−3 V). F61 had read the base
+  QA01C's +20/−4 V sheet. The real envelope at these loads is 16.9–20.9 V, so ASC entry is 7.52 µs
+  and the FW-06 end-point 906 V. The discharge gate is now a 1.5 k/10 k divider at 13.4–18.1 V
+  (A8-N02).
+- **FLT/RDY rating (A8-01).** The NSI6611 rates FLT/RDY to VCC1 with no +0.3 V. Their pull-ups, and
+  the diode-OR pull-up, now sit on V5GD (harness pin 1; the harness map keeps every supply pin beside ground in both dual-row numberings). A lost V5GD ends
+  deterministically in SPO.
+- **Proofs.** RFS4 is an anti-surge ROHM ESR03 covering 0.23 / 0.48 / 0.65 W at 16 / 24 / 35 V;
+  BACKUP_SAFETY_PATH_FS1B = 0 (A8-03). The LED window uses a ±28 % tempco band and is judged on the
+  guaranteed margins (A8-02). FW-16 has an energy limit, < 12 V read, ≤ 75 mJ (A8-N03). The §6
+  motor/vehicle release rule replaces the "double fault" shortcut (A8-G02).
+- **Self-found (N17).** The power board's LV side ran on unswitched KL30, ≈ 150 mA while parked.
+  A card-side P-FET on V5A (DMP6023LEQ) removes it.
+- **Cross-check of the fixes** (independent Opus reviewer, R9X-01…15, F114–F119). No CRITICAL
+  finding:
+  - A dead V5GD made the V_DC receivers read a false 0 V. V5GD is now read on an ADC pin; outside
+    4.75–5.25 V the firmware marks V_DC invalid and forces SPO. The same reading catches a
+    back-powered, hovering V5GD.
+  - The drawn harness numbers row by row, so the map is re-laid: VBAT and V5GD touch only ground in
+    both dual-row numberings.
+  - The resolver-exciter LDO now sleeps with the FS26: whole-inverter parking drain ≤ 43 µA at
+    25 °C.
+  - QLVS has a slew network (≤ 1.1 A inrush) and a 10 k gate pull-up that holds off a hot 2N7002's
+    leakage.
+  - FW-16 no longer trusts low-voltage readings (read < 3 V, or QDIS for 2 τ).
+  - DESATs go to NVM, because an FS26 restart now clears the drivers' own latch.
+- **Cost:** +₹29/unit (₹28 of it the switch and its gate network).
 
 ## 11h. Rev A.8 — review round eight (summary)
 
@@ -599,6 +636,8 @@ Accepted qualifications from the same round, on record:
   three-phase open — and ASC remains commandable per the DS, so the safe states stay
   reachable; the
   case is added to the ASC bench matrix (entry/exit, VCC1 brown-out, VCC2 UVLO ride).
+  *Superseded in round 9 (A8-01):* FLT/RDY now pull up to V5GD itself, so a V5GD loss reads as FLT
+  and ends deterministically in SPO with ASC masked (contract §6 V5GD row, release rule).
 - **ULDO15/ULDOEX in TSD** (sustained >20 V LV) suspends active discharge, ASC bias and
   resolver excitation — availability is not credited in that stationary service state.
 - **IGN_SNS disposition**: ADC input (PTA25 as ADC channel), firmware thresholds; the

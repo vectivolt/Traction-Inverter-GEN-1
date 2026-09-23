@@ -359,15 +359,21 @@ export const NtcIn = ({ id, out }: { id: string; out: string }) => (
 
 // ---- 40-way harness map (single source for both boards) ---------------------------------
 // [pin, net] — same nets both sides; power board holds default-OFF pulldowns.
+// Round 9 cross-check (R9X-02): the connector family is chosen at layout, and dual-row parts number
+// either row by row (Molex style: k faces k+20) or odd/even (box/IDC: 2m-1 faces 2m). The map is
+// laid out so the supply pins are safe in BOTH: VBAT_H (19/20) and VBAT_L (39/40) touch only DGND
+// or each other; V5GD (pin 1, the FLT/RDY pull-up reference, A8-01) touches only HW_ID, AGND and
+// DGND. The ERC checks both numberings. The earlier map put VBAT across from ASC_CMD/QDIS_CMD/FLT/RDY
+// in the drawn (row-by-row) footprint.
 export const HARNESS40: [number, string][] = [
-  [1, "PWM_UH"], [2, "PWM_UL"], [3, "PWM_VH"], [4, "PWM_VL"], [5, "PWM_WH"], [6, "PWM_WL"],
-  [7, "DGND"], [8, "EN_FLYBK_HS"], [9, "EN_FLYBK_LS"], [10, "DRV_EN"],
-  [11, "ASC_CMD"], [12, "QDIS_CMD"], [13, "DGND"], [14, "FLT_HS_N"], [15, "FLT_LS_N"],
-  [16, "RDY_HS"], [17, "RDY_LS"], [18, "DGND"], [19, "VDC1_P"], [20, "VDC1_N"],
-  [21, "VDC2_P"], [22, "VDC2_N"], [23, "AGND"], [24, "TMOD_U"], [25, "TMOD_V"],
-  [26, "TMOD_W"], [27, "TMOD_RTN"], [28, "HVIL_A"], [29, "HVIL_B"], [30, "DGND"],
-  [31, "VBAT_H"], [32, "VBAT_H"], [33, "DGND"], [34, "DGND"], [35, "VBAT_L"],
-  [36, "VBAT_L"], [37, "DGND"], [38, "DGND"], [39, "DGND"], [40, "HW_ID"],
+  [1, "V5GD"], [2, "HW_ID"], [3, "AGND"], [4, "PWM_UH"], [5, "PWM_UL"], [6, "PWM_VH"],
+  [7, "PWM_VL"], [8, "PWM_WH"], [9, "PWM_WL"], [10, "DGND"], [11, "EN_FLYBK_HS"],
+  [12, "EN_FLYBK_LS"], [13, "DRV_EN"], [14, "DGND"], [15, "ASC_CMD"], [16, "QDIS_CMD"],
+  [17, "DGND"], [18, "DGND"], [19, "VBAT_H"], [20, "VBAT_H"],
+  [21, "DGND"], [22, "DGND"], [23, "FLT_HS_N"], [24, "FLT_LS_N"], [25, "RDY_HS"],
+  [26, "RDY_LS"], [27, "VDC1_P"], [28, "VDC1_N"], [29, "VDC2_P"], [30, "VDC2_N"],
+  [31, "TMOD_U"], [32, "TMOD_V"], [33, "TMOD_W"], [34, "TMOD_RTN"], [35, "HVIL_A"],
+  [36, "HVIL_B"], [37, "DGND"], [38, "DGND"], [39, "VBAT_L"], [40, "VBAT_L"],
 ];
 export const Harness = ({ name }: { name: string }) => (
   <chip name={name} footprint={Header(40, 2)} {...gp()}

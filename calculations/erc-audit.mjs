@@ -253,8 +253,8 @@ ok(same(P("RB15C.pin1"), "B15CO") && same(P("CB15CC.pin1"), "B15CZ") && same(P("
   "UB15 COMP has the series R3/C4 pole-zero network (TI 8.2.1.2.11)");
 ok(same(P("CB15C.pin1"), "B15CO") && same(P("CB15C.pin2"), "DGND"), "UB15 COMP high-frequency pole cap");
 // Card: gate-power feeds are actually sourced (polyfused off the reverse-protected node)
-ok(same(C("FVBH.A"), "NRC") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card");
-ok(same(C("FVBL.A"), "NRC") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card");
+ok(same(C("FVBH.A"), "VBSW") && same(C("FVBH.B"), "VBAT_H"), "VBAT_H sourced on the card, from the switched feed (round 9, N17)");
+ok(same(C("FVBL.A"), "VBSW") && same(C("FVBL.B"), "VBAT_L"), "VBAT_L sourced on the card, from the switched feed (round 9, N17)");
 // Card: IGN sense is divided + filtered, not a raw diode into the MCU
 ok(same(C("DIGN.cathode"), "IGN_D") && same(C("RIGNS1.pin1"), "IGN_D") && same(C("RIGNS1.pin2"), "IGN_SNS")
   && same(C("RIGNS2.pin1"), "IGN_SNS") && same(C("RIGNS2.pin2"), "AGND"), "KL15 sense divided 47k/10k to the ADC pin");
@@ -415,7 +415,7 @@ ok(near(V(DIS, "RQDL"), 261) && near(V(PWR, "RASCL"), 261), "both TLP152 LEDs dr
 // ---------- round-8 cross-check lock-ins (R8X-01…17 — docs/review-A8-disposition.md) ----------
 // R8X-08: the FLT diode-OR itself (a moved DFLT2 anode passed 854/0), and the A7-N04 back-feed by net, not by name
 ok(same(C("DFLT1.anode"), "FLT_CMB_N") && same(C("DFLT1.cathode"), "FLT_HS_N") && same(C("DFLT2.anode"), "FLT_CMB_N") && same(C("DFLT2.cathode"), "FLT_LS_N")
-  && same(C("RFLTC.pin1"), "V5A") && same(C("RFLTC.pin2"), "FLT_CMB_N"),
+  && same(C("RFLTC.pin1"), "V5GD") && same(C("RFLTC.pin2"), "FLT_CMB_N"),
   "FLT diode-OR: either bank's FLT pulls FLT_CMB_N (latch preset + ASC mask) — R8X-08");
 const netsOf = (DD, ref) => new Set([...DD.netPins].filter(([, ps]) => ps.some((q) => q.startsWith(`${ref}.`))).map(([n]) => n));
 const bridges = (DD, a, b) => DD.comps.map((c) => c.name).filter((r) => { const n = netsOf(DD, r); return n.size === 2 && n.has(a) && n.has(b); });
@@ -439,6 +439,51 @@ for (const [sku, k] of Object.entries(SKUS)) {
     ULAT: /74LVC1G74/, ULAT2: /74LVC1G74/, RASCL: /261R/, RQDL: /261R/, RFCB: /100k/, CFLTF2: /100pF/ };
   const bad = Object.entries(want).filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: safety parts resolve to the intended MPNs (Schottky OR, ±2 % clamp, AND gate, Schmitt, D flip-flop, 261 R)`, bad.join(", "));
+}
+
+// ---------- round-9 lock-ins (A8-01…03, A8-N01…N03 — docs/review-A9-disposition.md) ----------
+// A8-01: every pull-up on an NSI6611 FLT/RDY line (and the diode-OR above them) sits on the drivers' VCC1
+// rail V5GD (harness pin 1); its 2 x 47 k pull-down doubles as the monitor divider into PTB5 (R9X-01/06)
+ok(["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "RFLTC"].every((r) => same(C(`${r}.pin1`), "V5GD"))
+  && same(C("RV5GP.pin1"), "V5GD") && same(C("RV5GP.pin2"), "V5GD_SNS") && same(C("RV5GS.pin1"), "V5GD_SNS") && same(C("RV5GS.pin2"), "DGND")
+  && near(V(CARD, "RV5GP"), 47e3) && near(V(CARD, "RV5GS"), 47e3) && same(C("UMCU.PTB5_V5GD"), "V5GD_SNS"),
+  "FLT/RDY pull-ups on the driver VCC1 rail (abs max = VCC1); an open V5GD pin reads FLT/RDY low; V5GD read by the MCU");
+ok(bridges(CARD, "V5GD", "V5A").length === 0, "no part ties V5GD to V5A on the card (keyed by net — R9X-05)");
+ok(["FLT_HS_N", "FLT_LS_N", "RDY_HS", "RDY_LS", "FLT_CMB_N"].every((n) => bridges(CARD, n, "V5A").length === 0),
+  "no part ties a FLT/RDY node to V5A (keyed by net)");
+{
+  // R9X-02: the connector family is chosen at layout — check BOTH dual-row numberings: row by row (k faces
+  // k+20, as drawn and as Molex-style parts number) and odd/even (2m-1 faces 2m, box/IDC headers)
+  const at = (p) => HARNESS40.find(([q]) => q === p)?.[1];
+  const rb = (p) => [...[p - 1, p + 1].filter((q) => (p <= 20 ? q >= 1 && q <= 20 : q >= 21 && q <= 40)), p <= 20 ? p + 20 : p - 20];
+  const oe = (p) => [...[p - 2, p + 2].filter((q) => q >= 1 && q <= 40), p % 2 ? p + 1 : p - 1];
+  const allow = { VBAT_H: ["DGND", "VBAT_H", "VBAT_L"], VBAT_L: ["DGND", "VBAT_L", "VBAT_H"], V5GD: ["DGND", "AGND", "HW_ID"] };
+  const bad = HARNESS40.filter(([, n]) => allow[n]).flatMap(([p, n]) => [...rb(p), ...oe(p)].filter((q) => !allow[n].includes(at(q))).map((q) => `${n}@${p}~${at(q)}@${q}`));
+  ok(!bad.length, "harness supply pins (VBAT_H/L, V5GD) touch only ground or their own rail in both dual-row numberings", bad.join(", "));
+}
+// A8-N01/N02: the QA01C-18 (+18 V) feeds both opto drivers; the discharge gate is a 1.5 k / 10 k divider
+ok(near(V(DIS, "RQDG"), 1.5e3) && near(V(DIS, "RQDPD"), 10e3) && same(D("RQDG.pin2"), D("QDIS.G")) && same(D("RQDPD.pin2"), "DCN"),
+  "QDIS gate divider 1.5 k / 10 k: V_GS 13.4-18.1 V from the QA01C-18 envelope (+22 V abs max)");
+// N17 (self-found): the power board's LV feed is switched on the card and follows V5A (FS26 awake)
+ok(same(C("QLVS.S"), "NRC") && same(C("QLVS.D"), "VBSW") && same(C("QLVS.TAB"), "VBSW") && same(C("QLVS.G"), "LVS_G")
+  && same(C("RLVSG.pin1"), "NRC") && same(C("RLVSG.pin2"), "LVS_G") && same(C("ZLVS.anode"), "LVS_G") && same(C("ZLVS.cathode"), "NRC")
+  && same(C("RLVSD.pin1"), "LVS_G") && same(C("QLVN.D"), C("RLVSD.pin2")) && same(C("QLVN.G"), "V5A") && same(C("QLVN.S"), "DGND")
+  && same(C("FVBH.A"), "VBSW") && same(C("FVBL.A"), "VBSW") && near(V(CARD, "RLVSG"), 10e3) && near(V(CARD, "RLVSD"), 4.7e3)
+  && same(C("RLVSM.pin1"), "LVS_G") && same(C("RLVSM.pin2"), C("CLVSM.pin1")) && same(C("CLVSM.pin2"), "VBSW") && near(V(CARD, "CLVSM"), 100e-9),
+  "power-board LV feed switched by V5A (no parking drain); V_GS clamped 15 V; drain-gate slew network (R9X-04)");
+// R9X-05: by PIN NUMBER — a gate/source label swap must not pass (DMP6023LEQ SOT-223: 1 G, 2 D, 3 S, tab D; 2N7002: 1 G, 2 S, 3 D)
+ok(same(C("QLVS.#1"), "LVS_G") && same(C("QLVS.#2"), "VBSW") && same(C("QLVS.#3"), "NRC") && same(C("QLVS.#4"), "VBSW")
+  && same(C("QLVN.#1"), "V5A") && same(C("QLVN.#2"), "DGND") && same(C("QLVN.#3"), "LVS_D"),
+  "QLVS/QLVN roles by pin number");
+// R9X-03: the resolver-exciter LDO sleeps with the FS26 (its INH on V5A)
+ok(same(C("ULDOEX.INH"), "V5A") && same(C("ULDOEX.IN"), "VBATC"), "ULDOEX enabled by V5A, not by KL30 (no LPOFF drain)");
+ok(["VBAT_H", "VBAT_L", "VBSW"].every((n) => bridges(CARD, "NRC", n).every((r) => r === "QLVS")),
+  "nothing but QLVS bridges the unswitched KL30 node to the power-board feed (keyed by net)");
+for (const [sku, k] of Object.entries(SKUS)) {
+  const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^QA01C-18$/, PSQD: /^QA01C-18$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
+    .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
+  ok(!bad.length, `${sku}: round-9 parts resolve (QA01C-18 bias, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
 }
 
 // ---------- report ----------

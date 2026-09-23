@@ -1,4 +1,4 @@
-# GEN-1 platform — one set of boards, four SKUs (rev A.8)
+# GEN-1 platform — one set of boards, four SKUs (rev A.9)
 
 **Short answer to "can one board do SiC/IGBT and 4XX/8XX?" — yes.** The power PCB, control
 card, discharge PCB and cap-bank busbar are the same for every SKU. A SKU is a module choice,
@@ -47,7 +47,7 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | Tj end of 30 s peak at V_max (S4, static junction path; IGBT and diode share the plate — RR07/R7-07; with no plate mass: 135 / 142 / 133 / 143 °C, R8X-11) | 125 °C (175 °C max) | 132 °C (150 °C Tvjop) | 125 °C (150 °C) | 133 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
 | Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹71,040** | **₹45,540** | **₹45,540** | ₹71,040 |
+| Electronics BOM @1k | **₹71,069** | **₹45,569** | **₹45,569** | ₹71,069 |
 | Ex-works cost (cost-rollup method) | ≈ ₹1.15 L | ≈ ₹0.90 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.17 L |
 | Cost per peak kW | ≈ ₹525/kW | **≈ ₹410/kW** | ≈ ₹610/kW | ≈ ₹780/kW |
 | Status | **launch** | **launch** | **launch** | on request |

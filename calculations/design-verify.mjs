@@ -69,16 +69,22 @@ const VCC2 = {
 const SCH = { tpLo: Math.min(1.90 / 4.5, 2.20 / 5.5), tpHi: Math.max(3.30 / 4.5, 3.80 / 5.5),
   tnLo: Math.min(1.00 / 4.5, 1.20 / 5.5), tnHi: Math.max(2.20 / 4.5, 2.50 / 5.5) };
 // ASC entry (round 7, RR05). Power board: TLP152 → RASCG 2.2 k / RASCPD 10 k (1.8 k Thevenin) → CASCD 12 nF
-// → NSI6611 ASC (V_ASCH 2.7–3.2 V, tASC_r 0.39–1.1 µs). The +20 V QA01C rail is taken as 18–24 V at this
-// light load (DS curve: +6 % at 10 % load). The high sides start turning off first: FS0B drops DRV_EN
+// → NSI6611 ASC (V_ASCH 2.7–3.2 V, tASC_r 0.39–1.1 µs). The bias is a QA01C-18 (+18/−3 V; round 9, A8-N01 —
+// F61 had read the QA01C base part's +20/−4 V sheet): QA18 below gives its envelope. The high sides start turning off first: FS0B drops DRV_EN
 // (FS1B path) or the eFlexPWM fault forces the high-side PWM off (MCU path) — EN is NOT used for ASC ordering,
 // because the NSI6611 honours DESAT over ASC only with EN high (DS §8.12, round-7 cross-check).
+// Mornsun QA01C-18 (DS 2018.12.11-A/0): +18 V output envelope Fig. 1 — max +9 % → +2 %, min 0 % → −7 % over
+// 10–100 % load; line regulation ±1.3 %/% (V15 = NCV4276C-ADJ, ±3 %); tempco ±0.03 %/°C at 100 % load (±2.4 %
+// over −40…105 °C). Our loads are 2–8 % (opto supply, ASC 2.2 k into the 5.1 V clamp, gate divider), so the
+// max line is extrapolated to 2 % load (+9.6 %) and the min line held at its 10 % value (0 %).
+const QA18 = (() => { const line = 0.013 * 3, tc = 0.0003 * 80;
+  return { min: 18 * (1 - line - tc), max: 18 * (1 + 0.09 + 0.07 * 8 / 90 + line + tc) }; })();
 const ASC = (() => {
   const rTh = 2.2e3 * 10e3 / 12.2e3, c = 12e-9, vTh = (v) => (v - 0.3) * 10 / 12.2;
   const tRc = (r, cc, vth, vt) => r * cc * Math.log(vth / (vth - vt));
   return {
-    tLsMin: tRc(rTh * 0.99, c * 0.95, vTh(24), 2.7) + 0.39e-6,
-    tEntryMax: 5.5e-9 + 0.25e-6 + tRc(rTh * 1.01, c * 1.05, vTh(18), 3.2) + 1.1e-6,   // UASCG (74LVC1G08-Q100 5.5 ns, 125 °C) + TLP152 tpLH at ≥ 10.3 mA (DS 10 mA point + margin) + RC + tASC_r
+    tLsMin: tRc(rTh * 0.99, c * 0.95, vTh(QA18.max), 2.7) + 0.39e-6,
+    tEntryMax: 5.5e-9 + 0.25e-6 + tRc(rTh * 1.01, c * 1.05, vTh(QA18.min), 3.2) + 1.1e-6,   // UASCG (74LVC1G08-Q100 5.5 ns, 125 °C) + TLP152 tpLH at ≥ 10.3 mA (DS 10 mA point + margin) + RC + tASC_r
     tHsEn: 5.4e-9 + 2 * 4.4e-9 + 5e-9 + 60e-9 + 130e-9,   // FS1B path: USCH, two ANDs, harness, EN deglitch, EN→OUT (≈tpHL max)
   };
 })();
@@ -88,12 +94,15 @@ OVP.tReq = OVP.tDiv + OVP.tAmc + OVP.tRx + OVP.tSample + OVP.tConv + OVP.tAct;
 // Round-8 interface data (EXTRACTED-PARAMS §26). LVC outputs (74LVC1G08/3G17-Q100 Table 7): V_OH ≥ 3.4 V
 // at V_CC 4.5 V, I_O −32 mA, −40…125 °C (≥ 3.8 V over −40…85 °C); below that current the PMOS drop is
 // bounded by the same resistance (triode), so V_OH(I) ≥ V_CC − I·R_out. TLP152 V_F: 1.40–1.80 V at
-// 10 mA/25 °C with a −1.8 mV/°C tempco → 1.27–1.67 V at 100 °C, 1.92 V at −40 °C (1.95 V used); I_FLH
-// 7.5 mA max, I_F(ON) 10–15 mA recommended, T_opr −40…100 °C. Corners are temperature-consistent
-// (cross-check R8X-04): cold = −40 °C V_F with the 85 °C R_out bound, hot = 100 °C V_F with the 125 °C one.
+// 10 mA/25 °C (guaranteed) and a −1.8 mV/°C tempco that Toshiba gives as TYPICAL only (round 9, A8-02): the
+// corners use a ±28 % band, −1.3…−2.3 mV/°C, each end where it hurts — cold V_F max 1.95 V, hot V_F max 1.70 V,
+// hot V_F min 1.23 V. Guaranteed: I_FLH 7.5 mA max over −40…100 °C and 20 mA abs max; the 10–15 mA I_F(ON)
+// window is recommended, not guaranteed. The LVC R_out is a MOS-triode bound (V_drop/I falls with I below
+// the 32 mA point), not a supplier curve. Corners are temperature-consistent (cross-check R8X-04): cold =
+// −40 °C V_F with the 85 °C R_out bound, hot = 100 °C V_F with the 125 °C one.
 // NSI6611 FLT V_OL ≤ 0.3 V at 5 mA; BAT46 ≤ 0.25 V at 0.1 mA/25 °C, 0.45 V taken cold at 0.45 mA.
 const LVC = { vOh32: 3.4, vOh32c: 3.8 }; LVC.rOut = (4.5 - LVC.vOh32) / 32e-3; LVC.rOutC = (4.5 - LVC.vOh32c) / 32e-3;
-const LED = { vfMax: 1.95, vfMaxHot: 1.80 - 75 * 1.8e-3, vfMin: 1.40 - 75 * 1.8e-3, iFlh: 7.5e-3, iRecMin: 10e-3, iRecMax: 15e-3, tpLH: 0.25e-6 };
+const LED = { vfMax: 1.80 + 65 * 2.3e-3, vfMaxHot: 1.80 - 75 * 1.3e-3, vfMin: 1.40 - 75 * 2.3e-3, iFlh: 7.5e-3, iRecMin: 10e-3, iRecMax: 15e-3, iAbs: 20e-3, tpLH: 0.25e-6 };
 const FLTL = { vol: 0.3, bat46: 0.45 };
 
 // ---------------- check engine ----------------
@@ -375,11 +384,70 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   const iLedAt = (rOut, vf) => (4.9 - 0.5e-3 * rOut - vf) / (rLed * 1.01 + rOut);
   const iLedCold = iLedAt(LVC.rOutC, LED.vfMax), iLedHot = iLedAt(LVC.rOut, LED.vfMaxHot);
   const iLed = Math.min(iLedCold, iLedHot), iLedMax = (5.1 - LED.vfMin) / (rLed * 0.99);
-  const ledSt = iLed >= LED.iRecMin && iLedMax <= LED.iRecMax ? "PASS" : iLed >= LED.iFlh && iLedMax <= 20e-3 ? "WARN" : "FAIL";
+  const ledSt = iLed < 1.25 * LED.iFlh || iLedMax > LED.iAbs ? "FAIL" : iLed >= LED.iRecMin && iLedMax <= LED.iRecMax ? "PASS" : "WARN";
   for (const [tag, drv] of [["ASC opto (RASCL, from UASCG)", "74LVC1G08-Q100"], ["discharge opto (RQDL, from USCH2 ch3)", "74LVC3G17-Q100"]])
     add("Safety A.8", `TLP152 LED current — ${tag}`, `${f(iLedCold * 1e3, 2)} mA cold · ${f(iLedHot * 1e3, 2)} mA hot · ${f(iLedMax * 1e3, 2)} mA max`,
-      "10–15 mA recommended I_F(ON) (7.5 mA I_FLH max, 20 mA abs)", ledSt,
-      `${drv}: cold = −40 °C V_F ${LED.vfMax} V with R_out ≤ ${f(LVC.rOutC, 1)} Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F ${f(LED.vfMaxHot, 2)} V with R_out ≤ ${f(LVC.rOut, 1)} Ω (125 °C); max at V5A 5.1 V, V_F ${f(LED.vfMin, 2)} V, R_out 0. I_FLH margin ${f(iLed / LED.iFlh, 2)}×. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold`);
+      "guaranteed: ≥ 1.25 × I_FLH 7.5 mA, ≤ 20 mA abs · recommended 10–15 mA", ledSt,
+      `${drv}: guaranteed margins ${f(iLed / LED.iFlh, 2)}× over I_FLH and ${f(LED.iAbs / iLedMax, 2)}× under the abs max; the 10–15 mA window closes only with the ±28 % V_F tempco band (typical-derived — T7-04 bench). Cold = −40 °C V_F ${f(LED.vfMax, 2)} V with R_out ≤ ${f(LVC.rOutC, 1)} Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F ${f(LED.vfMaxHot, 2)} V with R_out ≤ ${f(LVC.rOut, 1)} Ω (125 °C); max at V5A 5.1 V, V_F ${f(LED.vfMin, 3)} V, R_out 0. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold`);
+  // ---- round 9 (A8-03): RFS4 with FAULT_OUT shorted to KL30 WHILE FS1B is asserted (it sinks at 0.4 V up to its
+  // 4–22 mA limit; the 22 mA end is the stress case). Above the limit the node rises, and past the ZSET clamp RFS1
+  // shares the current. The 16 V case is the continuous one: FS1B held with no release (MCU never boots, or DFS).
+  // BACKUP_SAFETY_PATH_FS1B = 0 (FW-12) removes the RSTB repetition, so a pulse is ≤ 0.1 s (TDUR) or the ≤ 0.3 s
+  // boot hold. Part: ROHM ESR03EZPF1001, 0.33 W at 70 °C → 0.27 W at 85 °C, overload 2 × U_R for 5 s ≈ 1.3 W.
+  {
+    const iLim = 22e-3, vzC = vzAt(16) - 0.3;   // clamp near 3 mA, a little under its 5 mA value
+    const pAt = (vw) => { const i0 = (vw - 0.3 - 0.4) / 1e3; if (i0 <= iLim) return i0 ** 2 * 1e3;
+      const vn1 = vw - 0.3 - iLim * 1e3, vn = vn1 > vzC ? (vn1 + vzC) / 2 : vn1; return ((vw - 0.3 - vn) / 1e3) ** 2 * 1e3; };
+    const [p16, p24, p35] = [16, 24, 35].map(pAt), pCont = 0.33 * (155 - 85) / (155 - 70);
+    judge("Safety A.9", "RFS4 with FAULT_OUT shorted to KL30 and FS1B asserted (22 mA limit end)", `${f(p16, 3)} / ${f(p24, 3)} / ${f(p35, 3)} W at 16 / 24 / 35 V`,
+      `${f(pCont, 2)} W continuous at 85 °C (ESR03, 0.33 W at 70 °C); ≈1.3 W for 5 s overload`, p16 / pCont, 0.9,
+      `A8-03: 0.23 W was only the 16 V case. Pulses ≤ ${f(p35, 2)} W last ≤ 0.1 s (FS1B_TDUR) or the ≤ 0.3 s boot hold — ≤ ${f(p35 * 0.3, 2)} J against the 5 s overload rating; the 16 V row is the continuous case (no release). BACKUP_SAFETY_PATH_FS1B = 0 stops RSTB loops. A 0.1 W 0603 is 0.08 W at 85 °C and fails the continuous case`);
+  }
+  // R9X-14: FS1B HELD for a whole key-on — a high-limit FS1B current-limits at 24 V (node ≈1.7 V reads high:
+  // ABIST refuses the release). 18 V/60 min (ISO 16750-2, T_max − 20 °C ≈ 65 °C) and a 24 V/60 s jump start at 25 °C.
+  {
+    const p18 = ((18 - 0.7) / 1e3) ** 2 * 1e3, p24 = (22e-3) ** 2 * 1e3;
+    const rth = (155 - 70) / 0.33, tEl24 = 25 + p24 * rth;   // element temperature from the rating's own slope
+    add("Safety A.9", "RFS4 with FS1B held a whole key-on (18 V/60 min at 65 °C · 24 V/60 s at 25 °C)", `${f(p18, 2)} W · ${f(p24, 2)} W (element ≈${f(tEl24, 0)} °C)`,
+      "0.33 W continuous at ≤ 70 °C (ESR03); 155 °C element", p18 > 0.33 || tEl24 > 155 ? "FAIL" : p24 > 0.33 ? "WARN" : "PASS",
+      `R9X-14: 18 V fits. The 24 V jump start runs the resistor at ${f(p24 / 0.33, 2)}× its nameplate for 60 s — under its 155 °C element limit at 25 °C but outside the rating, in a triple condition (FAULT_OUT shorted to KL30, a high-limit FS1B part, a jump start). Drift or an open only disconnects FAULT_OUT from an already-shorted wire, and the FS1B preset keeps working through the strap. Accepted; bench item`);
+  }
+  // ---- round 9 (A8-N03 + cross-check R9X-07): FW-16 energy eligibility. The low-voltage V_DC reading is not
+  // trusted: the chain is ≈ ±9 V uncalibrated at this level (MCU ADC alone ±3.3 V of bus). Either both channels
+  // read < 3 V (≤ 12 V true), or QDIS runs for 2 τ from a < 60 V reading (≤ 69 V true → ≤ 9.3 V).
+  for (const id of ["sic8", "sic4"]) {
+    const sk = SKU[id], cMax = 16 * sk.can.c * 1.1 + 3.3e-6, ra = sk.vMax === 850 ? 1880 : 880, tau = ra * 1.05 * cMax;
+    const eRead = 0.5 * cMax * 12 ** 2, eTop = 0.5 * cMax * (69 * Math.exp(-2)) ** 2, e = Math.max(eRead, eTop);
+    judge("Safety A.9", `FW-16 self-test residual energy, ${sk.vMax === 850 ? "8XX" : "4XX"} bank (read < 3 V, or QDIS 2 τ from < 60 V)`,
+      `≤ ${f(eRead * 1e3, 0)} mJ (read) · ≤ ${f(eTop * 1e3, 0)} mJ (QDIS 2 τ = ${f(2 * tau, 2)} s)`, "0.1 J design limit", e / 0.1, 0.8,
+      `A8-N03: "< 60 V" allowed ${f(0.5 * cMax * 59 ** 2, 2)} J at C_max ${f(cMax * 1e6, 1)} µF. R9X-07: the first "< 12 V read" rule assumed a 1 V error — it can be 9 V. n_ss from E_LL,pk(n_ss) ≤ 12 V. Fixture-qualified, not a destructive test`);
+  }
+  // ---- round 9, self-found N17 + cross-check R9X-03/04/10: power-board LV feed switch QLVS (DMP6023LEQ: −60 V,
+  // 28 mΩ at −10 V, 35 mΩ at −4.5 V, V_GS(th) −1…−3 V, ±20 V, I_DSS ≤ 1 µA; DS39935). Gate from NRC (KL30 −
+  // ≈0.5 V: reverse Schottky + polyfuse): 4.7 k to the V5A-driven 2N7002, 10 k gate-source, BZT52-C15 clamp,
+  // and 1 k + 100 nF drain-gate for a controlled turn-on slew. Sleep: V5A off → gate at source → off.
+  {
+    const nrc = (vk) => vk - 0.5, k = 10 / 14.7, rTh = 10e3 * 4.7e3 / 14.7e3;
+    const vgs = (vk) => Math.min(nrc(vk) * k, 15.6), [g6, g9, g16, g39] = [6, 9, 16, 39].map(vgs);
+    judge("LV A.9", "LV feed switch V_GS from NRC: KL30 6 / 9 / 16 / 39 V (clamped)", `−${f(g6, 1)} / −${f(g9, 1)} / −${f(g16, 1)} / −${f(g39, 1)} V`,
+      "±20 V V_GS max; ≥ 4.5 V for the 35 mΩ point", Math.max(g39 / 20, 4.5 / g9), 0.8,
+      `at the 9 V crank floor the gate sits ${f(g9, 1)} V below the source (≤ 35 mΩ; 0.6 A → ≤ 13 mW); even at 6 V (${f(g6, 1)} V) it stays past V_GS(th) max 3 V. R9X-10: taken from NRC, not KL30`);
+    const iLeak = 50e-6;   // 2N7002 off-state drain leakage at 85 °C, V_DS ≈ 12 V (vendors give ≤ 1 µA at 25 °C, up to 500 µA at 125 °C)
+    judge("LV A.9", "LV feed switch held off by a hot 2N7002 (leakage × 10 k gate-source)", `${f(iLeak * 10e3, 2)} V at ${iLeak * 1e6} µA`,
+      "1.0 V V_GS(th) min", iLeak * 10e3 / 1.0, 0.6, "R9X-10: with the first 100 k the same leakage made 5 V — the switch could half-close in a hot parked car");
+    const vPl = 3.0, cL = 45e-6, cM = 100e-9;   // Miller plateau (low end → largest gate current), power-board input capacitance
+    const [i12, i16] = [12, 16].map((vk) => cL * ((nrc(vk) * k - vPl) / rTh) / cM);
+    judge("LV A.9", "LV feed switch inrush into the power board at each wake (drain-gate 100 nF slew)", `${f(i12, 2)} A at 12 V · ${f(i16, 2)} A at 16 V`,
+      "3 A (polyfuses, harness, VBATC dip)", i16 / 3, 0.6,
+      `R9X-04: slew = gate current / 100 nF ≈ ${f(((nrc(12) * k - vPl) / rTh) / cM / 1e3, 0)} V/ms at 12 V; without it the gate-drain charge alone let 9–31 A through (2.5–4.4 mJ) and dipped VBATC ~2 V at every wake`);
+    // whole-inverter sleep current with KL30 present (FS26 in LPOFF): FS26 30 µA typ (60 max at 85 °C), ULDOEX
+    // inhibited ≤ 10 µA, QLVS I_DSS ≤ 1 µA, 2N7002 ≤ 1 µA, TVS ≤ 1 µA at 25 °C; the power board is unpowered
+    const iSleep25 = 30e-6 + 10e-6 + 1e-6 + 1e-6 + 1e-6, iSleep85 = 60e-6 + 10e-6 + 1e-6 + iLeak + 5e-6;
+    const iQa = 2 * 16e-3 * 15 / 0.85 / 12;
+    judge("LV A.9", "Parking drain, whole inverter (KL30 present, FS26 in LPOFF)", `≤ ${f(iSleep25 * 1e6, 0)} µA at 25 °C · ≤ ${f(iSleep85 * 1e6, 0)} µA at 85 °C`,
+      "0.1 mA at 25 °C (OEM sleep budgets ≤ 0.1–1 mA per ECU)", iSleep25 / 0.1e-3, 0.8,
+      `N17 + R9X-03: before, the power board's LV side drew ≥ ${f(iQa * 1e3, 0)} mA from the QA01C-18 no-load inputs alone (≈150 mA in all) and ULDOEX kept the exciter at ≈0.9 mA; both now follow V5A. S1 start-up already starts VDD at 0 V, so a switched feed costs no start time`);
+  }
   // F41 KL15 sense:
   judge("LV A.4", "IGN_SNS at 16 V KL15", `${f((16 - 0.7) * 10 / 57, 2)} V`, "5 V ADC range",
     ((16 - 0.7) * 10 / 57) / 5, 0.75, "F41 — was a raw diode into PTA25 (13.3 V)");
@@ -433,8 +501,12 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     "F56 — the 5.6 V clamp conducted ~0.29 A through every ON interval (historical estimate, not carried into the new budget)");
 
   // ---- rev A.5 documentation-audit findings (F60–F61) ----
-  judge("Discharge", "QDIS gate at the QA01C rail (+20 V per DS)", "≈19.5 V", "+22 V abs (+18 V rec) HCM75S12T4K3",
-    19.5 / 22, 0.85, "F61 — the base QA01C row is +20/−4 V; inside abs, above rec — gate divider option at proto if bench confirms 20 V");
+  // QDIS gate (round 9, A8-N02): PSQD QA01C-18 → TLP152 (V_OH ≤ V_CC; ≥ V_CC − 1.5 V at the ≈1.5 mA static load,
+  // DS 6.0 V min at 10 V/−100 mA) → RQDG 1.5 k / RQDPD 10 k divider. The old row read the wrong module (+20 V).
+  const kDiv = 10e3 / (10e3 + 1.5e3), vgsMax = kDiv * QA18.max, vgsMin = kDiv * (QA18.min - 1.5);
+  judge("Discharge", "QDIS gate V_GS (QA01C-18 envelope through the 1.5 k/10 k divider) vs HCM75S12T4K3 +22 V abs",
+    `${f(vgsMin, 1)}–${f(vgsMax, 1)} V (rail ${f(QA18.min, 1)}–${f(QA18.max, 1)} V)`, "+22 V abs max (+18 V recommended)", vgsMax / 22, 0.85,
+    `round 9 A8-N02: 47 Ω passed the rail straight to the gate — up to ${f(QA18.max, 1)} V at this 2–4 % load, above the +18 V recommended level with the < 10 % load region extrapolated. The divider keeps the top at the recommended level and ${f(22 - vgsMax, 1)} V under the abs max; the low end fully enhances a 0.45 A discharge. BENCH: V18Q, QDVO and V_GS at start-up, no load and ON`);
 
   // ---------- IGBT SKUs: HCG600FH120D3E1EA (same D3 pads + pin map) ----------
   // Losses/thermal/DESAT timing now live in the per-SKU blocks above (review A.6 F03/F26/F27);
@@ -528,7 +600,7 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
 same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -548,6 +620,20 @@ same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also 
 | F103 | LOW | FLT_LS_N had no glitch filter (CFLTF only on FLT_HS_N); a glitch now drops ASC and latches SPO with no automatic retry (R8X-12) | CFLTF2 100 pF |
 | F104 | LOW | Lock-ins missed the FLT diode-OR, the FS1B back-feed by net and all of parts-db — a moved DFLT2 anode and an added FS1B pull-up both passed 854/0; two A.8 rows were fixed PASS (R8X-08) | ERC by net, pin number and first-match MPN per SKU; both rows computed; every new lock-in mutation-tested |
 | F105 | LOW | S4 "true upper bound" held only for the assumed 60 s plate pole; VCC2 used 50 % FB-sense conduction on every corner; UASCG delay 4.4 ns (R8X-11/16) | static-plate bound reported (8XX IGBT 142 °C, WARN); per-corner conduction 1/0.5/0.2; 5.5 ns |
+| F106 | MED | PSASC/PSQD are QA01C-18 (+18/−3 V), but F61 had bound the base QA01C sheet (+20/−4 V): the ASC timing assumed 18–24 V and the discharge gate ≈19.5 V (A8-N01) | QA01C-18 envelope 16.9–20.9 V modelled (Mornsun Fig. 1, line, tempco): ASC entry 7.07 → 7.52 µs, FW-06 end-point 905 → 906 V; MPN locked |
+| F107 | MED | QDIS gate followed the bias rail through 47 Ω: up to 20.9 V against the +18 V recommended / +22 V abs, with the < 10 % load region extrapolated (A8-N02) | RQDG 1.5 k with RQDPD 10 k: V_GS 13.4–18.1 V |
+| F108 | MED | FLT/RDY pulled up to V5A while the drivers' VCC1 is V5GD: 0.2 V over the FLT/RDY abs max (VCC1, no +0.3 V) at rail corners, and an undefined V5GD-loss state (A8-01; P-03, R8X-10) | pull-ups and the diode-OR pull-up on V5GD via harness pin 39 (DGND/HW_ID neighbours), RV5GP for an open pin: a lost V5GD is SPO, deterministically |
+| F109 | MED | FW-16 allowed its ASC-actuating steps below 60 V: 0.62 J (8XX) / 1.54 J (4XX) at C_max into a latent high-side short (A8-N03) | eligibility < 12 V read (≤ 30/75 mJ), QDIS top-up from ≤ 60 V, n_ss from E_LL,pk |
+| F110 | MED | Self-found (N17): the power board's LV side — V15 boost and four bias modules, V5GD, flyback controllers — ran on unswitched KL30, ≈150 mA while the vehicle sleeps | card-side P-FET switch (DMP6023LEQ) on V5A: ≤ 1 µA asleep |
+| F111 | LOW | RFS4's 0.23 W case was only 16 V; 24/35 V reach 0.48/0.65 W and 0.23 W continues if FS1B is never released; BACKUP_SAFETY_PATH_FS1B = 1 repeated it through RSTB (A8-03) | RFS4 = ROHM ESR03EZPF1001 (0.27 W at 85 °C, ≈1.3 W/5 s); BACKUP_SAFETY_PATH_FS1B = 0 |
+| F112 | LOW | The 10–15 mA LED window used Toshiba's typical V_F tempco as if guaranteed (A8-02) | ±28 % tempco band at every corner; the row judges the guaranteed I_FLH and abs-max margins first |
+| F113 | LOW | "Battery opens in the SPO window = double fault" assumed independence (A8-G02) | §6 motor/vehicle release rule: energy-safe SPO, proven keep-connected, or the total-KL30-loss backup |
+| F114 | MED | Cross-check R9X-01: a dead V5GD unpowers the AMC1311 LV sides, so the receivers sit at their +0.5 V offset — a valid-looking "0 V bus" (850 V could be reported as discharged); the N18 discriminator relied on it | V5GD read on PTB5 (RV5GP/RV5GS 2 × 47 k); V_DC invalid and SPO forced outside 4.75–5.25 V; also catches a back-powered, hovering V5GD (R9X-06) |
+| F115 | MED | R9X-02: the drawn 2×20 harness numbers row by row, so VBAT faced ASC_CMD/QDIS_CMD/FLT_LS_N/RDY_HS and V5GD faced VDC1_P; "MICROFIT3-40" does not exist | HARNESS40 re-laid so VBAT and V5GD touch only ground or their own rail in both row-by-row and odd/even numbering (ERC checks both); class MPN until the layout picks the family |
+| F116 | MED | R9X-03: ULDOEX (resolver exciter LDO) had INH on VBATC — ≈0.9 mA in FS26 LPOFF; the parking row summed the power board only | INH on V5A; the row now sums every unswitched load (≤ 43 µA at 25 °C) |
+| F117 | LOW | R9X-04/10: QLVS turned on through its gate-drain charge (9–31 A into ≈45 µF at each wake), and a hot 2N7002's leakage × 100 k could half-close it while parked | 10 k/4.7 k gate network + 1 k/100 nF drain-gate: ≤ 1.1 A inrush, ≤ 0.5 V leakage drive |
+| F118 | LOW | R9X-07/08: FW-16 trusted a 1 V low-voltage V_DC error (≈ ±9 V real); V5GD now follows V5A, so an FS26 restart erased a latched DESAT | read < 3 V or QDIS for 2 τ; FW-15 writes the DESAT to NVM and §9 gates arming on it |
+| F119 | LOW | R9X-05/09/11/12/14: QLVS/QLVN G/S label swaps and a V5A–V5GD bridge passed the ERC; release rule (c) claimed the backup could cover the V5GD row; 25 V caps on the 20.9 V bias rails; RFS4 with FS1B held through a jump start unlisted; stale texts | pin-number and no-bridge locks; (c) limited to total KL30 loss; CASC/CQD 50 V; RFS4 held-case row (WARN, accepted); texts fixed |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |

@@ -42,6 +42,9 @@ const MCU_PINS: [string, string][] = [
   // review A.6: the receivers' shared +0.5 V offset (VOFS) and the SKU identity are read too —
   // a failed UVOF would shift BOTH VDC channels equally (invisible to the 5 % cross-check)
   ["PTB1_VOFS", "VOFS"], ["PTB4_HWID", "HW_ID"],
+  // round 9 cross-check (R9X-01/06): V5GD itself is read — a dead or back-powered (hovering) V5GD
+  // also unpowers the AMC1311 LV sides, whose receivers would then read a false "0 V bus"
+  ["PTB5_V5GD", "V5GD_SNS"],
   ["PTA8_ISU", "ISNS_U"], ["PTB8_ISV", "ISNS_V"], ["PTB13_ISW", "ISNS_W"],
   ["PTA9_TMU", "TMOD_U"], ["PTB2_TMV", "TMOD_V"], ["PTB3_TMW", "TMOD_W"],
   ["PTA10_NTCA", "NTC_A"], ["PTA11_NTCH", "NTC_H"],
@@ -117,6 +120,7 @@ export default () => (
     <net name="VPRE" isForPower />
     <net name="V11" isForPower />
     <net name="V5A" isForPower />
+    <net name="V5GD" isForPower />
     <net name="V3B" isForPower />
     <net name="VREF5" isForPower />
     <net name="DGND" isGround />
@@ -131,11 +135,29 @@ export default () => (
     <capacitor name="CLVC1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
     <capacitor name="CLVC2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.VBATC", pin2: "net.DGND" }} />
     {/* gate-power feeds to the power board: sourced HERE from the reverse-protected node,
-        one polyfuse per bank, out over harness pins 31/32 (H) and 35/36 (L) */}
+        one polyfuse per bank, out over harness pins 19/20 (H) and 39/40 (L).
+        Round 9 (self-found N17): the power board's whole LV side — V15 boost and its four
+        isolated bias modules, the V5GD LDO, both flyback controllers — hung on unswitched KL30,
+        about 150 mA while the vehicle sleeps (FS26 in LPOFF). QLVS now switches the feed and is
+        on only while V5A is up, i.e. while the FS26 is awake (MCU resets included). 4.7 k/10 k set
+        V_GS -7.9 V at 12 V KL30 (-5.8 V at 9 V; NRC is ~0.5 V below KL30), and keep a hot
+        2N7002's off-state leakage (tens of uA at 85 C) under 0.5 V of gate drive. ZLVS holds V_GS
+        <= 15.6 V up to the 39 V TVS clamp. CLVSM + RLVSM (drain-gate) set the turn-on slew to
+        ~15 V/ms, so the ~45 uF of power-board input charges at <= ~1 A, not a 10-30 A spike
+        at every wake (round 9 cross-check R9X-04/R9X-10). */}
+    <chip name="QLVS" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "G", pin2: "D", pin3: "S", pin4: "TAB" }}
+      connections={{ G: "net.LVS_G", D: "net.VBSW", S: "net.NRC", TAB: "net.VBSW" }} />
+    <resistor name="RLVSG" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.LVS_G" }} />
+    <diode name="ZLVS" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.LVS_G", cathode: "net.NRC" }} />
+    <resistor name="RLVSD" resistance="4.7k" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_G", pin2: "net.LVS_D" }} />
+    <resistor name="RLVSM" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_G", pin2: "net.LVS_M" }} />
+    <capacitor name="CLVSM" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_M", pin2: "net.VBSW" }} />
+    <chip name="QLVN" footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
+      connections={{ G: "net.V5A", S: "net.DGND", D: "net.LVS_D" }} />
     <chip name="FVBH" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
-      connections={{ A: "net.NRC", B: "net.VBAT_H" }} />
+      connections={{ A: "net.VBSW", B: "net.VBAT_H" }} />
     <chip name="FVBL" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
-      connections={{ A: "net.NRC", B: "net.VBAT_L" }} />
+      connections={{ A: "net.VBSW", B: "net.VBAT_L" }} />
 
     {/* ---- FS2633D SBC + bucks + monitors ---- */}
     <chip name="USBC" footprint={SmdFP(49)} {...gp()}
@@ -184,7 +206,7 @@ export default () => (
     <capacitor name="CIGN" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.WAKE1", pin2: "net.DGND" }} />
     {/* AGND-DGND single-point tie */}
     <resistor name="RAGT" resistance="0" footprint="0805" {...gp()} connections={{ pin1: "net.AGND", pin2: "net.DGND" }} />
-    {/* SKU identity pull-up (with the power board's RHWID on harness pin 40) */}
+    {/* SKU identity pull-up (with the power board's RHWID on harness pin 2) */}
     <resistor name="RHWP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.HW_ID" }} />
 
     {/* ---- MCU: S32K396 + clock + decoupling ---- */}
@@ -257,7 +279,7 @@ export default () => (
         USCH2 Schmitt V_T- minimum of 1.0 V (a 1N4148 would sit right at it cold) — round 8 */}
     <diode name="DFLT1" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_HS_N" }} />
     <diode name="DFLT2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_LS_N" }} />
-    <resistor name="RFLTC" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CMB_N" }} />
+    <resistor name="RFLTC" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.FLT_CMB_N" }} />
     <chip name="ULAT2" footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "CLK", pin2: "D", pin3: "QN", pin4: "GND", pin5: "Q", pin6: "CLR_N", pin7: "PRE_N", pin8: "VCC" }}
       connections={{ CLK: "net.DGND", D: "net.DGND", QN: "net.FLT_OK", GND: "net.DGND", Q: "net.NC_FLTQ", CLR_N: "net.FLT_CLR_B", PRE_N: "net.FLT_CMB_B", VCC: "net.V5A" }} />
@@ -268,10 +290,19 @@ export default () => (
     <diode name="DCLR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CLR_N", cathode: "net.V5A" }} />
     <capacitor name="CLAT2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     <resistor name="RGPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.DRV_EN", pin2: "net.DGND" }} />
-    <resistor name="RFLTP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_HS_N" }} />
-    <resistor name="RFLTP2" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_LS_N" }} />
-    <resistor name="RRDYP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.RDY_HS" }} />
-    <resistor name="RRDYP2" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.RDY_LS" }} />
+    {/* FLT/RDY pull-ups and the diode-OR pull-up sit on the DRIVERS' rail, V5GD (harness pin 1),
+        not V5A (round 9, A8-01): the NSI6611 rates FLT/RDY to VCC1 with no +0.3 V, and the two
+        5 V regulators may sit 0.2 V apart. A lost V5GD now reads as FLT/RDY low — SPO, ASC masked,
+        PWM and EN driven low by the eFlexPWM fault and the chain — so nothing back-powers the dead
+        domain. RV5GP/RV5GS define an open pin 1 the same way and read V5GD for the MCU. */}
+    <resistor name="RFLTP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.FLT_HS_N" }} />
+    <resistor name="RFLTP2" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.FLT_LS_N" }} />
+    <resistor name="RRDYP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.RDY_HS" }} />
+    <resistor name="RRDYP2" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.RDY_LS" }} />
+    {/* the V5GD pull-down is also its monitor divider (round 9 cross-check R9X-01): 47 k + 47 k put
+        V5GD/2 on PTB5. The firmware treats V5GD outside 4.75-5.25 V as a supply fault. */}
+    <resistor name="RV5GP" resistance="47k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.V5GD_SNS" }} />
+    <resistor name="RV5GS" resistance="47k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD_SNS", pin2: "net.DGND" }} />
     {/* both FLT lines filtered alike (round 8 cross-check): a glitch now also drops ASC through UASCG and
         latches SPO, and a DESAT has no automatic retry (FW-15) — noise must not cost the drive */}
     <capacitor name="CFLTF" capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_HS_N", pin2: "net.DGND" }} />
@@ -386,9 +417,10 @@ export default () => (
     {/* resolver-amp supply: ALM2402 abs max is 18 V (rec 16 V) — VBATC can see 24 V jump
         start and ~33 V clamped transients, and TPSMC24CA clamps far above 18 V. ULDOEX
         (same 40 V ADJ LDO family as ULDO15) makes a protected 12.1 V VEXD rail; in dropout
-        at crank it degrades exactly like the old direct feed (rev A.4.2). */}
+        at crank it degrades exactly like the old direct feed (rev A.4.2). INH follows V5A (round 9
+        cross-check R9X-03): tied to VBATC it kept the exciter drawing ~0.9 mA in FS26 LPOFF. */}
     <chip name="ULDOEX" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "VA", pin5: "OUT" }}
-      connections={{ IN: "net.VBATC", INH: "net.VBATC", GND: "net.AGND", VA: "net.VEXVA", OUT: "net.VEXD" }} />
+      connections={{ IN: "net.VBATC", INH: "net.V5A", GND: "net.AGND", VA: "net.VEXVA", OUT: "net.VEXD" }} />
     <resistor name="RLDE1" resistance="38.3k" footprint="0603" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.VEXVA" }} />
     <resistor name="RLDE2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VEXVA", pin2: "net.AGND" }} />
     <capacitor name="CLDEC" capacitance="270pF" footprint="0603" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.VEXVA" }} />

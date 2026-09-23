@@ -82,12 +82,12 @@ const PAGES = {
       ["SWD-BOOT", [/^JSWD$/, /^RBOOT$/, /^CRST$/]],
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [
-      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/]],
+      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/, /^QLV[SN]$/, /^RLVS[GDM]$/, /^CLVSM$/, /^ZLVS$/]],
       ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+B?$/, /^RSB\d+$/, /^RAGT$/, /^CVDIG$/, /^CVBOS$/, /^CBT[PC]$/, /^RDBG$/]],
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
-      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF2?$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/, /^USCH2?$/, /^CSCH2?$/, /^RFCB$/, /^RQDM$/, /^RSCH$/, /^RDRB$/]],
+      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^RV5G[PS]$/, /^CFLTF2?$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/, /^USCH2?$/, /^CSCH2?$/, /^RFCB$/, /^RQDM$/, /^RSCH$/, /^RDRB$/]],
       ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/, /^DFO$/, /^ZSET$/, /^RARB$/, /^UASCG$/, /^CASCG$/]],
       ["FLYBK-EN", [/^COR[12]$/, /^UOR[12]$/]],
       ["INTERLOCK", [/^RILK[1-4]$/, /^CILK$/]],

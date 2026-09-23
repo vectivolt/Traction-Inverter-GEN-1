@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Cap bank (busbar assembly, 320 uF)"
 Date "2026-09-23"
-Rev "A.8"
+Rev "A.9"
 Comp "Traction Inverter 220 kW pk - Cap bank (HV, busbar), sheet 2 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: laminated busbar + 16x 20 uF/1100 V film cans = 320 uF — NOT an FR4 PCB; discharge board bolts across it"
@@ -14,7 +14,7 @@ Comment3 "2 functional sections - 26 components - cross-section links are net la
 Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"
 $EndDescr
 Text Notes 600 5100 0    60   ~ 12
-220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.8   ·   2 sections   ·   26 components
+220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.9   ·   2 sections   ·   26 components
 Text Notes 600 5400 0    50   ~ 0
 NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab
 Wire Notes Line

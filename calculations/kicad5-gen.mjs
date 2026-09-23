@@ -491,12 +491,12 @@ const HAND = {
     ["RSB1", "RSB2", "RSB3", "RSB4", "RAGT", "RDBG"],
     ["CSB1", "CSB2", "CSB3", "CSB3B", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
   ],
-  "SBC / LV-INPUT": [["FLVC", "DREVC", "DTVSC", "LFC", "CLVC1", "CLVC2"]],
+  "SBC / LV-INPUT": [["FLVC", "DREVC", "DTVSC", "LFC", "CLVC1", "CLVC2"], ["QLVS", "RLVSG", "ZLVS", "RLVSD", "RLVSM", "CLVSM", "QLVN", "FVBH", "FVBL"]],
   "SBC / WAKE": [["DIGN", "RIGN1", "RIGN2", "CIGN"], ["RIGNS1", "RIGNS2", "CIGNS"]],
   // Safety reads: the AND chain with its pull-ups | the fault/ready conditioning.
   "SAFETY / GATE-EN": [
     ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD", "CAND1", "CAND2"],
-    ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "CFLTF", "CFLTF2"],
+    ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "RV5GP", "RV5GS", "CFLTF", "CFLTF2"],
     ["ULAT2", "DFLT1", "DFLT2", "RFLTC", "RLAT2", "CLAT2"],
     ["RFLTD", "CFLTD", "CCLR", "DCLR"],
   ],

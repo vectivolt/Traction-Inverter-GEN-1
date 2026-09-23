@@ -100,10 +100,11 @@ export default () => (
     <diode name="ZASC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DCN", cathode: "net.ASC_DRV" }} />
     <resistor name="RASCPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
     {/* ASC break-before-make, delay half (round 7, RR05): 12 nF on the 1.8 k Thevenin holds
-        ASC below its 2.7 V rising threshold for >= 3.0 us (fast corner: 24 V rail, C -5 %),
-        so with tASC_r (0.39 us min) the low sides start >= 3.4 us after the latch sets. The
+        ASC below its 2.7 V rising threshold for >= 3.5 us (fast corner: QA01C-18 at its 20.9 V
+        top, C -5 %), so with tASC_r (0.39 us min) the low sides start >= 3.9 us after the latch sets. The
         high sides are already turning off: FS0B dropped DRV_EN (FS1B path) or the eFlexPWM
-        fault forced PWM off (MCU path) before ASC_REQ. Entry completes <= 7.0 us; release is
+        fault forced PWM off (MCU path) before ASC_REQ. Entry completes <= 7.5 us (16.9 V low
+        end, round 9); release is
         fast through DASCR into the opto output (<= 0.75 us). Each LS ASC pin has its own 1 k
         (GateDrive cell). The ASC input has hysteresis (2.7-3.2 / 1.3-1.7 V). */}
     <capacitor name="CASCD" capacitance="12nF" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
@@ -140,7 +141,8 @@ export default () => (
     <capacitor name="CLVL2" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
     {/* driver logic 5V (VCC1): NCV4276C real map 1=IN 2=INH 3=GND 4=NC/VA 5=OUT (fixed-5V
         version: pin 4 NC). INH is tied on through 100k so driver diagnostics and both
-        AMC1311 LV sides stay alive whenever KL30 is present — gate POWER stays separately
+        AMC1311 LV sides stay alive whenever the card is awake (the whole LV feed is switched
+        on the card since round 9, N17 — no parking drain) — gate POWER stays separately
         default-OFF via the flyback enables (rev A.4: was slaved to EN_FLYBK_LS). */}
     <chip name="UGDL" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "NC", pin5: "OUT" }}
       connections={{ IN: "net.V12L", INH: "net.GDL_ON", GND: "net.DGND", NC: "net.NC_UGDL4", OUT: "net.V5GD" }} />
@@ -188,7 +190,7 @@ export default () => (
       <resistor key={n} name={`RPD${i}`} resistance="10k" footprint="0603" {...gp()}
         connections={{ pin1: `net.${n}`, pin2: "net.DGND" }} />
     ))}
-    {/* SKU identity (review A.6 platform): one resistor per build variant on harness pin 40,
+    {/* SKU identity (review A.6 platform): one resistor per build variant on harness pin 2,
         read by the card ADC against its 10 k pull-up — 8XX-SiC 10k, 8XX-IGBT 4.7k, 4XX-IGBT
         2.2k, 4XX-SiC 22k (values per SKU BOM). Open/short = invalid = no DRV_EN. */}
     <resistor name="RHWID" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.HW_ID", pin2: "net.DGND" }} />

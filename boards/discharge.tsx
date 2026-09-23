@@ -44,7 +44,11 @@ export default () => (
     {/* TLP152 LED 261 R 1 % from the card's Schmitt-buffer output: 10.3-14.8 mA, inside the DS
         10-15 mA recommended I_F (round 8, R7-03 — 470 R from the MCU pin gave 6.4-6.8 mA) */}
     <resistor name="RQDL" resistance="261" footprint="0603" {...gp()} connections={{ pin1: "net.QDIS_CMD", pin2: "net.QDA" }} />
-    <resistor name="RQDG" resistance="47" footprint="0603" {...gp()} connections={{ pin1: "net.QDVO", pin2: "net.G_QDIS" }} />
+    {/* gate divider (round 9, A8-N02): PSQD is a QA01C-18, +18 V nominal but up to ~20.9 V at this
+        light load (Mornsun Fig. 1 envelope, line and temperature). 1.5 k / 10 k scales that to
+        V_GS 13.4-18.1 V: at the +18 V recommended level, 3.9 V under the +22 V abs max. The
+        discharge switch is slow by design — 1.5 k x 1.2 nF Ciss is ~2 us. */}
+    <resistor name="RQDG" resistance="1.5k" footprint="0603" {...gp()} connections={{ pin1: "net.QDVO", pin2: "net.G_QDIS" }} />
     <resistor name="RQDPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.G_QDIS", pin2: "net.DCN" }} />
     <capacitor name="CQD" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18Q", pin2: "net.DCN" }} />
     <chip name="QDIS" footprint={TO247_4L()} {...gp()} pinLabels={{ pin1: "D", pin2: "S", pin3: "KS", pin4: "G" }}
