@@ -161,7 +161,7 @@ round 9 and not archived. F61 (rev A.5) had bound the base part's +20/−4 V fig
 | Output voltage/current | **+18 V / −3 V, ±100 mA** (76/79 % efficiency); only +Vo is used here | Selection Guide p.1 |
 | +18 V tolerance envelope | Fig. 1: max **+9 % → +2 %**, typ +4 % → −3 %, min **0 % → −7 %** over 10–100 % load; load regulation 6 % typ / 10 % max (10–100 %) | p.2 Fig. 1; Output Specifications |
 | Line regulation / tempco | ±1.1 typ / **±1.3 max %/%**; ±0.03 %/°C at 100 % load | Output Specifications |
-| Used here | V15 = 15.0 V ±3 % (NCV4276C-ADJ) and 2–8 % load → **16.9–20.9 V** (the max line extrapolated below 10 % load). The QDIS gate is divided 1.5 k/10 k → 13.4–18.1 V | design-verify QA18 |
+| Used here | V15 = 15.0 V ±3 % (NCV4276C-ADJ) and 2–8 % load → **16.9–20.9 V** (the max line extrapolated below 10 % load). The QDIS gate is divided 1.5 k/10 k (1 %) → 13.3–18.2 V: a divider, not a clamp | design-verify QA18 |
 
 Base QA01C, for reference only (not fitted):
 
@@ -426,6 +426,12 @@ static R_th that S4 uses as its upper bound.
   **VCC1**, with no +0.3 V. IN+/IN−/RST are rated to VCC1 + 0.3 V. The FLT/RDY input current is 20 mA.
   Round 9 moves their pull-ups onto V5GD (= VCC1).
 - **HIITIO HCM75S12T4K3:** V_GS −10/+22 V absolute maximum, −5/+18 V recommended; C_iss 1185 pF.
+- **Nexperia 74LVC1G11 (UAND1/2):** Δt/ΔV ≤ **10 ns/V** at V_CC 2.7–5.5 V (recommended operating
+  conditions), despite the "Schmitt-trigger action" wording. That is why the open-drain RDY lines
+  now pass through USCH3 (round 10).
+- **ROHM ESR03 (RFS4 1 k, RASCG 2.2 k):** 0.33 W at Ta 70 °C in both the R ≤ 1 kΩ and 1 kΩ < R rows
+  (terminal limit 130 °C / 110 °C respectively); limiting element voltage 150 V; −55…155 °C
+  (datasheet rev ESR03-IA-013E, 2025-10-01).
 - **Toshiba TLP152:** V_CC 10–30 V (35 V absolute maximum); V_OH ≥ 6.0 V at V_CC 10 V, I_O −100 mA;
   UVLO+ 7.8–9.7 V. The V_F tempco of −1.8 mV/°C is typical only; the model uses a ±28 % band.
 - **ST BAT46:** V_F ≤ 0.25 V at 0.1 mA and ≤ 0.45 V at 10 mA (25 °C). There is no cold curve, so

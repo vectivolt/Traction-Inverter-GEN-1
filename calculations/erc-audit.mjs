@@ -309,8 +309,8 @@ for (const [pin, net] of HARNESS40) {
 }
 
 // ---------- card: safety chain ----------
-ok(same(C("UAND1.A"), C("USCH.Y3")) && same(C("USCH.A3"), "FS0B_N") && same(C("UAND1.B"), "MCU_GATE_EN") && same(C("UAND1.C"), "RDY_HS"), "AND1 inputs FS0B (buffered)/MCU_EN/RDY_HS");
-ok(same(C("UAND2.A"), C("UAND1.Y")) && same(C("UAND2.B"), "RDY_LS") && same(C("UAND2.Y"), "DRV_EN"), "AND2 chains to DRV_EN");
+ok(same(C("UAND1.A"), C("USCH.Y3")) && same(C("USCH.A3"), "FS0B_N") && same(C("UAND1.B"), "MCU_GATE_EN") && same(C("UAND1.C"), "RDY_HS_B"), "AND1 inputs FS0B (buffered)/MCU_EN/RDY_HS (buffered)");
+ok(same(C("UAND2.A"), C("UAND1.Y")) && same(C("UAND2.B"), "RDY_LS_B") && same(C("UAND2.Y"), "DRV_EN"), "AND2 chains to DRV_EN (RDY_LS buffered)");
 ok(same(C("RGPD.pin1"), "DRV_EN") && same(C("RGPD.pin2"), "DGND"), "DRV_EN default-OFF");
 ok(same(C("ULAT.CLK"), "ASC_REQ") && same(C("ULAT.Q"), C("UASCG.A")) && same(C("UASCG.Y"), "ASC_CMD") && same(C("ULAT.PRE_N"), C("USCH2.Y2")) && same(C("USCH2.A2"), "ASC_SET_N") && same(C("ULAT.CLR_N"), "ASC_CLR_N"), "ASC latch wiring (preset buffered, output gated by FLT)");
 ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS1.pin2"), "ASC_SET_N"), "FS1B can set ASC (strap)");
@@ -484,6 +484,21 @@ for (const [sku, k] of Object.entries(SKUS)) {
   const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^QA01C-18$/, PSQD: /^QA01C-18$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-9 parts resolve (QA01C-18 bias, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
+}
+
+// ---------- round-10 lock-ins (schematic rechecks of 7235337 — docs/review-A10-disposition.md) ----------
+// A9-S01: RDY reaches the AND gates only through the third Schmitt buffer (74LVC3G17 DC by pin number:
+// 1=1A 2=3Y 3=2A 4=GND 5=2Y 6=3A 7=1Y 8=VCC); a dead buffer reads RDY_HS low (RRDB)
+ok(same(C("USCH3.#1"), "RDY_HS") && same(C("USCH3.#7"), C("UAND1.#6")) && same(C("USCH3.#3"), "RDY_LS") && same(C("USCH3.#5"), C("UAND2.#3"))
+  && same(C("USCH3.#6"), "DGND") && same(C("USCH3.#8"), "V5A") && same(C("USCH3.#4"), "DGND")
+  && same(C("RRDB.pin1"), "RDY_HS_B") && same(C("RRDB.pin2"), "DGND") && near(V(CARD, "RRDB"), 100e3),
+  "RDY_HS/RDY_LS reach UAND1/UAND2 only through USCH3 (no open-drain edge on an LVC AND input); dead buffer = DRV_EN low");
+ok(!same(C("UAND1.#6"), "RDY_HS") && !same(C("UAND2.#3"), "RDY_LS"), "no raw RDY line on an AND input (A9-S01)");
+for (const [sku, k] of Object.entries(SKUS)) {
+  const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const bad = Object.entries({ USCH3: /74LVC3G17/, RRDB: /100k/, RASCG: /^ESR03EZPF2201$/ })
+    .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
+  ok(!bad.length, `${sku}: round-10 parts resolve (RDY Schmitt buffer, its dead-state pull-down, 0.33 W RASCG)`, bad.join(", "));
 }
 
 // ---------- report ----------

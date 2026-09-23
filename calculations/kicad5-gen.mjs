@@ -496,6 +496,7 @@ const HAND = {
   // Safety reads: the AND chain with its pull-ups | the fault/ready conditioning.
   "SAFETY / GATE-EN": [
     ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD", "CAND1", "CAND2"],
+    ["USCH3", "CSCH3", "RRDB"],
     ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "RV5GP", "RV5GS", "CFLTF", "CFLTF2"],
     ["ULAT2", "DFLT1", "DFLT2", "RFLTC", "RLAT2", "CLAT2"],
     ["RFLTD", "CFLTD", "CCLR", "DCLR"],
@@ -593,7 +594,7 @@ const SHEET_TITLES = {
 const SHEET_IDENT = {
   power: { sku: "220 kW pk", board: "Power (HV)", sheet: "1 of 4", cells: "3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)" },
   capbank: { sku: "220 kW pk", board: "Cap bank (HV, busbar)", sheet: "2 of 4", cells: "laminated busbar + 16x 20 uF/1100 V film cans = 320 uF — NOT an FR4 PCB; discharge board bolts across it" },
-  disch: { sku: "220 kW pk", board: "Discharge (HV, bolt-on)", sheet: "3 of 4", cells: "passive 67.5k bleeder (58 s) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted" },
+  disch: { sku: "220 kW pk", board: "Discharge (HV, bolt-on)", sheet: "3 of 4", cells: "passive 66k bleeder (56 s nom / 65 s worst) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted" },
   card: { sku: "220 kW pk", board: "Control card (LV)", sheet: "4 of 4", cells: "S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain" },
 };
 

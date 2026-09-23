@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.9)
+# Hardware → firmware contract (rev A.10)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -6,7 +6,8 @@ review finding dispositioned as *Firmware Handled* (round 6:
 [`review-A6-disposition.md`](review-A6-disposition.md), round 7:
 [`review-A7-disposition.md`](review-A7-disposition.md), round 8:
 [`review-A8-disposition.md`](review-A8-disposition.md), round 9:
-[`review-A9-disposition.md`](review-A9-disposition.md)) points at a numbered requirement here
+[`review-A9-disposition.md`](review-A9-disposition.md), round 10:
+[`review-A10-disposition.md`](review-A10-disposition.md)) points at a numbered requirement here
 (`FW-xx`). The traction application itself is a separate deliverable (review R-F08); nothing in
 this repository claims it exists. Verification of each requirement is HIL first, then bench.
 
@@ -358,8 +359,8 @@ are DRV_EN, which the fault latch holds low. So:
    | a | MCU_GATE_EN 1, FS0B **asserted** (`FS0B_REQ`) | DRV_EN_RB 0; ASC_CMD_RB 1 within 20 µs (FS1B asserts with FS0B, FS1B_TDELAY = 0 per FW-12, and presets the ASC latch) | FS0B path (USCH ch3, UAND1) not stuck high; FS1B → ASC preset path works |
    | b | release FS0B/FS1B (token write), `ASC_CLR` | DRV_EN_RB **1**; ASC_CMD_RB 0 | chain and read-back not stuck low; ASC clear works; USCH2 alive (a dead one reads as FLT through RFCB) |
    | c | MCU_GATE_EN 0, then 1 | 0, then 1 | UAND1.B |
-   | d | FS_GPIO1 **low** (SPI) and MCU_EN_FLYBK_HS 0 until RDY_HS low (record the time), then MCU_EN_FLYBK_HS 1 until RDY_HS high | 0, then 1 | RDY_HS path (the OR output can only fall with both inputs low, cross-check R8X-03) |
-   | e | the same with MCU_EN_FLYBK_LS | 0, then 1 | RDY_LS path |
+   | d | FS_GPIO1 **low** (SPI) and MCU_EN_FLYBK_HS 0 until RDY_HS low (record the time), then MCU_EN_FLYBK_HS 1 until RDY_HS high | 0, then 1 | RDY_HS path through USCH3 ch1 into UAND1 (the OR output can only fall with both inputs low, cross-check R8X-03) |
+   | e | the same with MCU_EN_FLYBK_LS | 0, then 1 | RDY_LS path through USCH3 ch2 into UAND2 |
    | f | `ASC_REQ`, then `ASC_CLR` | ASC_CMD_RB 1, then 0 | ASC latch clock and clear, ASC gate with FLT healthy |
    | g | FS_GPIO1 **high**, both MCU flyback enables 0 for twice the RDY drop time recorded in d/e, then 1 | RDY_HS and RDY_LS stay high | the FS_GPIO1 inputs of UOR1/UOR2, which hold gate power for FS1B-ASC through an MCU reset |
    | h | `ASC_REQ`; drive PTC26 (FLT_HS_N) low, release, clear through the one-shot; the same with PTC25 (FLT_LS_N); `ASC_CLR` | each time: ASC_CMD_RB 0 at once, DRV_EN_RB 0 within 60 µs, eFlexPWM FFLAG set; after the clear DRV_EN_RB 1 and ASC_CMD_RB 1; finally ASC_CMD_RB 0 | FLT diode-OR (DFLT1/2, RFLTC), USCH2 ch1, fault-latch preset, UASCG mask and the eFlexPWM FAULT routing (cross-check R8X-17) |

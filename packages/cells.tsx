@@ -364,7 +364,9 @@ export const NtcIn = ({ id, out }: { id: string; out: string }) => (
 // laid out so the supply pins are safe in BOTH: VBAT_H (19/20) and VBAT_L (39/40) touch only DGND
 // or each other; V5GD (pin 1, the FLT/RDY pull-up reference, A8-01) touches only HW_ID, AGND and
 // DGND. The ERC checks both numberings. The earlier map put VBAT across from ASC_CMD/QDIS_CMD/FLT/RDY
-// in the drawn (row-by-row) footprint.
+// in the drawn (row-by-row) footprint. In row-by-row numbering VBAT_H faces VBAT_L: both come from
+// VBSW, so a bridge only parallels the two polyfuses — not a signal hazard, but the two branches are
+// then no longer separately fused (round 10 note).
 export const HARNESS40: [number, string][] = [
   [1, "V5GD"], [2, "HW_ID"], [3, "AGND"], [4, "PWM_UH"], [5, "PWM_UL"], [6, "PWM_VH"],
   [7, "PWM_VL"], [8, "PWM_WH"], [9, "PWM_WL"], [10, "DGND"], [11, "EN_FLYBK_HS"],

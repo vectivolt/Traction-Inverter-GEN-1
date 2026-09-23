@@ -240,9 +240,20 @@ export default () => (
         + <= 0.40 mA FAULT_OUT load = 0.83 mA -> ASC_SET_N <= 0.84 V. */}
     <resistor name="RENP1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FS0B_N" }} />
     <chip name="UAND1" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
-      connections={{ A: "net.FS0B_B", GND: "net.DGND", B: "net.MCU_GATE_EN", Y: "net.ENX1", VCC: "net.V5A", C: "net.RDY_HS" }} />
+      connections={{ A: "net.FS0B_B", GND: "net.DGND", B: "net.MCU_GATE_EN", Y: "net.ENX1", VCC: "net.V5A", C: "net.RDY_HS_B" }} />
     <chip name="UAND2" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "A", pin2: "GND", pin3: "B", pin4: "Y", pin5: "VCC", pin6: "C" }}
-      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OKB" }} />
+      connections={{ A: "net.ENX1", GND: "net.DGND", B: "net.RDY_LS_B", Y: "net.DRV_EN", VCC: "net.V5A", C: "net.FLT_OKB" }} />
+    {/* Round 10 (schematic recheck A9-S01): the open-drain RDY lines (5.1 k to V5GD, harness + driver
+        capacitance) rise at ~20-100 ns/V, while the 74LVC1G11-Q100 allows 10 ns/V at 2.7-5.5 V despite
+        its "Schmitt action" wording. A third 74LVC3G17-Q100 conditions both, so no LVC input on the
+        shutdown chain runs outside its datasheet. The MCU keeps reading the raw RDY lines (PTB10/11).
+        RRDB: a dead/unpowered USCH3 reads RDY_HS low -> DRV_EN low (as RSCH, RFCB); FW-16 d/e test
+        each channel. Channel 3 is unused, input tied low. */}
+    <chip name="USCH3" footprint={SmdFP(8)} {...gp()}
+      pinLabels={{ pin1: "A1", pin2: "Y3", pin3: "A2", pin4: "GND", pin5: "Y2", pin6: "A3", pin7: "Y1", pin8: "VCC" }}
+      connections={{ A1: "net.RDY_HS", Y3: "net.NC_SCH3Y", A2: "net.RDY_LS", GND: "net.DGND", Y2: "net.RDY_LS_B", A3: "net.DGND", Y1: "net.RDY_HS_B", VCC: "net.V5A" }} />
+    <capacitor name="CSCH3" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
+    <resistor name="RRDB" resistance="100k" footprint="0603" {...gp()} connections={{ pin1: "net.RDY_HS_B", pin2: "net.DGND" }} />
     {/* Round 7 (RR01/RR02, A6-R02/R03): the two RC timing nodes and the 5.1 k FS0B edge reach
         the LVC flip-flop/AND inputs (5-10 ns/V max) only through Schmitt buffers, which carry
         no input-transition limit (74LVC3G17-Q100 DS Table 6). 1A/1Y = clear one-shot,

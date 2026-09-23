@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.9, generated 2026-09-23)
+# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.10, generated 2026-09-23)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -57,7 +57,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 | 1 | R0603-261R-1% | discharge opto LED series 261 R 1 % from the card Schmitt-bu | 0 | any |
 | 1 | MLCC-100nF-50V | discharge bias decoupling, 50 V | 0 | any |
 
-## control-card — 277 components, 99 BOM lines, ≈ ₹6,029 @1k
+## control-card — 280 components, 99 BOM lines, ≈ ₹6,040 @1k
 
 CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
 
@@ -90,19 +90,19 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | MCU + clock + debug | 1,494 | 2.1% | 91.3% | 22 |
 | Vehicle connector + prot | 785 | 1.1% | 92.4% | 6 |
 | misc | 754 | 1.1% | 93.4% | 46 |
-| VDC iso sensing + bias | 725 | 1.0% | 94.5% | 21 |
+| VDC iso sensing + bias | 725 | 1.0% | 94.4% | 21 |
 | Gate drivers + networks | 659 | 0.9% | 95.4% | 129 |
 | Discharge (active+passive) | 637 | 0.9% | 96.3% | 24 |
 | FS26 SBC + LV input + wake | 608 | 0.9% | 97.1% | 38 |
 | Module snubbers | 540 | 0.8% | 97.9% | 3 |
 | LV power (prot+LDO+boost) | 274 | 0.4% | 98.3% | 28 |
-| Resolver AFE | 272 | 0.4% | 98.7% | 48 |
+| Resolver AFE | 272 | 0.4% | 98.6% | 48 |
 | Harness + pulldowns | 245 | 0.3% | 99.0% | 17 |
 | HV entry/Y-caps/HVIL/studs | 208 | 0.3% | 99.3% | 14 |
-| ASC buffer | 139 | 0.2% | 99.5% | 9 |
+| ASC buffer | 140 | 0.2% | 99.5% | 9 |
 | CAN-FD x2 | 132 | 0.2% | 99.7% | 14 |
-| Temps (module/board/motor) | 82 | 0.1% | 99.8% | 24 |
-| Safety chain (EN/ASC/ILK) | 77 | 0.1% | 99.9% | 40 |
+| Safety chain (EN/ASC/ILK) | 88 | 0.1% | 99.8% | 43 |
+| Temps (module/board/motor) | 82 | 0.1% | 99.9% | 24 |
 | VDC receivers (card) | 61 | 0.1% | 100.0% | 12 |
 | Module NTC routing | 4 | 0.0% | 100.0% | 9 |
 
@@ -111,7 +111,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 56,156 | 79.0% |
-| drive + control ICs | 5,739 | 8.1% |
+| drive + control ICs | 5,750 | 8.1% |
 | capacitors | 4,928 | 6.9% |
 | magnetics | 2,183 | 3.1% |
 | connectors + sensors | 1,155 | 1.6% |
@@ -119,7 +119,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | isolation | 231 | 0.3% |
 | protection + diodes | 167 | 0.2% |
 | resistors | 73 | 0.1% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **71,069** | 100% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **71,080** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.

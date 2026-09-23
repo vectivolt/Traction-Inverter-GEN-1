@@ -371,15 +371,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.9)
+## 11. Verification status (current release: rev A.10)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **1804/1804 (100 %)**;
-- structural ERC **883 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **1815/1815 (100 %)**;
+- structural ERC **891 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **116 PASS / 14 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **118 PASS / 14 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -393,7 +393,22 @@ defect before release. Firmware obligations are in [`firmware-contract.md`](firm
 Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
-(the A.8 cross-check), F106–F113 (A.9) and F114–F119 (the A.9 cross-check).
+(the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check) and F120–F122 (A.10).
+
+## 11j. Rev A.10 — schematic rechecks of A.9 (summary)
+
+Two schematic-only rechecks of `7235337` kept every A.9 correction and raised three items, answered
+in [`review-A10-disposition.md`](review-A10-disposition.md):
+
+- **RDY input edge (A9-S01).** The open-drain RDY lines drove the 74LVC1G11-Q100 AND gates at
+  ≈20–100 ns/V against a 10 ns/V limit. A third 74LVC3G17-Q100 (USCH3, with a dead-state pull-down)
+  now conditions both. This reverses the round-7/8 "state-benign" rejection: no LVC input on the
+  shutdown chain runs outside its datasheet.
+- **RASCG power (S9-01).** 2.2 k carries up to 0.12 W for as long as ASC is held. It is now a ROHM
+  ESR03 (0.27 W at 85 °C).
+- **Text.** The discharge sheet now reads 66 k; the gate divider is stated as 13.3–18.2 V (a
+  divider, not a clamp); the A9 disposition quotes the final harness map.
+- **Cost:** +₹11/unit.
 
 ## 11i. Rev A.9 — review round nine (summary)
 
