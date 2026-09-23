@@ -9,6 +9,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DB, SKUS } from "./parts-db.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let pass = 0, fail = 0, warn = 0;
@@ -264,7 +265,7 @@ ok(same(C("UAND1.VCC"), "V5A") && same(C("UAND2.VCC"), "V5A") && same(C("UOR1.VC
 ok(same(C("UAND2.C"), C("USCH.Y2")) && same(C("USCH.A2"), "FLT_OKD") && same(C("RFLTD.pin1"), "FLT_OK") && same(C("RFLTD.pin2"), "FLT_OKD"), "DRV_EN chain includes the fault latch (through the soft-off delay RC and its Schmitt buffer)");
 ok(same(C("DFLT1.cathode"), "FLT_HS_N") && same(C("DFLT2.cathode"), "FLT_LS_N") && same(C("DFLT1.anode"), "FLT_CMB_N"),
   "FLT diode-OR into the latch preset");
-ok(same(C("ULAT2.PRE_N"), "FLT_CMB_N") && same(C("ULAT2.QN"), "FLT_OK") && same(C("ULAT2.CLR_N"), C("USCH.Y1")) && same(C("USCH.A1"), "FLT_CLR_N"),
+ok(same(C("ULAT2.PRE_N"), C("USCH2.Y1")) && same(C("USCH2.A1"), "FLT_CMB_N") && same(C("ULAT2.QN"), "FLT_OK") && same(C("ULAT2.CLR_N"), C("USCH.Y1")) && same(C("USCH.A1"), "FLT_CLR_N"),
   "fault latch preset/clear/output roles");
 // Card: ASC latch network makes real logic levels (1k series into 10k pull-ups)
 ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS2.pin1"), "V5A") && same(C("RFS3.pin1"), "ASC_CLR_M"),
@@ -311,7 +312,7 @@ for (const [pin, net] of HARNESS40) {
 ok(same(C("UAND1.A"), C("USCH.Y3")) && same(C("USCH.A3"), "FS0B_N") && same(C("UAND1.B"), "MCU_GATE_EN") && same(C("UAND1.C"), "RDY_HS"), "AND1 inputs FS0B (buffered)/MCU_EN/RDY_HS");
 ok(same(C("UAND2.A"), C("UAND1.Y")) && same(C("UAND2.B"), "RDY_LS") && same(C("UAND2.Y"), "DRV_EN"), "AND2 chains to DRV_EN");
 ok(same(C("RGPD.pin1"), "DRV_EN") && same(C("RGPD.pin2"), "DGND"), "DRV_EN default-OFF");
-ok(same(C("ULAT.CLK"), "ASC_REQ") && same(C("ULAT.Q"), "ASC_CMD") && same(C("ULAT.PRE_N"), "ASC_SET_N") && same(C("ULAT.CLR_N"), "ASC_CLR_N"), "ASC latch wiring");
+ok(same(C("ULAT.CLK"), "ASC_REQ") && same(C("ULAT.Q"), C("UASCG.A")) && same(C("UASCG.Y"), "ASC_CMD") && same(C("ULAT.PRE_N"), C("USCH2.Y2")) && same(C("USCH2.A2"), "ASC_SET_N") && same(C("ULAT.CLR_N"), "ASC_CLR_N"), "ASC latch wiring (preset buffered, output gated by FLT)");
 ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS1.pin2"), "ASC_SET_N"), "FS1B can set ASC (strap)");
 ok(same(C("UOR1.A"), "MCU_EN_FLYBK_HS") && same(C("UOR1.B"), "FS_GPIO1") && same(C("UOR1.Y"), "EN_FLYBK_HS"), "OR1 flyback-HS enable");
 ok(same(C("UOR2.A"), "MCU_EN_FLYBK_LS") && same(C("UOR2.B"), "FS_GPIO1") && same(C("UOR2.Y"), "EN_FLYBK_LS"), "OR2 flyback-LS enable");
@@ -368,16 +369,16 @@ ok(same(C("USCH.VCC"), "V5A") && same(C("USCH.GND"), "DGND"), "Schmitt buffer po
 ok(same(C("USCH.#1"), "FLT_CLR_N") && same(C("USCH.#7"), C("ULAT2.#6")) && same(C("USCH.#3"), "FLT_OKD") && same(C("USCH.#5"), C("UAND2.C"))
   && same(C("USCH.#6"), "FS0B_N") && same(C("USCH.#2"), C("UAND1.A")) && same(C("USCH.#8"), "V5A") && same(C("USCH.#4"), "DGND"),
   "USCH channels by pin number: one-shot -> ULAT2 RD, delay -> UAND2, FS0B -> UAND1");
-ok(same(C("ULAT2.#7"), "FLT_CMB_N") && same(C("ULAT2.#3"), "FLT_OK") && same(C("ULAT.#5"), "ASC_CMD") && same(C("ULAT.#7"), "ASC_SET_N") && same(C("ULAT.#6"), "ASC_CLR_N"),
+ok(same(C("ULAT2.#7"), "FLT_CMB_B") && same(C("ULAT2.#3"), "FLT_OK") && same(C("ULAT.#5"), "ASC_Q") && same(C("ULAT.#7"), "ASC_SET_B") && same(C("ULAT.#6"), "ASC_CLR_N"),
   "fault and ASC latch roles by pin number");
 ok(!same(C("ULAT2.CLR_N"), "FLT_CLR_N") && !same(C("UAND2.C"), "FLT_OKD") && !same(C("UAND1.A"), "FS0B_N"),
   "the two RC timing nodes and the 5.1 k FS0B line reach the LVC inputs only through the Schmitt buffer (RR01/RR02)");
 ok(same(C("RSCH.pin1"), "FS0B_B") && same(C("RSCH.pin2"), "DGND"), "a dead/unpowered USCH (Hi-Z outputs) forces DRV_EN low");
-ok(near(V(CARD, "RENP1"), 5.1e3) && near(V(CARD, "RENP2"), 5.1e3) && near(V(CARD, "RFS4"), 1e3),
-  "FS0B/FS1B pulled up 5.1 k; FS1B stays inside its 2 mA V_OL point with strap + FAULT_OUT (A6-R01)");
+ok(near(V(CARD, "RENP1"), 5.1e3) && V(CARD, "RENP2") === undefined && near(V(CARD, "RFS1"), 1e3) && near(V(CARD, "RFS2"), 10e3) && near(V(CARD, "RFS4"), 1e3),
+  "FS0B pulled up 5.1 k; FS1B pulled up only through the 1 k/10 k strap (A6-R01, A7-N04: no FS1B path into V5A)");
 ok(same(C("DFO.anode"), "FAULT_OUT") && same(C("DFO.cathode"), C("RFS4.pin2")) && !same(C("DFO.cathode"), "FAULT_OUT") && same(C("RFS4.pin1"), "FS1B_N")
-  && same(C("DSET.anode"), "ASC_SET_N") && same(C("DSET.cathode"), "V5A"),
-  "FAULT_OUT is sink-only (a grounded wire cannot preset ASC) and a KL30 short is clamped at the latch");
+  && same(C("ZSET.cathode"), "ASC_SET_N") && same(C("ZSET.anode"), "DGND") && !C("DSET.anode"),
+  "FAULT_OUT is sink-only (a grounded wire cannot preset ASC); a KL30 short is clamped to ground, not into V5A (A7-N04)");
 ok(same(C("ULAT.QN"), "NC_LATQN") && !C("DASC.anode"),
   "ASC does not drive EN: the NSI6611 gives DESAT priority over ASC only with EN high (DS §8.12)");
 ok(same(C("RDRB.pin1"), "DRV_EN") && same(C("UMCU.PTD10_DRVENRB"), C("RDRB.pin2")) && same(C("RARB.pin1"), "ASC_CMD") && same(C("UMCU.PTD11_ASCRB"), C("RARB.pin2")),
@@ -389,12 +390,55 @@ for (const x of ["U", "V", "W"]) {
   ok(same(P(`R${x}LAS.pin1`), "ASC_DRV") && same(P(`U${x}LG.ASC`), P(`R${x}LAS.pin2`)) && !same(P(`U${x}LG.ASC`), "ASC_DRV") && near(V(PWR, `R${x}LAS`), 1e3),
     `U${x}LG ASC pin through its own 1 k from the shared ASC node`);
 }
-ok(near(V(PWR, "RASCL"), 270), "TLP152 LED driven >= 10 mA worst case (I_FLH 7.5 mA max)");
+ok(near(V(PWR, "RASCL"), 261), "TLP152 LED driven 10-15 mA (recommended I_F; I_FLH 7.5 mA max)");
 for (const k of ["H", "L"]) {
   ok(same(P(`DF${k}FS.anode`), `FAX_${k}`) && same(P(`DF${k}FS.cathode`), P(`RF${k}FS.pin1`)) && !same(P(`RF${k}FS.pin1`), `FVCC_${k}`)
     && same(P(`RF${k}FS.pin2`), `FFS_${k}`) && same(P(`CF${k}FS.pin1`), `FFS_${k}`)
     && same(P(`RF${k}FB1.pin1`), `FFS_${k}`) && !same(P(`RF${k}FB1.pin1`), `FVCC_${k}`) && near(V(PWR, `RF${k}FB1`), 52.3e3) && near(V(PWR, `RF${k}FB2`), 15e3),
     `flyback ${k} FB senses its own aux rectifier (52.3k/15k): the start feed cannot hold FB up (A6-R06/R07)`);
+}
+
+// ---------- round-8 lock-ins (reviews R7-01…R7-07 / A7-N01…N05 — see docs/review-A8-disposition.md) ----------
+// USCH2 = 74LVC3G17 DC by pin number: 1=1A 2=3Y 3=2A 4=GND 5=2Y 6=3A 7=1Y 8=VCC; UASCG = 74LVC1G08 GW: 1=B 2=A 3=GND 4=Y 5=VCC
+ok(same(C("USCH2.#1"), "FLT_CMB_N") && same(C("USCH2.#7"), C("ULAT2.#7")) && same(C("USCH2.#7"), C("UASCG.#1"))
+  && same(C("USCH2.#3"), "ASC_SET_N") && same(C("USCH2.#5"), C("ULAT.#7"))
+  && same(C("USCH2.#6"), "QDIS_M") && same(C("USCH2.#2"), "QDIS_CMD") && same(C("USCH2.#8"), "V5A") && same(C("USCH2.#4"), "DGND"),
+  "USCH2 channels by pin number: FLT diode-OR -> fault-latch preset + ASC gate, FS1B strap -> ASC-latch preset, MCU -> QDIS_CMD");
+ok(same(C("UASCG.#2"), C("ULAT.#5")) && same(C("UASCG.#4"), "ASC_CMD") && same(C("UASCG.#5"), "V5A") && same(C("UASCG.#3"), "DGND"),
+  "ASC_CMD = ASC latch AND no driver FLT: a latched DESAT masks ASC on every path (R7-01/A7-N01)");
+ok(!same(C("ULAT2.PRE_N"), "FLT_CMB_N") && !same(C("ULAT.PRE_N"), "ASC_SET_N") && !same(C("ULAT.Q"), "ASC_CMD"),
+  "no open-drain node on a flip-flop asynchronous input; the latch output never drives the opto directly (R7-02)");
+ok(same(C("UMCU.PTD5_QDIS"), "QDIS_M") && same(C("RQDM.pin1"), "QDIS_M") && same(C("RQDM.pin2"), "DGND") && !same(C("UMCU.PTD5_QDIS"), "QDIS_CMD"),
+  "discharge command buffered (MCU pin sees a CMOS input) and default-off through reset (R7-03)");
+ok(near(V(DIS, "RQDL"), 261) && near(V(PWR, "RASCL"), 261), "both TLP152 LEDs driven 10.3-14.8 mA from buffered 5 V logic (R7-03/A7-N03, cross-check R8X-04)");
+
+// ---------- round-8 cross-check lock-ins (R8X-01…17 — docs/review-A8-disposition.md) ----------
+// R8X-08: the FLT diode-OR itself (a moved DFLT2 anode passed 854/0), and the A7-N04 back-feed by net, not by name
+ok(same(C("DFLT1.anode"), "FLT_CMB_N") && same(C("DFLT1.cathode"), "FLT_HS_N") && same(C("DFLT2.anode"), "FLT_CMB_N") && same(C("DFLT2.cathode"), "FLT_LS_N")
+  && same(C("RFLTC.pin1"), "V5A") && same(C("RFLTC.pin2"), "FLT_CMB_N"),
+  "FLT diode-OR: either bank's FLT pulls FLT_CMB_N (latch preset + ASC mask) — R8X-08");
+const netsOf = (DD, ref) => new Set([...DD.netPins].filter(([, ps]) => ps.some((q) => q.startsWith(`${ref}.`))).map(([n]) => n));
+const bridges = (DD, a, b) => DD.comps.map((c) => c.name).filter((r) => { const n = netsOf(DD, r); return n.size === 2 && n.has(a) && n.has(b); });
+ok(bridges(CARD, "FS1B_N", "V5A").length === 0 && bridges(CARD, "ASC_SET_N", "V5A").join() === "RFS2",
+  "no part ties FS1B_N to V5A; only the 10 k RFS2 ties ASC_SET_N to it (A7-N04 back-feed, keyed by net)", `${bridges(CARD, "FS1B_N", "V5A")} / ${bridges(CARD, "ASC_SET_N", "V5A")}`);
+// dead-state pulls: a Hi-Z (unpowered) USCH2 or ULAT output must read fail-safe (R8X-06 + cross-check)
+ok(same(C("RFCB.pin1"), "FLT_CMB_B") && same(C("RFCB.pin2"), "DGND") && same(C("RASCP.pin1"), "ASC_Q") && same(C("RASCP.pin2"), "DGND"),
+  "dead USCH2 reads as a latched FLT (SPO, ASC masked); dead ULAT reads no-ASC");
+ok(same(P("RPD8.pin1"), "ASC_CMD") && same(P("RPD8.pin2"), "DGND") && same(P("RPD9.pin1"), "QDIS_CMD") && same(P("RPD9.pin2"), "DGND"),
+  "ASC_CMD and QDIS_CMD default-off at the power board (the card-side RASCP now holds the latch output)");
+ok(same(C("CFLTF.pin1"), "FLT_HS_N") && same(C("CFLTF2.pin1"), "FLT_LS_N") && same(C("CFLTF2.pin2"), "DGND") && near(V(CARD, "CFLTF2"), 100e-12),
+  "both FLT lines filtered alike (a glitch latches SPO; no automatic retry) — R8X-12");
+// R8X-07: the discharge command never sits next to V15 on the 4-way header (pin numbers, both ends)
+ok(same(P("JDIS.#1"), "V15") && same(P("JDIS.#2"), "DGND") && same(P("JDIS.#3"), "QDIS_CMD") && same(P("JDIS.#4"), "DGND")
+  && same(D("JCTL.#1"), "V15") && same(D("JCTL.#2"), "DGND") && same(D("JCTL.#3"), "QDIS_CMD") && same(D("JCTL.#4"), "DGND"),
+  "discharge header V15-GND-CMD-GND: a pin short cannot put 15 V on USCH2/V5A");
+// R8X-08: parts-db resolution, first match per SKU exactly as bom-gen does it (no checker read parts-db before)
+for (const [sku, k] of Object.entries(SKUS)) {
+  const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const want = { DFLT1: /BAT46/, DFLT2: /BAT46/, ZSET: /BZT52-B5V6/, UASCG: /74LVC1G08/, USCH: /74LVC3G17/, USCH2: /74LVC3G17/,
+    ULAT: /74LVC1G74/, ULAT2: /74LVC1G74/, RASCL: /261R/, RQDL: /261R/, RFCB: /100k/, CFLTF2: /100pF/ };
+  const bad = Object.entries(want).filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
+  ok(!bad.length, `${sku}: safety parts resolve to the intended MPNs (Schottky OR, ±2 % clamp, AND gate, Schmitt, D flip-flop, 261 R)`, bad.join(", "));
 }
 
 // ---------- report ----------

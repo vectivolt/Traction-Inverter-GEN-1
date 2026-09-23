@@ -87,8 +87,8 @@ const PAGES = {
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
-      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/, /^USCH$/, /^CSCH$/, /^RSCH$/, /^RDRB$/]],
-      ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/, /^D(FO|SET)$/, /^RARB$/]],
+      ["GATE-EN", [/^UAND[12]$/, /^CAND[12]$/, /^RENP[12]$/, /^RGPD$/, /^RFLTP[12]$/, /^CFLTF2?$/, /^RRDYP[12]$/, /^DFLT[12]$/, /^RFLTC$/, /^ULAT2$/, /^RLAT2$/, /^CLAT2$/, /^RFLTD$/, /^CFLTD$/, /^CCLR$/, /^DCLR$/, /^USCH2?$/, /^CSCH2?$/, /^RFCB$/, /^RQDM$/, /^RSCH$/, /^RDRB$/]],
+      ["ASC-LATCH", [/^ULAT$/, /^RLAT1$/, /^CLAT$/, /^RASCP$/, /^RFS[1-4]$/, /^DFO$/, /^ZSET$/, /^RARB$/, /^UASCG$/, /^CASCG$/]],
       ["FLYBK-EN", [/^COR[12]$/, /^UOR[12]$/]],
       ["INTERLOCK", [/^RILK[1-4]$/, /^CILK$/]],
     ], ["GATE-EN", "ASC-LATCH", "FLYBK-EN", "INTERLOCK"]],

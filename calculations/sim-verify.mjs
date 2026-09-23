@@ -209,30 +209,37 @@ function plot(file, title, series, xlab, ylab) {
 }
 
 // ============ S4 — junction thermal transient through the 30 s peak, every SKU ============
-// Shared loss model (loss-model.mjs). 3-node ladder per switch: junction (vendor Zth poles are
-// all < 0.2 s, so one 0.8 s node is conservative) → case/TIM (0.015 K/W, τ 5 s) → coldplate
-// (0.045 K/W to 65 °C coolant, τ 60 s — ASSUMED; the thermal test closes it). Initialized at the
-// CONTINUOUS steady state (the old run started cold and ran 120 s, 13 % short of steady).
+// Shared loss model (loss-model.mjs). Junction-case and case-coldplate are STATIC resistances: since
+// any real Zth(t) rises monotonically to its Rth, Tj = T_plate + P·(Rjc + Rch) bounds the junction
+// from above at every instant GIVEN the plate temperature (round 8, R7-07: the old single 0.8 s junction
+// pole was called "conservative", but a slower pole rises LESS early — it is not a bound). Only the
+// coldplate mass is dynamic (0.045 K/W to 65 °C coolant, τ 60 s — ASSUMED; the thermal test closes it).
+// The same objection applies to that pole, so the static-plate figure (no plate mass at all) is reported
+// as the unconditional bound (cross-check R8X-11). Initialized at the CONTINUOUS steady state.
 {
-  const series = [];
+  const series = [], stat = [];
   for (const id of ["sic8", "igbt8", "igbt4", "sic4"]) {
     const s = SKU[id];
     const rjc = s.sil === "sic" ? MOD.sic.rthJC : MOD[s.sil].rthJC, rch = 0.015, rha = OP.rthPlate;
     const Lc = lossOf(s, s.iCont, s.vNom), Lp = lossOf(s, s.iPk, s.vMax);
     const Pc = Lc.sw_die, Pp = Lp.sw_die, Dc = Lc.d_die, Dp = Lp.d_die;   // RR07: the diode heats the shared coldplate (IGBT SKUs; SiC d_die = 0)
-    const Cj = 0.8 / rjc, Cc = 5 / rch, Ch = 60 / rha, dt = 0.01;
-    let Th = (Pc + Dc) * rha, Tc = Th + Pc * rch, Tj = Tc + Pc * rjc, pk = 0;
+    const Ch = 60 / rha, dt = 0.01;
+    let Th = (Pc + Dc) * rha, Tj = Th + Pc * (rjc + rch), pk = 0;
     const tr = { x: [], y: [] };
-    const step = (P, D) => { const qjc = (Tj - Tc) / rjc, qch = (Tc - Th) / rch, qha = Th / rha;
-      Tj += dt * (P - qjc) / Cj; Tc += dt * (qjc - qch) / Cc; Th += dt * (qch + D - qha) / Ch; };
+    const step = (P, D) => { Th += dt * (P + D - Th / rha) / Ch; Tj = Th + P * (rjc + rch); };
     for (let t = 0; t < 30; t += dt) { step(Pp, Dp); pk = Math.max(pk, Tj); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
     for (let t = 30; t < 90; t += dt) { step(Pc, Dc); if (Math.round(t / dt) % 10 === 0) { tr.x.push(t); tr.y.push(OP.coolant + Tj); } }
     series.push({ name: `Tj ${s.name}`, x: tr.x, y: tr.y });
     const tj = OP.coolant + pk, lim = tjLimit(s);
+    stat.push({ s, lim, tj: OP.coolant + (Pp + Dp) * rha + Pp * (rjc + rch) });
     add("S4", `Tj end of 30 s peak — ${s.name} (${s.iPk} A, ${s.vMax} V, ${s.fsw / 1e3} kHz)`, `${f(tj, 0)} °C (from ${f(OP.coolant + (Pc + Dc) * rha + Pc * (rjc + rch), 0)} °C continuous)`,
       `${lim} °C ${s.sil === "sic" ? "Tj max" : "Tvjop"}`, tj < 0.9 * lim ? "PASS" : tj < lim ? "WARN" : "FAIL",
       `${f(Pp, 0)} W/switch peak, ${f(Pc, 0)} W continuous (hottest die)${Dp ? ` + diode ${f(Dp, 0)}/${f(Dc, 0)} W into the shared coldplate (RR07)` : ""}; coldplate 0.045 K/W assumed`);
   }
+  const worst = stat.reduce((a, b) => (b.tj / b.lim > a.tj / a.lim ? b : a));
+  add("S4", "Tj static-plate bound (30 s peak held to steady state, no plate mass) — all SKUs", stat.map((x) => `${f(x.tj, 0)}`).join(" / ") + " °C",
+    stat.map((x) => `${x.lim}`).join(" / ") + " °C", worst.tj < 0.9 * worst.lim ? "PASS" : worst.tj < worst.lim ? "WARN" : "FAIL",
+    `${stat.map((x) => x.s.name).join(" / ")}; every SKU stays under its limit for ANY plate time constant — the modelled rows above take τ 60 s (assumed). Worst: ${worst.s.name} at ${f(100 * worst.tj / worst.lim, 0)} % of ${worst.lim} °C — the thermal test (T7-10) measures the plate pole`);
   plot("s4-thermal-30s.svg", "S4 junction transient per SKU: continuous → 30 s peak (at V_max) → continuous, 65 °C coolant",
     series, "time from peak start (s)", "°C");
 }

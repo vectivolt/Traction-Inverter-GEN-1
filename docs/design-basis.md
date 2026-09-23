@@ -34,7 +34,7 @@ The same power PCB, control card, discharge PCB and cap-bank busbar build every 
 difference is the module (SiC HCS600 / IGBT HCG600 — same D3 outline and pin map), the 16
 film cans (1100 V/20 µF for 8XX, 600 V/50 µF for 4XX), a handful of resistor/capacitor values,
 an identity resistor and the firmware parameter set. End of the 30 s peak at V_max with the
-corrected loss model (S4): 8XX SiC 122 °C · 8XX IGBT 127 °C (5 kHz) · 4XX IGBT 121 °C; the rev
+corrected loss model (S4, static junction path since round 8; with no plate mass at all 135 / 142 / 133 °C): 8XX SiC 125 °C · 8XX IGBT 132 °C (5 kHz) · 4XX IGBT 125 °C; the rev
 A.5 "89 °C / 110 °C" figures used the wrong conduction formula (R-F02/F26). Matrix, costs and
 the launch recommendation: [`variants.md`](variants.md).
 
@@ -58,7 +58,7 @@ level: **EconoDUAL 3** is the most second-sourced power-module outline in the in
 - Per-switch loading at peak (340 A rms, 850 V, 10 kHz — rev A.6): conduction **330 W**
   (½·I²·R, 5.7 mΩ hot — synchronous rectification carries the current in both directions) +
   switching ≈200 W (DS energies at RG_ON 3.3 / RG_OFF 6.8 Ω) + Qrr + dead-time diode ≈ **554 W
-  per switch** for 30 s; ≈200 W continuous. Tj at the end of the 30 s peak 122 °C at 65 °C
+  per switch** for 30 s; ≈200 W continuous. Tj at the end of the 30 s peak ≤ 125 °C at 65 °C
   coolant (coldplate 0.045 K/W assumed — thermal test). DS Rth(j-c) 0.066 + 0.015 grease.
 - 1200 V at 850 V max bus = 71 % utilization — the same margin the XM3/TIDM run.
 - Per-module DC-side film snubber 1 µF/1200 V across DC+/DC− at the terminals; laminated
@@ -89,7 +89,7 @@ Qg 4.36 µC · Isc 1800 A · Tvjop 150 °C · NTC B25/50 3375.
 - R⟨ph⟩⟨HL⟩ON/OFF → **1.0/1.0 Ω** (IGBT Eon rises steeply with Rg — DS Fig.5)
 - RF⟨HL⟩RT 10 k → **8.2 k** (≈308 kHz: the IGBT-class gate charge needs +22 % bias capacity)
 - firmware: f_sw **5 kHz**, dead-time 2.5 µs, same NTC curve
-- gate rails **the same as SiC** (+15.4 V nominal, 13.5–16.7 V corners / −5.1 V — round 7): the DS characterizes at ±15 V, VGE(th) is a high
+- gate rails **the same as SiC** (+15.4 V nominal, 13.6–16.9 V corners / −5.1 V — rounds 7/8): the DS characterizes at ±15 V, VGE(th) is a high
   5.0–6.2 V, and the NSI6611 Miller clamp holds the off-state — dv/dt shoot-through stays a
   bench row.
 
@@ -217,8 +217,8 @@ regulated from the aux winding (F33). Round 7 (A6-R06/R07): the 52.3k/15k divide
 the 2.2 k start feed could hold FB above the reference while the converter was stopped (from a
 ≈16 V rail for a low-current controller, certainly at a 24 V jump start), so it never restarted.
 The old model also left out the aux diode drop: the real rail was ≈16.9 V, not 15.6 V. Counted
-properly (V_FB, divider, both rectifiers at peak current, FB bias, split zener), VCC2 = 15.4 V nominal, 13.5–16.7 V corners,
-inside a 13.5–17.0 V bias window.
+properly (V_FB, divider, both rectifiers at peak current, FB bias, split zener, the FB-sense 100 Ω at
+100/50/20 % conduction per corner), VCC2 = 15.4 V nominal, 13.57–16.89 V corners, inside a 13.5–17.0 V bias window.
 **Start-up (rev A.6, R-F18):** the UCC28C40 has only 0.4 V of UVLO hysteresis and no VDD clamp.
 2.2 kΩ trickle start + **47 µF** VDD reservoir make one start burst reach aux-winding takeover in
 every corner (73–240 ms at KL30 9–14 V, S1 — rev A.7 with the divider off VDD); an **18 V zener** protects VDD when the flyback is
@@ -239,7 +239,9 @@ latch sets. By then the high sides are off: FS0B has dropped DRV_EN (MCU dead), 
 fault has forced PWM low (MCU alive). ASC deliberately does **not** drop EN. The NSI6611 honours
 DESAT over ASC only with EN high and IN+ high (DS §8.12), so a commanded ASC is held as
 **PWM-ASC** with EN high, and a high side that fails short still ends in the low-side DESAT
-(`firmware-contract.md` §4c). Which safe state applies is a motor- and
+(`firmware-contract.md` §4c). A latched driver fault masks the ASC command in hardware (UASCG,
+round 8), so the healthy low sides release and the bridge reaches SPO; the faulted driver holds
+itself off until the FW-15 reset (DS Fig. 8.11). Which safe state applies is a motor- and
 fault-dependent **firmware decision** (`firmware-contract.md` §6: e.g. a DESAT on a low-side
 switch permits SPO only). *Limitation: ASC cannot be held through total KL30 loss (S10: 0.5–
 3.1 ms of gate reservoir, ≈1 ms of command path). SPO at dead LV is energy-safe only if the
@@ -266,6 +268,11 @@ HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
   - A re-pulsing clear pin is covered by the locked eFlexPWM fault inputs and the FS26 watchdog
     (RR03).
   - Both latches are the AEC-Q100 Nexperia part.
+  Round 8 changes:
+  - Both latch presets (the FLT diode-OR, now BAT46, and the FS1B strap) go through a second
+    Schmitt buffer.
+  - ASC_CMD = latch AND no-FLT (UASCG).
+  - FS1B is pulled up through its strap only, and its battery-short clamp goes to ground.
 - Resolver AFE: exciter op-amp + push-pull buffer (10 kHz carrier, from V15 via card),
   sin/cos dividers + filters into the S32K396 RDC pins (per SPF-91122).
 - 2 × CAN-FD (**TCAN1042HGV-Q1** class), vehicle + diagnostic.
@@ -295,11 +302,13 @@ guarantee it (review round 3/5 item):
 | WK2PD_OTP / IO2PD_OTP | 1 / 1 | WAKE2, GPIO2 left open |
 | VBST (boost front-end) | disabled | pins terminated per DS unused table |
 | FS0B + FS1B, FCCU1/2 | enabled | safety chain + ASC strap |
+| FS1B_FS0B_EN_OTP; FS1B_TDELAY / TDUR (FS_SAFE_IOS_2, init) | 0 (delayed-assertion mode, OTP default); TDELAY **00000** (with FS0B), TDUR 100 ms; BACKUP_SAFETY_PATH_FS0B/FS1B = 1 — all read back by FW-12 | FW-16 step a reads the ASC preset at once; the FAULT_OUT pulse and a wire-short overload are bounded (round-8 cross-check R8X-03, P-01) |
+| GPIO1STAGE_OTP / GPIO1 power-up slot | push-pull (or high-side driver), **not slotted** — stays low until the MCU sets it over SPI | flyback-enable OR input: a slotted GPIO1 would raise gate power at every POR while FS1B still presets the ASC latch, engaging LS-ASC at boot (round 8, N15; firmware-contract §9) |
 
 ## 9. LV power
 
 - Card: KL30 (9–16 V) → polyfuse + STPS5L60SY reverse Schottky + TPSMC24CA TVS (GEN3 exact) →
-  **FS2633D**: VPRE 5.4 V buck → VCORE 1.5 V (MCU V11), VREF 5 V, LDO1 3.3 V, LDO2 5 V
+  **FS2633D**: VPRE 6.0 V buck (§8a) → VCORE 1.5 V (MCU V11), VREF 5 V, LDO1 3.3 V, LDO2 5 V
   (VDD_HV_A); VMONEXT/VMONCORE rail monitors wired per GEN3.
 - Power board: **two separately fused KL30 feeds** (HS / LS chains, GEN3 pattern — polyfuse +
   NRVBAF360T3G + TVS + bead each) feed the two gate flybacks directly (they regulate
@@ -359,16 +368,17 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.7)
+## 11. Verification status (current release: rev A.8)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **1761/1761 (100 %)**;
-- structural ERC **845 checks, 0 fail**, with a lock-in for every fixed finding;
-- numeric worst-case verification **105 PASS / 14 WARN / 0 FAIL** across all four SKUs;
+- geometric pin-verify **1778/1778 (100 %)**;
+- structural ERC **864 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+  first-match MPN per SKU; mutation-tested);
+- numeric worst-case verification **108 PASS / 14 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
-  **23 PASS / 5 WARN / 0 FAIL**.
+  **23 PASS / 6 WARN / 0 FAIL**.
 
 Every WARN names the bench or vendor gate that closes it. The BOM generator fails on any
 value/MPN disagreement and on missing, empty or stale inputs. Rev A.7 answered the seventh
@@ -379,7 +389,47 @@ defect before release. Firmware obligations are in [`firmware-contract.md`](firm
 
 Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
-(A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6) and F77–F89 (A.7).
+(A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8) and F98–F105
+(the A.8 cross-check).
+
+## 11h. Rev A.8 — review round eight (summary)
+
+Two rechecks of `2ac42ed` (R7-01…R7-07, A7-N01…N05) are answered in
+[`review-A8-disposition.md`](review-A8-disposition.md).
+
+- **DESAT during latched ASC.** NSI6611 Fig. 8.11 shows a faulted driver holding its own gate off
+  through IN-low, EN-low and ASC until a reset edge after its mute time. The healthy low sides,
+  however, stayed on through ASC. A ₹5 AND gate (UASCG) now makes any latched FLT mask ASC on every
+  path, so a DESAT always ends in SPO. FW-15 always clears the ASC latch before a recovery.
+- **Interfaces.**
+  - A second 74LVC3G17-Q100 buffers the FLT diode-OR and FS1B strap presets (no slow edge left on
+    a flip-flop input). The FLT combining diodes are now BAT46, for the Schmitt threshold.
+  - The same buffer drives the discharge opto. Both TLP152 LEDs run through 261 Ω at
+    10.3–14.8 mA, inside the recommended 10–15 mA.
+  - A FAULT_OUT battery short is clamped to ground (ZSET, BZT52-B5V6: ≤ 6.33 V at a 35 V load
+    dump), not into V5A.
+- **Firmware / models / tooling.**
+  - FW-16 re-specified with every term sensitized.
+  - FW-08b keeps HV connected during a DESAT recovery at speed.
+  - S4 junction path is static (+3 °C).
+  - bom-gen publishes atomically.
+- **Cross-check of the fixes** (independent reviewer, R8X-01…17, P-01…06; F98–F105). No CRITICAL
+  finding; the three MAJOR ones were contract text:
+  - FW-15 always clears the ASC latch.
+  - FW-16 runs only on measured no-HV/standstill conditions (otherwise a stored pass arms). It
+    handles the FS_GPIO1 flyback OR, and step h injects FLT from the MCU pins, so the latch and mask
+    paths are covered in the field.
+  - FS1B_TDELAY = 0 and TDUR = 100 ms are required.
+  - Hardware, ≈ ₹1 in total:
+    - RFCB 100 k: a dead USCH2 reads as FLT.
+    - RASCP moved to the latch output: a dead ULAT reads no-ASC.
+    - CFLTF2 100 pF on FLT_LS_N.
+    - RASCL/RQDL 261 Ω.
+    - ZSET changed to B5V6.
+    - The discharge header reordered V15-GND-CMD-GND.
+  - ERC now locks the diode-OR and the FS1B back-feed by net, and the safety MPNs per SKU.
+  - S4 also reports the static-plate bound (8XX IGBT 142 °C, WARN until the thermal test).
+- **Cost:** +₹18/unit.
 
 ## 11g. Rev A.7 — review round seven (summary)
 

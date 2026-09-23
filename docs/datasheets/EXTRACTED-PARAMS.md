@@ -322,6 +322,95 @@ https://assets.nexperia.com/documents/data-sheet/74LVC1G74_Q100.pdf. **Not yet a
 | TPS55340 | abs max VIN / SW | 34 V / 40 V; no pass-through statement | §6.1 |
 | AMC1311B | IN→OUT delay 50–50 % | typ 1.6 / max 2.1 µs | §7.10 |
 
+## 26. Round-8 data (rev A.8)
+
+**Nexperia 74LVC1G74 / 74LVC1G08 / 74LVC3G17-Q100.** One LVC family; identical output limits.
+Sources: 1G74 Rev 7 Table 8; 1G08 Rev 7 Table 7; 3G17 Rev 5 Table 7.
+
+| Parameter | −40…85 °C | −40…125 °C |
+|---|---|---|
+| V_OH at V_CC 4.5 V, I_O −32 mA | ≥ 3.8 V | **≥ 3.4 V** |
+| V_OL at V_CC 4.5 V, I_O 32 mA | ≤ 0.55 V | ≤ 0.80 V |
+| I_I / I_OFF | ±1 / ±2 µA | ±1 / ±2 µA |
+
+- The design uses the 125 °C point as a linear bound, R_out ≤ 34.4 Ω.
+- **74LVC1G08-Q100 GW** (SOT353-1): 1 = B, 2 = A, 3 = GND, 4 = Y, 5 = VCC. Δt/ΔV ≤ 10 ns/V at 2.7–5.5 V.
+- **74LVC3G17-Q100:** its operating-conditions table has **no Δt/ΔV row**.
+- **74LVC1G74-Q100:** Table 4 gives SD = RD = L ⇒ Q = Q̄ = H.
+
+**Toshiba TLP152 (local, Rev 6.0).**
+
+| Parameter | Value | Source |
+|---|---|---|
+| I_F absolute max | 20 mA | §7 |
+| Recommended I_F(ON) | 10–15 mA | §8 |
+| T_opr | −40…100 °C | §7 |
+| V_F | 1.40 / 1.57 / 1.80 V at 10 mA, 25 °C; ΔV_F/ΔTa typ −1.8 mV/°C (**no curve in this DS**) | §9 |
+| I_FLH | max 7.5 mA over −40…100 °C | §9 |
+| t_pLH / t_pHL max | 170 / 190 ns at I_F 10 mA only (no I_F curve) | §11 |
+
+**NOVOSENSE NSI6611A-Q1.**
+
+| Parameter | Value | Source |
+|---|---|---|
+| V_FLT_L, V_RDY_L | ≤ 0.3 V at 5 mA | p.6, p.8 |
+| t_RST_FIL | 480–800 ns | p.8 |
+| t_FLT_MUTE | 0.55–1.3 ms | p.8 |
+| Reset semantics | **inconsistent in the DS**: §9.4 prose says "held for at least t_FLT_MUTE"; §8.10 and Fig. 8.8 show resets ignored during the mute time, then any ≥ t_RST_FIL pulse releasing FLT at its rising edge. FW-15's ≥ 1.5 ms low satisfies both. | §8.10, §9.4, Fig. 8.8 |
+| **ASC vs a latched DESAT** | ASC high throughout; DESAT → soft-off, FLT low; the gate stays **off** as IN goes low and through an RST/EN pulse, and returns (following ASC) only at the post-mute reset edge. Without a latched fault, ASC drives the gate high regardless of IN and EN. | Fig. 8.11, §8.12 |
+
+**HIITIO transient thermal impedance (Foster, printed on the Zth charts).** In each case ΣR is the
+static R_th that S4 uses as its upper bound.
+
+| Module / device | τ_i (s) | R_i (K/W) | ΣR (K/W) | Source |
+|---|---|---|---|---|
+| HCS600 SiC MOSFET | 0.00022 / 0.00226 / 0.04676 / 0.14846 | 0.00200 / 0.00439 / 0.04444 / 0.01485 | 0.0657 | Fig. 17 |
+| HCG600 IGBT | 7.0e-6 / 9.2e-5 / 2.9e-4 / 0.0289 / 0.0684 | 0.00116 / 0.00229 / 0.00661 / 0.03927 / 0.02094 | 0.0703 | Fig. 8 |
+| HCG600 diode | 8.6e-6 / 1.0e-4 / 3.8e-4 / 0.0259 / 0.0739 | 0.00220 / 0.00435 / 0.01262 / 0.05414 / 0.02694 | 0.1003 | Fig. 13 |
+
+**NXP FS26 (local Rev 3).**
+- **FS0B_REQ** (bit 6) and **FS1B_REQ** (bit 2) in FS_SAFE_IOS_1 (0x52): SPI-requested assertion,
+  self-clearing (Table 93/94). The FW-16 boot test uses this.
+- LDO1/LDO2 output is OTP-selectable 3.3/5.0 V. **R_LDOx_DCHG is 20–60 Ω when an LDO is
+  disabled** (Table 124). No reverse-current rating is given on the LDO outputs.
+- GPIO1 stage is set by GPIOxSTAGE_OTP (input / LS / HS / push-pull). A push-pull GPIO1 sits low
+  after OTP load and **goes high at its power-up slot if one is assigned** (Table 133). §8a now
+  requires "not slotted".
+
+**Other parts.**
+- **Nexperia BZT52 series** (fetched Rev 2, Table 8; the local `BZT52-series.pdf` is **Vishay's**):
+
+  | Type | V_Z at 5 mA | r_dif at 5 mA / 1 mA | S_Z (mV/K) | I_R |
+  |---|---|---|---|---|
+  | C5V6 | 5.2–6.0 V | ≤ 40 / ≤ 400 Ω | −2.0…+2.5 | ≤ 1 µA at 2 V |
+  | **B5V6** (fitted as ZSET after the cross-check) | **5.49–5.71 V** | ≤ 40 / ≤ 400 Ω | −2.0…+2.5 | ≤ 1 µA at 2 V |
+  | C5V1 (rejected for ZSET) | 4.8–5.4 V | ≤ 60 / ≤ 480 Ω | −2.7…+1.2 | ≤ 2 µA at 2 V |
+
+  - C_d ≤ 300 pF for all three.
+  - Clamp at 125 °C through the 1.98 k of RFS4 + RFS1:
+    - C5V6: 6.24 / 6.40 / 6.62 V at 16 / 24 / 35 V;
+    - B5V6: 5.96 / 6.12 / 6.33 V.
+  - USCH2 V_I absolute maximum: 6.5 V.
+  - Vishay BZT52B5V6: αVZ up to +6·10⁻⁴/K, ≤ 6.43 V at 35 V.
+  - The C5V1's soft knee (480 Ω at 1 mA, negative S_Z) through the 10 k RFS2 can pull the released
+    level toward the 74LVC3G17 V_T+ maximum (3.55 V at V_CC 5.0 V, 125 °C). That is why it was
+    rejected.
+- **74LVC1G08/3G17-Q100 V_OH at −32 mA, 4.5 V:** ≥ 3.8 V over −40…85 °C and ≥ 3.4 V over
+  −40…125 °C, so R_out ≤ 21.9 / 34.4 Ω. The LED corners pair each with the matching V_F (cold with
+  the 85 °C bound, hot with the 125 °C bound). 74LVC1G08-Q100 t_pd ≤ 5.5 ns at 4.5–5.5 V, 125 °C.
+- **FS26 FS1B timing** (Tables 95/96, §22.11.3):
+  - FS1B_FS0B_EN_OTP = 0 (default) selects delayed assertion.
+  - FS1B_TDELAY 00000 means "asserted with FS0B".
+  - FS1B_TDUR 11111 means "infinite (released by MCU)". The design uses the 100 ms default, so each
+    assertion ends by itself.
+  - After a POR, FS1B is held until the MCU releases it.
+  - LDO2 UV threshold is OTP-selectable 88–95.5 %, ±1 %, so ≥ 4.35 V at the lowest setting.
+- **ST BAT46:** V_F ≤ 0.25 V at 0.1 mA and ≤ 0.45 V at 10 mA (25 °C). There is no cold curve, so
+  0.45 V is taken at 0.45 mA/−40 °C.
+- **NXP S32K39x 5 V GPIO:**
+  - V_OH ≥ V_DD − 0.7 V at I_OH 1.6 mA (standard) to 12 mA (fast, DSE = 1);
+  - V_IH 0.65·V_DD, V_IL 0.35·V_DD.
+
 ---
 
 # Archive index (48 PDFs, verified `%PDF` headers)

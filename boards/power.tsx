@@ -38,9 +38,11 @@ export default () => (
         cannot carry the bus current; DCP/DCN reach this board only as sense/bias taps.
         Bleeder + active discharge live on the SEPARATE bolt-on DISCHARGE BOARD (sheet 3 —
         the XM3 pattern: the network physically stays with the cap bank/busbar). This header
-        carries its bias + command; QDIS_CMD keeps its default-OFF pulldown on this board. */}
+        carries its bias + command; QDIS_CMD keeps its default-OFF pulldown on this board.
+        Pin order V15, GND, CMD, GND (round 8 cross-check): CMD is never next to V15 — a pin short
+        would push 15 V into the card's USCH2 output and its V5A rail. */}
     <chip name="JDIS" footprint={Header(4)} {...gp()}
-      pinLabels={{ pin1: "V15", pin2: "CMD", pin3: "GND1", pin4: "GND2" }}
+      pinLabels={{ pin1: "V15", pin2: "GND1", pin3: "CMD", pin4: "GND2" }}
       connections={{ V15: "net.V15", CMD: "net.QDIS_CMD", GND1: "net.DGND", GND2: "net.DGND" }} />
 
     {/* ---- PHASES: module + snubber + NTC route + 2x gate-drive channel ---- */}
@@ -88,9 +90,10 @@ export default () => (
       connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSASCN", COM: "net.DCN", VOP: "net.V18A" }} />
     <chip name="UASC" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.ASCA", CAT: "net.DGND", GND: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
-    {/* TLP152 I_FLH is 7.5 mA max (DS §9): 270 R gives >= 10 mA at V5A 4.85 V / V_F 1.8 V
-        (round 7 — 470 R gave 5.4-7 mA, below the guaranteed turn-on current) */}
-    <resistor name="RASCL" resistance="270" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
+    {/* TLP152 LED 261 R 1 % from UASCG: 10.3-14.8 mA over V5A 4.9-5.1 V and -40...100 C, inside the
+        DS 10-15 mA recommended I_F (I_FLH 7.5 mA max). Round 7: 470 R gave 5.4-7 mA; round-8
+        cross-check: 270 R dipped to 9.9 mA cold. */}
+    <resistor name="RASCL" resistance="261" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
     {/* NSI6611 ASC abs max = GND2+6 V (DS 1.2 §2) — series 2.2k + 5.1 V zener clamp the
         18 V opto swing to a legal ASC level (F28) */}
     <resistor name="RASCG" resistance="2.2k" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />

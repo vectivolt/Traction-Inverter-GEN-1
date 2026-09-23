@@ -55,11 +55,14 @@ const P = {
 // 1 % divider, 1N4148WS 0.45–0.65 V, US1M 0.7–1.3 V (FFS peak-detects at the secondary's peak
 // current, where the US1M drop is highest — cross-check 6a), BZT52-C5V1 4.8–5.4 V; the low corner
 // also carries the FB bias current (≤ 2 µA into the 11.7 k divider Thevenin → −0.19 V on VCC2).
-const vcc2Of = (vfb, r1, r2, vfFs, vfSec, vz) => (vfb * (r1 + r2) / r2 + vfFs) * (P.xfmr.ns / P.xfmr.nf) - vfSec - vz;
+// The 100 R FB-sense drop is the divider current over the diode's conduction fraction d (round 8;
+// cross-check R8X-16): d = 1 on the low corner (least drop), 0.5 nominal, 0.2 on the high corner
+// (peak detection on the flattest plateau — the fast-US1M corner; the leakage spike pulls the other way).
+const vcc2Of = (vfb, r1, r2, vfFs, vfSec, vz, d = 0.5) => (vfb * (r1 + r2) / r2 + vfFs + (vfb / r2) / d * 100) * (P.xfmr.ns / P.xfmr.nf) - vfSec - vz;
 const VCC2 = {
   nom: vcc2Of(2.5, 52.3e3, 15e3, 0.55, 0.85, 5.1),
-  lo: vcc2Of(2.45, 52.3e3 * 0.99, 15e3 * 1.01, 0.45, 1.3, 5.4) - 2e-6 * 11.7e3 * (67.3 / 15) * (P.xfmr.ns / P.xfmr.nf),
-  hi: vcc2Of(2.55, 52.3e3 * 1.01, 15e3 * 0.99, 0.65, 0.7, 4.8),
+  lo: vcc2Of(2.45, 52.3e3 * 0.99, 15e3 * 1.01, 0.45, 1.3, 5.4, 1) - 2e-6 * 11.7e3 * (67.3 / 15) * (P.xfmr.ns / P.xfmr.nf),
+  hi: vcc2Of(2.55, 52.3e3 * 1.01, 15e3 * 0.99, 0.65, 0.7, 4.8, 0.2),
   old: vcc2Of(2.5, 56e3, 15e3, 0.8, 0.85, 5.1),   // A.6: 56 k on VDD, i.e. behind the US1M aux diode
 };
 // 74LVC3G17-Q100 (Nexperia DS Table 8, −40…125 °C, V_CC 4.5–5.5 V) as fractions of V_CC
@@ -75,13 +78,23 @@ const ASC = (() => {
   const tRc = (r, cc, vth, vt) => r * cc * Math.log(vth / (vth - vt));
   return {
     tLsMin: tRc(rTh * 0.99, c * 0.95, vTh(24), 2.7) + 0.39e-6,
-    tEntryMax: 0.17e-6 + tRc(rTh * 1.01, c * 1.05, vTh(18), 3.2) + 1.1e-6,
+    tEntryMax: 5.5e-9 + 0.25e-6 + tRc(rTh * 1.01, c * 1.05, vTh(18), 3.2) + 1.1e-6,   // UASCG (74LVC1G08-Q100 5.5 ns, 125 °C) + TLP152 tpLH at ≥ 10.3 mA (DS 10 mA point + margin) + RC + tASC_r
     tHsEn: 5.4e-9 + 2 * 4.4e-9 + 5e-9 + 60e-9 + 130e-9,   // FS1B path: USCH, two ANDs, harness, EN deglitch, EN→OUT (≈tpHL max)
   };
 })();
 // FW-06 over-voltage budget (round 7, RR06/A6-R08): link crossing the trip → ASC request
 const OVP = { tDiv: (2.82e6 * 6.2e3 / (2.82e6 + 6.2e3)) * 1e-9, tAmc: 2.1e-6, tRx: 0.3e-6, tSample: 1 / 200e3, tConv: 1.0e-6, tAct: 1.0e-6 };
 OVP.tReq = OVP.tDiv + OVP.tAmc + OVP.tRx + OVP.tSample + OVP.tConv + OVP.tAct;
+// Round-8 interface data (EXTRACTED-PARAMS §26). LVC outputs (74LVC1G08/3G17-Q100 Table 7): V_OH ≥ 3.4 V
+// at V_CC 4.5 V, I_O −32 mA, −40…125 °C (≥ 3.8 V over −40…85 °C); below that current the PMOS drop is
+// bounded by the same resistance (triode), so V_OH(I) ≥ V_CC − I·R_out. TLP152 V_F: 1.40–1.80 V at
+// 10 mA/25 °C with a −1.8 mV/°C tempco → 1.27–1.67 V at 100 °C, 1.92 V at −40 °C (1.95 V used); I_FLH
+// 7.5 mA max, I_F(ON) 10–15 mA recommended, T_opr −40…100 °C. Corners are temperature-consistent
+// (cross-check R8X-04): cold = −40 °C V_F with the 85 °C R_out bound, hot = 100 °C V_F with the 125 °C one.
+// NSI6611 FLT V_OL ≤ 0.3 V at 5 mA; BAT46 ≤ 0.25 V at 0.1 mA/25 °C, 0.45 V taken cold at 0.45 mA.
+const LVC = { vOh32: 3.4, vOh32c: 3.8 }; LVC.rOut = (4.5 - LVC.vOh32) / 32e-3; LVC.rOutC = (4.5 - LVC.vOh32c) / 32e-3;
+const LED = { vfMax: 1.95, vfMaxHot: 1.80 - 75 * 1.8e-3, vfMin: 1.40 - 75 * 1.8e-3, iFlh: 7.5e-3, iRecMin: 10e-3, iRecMax: 15e-3, tpLH: 0.25e-6 };
+const FLTL = { vol: 0.3, bat46: 0.45 };
 
 // ---------------- check engine ----------------
 const rows = [];   // {sec, name, value, limit, margin, status, note}
@@ -270,7 +283,7 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   judge("Gate drive", "Fault-latch CLEAR one-shot (15 nF into 10 k, at the USCH output)", `${f(tOsLo * 1e6, 0)}–${f(tOsHi * 1e6, 0)} µs low per falling edge`, `≥ ${f(tReset * 1e6, 0)} µs to deliver the drivers' reset edge through the delay`,
     tReset / tOsLo, 0.9,
     "review F06 disposition: PRE=CLR=L (both outputs high) is the ONLY way to give the NSI6611s their RST/EN rising edge while FLT is still asserted — a fault-dominant latch would deadlock recovery. The one-shot bounds one stuck-low pin in hardware; a re-pulsing pin is RR03 → FW-15 (eFlexPWM fault lock), the drivers' own latch and the FS26 watchdog");
-  add("Gate drive", "Slow edges at LVC inputs (Δt/ΔV 5–10 ns/V)", "RC nodes and FS0B via USCH (no limit); ASC_SET_N ≈32 ns/V, FLT_CMB_N ≈64 ns/V, RDY ≈0.2 µs/V remain", "-", "INFO",
+  add("Gate drive", "Slow edges at LVC inputs (Δt/ΔV 5–10 ns/V)", "RC nodes and FS0B via USCH, FLT diode-OR and FS1B strap via USCH2 (no limit); RDY ≈0.2 µs/V remains", "-", "INFO",
     "round 7 RR01/RR02: the two RC nodes were 14,000–63,500 ns/V — buffered. The remaining open-drain release edges only return a latch or AND input to its idle level with no output change (PRE release with CLR high holds; RDY releases while MCU_GATE_EN is low per §9 sequencing and FW-14)");
 }
 
@@ -318,30 +331,55 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     vDrainLD / 80, 0.85, "F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF)");
   // F39 DESAT clamp direction is topological (erc-audit); F40 ASC latch levels:
   // round 7 (A6-R01): FS1B holds V_OL ≤ 0.4 V only up to 2 mA and may current-limit at 4 mA. Budget at
-  // V5A 5.1 V, 1 % parts: RENP2 5.1 k + the RFS1/RFS2 strap + a FAULT_OUT VCU load of ≥ 10 k to ≤ 5.1 V.
+  // V5A 5.1 V, 1 % parts. Round 8 (A7-N04): FS1B has no own pull-up — the RFS1/RFS2 strap is its pull-up.
   const vOL = 0.4, v5 = 5.1;
-  const iRenp = (v5 - vOL) / (5.1e3 * 0.99), iStrap = (v5 - vOL) / (11e3 * 0.99), iFout = (v5 - vOL - 0.3) / (9.9e3 + 0.99e3), iFs1b = iRenp + iStrap + iFout;   // FAULT_OUT sinks through DFO (BAT46 ≈0.3 V)
-  judge("Safety A.7", "FS1B load at its V_OL point (5.1 k + strap + FAULT_OUT)", `${f(iFs1b * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V; current limit ≥ 4 mA)", iFs1b / 2e-3, 0.95,
+  const iRenp = (v5 - vOL) / (5.1e3 * 0.99), iStrap = (v5 - vOL) / (11e3 * 0.99), iFout = (v5 - vOL - 0.3) / (9.9e3 + 0.99e3), iFs1b = iStrap + iFout;   // FAULT_OUT sinks through DFO (BAT46 ≈0.3 V)
+  judge("Safety A.8", "FS1B load at its V_OL point (strap + FAULT_OUT)", `${f(iFs1b * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V; current limit ≥ 4 mA)", iFs1b / 2e-3, 0.95,
     `A6-R01: the 1 k pulls took ${f((5 / 1e3 + 5 / 11e3) * 1e3, 2)} mA — a 4 mA-limit part sat at 1.33 V, ASC_SET_N at 1.67 V (> VIL); the old row compared with the 22 mA maximum and divided by 1000 again`);
-  const vSetLow = vOL + (v5 - vOL) * 1.01e3 / (1.01e3 + 9.9e3);
-  judge("Safety A.7", "ASC latch asserted-low level (FS1B at V_OL, 1k into 10k)", `${f(vSetLow, 2)} V`, "1.35 V VIL (0.3·V_CC at 4.5 V)",
-    vSetLow / 1.35, 0.75, "F40/A6-R01 — the old row assumed FS1B at 0 V");
-  judge("Safety A.7", "FS0B load at its V_OL point (5.1 k into the USCH input)", `${f(iRenp * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V)", iRenp / 2e-3, 0.6,
+  const vSetLow = vOL + (v5 - vOL) * 1.01e3 / (1.01e3 + 9.9e3), vTnMin = SCH.tnLo * 4.9;
+  judge("Safety A.8", "ASC latch preset low level (FS1B at V_OL, 1k into 10k) vs USCH2 V_T−", `${f(vSetLow, 2)} V`, `${f(vTnMin, 2)} V V_T− minimum at V5A 4.9 V`,
+    vSetLow / vTnMin, 0.85, "F40/A6-R01; round 8 buffers the preset (R7-02), so the Schmitt threshold, not the LVC VIL, is the limit");
+  const vFltCmb = FLTL.vol + FLTL.bat46;
+  judge("Safety A.8", "FLT diode-OR low level (V_OL + BAT46, cold) vs USCH2 V_T−", `${f(vFltCmb, 2)} V`, `${f(vTnMin, 2)} V V_T− minimum`,
+    vFltCmb / vTnMin, 0.85, "round 8: DFLT1/2 Schottky — a 1N4148 (≈0.7 V cold) would put the node at the threshold");
+  judge("Safety A.8", "FS0B load at its V_OL point (5.1 k into the USCH input)", `${f(iRenp * 1e3, 2)} mA`, "2 mA (V_OL ≤ 0.4 V)", iRenp / 2e-3, 0.6,
     "pin ≤ 0.4 V: under the SBC's own 0.7 V read-back threshold and the buffer's 1.0 V V_T− minimum");
   const vFoutLo = vOL + 0.3 + iFout * 1.01e3;
-  judge("Safety A.7", "FAULT_OUT asserted level at the VCU (10 k to 5 V)", `${f(vFoutLo, 2)} V`, "1.5 V (5 V CMOS V_IL)", vFoutLo / 1.5, 0.85,
+  judge("Safety A.8", "FAULT_OUT asserted level at the VCU (10 k to 5 V)", `${f(vFoutLo, 2)} V`, "1.5 V (5 V CMOS V_IL)", vFoutLo / 1.5, 0.85,
     "sink-only through DFO: the VCU must pull up (firmware-contract §9)");
-  const vk = 16, vFs1bShort = (vk - 0.3 + 5 / 5.1 + 5.3) / (1 + 1 / 5.1 + 1);
-  add("Safety A.7", "FAULT_OUT wire faults (FS1B released)", `to ground: ASC_SET_N stays 5.0 V (A.6: 2.83 V, first A.7 draft: 1.47 V = preset) · to KL30 16 V: ASC_SET_N clamped 5.3 V, RFS4 ${f((vk - 0.3 - vFs1bShort), 1)} mA`, "no unintended ASC preset; ≤ 6.5 V at the latch", "PASS",
-    "round 7 cross-check item 2: DFO blocks a ground short, a dead VCU input and negative spikes; DSET clamps a battery short. While shorted to KL30 FS1B cannot pull the node low — the FS26 read-back reports FS1B short-to-high (degraded, detected)");
-  judge("Safety A.7", "ASC break-before-make: HS off before LS on", `LS starts ≥ ${f(ASC.tLsMin * 1e6, 2)} µs after the latch sets`,
+  // KL30 short on FAULT_OUT with FS1B released: DFO + RFS4 + RFS1 (1.98 k low) into ZSET; RFS2 back to V5A.
+  // ZSET BZT52-B5V6 (Nexperia): 5.71 V max at 5 mA, S_Z ≤ +2.5 mV/K (→ 125 °C), r_dif ≤ 40 Ω; the current out
+  // through RFS2 is ignored (more zener current = higher clamp). 16 V KL30 max, 24 V jump start, 35 V suppressed
+  // load dump — each with the wire already shorted (cross-check R8X-05: a C5V6 reached 6.62 V at 35 V).
+  const ZS = { v5: 5.71 + 100 * 2.5e-3, rz: 40, r: 1.98e3 };
+  const vzAt = (vk) => (ZS.v5 - 5e-3 * ZS.rz + ZS.rz * (vk - 0.3) / ZS.r) / (1 + ZS.rz / ZS.r);
+  const [vz16, vz24, vz35] = [16, 24, 35].map(vzAt), iZ35 = (35 - 0.3 - vz35) / ZS.r;
+  const iBackLive = (vz35 - 4.9) / 10e3, iBackDead = vz35 / 10e3;
+  judge("Safety A.8", "FAULT_OUT shorted to KL30 (FS1B released): ASC_SET_N clamp vs USCH2 V_I abs max",
+    `${f(vz16, 2)} / ${f(vz24, 2)} / ${f(vz35, 2)} V at 16 / 24 / 35 V (125 °C)`, "6.5 V abs max (74LVC3G17)", vz35 / 6.5, 0.99,
+    `to ground: blocked by DFO. Into V5A ≤ ${f(iBackLive * 1e3, 2)} mA live / ${f(iBackDead * 1e3, 2)} mA with V5A off (disabled LDO2 discharges it through 20–60 Ω: ≤ 40 mV). RFS1/RFS4 ${f(iZ35 * 1e3, 1)} mA for the ≤ 0.4 s pulse, ${f((24 - 0.3 - vz24) / ZS.r * 1e3, 1)} mA at a jump start (short-time overload of the 0603s — accepted for a shorted wire). A7-N04: the round-7 BAT46 into V5A back-fed a sleeping rail with ≈8 mA. Vishay alt BZT52B5V6 (+6·10⁻⁴/K): ≤ 6.43 V`);
+  judge("Safety A.8", "ASC break-before-make: HS off before LS on", `LS starts ≥ ${f(ASC.tLsMin * 1e6, 2)} µs after the latch sets`,
     `HS off by ${f((ASC.tHsEn + 2.5e-6) * 1e6, 2)} µs (${f(ASC.tHsEn * 1e6, 2)} µs to EN + 2.5 µs IGBT dead time)`, (ASC.tHsEn + 2.5e-6) / ASC.tLsMin, 0.9,
     "RR05, FS1B path shown (FS0B → USCH → ANDs → EN); the MCU path is faster (eFlexPWM fault on the high-side outputs → IN+ low, tpHL ≤ 0.13 µs), and its low sides come on by PWM after the dead time. EN stays high on the MCU path so LS DESAT keeps priority (DS §8.12). SiC dead time is 1.0 µs — more margin");
-  add("Safety A.7", "ASC entry, latch set → LS gates on (worst)", `${f(ASC.tEntryMax * 1e6, 2)} µs`, "counted in the FW-06 budget (§2b)", "INFO",
+  add("Safety A.8", "ASC entry, latch set → LS gates on (worst)", `${f(ASC.tEntryMax * 1e6, 2)} µs`, "counted in the FW-06 budget (§2b)", "INFO",
     "release ≤ 0.75 µs (TLP152 tpHL 0.19 µs + DASCR discharge + tASC_f 0.48 µs); exit is MCU-sequenced (FW-06a)");
-  const iLed = (4.9 - 0.24 - 1.8) / 270, iLedMax = (5.1 - 0.05 - 1.4) / 270;
-  judge("Safety A.7", "ASC opto LED current (RASCL 270 R) vs TLP152 I_FLH", `${f(iLed * 1e3, 1)} mA min · ${f(iLedMax * 1e3, 1)} mA max`, "7.5 mA I_FLH max · 15 mA recommended max",
-    7.5e-3 / iLed, 0.8, "round 7 (self-found, N10): 470 R gave 5.4–7.0 mA, under the guaranteed turn-on current. V5A 4.9 V, LVC V_OH drop 0.24 V at 11 mA, V_F 1.8 V max");
+  // the mask must release the healthy low sides' ASC pins before the fault latch drops DRV_EN, or they sit in
+  // EN-low ASC, where the LS DESAT is not documented (cross-check R8X-08: this row used to be a fixed PASS)
+  const tMask = 5.4e-9 + 5.5e-9 + 0.75e-6, tDropMin = 9.9e3 * 3.3e-9 * 0.95 * Math.log(1 / SCH.tnHi);
+  judge("Safety A.8", "Latched driver FLT masks ASC on every path (UASCG) before DRV_EN drops",
+    `ASC_CMD low ≤ ${f((tMask - 0.75e-6) * 1e9, 0)} ns, LS ASC pins released ≤ ${f(tMask * 1e6, 2)} µs`, `DRV_EN drop ≥ ${f(tDropMin * 1e6, 0)} µs after FLT`, tMask / tDropMin, 0.5,
+    "round 8 R7-01/A7-N01: the faulted NSI6611 holds its own gate off through IN-low and EN-low with ASC high (DS Fig. 8.11); the gate removes ASC from the HEALTHY low sides and the eFlexPWM fault forces IN low, so the bridge reaches SPO (FS1B-ASC included). The MCU re-enters ASC only through §4c after the FW-15 reset. Wiring locked in erc-audit");
+  // both TLP152 LEDs, from buffered 5 V logic: I = (V_CC − I_pd·R_out − V_F)/(R + R_out), R 261 R ±1 %, the
+  // far-end 10 k pulldown (RPD8/RPD9) loading the same output; temperature-consistent corners (R8X-04)
+  const rLed = 261;   // RASCL = RQDL (ERC-locked)
+  const iLedAt = (rOut, vf) => (4.9 - 0.5e-3 * rOut - vf) / (rLed * 1.01 + rOut);
+  const iLedCold = iLedAt(LVC.rOutC, LED.vfMax), iLedHot = iLedAt(LVC.rOut, LED.vfMaxHot);
+  const iLed = Math.min(iLedCold, iLedHot), iLedMax = (5.1 - LED.vfMin) / (rLed * 0.99);
+  const ledSt = iLed >= LED.iRecMin && iLedMax <= LED.iRecMax ? "PASS" : iLed >= LED.iFlh && iLedMax <= 20e-3 ? "WARN" : "FAIL";
+  for (const [tag, drv] of [["ASC opto (RASCL, from UASCG)", "74LVC1G08-Q100"], ["discharge opto (RQDL, from USCH2 ch3)", "74LVC3G17-Q100"]])
+    add("Safety A.8", `TLP152 LED current — ${tag}`, `${f(iLedCold * 1e3, 2)} mA cold · ${f(iLedHot * 1e3, 2)} mA hot · ${f(iLedMax * 1e3, 2)} mA max`,
+      "10–15 mA recommended I_F(ON) (7.5 mA I_FLH max, 20 mA abs)", ledSt,
+      `${drv}: cold = −40 °C V_F ${LED.vfMax} V with R_out ≤ ${f(LVC.rOutC, 1)} Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F ${f(LED.vfMaxHot, 2)} V with R_out ≤ ${f(LVC.rOut, 1)} Ω (125 °C); max at V5A 5.1 V, V_F ${f(LED.vfMin, 2)} V, R_out 0. I_FLH margin ${f(iLed / LED.iFlh, 2)}×. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold`);
   // F41 KL15 sense:
   judge("LV A.4", "IGN_SNS at 16 V KL15", `${f((16 - 0.7) * 10 / 57, 2)} V`, "5 V ADC range",
     ((16 - 0.7) * 10 / 57) / 5, 0.75, "F41 — was a raw diode into PTA25 (13.3 V)");
@@ -490,10 +528,26 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
 same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md) and [\`review-A7-disposition.md\`](review-A7-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
+| F90 | **HIGH** | A DESAT during latched ASC did not reach SPO: the faulted NSI6611 holds its own gate off (DS Fig. 8.11), but the healthy low sides stayed on through ASC, and a reset edge with the latch still set re-energised the faulted switch (R7-01/A7-N01) | UASCG: ASC_CMD = latch AND no-FLT on every path (FS1B-ASC included); FW-15 clears the ASC latch before the recovery; §4c transition table |
+| F91 | MED | The FLT diode-OR reached the fault-latch preset at 111–135 ns/V (R7-02); buffering it exposed a 1N4148 low level at the Schmitt threshold (N12) | USCH2 74LVC3G17-Q100 on both latch presets; DFLT1/2 BAT46 |
+| F92 | MED | Discharge TLP152 driven 470 Ω from the MCU pin: 6.4–6.8 mA vs 7.5 mA I_FLH max; the ASC opto proof used an assumed output drop (R7-03/A7-N03) | QDIS_CMD from USCH2 ch3, RQDL 270 Ω; both LEDs 9.6–14.2 mA from the guaranteed LVC V_OH point and V_F cold |
+| F93 | MED | FW-16 boot test masked by RDY with gate power off; single-polarity (R7-04/A7-N02) | sensitized test with gate power up, before precharge, both polarities; coverage stated |
+| F94 | MED | FAULT_OUT short to KL30 back-fed V5A through DSET/RENP2 (≈8 mA with V5A off) (A7-N04) | ZSET to ground, RENP2 removed: ≤ 0.6 mA into V5A |
+| F95 | LOW | bom-gen wrote per-board CSVs before the semantic checks, so a failed run overwrote good outputs (A7-N05) | validate first, then publish atomically (temp + rename); mutation-tested |
+| F96 | LOW | S4 called a 0.8 s junction pole conservative, and its case node delayed plate heating (R7-07, N14) | junction-case and case-plate static (an upper bound at every instant); +3 °C |
+| F97 | LOW | Contract said the NSI6611 reset needs EN low ≥ t_FLT_MUTE; the DS (Fig. 8.8) has a mute time from the fault plus a ≥ t_RST_FIL pulse after it (N13) | §7 corrected; FW-15 unchanged |
+| F98 | MED | Contract (cross-check R8X-01/02/03): FW-15 could leave the ASC latch set, so ASC returned at the reset edge with PWM held low (LS on with IN+ low — DESAT undocumented); FW-16 relied on sequence position, not measured V_DC/speed, for its HV-free step a; FW-16 d/e could not drop RDY while FS_GPIO1 held the flyback OR, and the FS_GPIO1 input was never tested | FW-15 always clears ASC (re-entry only through §4c); FW-16 measured preconditions, VCU precharge handshake, stored-pass arming; d/e drive FS_GPIO1 low, new g tests the OR; new h injects FLT (latch + mask covered in the field); FS1B_TDELAY = 0 required |
+| F99 | MED | Dead-state gaps (R8X-06 + self-found): a Hi-Z USCH2 floated the fault-latch preset and the ASC mask — FW-16 passed with both gone; behind UASCG a Hi-Z ULAT floated the gate input (round 8 had moved the ASC pull-down off the latch) | RFCB 100 k on FLT_CMB_B (dead USCH2 = latched FLT: SPO, ASC masked, FW-16 b fails); RASCP moved to ASC_Q (dead ULAT = no ASC) |
+| F100 | MED | QDIS_CMD sat next to V15 on the 4-way discharge header: a pin short put 15 V into USCH2 — which also carries both latch presets — and back into V5A (R8X-07) | header V15-GND-CMD-GND on both boards, locked by pin number |
+| F101 | LOW | TLP152 LEDs 9.9 mA at the consistent cold corner, under the 10 mA recommended I_F; the model paired the 125 °C output resistance with the −40 °C V_F and omitted the far-end pulldown (R8X-04) | RASCL = RQDL = 261 Ω 1 %: 10.3–14.8 mA, judged against 10–15 mA |
+| F102 | LOW | ZSET C5V6 "≤ 6.0 V" held only at 25 °C/5 mA: 6.62 V at a 35 V load dump on a KL30-shorted FAULT_OUT at 125 °C, over the USCH2 6.5 V abs max (R8X-05) | BZT52-B5V6 (±2 %): ≤ 6.34 V. C5V1 rejected — its soft knee through RFS2 would sag the released level toward V_T+ |
+| F103 | LOW | FLT_LS_N had no glitch filter (CFLTF only on FLT_HS_N); a glitch now drops ASC and latches SPO with no automatic retry (R8X-12) | CFLTF2 100 pF |
+| F104 | LOW | Lock-ins missed the FLT diode-OR, the FS1B back-feed by net and all of parts-db — a moved DFLT2 anode and an added FS1B pull-up both passed 854/0; two A.8 rows were fixed PASS (R8X-08) | ERC by net, pin number and first-match MPN per SKU; both rows computed; every new lock-in mutation-tested |
+| F105 | LOW | S4 "true upper bound" held only for the assumed 60 s plate pole; VCC2 used 50 % FB-sense conduction on every corner; UASCG delay 4.4 ns (R8X-11/16) | static-plate bound reported (8XX IGBT 142 °C, WARN); per-corner conduction 1/0.5/0.2; 5.5 ns |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |

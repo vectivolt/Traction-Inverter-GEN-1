@@ -18,8 +18,9 @@ export default () => (
     <chip name="JDCP" footprint={StudFP(6.5, 12)} {...gp()} pinLabels={{ pin1: "P" }} connections={{ P: "net.DCP" }} />
     <chip name="JDCN" footprint={StudFP(6.5, 12)} {...gp()} pinLabels={{ pin1: "P" }} connections={{ P: "net.DCN" }} />
     {/* control from the power board: V15 bias, discharge command, ground */}
+    {/* pin order V15, GND, CMD, GND — CMD never next to V15 (round 8 cross-check, matches JDIS) */}
     <chip name="JCTL" footprint={Header(4)} {...gp()}
-      pinLabels={{ pin1: "V15", pin2: "CMD", pin3: "GND1", pin4: "GND2" }}
+      pinLabels={{ pin1: "V15", pin2: "GND1", pin3: "CMD", pin4: "GND2" }}
       connections={{ V15: "net.V15", CMD: "net.QDIS_CMD", GND1: "net.DGND", GND2: "net.DGND" }} />
 
     {/* ---- passive bleeder: 2 strings x 6 series 22k 2512 2W = 66k (always on) ----
@@ -40,7 +41,9 @@ export default () => (
       connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSQDN", COM: "net.DCN", VOP: "net.V18Q" }} />
     <chip name="UQD" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
       connections={{ ANO: "net.QDA", CAT: "net.DGND", GND: "net.DCN", VO: "net.QDVO", VCC: "net.V18Q" }} />
-    <resistor name="RQDL" resistance="470" footprint="0603" {...gp()} connections={{ pin1: "net.QDIS_CMD", pin2: "net.QDA" }} />
+    {/* TLP152 LED 261 R 1 % from the card's Schmitt-buffer output: 10.3-14.8 mA, inside the DS
+        10-15 mA recommended I_F (round 8, R7-03 — 470 R from the MCU pin gave 6.4-6.8 mA) */}
+    <resistor name="RQDL" resistance="261" footprint="0603" {...gp()} connections={{ pin1: "net.QDIS_CMD", pin2: "net.QDA" }} />
     <resistor name="RQDG" resistance="47" footprint="0603" {...gp()} connections={{ pin1: "net.QDVO", pin2: "net.G_QDIS" }} />
     <resistor name="RQDPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.G_QDIS", pin2: "net.DCN" }} />
     <capacitor name="CQD" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18Q", pin2: "net.DCN" }} />

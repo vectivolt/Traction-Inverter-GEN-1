@@ -6,7 +6,7 @@ Qty,Designators,Value,MPN,Manufacturer,Description,LCSC,Footprint,Price1k_INR,Ex
 2,"JDCN JDCP","","STUD-M6","local","discharge-board bolt terminal onto the cap bank / busbar",CLASS,"StudM6",18,36,"M8"
 12,"RBLD1 RBLD10 RBLD11 RBLD12 RBLD2 RBLD3 RBLD4 RBLD5 RBLD6 RBLD7 RBLD8 RBLD9","15k","R2512-15k-2W","any","15 k 2512 2 W thick film (4XX bleeder 6s x 2p = 45 k: 89 s worst to 60 V; 83 V/resistor at 500 V)",CLASS,"-",3,36,"-"
 1,"JCTL","","HDR-1x4-2.54","any","discharge-board control link (V15 / QDIS_CMD / GND x2) — locking header at layout",CLASS,"HDR1x4",6,6,"JST-XH 4p"
-1,"RQDL","470","R0603-470R","any","discharge opto LED series",CLASS,"R0603",0.4,0.4,"any"
 1,"RQDG","47","R0603-47R","any","discharge gate resistor",CLASS,"R0603",0.4,0.4,"any"
 1,"RQDPD","10k","R0603-10k","any","discharge gate pulldown to DCN (default-OFF)",CLASS,"R0603",0.4,0.4,"any"
+1,"RQDL","261","R0603-261R-1%","any","discharge opto LED series 261 R 1 % from the card Schmitt-buffer output: 10.3-14.8 mA, inside the TLP152 10-15 mA recommended I_F (I_FLH 7.5 mA max; round 8 R7-03 + cross-check — 470 R from the MCU pin gave 6.4-6.8 mA, 270 R dipped to 9.9 mA cold)",CLASS,"R0603",0.3,0.3,"any"
 1,"CQD","100nF","MLCC-100nF-25V","any","discharge bias decoupling",CLASS,"C0603",0.3,0.3,"any"

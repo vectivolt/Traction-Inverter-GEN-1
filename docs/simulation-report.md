@@ -1,4 +1,4 @@
-# Simulation report (rev A.7 · generated 2026-09-23)
+# Simulation report (rev A.8 · generated 2026-09-23)
 
 Numerical time/frequency-domain simulations of the drawn circuits at the actual operating
 conditions (`calculations/sim-verify.mjs`). These complement — not replace — the closed-form
@@ -21,10 +21,11 @@ are flagged in each row's note.
 | S2 | UB15 phase margin @9 V in | 72° | ≥45° | ✅ PASS | vs ~0° for the pre-A.4.3 capacitor-only COMP; measured Bode still a bench gate |
 | S3 | Cap ripple per can, worst point — 8XX bank, 340 A | 13.8 A rms (bank 221 A, M 0.6, cosφ 1) | 15.4 A/can @10 kHz/70 °C | ✅ PASS | rated point (M 1.0, cosφ 0.85) 10.9 A/can; equal sharing assumed — 15–20 % busbar imbalance is a thermal-test item |
 | S3 | Cap ripple per can, worst point — 4XX bank, 400 A | 16.2 A rms (bank 260 A, M 0.6, cosφ 1) | 18 A/can @10 kHz/70 °C | ✅ PASS | rated point (M 1.0, cosφ 0.85) 12.8 A/can; equal sharing assumed — 15–20 % busbar imbalance is a thermal-test item |
-| S4 | Tj end of 30 s peak — 8XX SiC (340 A, 850 V, 10 kHz) | 122 °C (from 90 °C continuous) | 175 °C Tj max | ✅ PASS | 554 W/switch peak, 200 W continuous (hottest die); coldplate 0.045 K/W assumed |
-| S4 | Tj end of 30 s peak — 8XX IGBT (340 A, 850 V, 5 kHz) | 129 °C (from 99 °C continuous) | 150 °C Tvjop | ✅ PASS | 560 W/switch peak, 250 W continuous (hottest die) + diode 91/42 W into the shared coldplate (RR07); coldplate 0.045 K/W assumed |
-| S4 | Tj end of 30 s peak — 4XX IGBT (400 A, 500 V, 5 kHz) | 123 °C (from 100 °C continuous) | 150 °C Tvjop | ✅ PASS | 496 W/switch peak, 253 W continuous (hottest die) + diode 82/43 W into the shared coldplate (RR07); coldplate 0.045 K/W assumed |
-| S4 | Tj end of 30 s peak — 4XX SiC (400 A, 500 V, 10 kHz) | 130 °C (from 98 °C continuous) | 175 °C Tj max | ✅ PASS | 618 W/switch peak, 261 W continuous (hottest die); coldplate 0.045 K/W assumed |
+| S4 | Tj end of 30 s peak — 8XX SiC (340 A, 850 V, 10 kHz) | 125 °C (from 90 °C continuous) | 175 °C Tj max | ✅ PASS | 554 W/switch peak, 200 W continuous (hottest die); coldplate 0.045 K/W assumed |
+| S4 | Tj end of 30 s peak — 8XX IGBT (340 A, 850 V, 5 kHz) | 132 °C (from 99 °C continuous) | 150 °C Tvjop | ✅ PASS | 560 W/switch peak, 250 W continuous (hottest die) + diode 91/42 W into the shared coldplate (RR07); coldplate 0.045 K/W assumed |
+| S4 | Tj end of 30 s peak — 4XX IGBT (400 A, 500 V, 5 kHz) | 125 °C (from 100 °C continuous) | 150 °C Tvjop | ✅ PASS | 496 W/switch peak, 253 W continuous (hottest die) + diode 82/43 W into the shared coldplate (RR07); coldplate 0.045 K/W assumed |
+| S4 | Tj end of 30 s peak — 4XX SiC (400 A, 500 V, 10 kHz) | 133 °C (from 98 °C continuous) | 175 °C Tj max | ✅ PASS | 618 W/switch peak, 261 W continuous (hottest die); coldplate 0.045 K/W assumed |
+| S4 | Tj static-plate bound (30 s peak held to steady state, no plate mass) — all SKUs | 135 / 142 / 133 / 143 °C | 175 / 150 / 150 / 175 °C | ⚠️ WARN | 8XX SiC / 8XX IGBT / 4XX IGBT / 4XX SiC; every SKU stays under its limit for ANY plate time constant — the modelled rows above take τ 60 s (assumed). Worst: 8XX IGBT at 95 % of 150 °C — the thermal test (T7-10) measures the plate pole |
 | S5 | Active discharge 850→60 V, 8XX, nominal | 1.57 s | ≤2 s crash target (5 s R100) | ✅ PASS | 28.2 J per 470 Ω wirewound (100 J single-pulse class); bleeder 66 k counted once |
 | S5 | Active discharge 850→60 V, 8XX, worst (C +10 %, R +5 %) | 1.81 s | ≤2 s crash target (5 s R100) | ✅ PASS | 31 J per 470 Ω wirewound (100 J single-pulse class); bleeder 66 k counted once |
 | S5 | Active discharge 500→60 V, 4XX, nominal | 1.47 s | ≤2 s crash target (5 s R100) | ✅ PASS | 24.3 J per 220 Ω wirewound (100 J single-pulse class); bleeder 45 k counted once |
@@ -41,7 +42,7 @@ are flagged in each row's note.
 | S9 | DESAT reaction, IGBT 82 pF | 4.77 µs (detect 2.98 + soft-off 1.79; 10.1 µs at 100 mA) | 6 µs @800 V/15 V/175 °C (DS) | ⚠️ WARN | 150 pF gave 4.5 µs detection alone (F03). Global DRV_EN drop is held 22–53 µs past this (RC delay into the USCH Schmitt buffer) so it cannot cut the soft-off short |
 | S10 | ASC hold-up after TOTAL LV loss (gate reservoirs) | 3.1 ms typ · 0.5 ms worst | - | ⚠️ WARN | and the ASC command path collapses within ≈1 ms: sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract) |
 
-**23 PASS · 5 WARN · 0 FAIL**
+**23 PASS · 6 WARN · 0 FAIL**
 
 ![S1](img/sim/s1-flyback-startup.svg)
 ![S2](img/sim/s2-boost-bode.svg)

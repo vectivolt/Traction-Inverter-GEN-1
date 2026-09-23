@@ -4,7 +4,7 @@
 // UNMATCHED components are listed loudly — the BOM is not done until that list is empty.
 // Run (after tsci builds): node calculations/bom-gen.mjs
 
-import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, statSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB, OVERRIDES, SKUS } from "./parts-db.mjs";
@@ -40,6 +40,8 @@ const mpnValue = (mpn) => {
   return null;
 };
 const mismatches = [];
+const outputs = new Map();   // path -> content; published only if the whole set validates (A7-N05)
+const unmatchedAll = [];
 
 const CAT = (mpn, desc) =>
   /SiC|module|MOSFET|NFET/i.test(desc) ? "power semiconductors"
@@ -61,14 +63,14 @@ const SUBSYS = [
   ["Gate drivers + networks", /^(U[UVW][HL]G|[RDCZ][UVW][HL])/],
   ["Gate-power flybacks", /^([UQ]F[HL]|[RCD]F[HL]|ZF[HL]|TF[HL])/],
   ["VDC iso sensing + bias", /^(RV[DB]D|CV[DB]DF|UIV|PS5B|C5B)/],
-  ["ASC buffer", /^(PSASC|UASC|RASC|CASC|DASCR)/],
+  ["ASC buffer", /^(PSASC|UASC$|RASC(L|G|PD)$|CASCD?$|DASCR|ZASC)/],
   ["LV power (prot+LDO+boost)", /^(F[HL]1|DR[HL]|DTV[HL]|LF[HL]1|CLV[HL]|UGDL|C5G|UB15|LB15|DB15|CB15|RB15)/],
   ["HV entry/Y-caps/HVIL/studs", /^(JHV|JPE|JM[UVW]|CY[12]|RPET|CPET|JHVIL|RHVL|DTVSH)/],
   ["Harness + pulldowns", /^(JIC$|RPD\d+|JICC|RCPD)/],
   ["Module NTC routing", /^([RC][UVW]T[SF]|D[UVW]TP)/],
   ["MCU + clock + debug", /^(UMCU|Y1|CY[AB]|CMD|CMA|RMRST|JSWD|RBOOT|CRST)/],
   ["FS26 SBC + LV input + wake", /^(USBC|DBAT|LSBC|LCOR|CSB|RSB|RAGT|FLVC|DREVC|DTVSC|LFC|CLVC|RIGN|DIGN|CIGN)/],
-  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|USCH|CSCH|RSCH|REN|RFS|RGPD|RFLT|DFLT|CFLT|CCLR|DCLR|DFO|DSET|RDRB|RARB|RRDYP|RLAT|RASCP|CLAT|RILK|CILK)/],
+  ["Safety chain (EN/ASC/ILK)", /^(UAND|UOR|ULAT|USCH|CSCH|RSCH|REN|RFS|RGPD|RFLT|DFLT|CFLT|CCLR|DCLR|DFO|ZSET|UASCG|CASCG|RQDM|RFCB|RDRB|RARB|RRDYP|RLAT|RASCP|CLAT|RILK|CILK)/],
   ["Resolver AFE", /^(UEX|UVMB|REX|CEX|RVM|CVM|[RDC](SIN|COS))/],
   ["Hall sensors + AFE", /^(USNS|JLEM|[ULRC][UVW]B\d?|C[UVW]S[12])/],
   ["VDC receivers (card)", /^([RUC]VD[12])/],
@@ -145,10 +147,9 @@ for (const [board] of BOARDS) {
     }
     const clean = (s) => `"${String(s ?? "").replace(/"/g, "'")}"`;
     csv.push([refs.length, clean(refs.sort().join(" ")), clean(val), clean(rule.mpn), clean(rule.mfr),
-      clean(rule.desc), rule.lcsc ?? "CLASS", clean(rule.fp ?? ""), rule.price1k, ext, clean(rule.alt)].join(","));
+      clean(rule.desc), rule.lcsc ?? "CLASS", clean(rule.fp ?? ""), rule.price1k, Math.round(ext * 100) / 100, clean(rule.alt)].join(","));
   }
-  const csvPath = join(ROOT, "docs", `bom-${board}${SFX}.csv`);
-  writeFileSync(csvPath, csv.join("\n") + "\n");
+  outputs.set(join(ROOT, "docs", `bom-${board}${SFX}.csv`), csv.join("\n") + "\n");
   grand += total;
   md += `## ${board} — ${[...lines.values()].reduce((a, l) => a + l.refs.length, 0)} components, ${lines.size} BOM lines, ≈ ₹${Math.round(total).toLocaleString("en-IN")} @1k\n\n`;
   md += `CSV: [\`docs/bom-${board}${SFX}.csv\`](bom-${board}${SFX}.csv). Top cost lines:\n\n`;
@@ -156,10 +157,7 @@ for (const [board] of BOARDS) {
   for (const { rule, refs } of rows.slice(0, 12))
     md += `| ${refs.length} | ${rule.mpn} | ${rule.desc.split("(")[0].trim().slice(0, 60)} | ${Math.round(rule.price1k * refs.length).toLocaleString("en-IN")} | ${String(rule.alt).slice(0, 40)} |\n`;
   md += "\n";
-  if (unmatched.length) {
-    md += `**UNMATCHED (fix parts-db): ${unmatched.join(", ")}**\n\n`;
-    process.exitCode = 1;
-  }
+  unmatchedAll.push(...unmatched.map((n) => `${board}:${n}`));
   console.log(`${board}: ${lines.size} lines · ₹${Math.round(total).toLocaleString("en-IN")} @1k${unmatched.length ? ` · UNMATCHED: ${unmatched.join(",")}` : ""}`);
 }
 md += `## BOM contribution by subsystem (all boards, ₹ @1k)\n
@@ -180,9 +178,13 @@ for (const [cat, v] of [...catTotal].sort((a, b) => b[1] - a[1]))
 md += `| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **${Math.round(grand).toLocaleString("en-IN")}** | 100% |\n\n`;
 md += `The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.\n`;
-if (mismatches.length) {
-  console.log(`!! VALUE/MPN MISMATCH (${mismatches.length}) — fix parts-db:\n   ${mismatches.join("\n   ")}`);
-  process.exitCode = 1;
+// validate the whole set before publishing anything (A7-N05): a failed run leaves the last good files
+if (mismatches.length || unmatchedAll.length) {
+  if (mismatches.length) console.error(`!! VALUE/MPN MISMATCH (${mismatches.length}) — fix parts-db:\n   ${mismatches.join("\n   ")}`);
+  if (unmatchedAll.length) console.error(`!! UNMATCHED (fix parts-db): ${unmatchedAll.join(", ")}`);
+  console.error("BOM ABORTED — previous outputs left unchanged");
+  process.exit(1);
 }
-writeFileSync(join(ROOT, "docs", `bom${SFX}.md`), md);
+outputs.set(join(ROOT, "docs", `bom${SFX}.md`), md);
+for (const [path, text] of outputs) { writeFileSync(path + ".tmp", text); renameSync(path + ".tmp", path); }
 console.log(`→ docs/bom${SFX}.md + per-board CSVs · TOTAL ≈ ₹${Math.round(grand).toLocaleString("en-IN")} @1k`);

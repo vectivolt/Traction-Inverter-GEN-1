@@ -496,7 +496,7 @@ const HAND = {
   // Safety reads: the AND chain with its pull-ups | the fault/ready conditioning.
   "SAFETY / GATE-EN": [
     ["RENP1", "RENP2", "UAND1", "UAND2", "RGPD", "CAND1", "CAND2"],
-    ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "CFLTF"],
+    ["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "CFLTF", "CFLTF2"],
     ["ULAT2", "DFLT1", "DFLT2", "RFLTC", "RLAT2", "CLAT2"],
     ["RFLTD", "CFLTD", "CCLR", "DCLR"],
   ],

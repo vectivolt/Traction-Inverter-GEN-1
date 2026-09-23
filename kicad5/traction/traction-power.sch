@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)"
 Date "2026-09-23"
-Rev "A.7"
+Rev "A.8"
 Comp "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)"
@@ -44,7 +44,7 @@ CONTROL-IF   -   1 section
 Text Notes 32900 14800 0    60   ~ 0
 DC-LINK   -   1 section
 Text Notes 32910 15450 0    60   ~ 0
-rev A.7   -   24 sections   -   306 components
+rev A.8   -   24 sections   -   306 components
 Wire Notes Line
 	32850 16400 37300 16400
 Wire Notes Line
@@ -6354,11 +6354,11 @@ L traction-r1:R RASCL
 U 1 1 5E000101
 P 7300 25150
 F 0 "RASCL" H 7300 24990 50  0000 C CNN
-F 1 "270R" H 7300 25320 50  0000 C CNN
+F 1 "261R" H 7300 25320 50  0000 C CNN
 F 2 "R0603" H 7300 25150 50  0001 C CNN
 F 3 "~" H 7300 25150 50  0001 C CNN
 F 4 "CLASS" H 7300 25150 50  0001 C CNN "LCSC"
-F 5 "R0603-270R" H 7300 25150 50  0001 C CNN "MPN"
+F 5 "R0603-261R-1%" H 7300 25150 50  0001 C CNN "MPN"
 	1    7300 25150
 	1    0    0    -1  
 $EndComp

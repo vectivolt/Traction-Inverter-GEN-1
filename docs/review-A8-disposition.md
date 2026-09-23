@@ -1,0 +1,215 @@
+# Review round 8 — disposition of every finding (rev A.8)
+
+**Inputs.** Both reviews checked the Road inverter at commit `2ac42ed` (rev A.7).
+
+- **Review 1:** *Independent A.7 recheck* (`A7_independent_recheck.html`), seven entries R7-01…R7-07.
+- **Review 2:** `review_2ac42ed.md`, five residual findings A7-N01…A7-N05 plus closure notes on
+  the round-7 items.
+
+The Marine Series is out of scope. Both reviewers accepted the round-7 corrections at source and
+calculation level (FS1B loading, the buffered RC nodes, the flyback sense, the 50 V capacitors,
+the thermal coupling, the loop ceiling, the BOM preflight, the debug-connector contact count, the
+bank inductance). This round answers what they left open.
+
+**Method.**
+
+- Every claim was checked against the manufacturer documents: NSI6611A-Q1 DS 1.2, FS26 Rev 3,
+  TLP152, Nexperia 74LVC1G74/1G08/3G17-Q100, BZT52, BAT46.
+- Neither reviewer could obtain the NSI6611 retained-fault behaviour. It is in the local
+  datasheet: **Fig. 8.11** (ASC with DESAT) and **Fig. 8.8** (DESAT reset timing) were read
+  directly. They decide R7-01/A7-N01.
+- Every number that decides a disposition was recomputed.
+- Every fix has a lock-in in `erc-audit.mjs` (**864 checks, 0 fail**), mutation-tested: each fails
+  when its fix is reverted. The first version of this claim was not true for two fixes; the
+  cross-check showed it, and it is now (R8X-08).
+- Numeric checks: `design-verify.mjs` **108 PASS · 14 WARN · 0 FAIL**; `sim-verify.mjs`
+  **23 PASS · 6 WARN · 0 FAIL**.
+- An independent second reviewer (Opus) cross-checked the implemented changes. Its 17 findings
+  and 6 notes on older items are dispositioned the same way at the end; the fixes are included in
+  every number above.
+
+## Verdict in one paragraph
+
+The reviews were right on the one question that mattered: what happens when a DESAT fault arrives
+while ASC is already latched. The datasheet settles half of it in our favour. Fig. 8.11 shows the
+**faulted** NSI6611 holding its own gate off with ASC high, through IN going low and through an
+RST/EN pulse. It turns back on only at a reset rising edge after the mute time. So the faulted
+switch cannot re-assert when firmware drops PWM or the fault latch drops EN.
+
+The other half was a real gap. The **healthy** low sides stay on through ASC, so "FLT ⇒ SPO" was
+not true while the ASC latch stayed set, and a reset edge with ASC still set would re-energise the
+faulted switch. One ₹5 AND gate now makes any latched driver fault mask ASC on every path, the
+FS1B path included.
+
+The other hardware items are small:
+
+- the last slow input on a latch preset now goes through a second Schmitt buffer;
+- the discharge opto is driven from that buffer (it had the same under-drive the ASC opto had),
+  and both LEDs now sit inside the TLP152's recommended 10–15 mA;
+- the FAULT_OUT battery-short clamp now goes to ground instead of into the logic rail.
+
+The boot self-test was re-specified so that no test can hide behind RDY. After the cross-check,
+it runs only on measured no-HV/standstill conditions and now also reaches the FLT paths. The BOM
+generator now publishes atomically. **+₹18 per unit** (cross-check included).
+
+## Classification legend
+
+| Class | Meaning |
+|---|---|
+| **Confirmed** | Real defect; fixed in rev A.8 (file and lock-in named) |
+| **Already Fixed** | The repository already handled it, or already tracked it as an explicit gate; no change needed |
+| **Firmware Handled** | Correctly owned by firmware; requirement now in `firmware-contract.md` (FW-xx) |
+| **Not Applicable** | Does not apply to this design's envelope, or outside a hardware repository |
+| **False Finding** | The claim, or its proposed fix, is wrong for this design |
+| **Improvement Recommended** | Valid, not a defect; implemented where it cost nothing, otherwise listed |
+
+## Review 1 — R7-01…R7-07
+
+| ID | Review said | Class | Verification | Action in rev A.8 |
+|---|---|---|---|---|
+| R7-01 | CRITICAL — after a DESAT during PWM-ASC, FW-15 drops IN and the fault latch drops EN, removing the conditions under which DESAT is credited, while the ASC latch stays set; "SPO" is not reached | **Confirmed** (contract contradiction). The silicon half is resolved by the DS. | **NSI6611 DS 1.2 Fig. 8.11:** with ASC high, a DESAT soft-turns the gate off, FLT latches, and the gate **stays off** when IN goes low and through an RST/EN low pulse. It returns only at the RST/EN rising edge after the mute time, and then follows ASC. **§8.10 / Fig. 8.8:** resets during the 0.55–1.3 ms mute time are ignored; release comes at a reset rising edge after it. §9.4 words it as a ≥ t_FLT_MUTE hold, and FW-15 satisfies both readings. So the faulted switch cannot re-assert on PWM-low or EN-low. **The real gap:** the healthy low sides stay on via ASC (no SPO), and a reset edge with the latch still set re-energises the faulted one. | **UASCG = 74LVC1G08-Q100:** ASC_CMD = ASC latch AND no-FLT. Any latched driver fault masks ASC in ≤ 0.01 µs; the pins release ≤ 0.75 µs later. This works on every path, FS1B-ASC included, so a causally related reset after a DESAT cannot bring ASC back. FW-15 **always** clears the ASC latch before the recovery; ASC returns only through §4c (cross-check R8X-01). The transition table is in firmware-contract §4c. ₹5.6. |
+| R7-02 | MAJOR — FLT_CMB_N (5.1 k ∥ 10 k, 100 pF) still reaches the ULAT2 preset at 111–135 ns/V vs 10 ns/V | **Confirmed** (ROC) | Reproduced. The Nexperia -Q100 flip-flop is 10 ns/V despite its "Schmitt action" text. The release is logically benign (it happens while CLR is low), but it is outside the datasheet. | **USCH2 = 74LVC3G17-Q100**, channel 1: FLT_CMB_N → ULAT2 /PRE and the ASC gate. The same buffer takes the other latch preset (ASC_SET_N, channel 2). **Found while doing it:** with 1N4148 combining diodes the FLT diode-OR low level reaches ≈1.0 V cold, right at the Schmitt V_T− minimum; **DFLT1/2 are now BAT46** (0.75 V worst). |
+| R7-03 | MAJOR — the discharge TLP152 still has 470 Ω from the MCU pin (6.4–6.8 mA vs 7.5 mA I_FLH max) | **Confirmed** | Reproduced. It is the same defect as round-7 N10 on the other opto, missed then. | USCH2 channel 3 drives QDIS_CMD (the MCU pin only sees a CMOS input; RQDM 10 k keeps it off through reset). **RQDL 261 Ω 1 %** (270 Ω first; the cross-check showed 9.9 mA at the consistent cold corner, R8X-04). Both LEDs are computed from the guaranteed LVC V_OH points (−32 mA at 4.5 V: ≥ 3.8 V to 85 °C, ≥ 3.4 V to 125 °C, as linear R_out ≤ 21.9 / 34.4 Ω) at temperature-consistent corners: **10.29 mA cold · 10.80 mA hot · 14.84 mA max**, inside the 10–15 mA recommended I_F (7.5 mA I_FLH). V_F comes from the 25 °C table and the −1.8 mV/°C tempco; the TLP152 DS has no V_F curve. |
+| R7-04 | MAJOR — the FW-16 boot test is masked: with gate power off, RDY holds DRV_EN low, so FS0B/UAND1 stuck-high faults pass; a single low reading cannot detect stuck-low | **Confirmed** (diagnostic claim) → **Firmware Handled** | Reproduced. | FW-16 rewritten: gate power up, PWM held low, and — after the cross-check (R8X-02) — **measured** no-HV and standstill conditions, with a VCU precharge handshake and a stored-pass rule when it cannot run. Each term is tested with every other term permissive, in both polarities (FS0B by SPI request, MCU_GATE_EN, RDY_HS and RDY_LS with FS_GPIO1 low, the FS_GPIO1 OR input, the ASC latch set/clear). Step h injects FLT from the MCU pins, so the FLT → latch and FLT → ASC-gate paths are now covered in the field too (R8X-03/17). Zero BOM. |
+| R7-05 | CRITICAL — SC protection qualification still open (IGBT 10.1 µs at 100 mA vs 6 µs; SiC unpublished) | **Already Fixed** (tracked release gate) | The checker already reports WARN at both corners. | Unchanged gate. Fig. 8.11 now documents DESAT during ASC (EN high, IN+ high), and the contained SC test includes the ASC-held case. |
+| R7-06 | CRITICAL — during the ≥ 1.5 ms driver reset after an HS DESAT at speed the bridge is SPO; SPO must be energy-safe for the whole wait (32.8 J / 149 µs at 220 kW to U_N) | **Firmware Handled** + motor/pack gate | The arithmetic reproduces. The reviewer also notes that it assumes rated power continues, which it does not with the motor at SPO and a battery present. | **FW-08b:** after any DESAT at n ≥ n_x, the inverter asks the VCU/BMS to keep HV connected until ASC is back or n < n_x. §6 states the commissioning check (E_LL, L_d, n_max against the link energy). A battery lost inside the window is a double fault. No brake chopper by default. |
+| R7-07 | MODERATE — S4 calls a 0.8 s junction pole "conservative"; a slower pole rises less early | **Confirmed** (model claim) | Right: it is not a bound for short pulses. The 30 s end point was barely affected. | S4 now treats junction-case and case-plate as **static** resistances. Since Zth(t) ≤ Rth at all times, that bounds the junction for a given plate temperature; only the (assumed, test-gated) coldplate mass is dynamic. The 30 s peak rises about 3 °C: **125 / 132 / 125 / 133 °C**, all still inside Tvjop/Tj max. The cross-check (R8X-11) noted the plate pole carries the same objection, so the static-plate bound is reported too: **135 / 142 / 133 / 143 °C**, under every limit for any plate τ; 8XX IGBT is a WARN (95 % of 150 °C) until the thermal test. |
+
+## Review 2 — A7-N01…A7-N05 and closure notes
+
+| ID | Review said | Class | Verification | Action in rev A.8 |
+|---|---|---|---|---|
+| A7-N01 | = R7-01 | **Confirmed** | See R7-01. | UASCG mask + FW-15 ASC-latch clear + the §4c transition table. |
+| A7-N02 | = R7-04 | **Confirmed** → **Firmware Handled** | See R7-04. | FW-16 sensitized. |
+| A7-N03 | MAJOR — the 270 Ω ASC LED current rests on an assumed 0.24 V output drop, not a guaranteed corner | **Confirmed** (proof gap), no defect in the part value | The Nexperia guarantee is V_OH ≥ 3.4 V at 4.5 V/−32 mA/125 °C. A MOS output in triode drops less than linearly below that current, so R_out ≤ 34 Ω is a valid bound (the reviewer's 5.87 mA applied the 32 mA point to an 11 mA load). With V5A ≥ 4.9 V and V_F 1.95 V cold, I_F ≥ 9.6 mA. | The row is re-derived from the guaranteed points. The driver is now UASCG (same LVC output). After the cross-check the value is 261 Ω (see R7-03). The ASC-entry budget uses t_pLH 0.25 µs at the low-current corner (7.07 µs entry). |
+| A7-N04 | MAJOR — DSET clamps a FAULT_OUT battery short into V5A (5.7–10 mA); sleep/off behaviour unproven | **Confirmed**, fixed at no cost rather than tested | With V5A off, the round-7 path (DSET + RENP2) could inject ≈8 mA into the rail. The FS26 does actively discharge a disabled LDO (R_DCHG 20–60 Ω, Table 124), which would have held it below 0.5 V, but no reverse-current rating is given, so the path is removed instead of argued. | **ZSET to ground** replaces DSET — a BZT52-B5V6 after the cross-check (R8X-05: a C5V6 reached 6.62 V at a 35 V load dump, 125 °C). **RENP2 removed:** FS1B is pulled up through the RFS1/RFS2 strap (11 k to V5A), still inside the FS26 read-back thresholds. Injection into V5A: ≤ 0.14 mA with V5A up, ≤ 0.63 mA with it off. FS1B load drops to 0.84 mA. Net −₹0.8. |
+| A7-N05 | MODERATE — bom-gen writes per-board CSVs before the semantic checks | **Confirmed** | Code order confirmed. | Everything is rendered in memory; nothing is written unless the whole set validates; each file is written via temp + rename. Mutation test: a forced value mismatch exits 1 and every previous output stays byte-identical. |
+| Note | Header(10,2) is a 2.54 mm through-hole placeholder, not the 1.27 mm SMT Samtec pattern | **Already Fixed** (tracked) | All connector and IC footprints are layout-stage placeholders. The generic helper is used for JVEH, JIC and JLEM too. | Bound at layout, with the MCU pin binding (A6-R12). No schematic change. |
+| Note | Some text still quotes the 61–230 µs one-shot | **Confirmed** (doc drift) | — | Synchronised to 72–210 µs everywhere. |
+| Note | The 100 Ω FB-sense resistor adds ~30 mV to the reflected rail | **Improvement Recommended** | Correct. | Included in the VCC2 model, per corner after the cross-check (R8X-16): conduction 100 / 50 / 20 %, VCC2 13.57–16.89 V. No hardware change. |
+
+## Found during this round
+
+| # | Finding | Fix |
+|---|---|---|
+| N12 | With the preset buffered, the FLT diode-OR's cold low level (V_OL + 1N4148 ≈ 1.0 V) sits at the Schmitt V_T− minimum | DFLT1/2 → BAT46 (0.75 V worst) |
+| N13 | The NSI6611 DS is not consistent about the fault reset. §9.4 says hold ≥ t_FLT_MUTE; §8.10 and Fig. 8.8 say resets are ignored during the mute time, then any ≥ t_RST_FIL pulse releases FLT. The contract quoted only the first reading. | Contract §7 states both. FW-15's ≥ 1.5 ms low satisfies both. The cross-check (R8X-09) showed the RR03 argument holds only for **fast** re-pulsing; slow re-pulsing can deliver a valid post-mute reset, so that case rests on the eFlexPWM lock and the watchdog (§7 and FW-15 now say so). |
+| N15 | The FS26 OTP table did not fix GPIO1's stage and slot. A slotted push-pull GPIO1 goes high at power-up (DS Table 133), which would raise gate power while FS1B still presets the ASC latch. | Design-basis §8a: GPIO1 push-pull, **not slotted**. FW-12 cross-references it. Zero BOM. |
+| N14 | S4's case node (τ 5 s) delayed plate heating, so the old 30 s result was not an upper bound | Removed with R7-07 (+3 °C) |
+
+## Hardware changes in rev A.8 (all SKUs)
+
+| Change | Parts | ₹/unit | Finding |
+|---|---|---|---|
+| ASC gate UASCG 74LVC1G08-Q100 (+100 nF): ASC_CMD = latch AND no-FLT | +2 | +5.3 | R7-01/A7-N01 |
+| Second Schmitt buffer USCH2 74LVC3G17-Q100 (+100 nF): FLT preset, ASC preset, discharge command | +2 | +10.3 | R7-02, R7-03 |
+| RQDM 10 k discharge-command pull-down | +1 | +0.3 | R7-03 |
+| RQDL 470 → 261 Ω 1 % (discharge board); RASCL 270 → 261 Ω 1 % (power board) | value swaps | 0 | R7-03, R8X-04 |
+| DFLT1/2 1N4148 → BAT46 | part swap | +2.2 | N12 |
+| DSET (BAT46 into V5A) → ZSET (BZT52-B5V6 to ground); RENP2 removed | −1 part | −1.1 | A7-N04, R8X-05 |
+| RFCB 100 k: dead-USCH2 pull-down on FLT_CMB_B | +1 | +0.3 | R8X-06 |
+| RASCP moved from ASC_CMD to ASC_Q (dead ULAT reads no-ASC) | move | 0 | N16 |
+| CFLTF2 100 pF on FLT_LS_N (matches CFLTF on FLT_HS_N) | +1 | +0.3 | R8X-12 |
+| Discharge header JDIS/JCTL pin order V15-GND-CMD-GND | pin swap | 0 | R8X-07 |
+| **Total** | | **+18** (₹71,022 → ₹71,040 SiC; ₹45,522 → ₹45,540 IGBT) | |
+
+**Rejected as over-engineering:**
+
+- Buffering the two RDY lines. They are open-drain AND inputs whose slow rise is state-benign:
+  - they rise while MCU_GATE_EN is low (§9);
+  - after a fault the fault latch holds the AND low, so chatter cannot deliver a reset edge.
+- A gate-rail OVP clamp.
+- A brake chopper for R7-06.
+- An external OV comparator.
+- From the cross-check: a pull-up on ASC_SET_B (a dead package is covered through RFCB's mask, and
+  an open pin is caught in either polarity by FW-16 a/b); a 47 Ω series resistor or a separate
+  buffer on QDIS_CMD (the header reorder removes the only high-voltage neighbour); RFS4 as a 1206
+  (FS1B_TDUR bounds the overload to 100 ms per event).
+
+## Firmware contract changes (rev A.8)
+
+| Requirement | Change |
+|---|---|
+| §4c | DESAT-during-ASC transition table; the hardware ASC mask; T7-02 correlated reset; ASC returns only through the MCU path after FW-15 (R8X-01); V5GD-loss behaviour stated as conditional (R8X-10, P-03) |
+| §7 / FW-15 | Reset semantics per DS Fig. 8.8; **always** clear the ASC latch (R8X-01); step 4 checks ASC_CMD_RB; the re-pulsing argument limited to fast re-pulsing, FFLAG clear points named (R8X-09) |
+| FW-16 | Sensitized boot self-test, both polarities; measured no-HV/standstill conditions, VCU precharge handshake, stored-pass arming (R8X-02); d/e drive FS_GPIO1 low, g tests the FS_GPIO1 OR input (R8X-03), h injects FLT from the MCU pins (R8X-17) |
+| FW-12 | FS1B_TDELAY = 0 required, FS1B_TDUR = 100 ms; BACKUP_SAFETY_PATH_FS1B named (R8X-03, P-01); the deliberate EN-low ASC of FW-16 named (R8X-02) |
+| FW-08b (new) | Keep HV connected during a DESAT recovery at n ≥ n_x; FLT_LS: seconds of rectified charge, pack acceptance is an integration check (R8X-15) |
+| §6 | SPO-interval energy rule and commissioning check (R7-06); ASC-entry current below the DESAT minimum (R8X-13) |
+| §9 | FW-16 placement and "self-test done"; pending DESAT at boot (R8X-14); discharge command default-off; FAULT_OUT battery short clamped to ground, both FS1B current-limit outcomes, the 100 ms FAULT_OUT pulse (P-01) |
+
+## Cross-check of the implemented changes
+
+An independent reviewer (Opus) re-checked the uncommitted A.8 diff against the datasheets. It
+re-traced every changed net in the compiled netlists, re-ran all three checkers, and mutation-tested
+the ERC. **No CRITICAL finding.** The pinouts, nets, part resolution, mask coverage and timing, the
+input slews and every recomputed number were confirmed. Every finding was verified again here
+before acting; the same classes apply.
+
+| ID | Cross-check said | Class | Verification | Action |
+|---|---|---|---|---|
+| R8X-01 | MAJOR — FW-15 step 2 "clear the ASC latch **unless** §6 wants ASC" contradicts §4c and §6 | **Confirmed** (contract) | DS 1.2 §8.12 lists DESAT over ASC only with EN 1, IN+ 1, IN− 0. With the latch left set, UASCG unmasks at the step-3 reset edge while the eFlexPWM still forces IN low: the low sides come on through ASC with IN+ low, a state with no documented DESAT. | FW-15 **always** clears the latch; ASC is re-entered only through §4c after step 4 (FFLAG clear, PWM-ASC, `ASC_REQ`); step 4 checks ASC_CMD_RB 0. Zero BOM. |
+| R8X-02 | MAJOR — FW-16 step a (FS1B-ASC, EN low) is gated by sequence position, not measurement; nothing says what happens when FW-16 cannot run | **Confirmed** (contract) → **Firmware Handled** | §9 also runs after an MCU reset, normally with the contactors closed. With HV present, a latent HS short plus step a's EN-low ASC is a shoot-through the test itself causes. After a reset at speed, FW-16 was simply undefined. | Measured conditions (both V_DC valid and < 60 V, VCU contactors open, \|n\| < n_ss); the VCU precharges only after "self-test done"; otherwise skip and arm on a stored pass from this or the previous key cycle, else no arming. FW-12 names the deliberate ASC states of FW-16: a (EN low), f (EN high, IN+ low), h (both). Zero BOM. |
+| R8X-03 | MAJOR — FW-16 d/e cannot drop RDY while FS_GPIO1 holds the flyback OR high; the FS_GPIO1 input is never tested; step a assumes FS1B_TDELAY = 0 | **Confirmed** (contract) → **Firmware Handled** | UOR1/2 = MCU OR FS_GPIO1, and §9 step 6 raises FS_GPIO1 before FW-16: a false fail at every boot. FS26 Table 96: TDELAY 00000 = "asserted with FS0B"; FS1B_FS0B_EN_OTP defaults to the delayed-assertion mode. | d/e set FS_GPIO1 low over SPI; new step g holds FS_GPIO1 high with both MCU enables low (RDY must stay up). FW-12: FS1B_TDELAY = 0 **required**, FS1B_TDUR = 100 ms. Zero BOM. |
+| R8X-04 | MINOR — LED current 9.6–10.0 mA, under the TLP152's 10 mA recommended I_F; the model mixes temperatures and omits loads | **Confirmed** | Reproduced. The model paired R_out at 125 °C with V_F at −40 °C and ignored the far-end 10 k. At a consistent cold corner the current is 9.9–10.0 mA. | RASCL = RQDL = **261 Ω 1 %** (same price): 10.29 cold / 10.80 hot / 14.84 max mA, inside 10–15 mA. The model is now temperature-consistent and judged on both limits; the stale "≥ 10 mA" texts and the ERC value lock are updated. |
+| R8X-05 | MINOR — ZSET "≤ 6.0 V" holds only at 25 °C/5 mA; hot at a 35 V pulse it reaches ≈ 6.6 V, over the USCH2 6.5 V V_I abs max. Suggested C5V1 | **Confirmed** (bound); **fixed differently** | Nexperia C5V6: 5.2–6.0 V at 5 mA, S_Z ≤ +2.5 mV/K, r_dif ≤ 40 Ω. That gives 6.24 / 6.40 / 6.62 V at 16 / 24 / 35 V and 125 °C: a single wire fault plus a specified ISO 16750 transient. **C5V1 rejected:** 4.8 V min at 5 mA, 480 Ω at 1 mA, S_Z down to −2.7 mV/K. Through RFS2 its soft knee can sag the released ASC_SET_N toward the 3.55 V V_T+ maximum, a new risk on every boot. | **BZT52-B5V6** (±2 %, 5.49–5.71 V): 5.96 / 6.12 / 6.33 V (Vishay alt ≤ 6.43 V). Released level unchanged. Now a computed design-verify row. +₹0.2. |
+| R8X-06 | MINOR — USCH2 has no defined dead state (USCH got RSCH in round 7) | **Confirmed** | LVC outputs are Hi-Z when unpowered (IOFF). A dead USCH2 floated FLT_CMB_B, which drives the latch preset and the ASC mask. FW-16 passes with it floating high, so the latch and mask are lost silently. | **RFCB 100 k** FLT_CMB_B → DGND: a dead USCH2 reads as a latched FLT (SPO, ASC masked) and fails FW-16 step b. The suggested ASC_SET_B pull-up is not needed: the dead package is already covered through the mask, and an open 2Y pin fails FW-16 a or b in either polarity. ₹0.3. |
+| N16 | *(found while fixing R8X-06)* A dead ULAT floats the UASCG input | **Confirmed** | Round 8 put the latch behind UASCG but left RASCP on ASC_CMD. A Hi-Z ULAT then floats UASCG.A, giving a spurious or a lost ASC; before round 8, RASCP held the latch output itself. | **RASCP moved to ASC_Q** at zero cost. ASC_CMD keeps its default-off RPD8 on the power board (ERC-locked). |
+| R8X-07 | MINOR — the harness-exposed discharge output shares USCH2 with both safety presets; V15 sits next to CMD on the 4-way header | **Confirmed** (header adjacency) | V15 comes from an NCV4276C (≥ 400 mA current limit). A V15–CMD pin short drives 15 V through the USCH2 3Y output clamp into V5A, taking out the package that carries both latch presets. | Header **V15-GND-CMD-GND** on both boards, locked by pin number. Zero cost. The 47 Ω and the separate buffer are not needed: CMD now has only GND neighbours (a short there is fail-safe), and RFCB turns any USCH2 killed by the harness into SPO plus an FW-16 fail. |
+| R8X-08 | MINOR — lock-ins miss the FLT diode-OR, the FS1B back-feed by net and all of parts-db; two A.8 rows are fixed PASS | **Confirmed** | The disposition's "each fails when reverted" claim was not true for these. | ERC +10 (864):<br>• the diode-OR by net;<br>• no part between FS1B_N and V5A, and only RFS2 on ASC_SET_N;<br>• the dead-state pulls and both FLT filters;<br>• the discharge header by pin number;<br>• RPD8/RPD9;<br>• first-match MPN per SKU (BAT46, B5V6, 1G08, 3G17, 1G74, 261R, 100k, 100pF).<br>Both rows are now computed: the clamp against 6.5 V, and the mask release against the 22 µs DRV_EN drop. Each lock-in was mutation-tested (below). |
+| R8X-09 | MINOR — §7's "re-pulsing holds DRV_EN high" holds only for fast re-pulsing | **Confirmed** (claim) | Slow re-pulsing lets the latch re-set between pulses, and a post-mute rising edge is a valid reset (§8.10). | §7 and FW-15 step 3 qualified; FFLAG is cleared only in FW-15 step 4 and FW-16 step h. Zero BOM. |
+| R8X-10 | MINOR — ASC after a V5GD loss now depends on unpowered FLT-pin behaviour | **Confirmed** (claim now conditional) | DS 1.2 gives FLT "HIZ" with VCC1 off but no clamp data. The VCC1 absolute maximum and the 20 mA pin rating suggest a clamp. | Stated as conditional in §4c; added to the bench matrix. No hardware change: the fallback is SPO, as in §6's total-LV row, and ASC only matters there with the battery also lost (a double fault). |
+| R8X-11 | NOTE — S4 is a bound only given the assumed plate pole | **Confirmed** (wording) | The static-plate bound reproduces: 134.8 / 141.9 / 133.1 / 142.9 °C. | Reported as a sim-verify row (WARN: 8XX IGBT is at 95 % of 150 °C) until the thermal test; the wording is fixed wherever S4 was called a bound. |
+| R8X-12 | NOTE — a FLT glitch during PWM-ASC opens an SPO gap; FLT_LS_N has no filter | **Improvement Recommended** → implemented | A glitch now drops ASC and latches SPO, and a DESAT has no automatic retry, so noise costs the drive. CFLTF sat only on FLT_HS_N. | **CFLTF2 100 pF** on FLT_LS_N (₹0.3). The DESAT assertion edge is not slowed, because the driver sinks it hard. |
+| R8X-13 | NOTE — commissioning check: ASC transient current vs the DESAT threshold | **Improvement Recommended** (commissioning) | Valid. | §6: the ASC-entry peak at n_max with cold magnets must stay below the LS DESAT minimum (SiC ≈ 1.3 kA hot). |
+| R8X-14 | NOTE — §9 does not cover a driver FLT still latched at boot | **Confirmed** (doc gap) → **Firmware Handled** | Reproduced: no arming, SPO with ASC masked. | §9 rule: DTC, FW-08b, then FW-15 recovery after step 6 and the FS0B release, under the one-retry rule. |
+| R8X-15 | NOTE — FW-08b after FLT_LS means seconds of rectified charge into the pack | **Firmware Handled** (vehicle integration) | Valid. | FW-08b: the VCU friction-brakes below n_x; pack charge acceptance is an integration check; a BMS that opens early is the §6 double fault. |
+| R8X-16 | NOTE — UASCG 5.5 ns; FB-sense conduction; text slips; RQDM page | **Confirmed** (minor) | 74LVC1G08-Q100: 5.5 ns max at 125 °C. The cross-check's "+0.3 V" is the steep-plateau case, which belongs to the slow-diode (low) corner, where the least drop is the conservative choice. | Entry budget +1 ns (7.07 µs unchanged). Conduction 100 / 50 / 20 % per corner (VCC2 13.57–16.89 V, still inside the window). Contract text fixed; RQDM moved to GATE-EN beside USCH2. This file is committed with the change. |
+| R8X-17 | NOTE — the "not coverable" FLT paths can be covered from the MCU pins | **Improvement Recommended** → **Firmware Handled** | Valid. The pad can only pull FLT low, which is fail-safe. | FW-16 step h, with the pad rule (output-enable toggle, data held at 0, re-lock). Zero BOM. |
+| P-01 | MINOR — FAULT_OUT shorted to KL30 while FS1B is asserted is part-dependent; RFS4 0.23 W "continuously"; BACKUP_SAFETY_PATH_FS1B unnamed | **Confirmed** (contract text); no hardware change | The FS1B limit is 4–22 mA (Table 196), so there are two outcomes, and BACKUP_SAFETY_PATH_FS1B defaults to 1. "Continuously" is wrong: FS1B_TDUR (100 ms, Table 96) ends each assertion; only the boot hold (0.1–0.3 s) is longer. That is a short-time overload the 0603 takes. | FW-12 names both backup-path bits and TDUR = 100 ms. §9 describes both outcomes and the 100 ms FAULT_OUT pulse. A 1206 RFS4 is not needed. |
+| P-02 | NOTE — NXP Fig. 62's 10 nF at FS1B is not fitted | **Already Fixed** (tracked) | Already an EMC-phase item (EXTRACTED-PARAMS §26). | Unchanged. |
+| P-03 | NOTE — NSI6611 FLT/RDY abs max is VCC1 (no +0.3 V); V5A can sit ≈ 0.2 V above V5GD | **Improvement Recommended** (bench) | 0.2 V is below any clamp's conduction, but not proven. | In the R8X-10 bench matrix (V5A high / V5GD low). |
+| P-04 | NOTE — TLP152 T_opr is −40…100 °C | **Already Fixed** | The board ambient is −40…+85 °C (design-basis §1), and the LED window is already computed to 100 °C. | None. |
+| P-05 | NOTE — BOM lines merge by MPN, so DFLT1/2 show the BATSENSE description | **Not Applicable** (no functional effect) | The merged BAT46ZFILM line and its alternate CDBW46-G are both Schottky. The per-designator requirement lives in parts-db and is now ERC-locked (R8X-08). | None. |
+| P-06 | NOTE — the ASC LED needs V5A ≥ ≈ 4.25 V cold to reach I_FLH | **Not Applicable** | With 261 Ω, I_FLH is reached from V5A ≥ 4.10 V. The FS26 LDO2 undervoltage monitor trips at ≥ 4.35 V even at its lowest OTP setting (88 % − 1 %), so the UV reaction always comes first. | None. |
+
+**Mutation test of the new lock-ins** (each mutation rebuilt with tsci; the ERC must fail):
+| Mutation (scratch copy) | Caught by |
+|---|---|
+| DFLT2 anode moved off FLT_CMB_N | FLT diode-OR check |
+| extra 5.1 k "RFS5" from FS1B_N to V5A (the cross-check's own mutation) | back-feed check, by net (names RFS5) |
+| RFCB removed; RASCP back on ASC_CMD (each alone) | dead-state check |
+| CFLTF2 removed | FLT filter check |
+| JDIS or JCTL back to V15-CMD-GND-GND (each alone) | discharge-header check, by pin number |
+| RASCL 270 Ω | both LED value checks |
+| parts-db: DFLT rule narrowed (DFLT1/2 fall to 1N4148WS), ZSET C5V6, UASCG 74LVC1G32, ULAT rule narrowed | MPN check, all four SKUs |
+| design-verify constants: LED 270 Ω / ZSET C5V6 / mask slower than the DRV_EN drop | the rows go WARN / FAIL / FAIL |
+
+## Release gates still open (bench / vendor — not closable on paper)
+
+1. **Short-circuit** (R7-05): IGBT at the 100 mA soft-off corner; SiC letter from hiitio;
+   NOVOSENSE I_STO distribution; contained SC tests at the actual gate bias, including the ASC-held
+   case.
+2. **No-HV driver fixture** (T7-01): DESAT injected during PWM-ASC. Check that the faulted gate
+   stays off, that the healthy gates release via the UASCG mask, and that nothing returns until an
+   authorised reset. Repeat with MCU reset and FS1B.
+3. **NOVOSENSE statement** on DESAT with ASC high and EN low (FS1B-ASC residual).
+4. **LV gate-supply bench**, including 24 V/33 V at full gate load.
+5. **Opto drive and timing** (T7-04): LED current and ASC/discharge propagation at supply and
+   temperature corners on both TLP152s.
+6. **FAULT_OUT wire faults**: current-limited injection with V5A up, sleeping and off. Include a
+   35 V pulse (ZSET clamp at the USCH2 pin) and FS1B asserted into the short, which exercises both
+   current-limit outcomes (P-01).
+6a. **Supply-domain matrix** (R8X-10, P-03): V5GD off with V5A on, and V5A high with V5GD low;
+    read FLT_x_N, RDY_x and ASC_CMD.
+6b. **FW-16 on HIL** (R8X-02/03/17): the skip and stored-pass rule, the FS_GPIO1 steps, and FLT
+    injection with the pad rule.
+7. **FW-06 on HIL** (event → safe current, not just ASC_REQ).
+8. **Motor/pack commissioning** (R7-06, R8X-13/15): SPO energy through the reset interval;
+   ASC-entry peak current against the DESAT minimum; pack charge acceptance after an FLT_LS at
+   n ≥ n_x.
+9. **Thermal**: coldplate Rth and mass (decides whether the 8XX IGBT static-plate WARN closes,
+   R8X-11); vendor Zth overlay (T7-10).
+10. **MCU and footprint binding** (A6-R12) and the firmware deliverable (A6-R13).
+11. DPT at 850 V, 4XX can RFQ, discharge-resistor qualification, EMC/LV transients, insulation,
+    mechanical DV.
