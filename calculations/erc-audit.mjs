@@ -463,7 +463,7 @@ ok(["FLT_HS_N", "FLT_LS_N", "RDY_HS", "RDY_LS", "FLT_CMB_N"].every((n) => bridge
 }
 // A8-N01/N02: the QA01C-18 (+18 V) feeds both opto drivers; the discharge gate is a 1.5 k / 10 k divider
 ok(near(V(DIS, "RQDG"), 1.5e3) && near(V(DIS, "RQDPD"), 10e3) && same(D("RQDG.pin2"), D("QDIS.G")) && same(D("RQDPD.pin2"), "DCN"),
-  "QDIS gate divider 1.5 k / 10 k: V_GS 13.4-18.1 V from the QA01C-18 envelope (+22 V abs max)");
+  "QDIS gate divider 1.5 k / 10 k: V_GS 13.3-18.2 V with 1 % resistors from the QA01C-18 envelope, a divider, not a clamp (+22 V abs max)");
 // N17 (self-found): the power board's LV feed is switched on the card and follows V5A (FS26 awake)
 ok(same(C("QLVS.S"), "NRC") && same(C("QLVS.D"), "VBSW") && same(C("QLVS.TAB"), "VBSW") && same(C("QLVS.G"), "LVS_G")
   && same(C("RLVSG.pin1"), "NRC") && same(C("RLVSG.pin2"), "LVS_G") && same(C("ZLVS.anode"), "LVS_G") && same(C("ZLVS.cathode"), "NRC")

@@ -90,3 +90,59 @@ Rebuilt with tsci in a scratch copy; the ERC must fail.
 These are unchanged from A.9 (see `review-A9-disposition.md`), plus one addition: the no-HV
 fixture also checks the RDY release waveform at USCH3 input and output, and DRV_EN, with
 representative harness capacitance (A9-S01 verification).
+
+## Round 11 — closure rechecks of `3304b39`
+
+**Inputs.** Two schematic-only rechecks of `main` at `3304b39` (rev A.10): `A10_schematic_closure.html`
+and a second recheck. Both close A9-S01, S9-01 and S9-02 and ask for no circuit change. By their own
+account they did not rerun the build, the ERC or the pin check, and took no waveforms.
+
+**Verification here**, against the datasheets and the repo, not the reports' numbers:
+- **USCH3 pins** match the Nexperia 74LVC3G17-Q100 table:
+  - 1 = 1A (RDY_HS), 7 = 1Y (RDY_HS_B);
+  - 3 = 2A (RDY_LS), 5 = 2Y (RDY_LS_B);
+  - 6 = 3A (DGND), 2 = 3Y (no-connect);
+  - 8 = VCC (V5A), 4 = GND.
+
+  The ERC locks all of them by pin number.
+- **RRDB with USCH3 unpowered.** The leakage limits are:
+  - 74LVC3G17-Q100 I_OFF ≤ 2 µA;
+  - 74LVC1G11 (rev 13.1) I_I ≤ 1 µA;
+  - both hold over −40…125 °C.
+
+  Into 105 kΩ that gives ≤ 0.32 V. V_IL is 1.35 V at 4.5 V, and even the 0.8 V of the 3 V row leaves
+  2.5× margin.
+- **Enable chain.**
+  - ENX1 = FS0B_B · MCU_GATE_EN · RDY_HS_B.
+  - DRV_EN = ENX1 · RDY_LS_B · FLT_OKB.
+
+  RDY_HS_B low therefore forces DRV_EN low for every state of the other four terms. This is review 1's
+  32 + 32 case check.
+- **RASCG.** 0.119 W against 0.272 W at 85 °C ambient (2.28×), as in the design-verify row. The ESR03
+  also limits its terminal temperature: in the 1 kΩ < R row it is full-rated to 110 °C and derates to
+  zero at 155 °C. At 0.119 W that allows ≤ 138 °C.
+- **Bleeder.** 66 k × 323 µF × ln(850/60) = 56.5 s nominal; with R +5 % and C +10 % it is 65.3 s.
+  These are the design-verify rows, checked against the 120 s service rule. The sheet heading rounds
+  them.
+- **QDIS divider.** From 20.9 V: 18.17 V ideal and 18.22 V at the adverse 1 % corner, as in the model.
+- **Wording sweep.** Three places still quoted the pre-round-10 "13.4–18.1 V":
+  - the ERC check label;
+  - design-basis §11i;
+  - the F107 register row.
+
+  F122 had called the wording fixed.
+
+| ID | Review said | Class | Verification | Action |
+|---|---|---|---|---|
+| A9-S01 (USCH3, CSCH3, RRDB) | closed; keep them; no second pull-down needed | **Already Fixed** | Pins and dead-state level above. | None. |
+| S9-01 (RASCG = ESR03EZPF2201, 2.2 k kept) | closed | **Already Fixed** | 119 mW against 272 mW at 85 °C. | None. |
+| S9-01 note: the ESR03 terminal-temperature curve applies too; mounted conditions must comply | a qualification condition, not a change request | **Improvement Recommended** (documentation) | The curves were already in EXTRACTED-PARAMS §26, but the layout rules did not carry them. RFS4 (R ≤ 1 kΩ row, 130 °C) is in the same position. | New `dfm.md` §4 layout rule, at each part's worst load: RASCG terminal ≤ 138 °C, RFS4 terminal ≤ 132 °C. |
+| S9-01 note: 20.9 V is the design's QA01C-18 envelope, not a supplier no-load guarantee | — | **Already Fixed** (tracked) | The existing bias/gate-level bench gate measures V18A/V18Q. | None. |
+| S9-02 (66 k heading) | closed; the heading is approximate, not a 65.00 s limit | **Already Fixed** | 56.5 s / 65.3 s. | None. |
+| QDIS divider wording | "≈18.2 V, a divider" is right; not a hard 18.0 V | **Already Fixed**; the leftover wording is **Confirmed** (self-found) | See the wording sweep. | The ERC label, design-basis §11i and F107 now read 13.3–18.2 V with 1 % resistors. Text only. |
+| Real RDY transitions | a no-HV waveform check | **Already Fixed** (tracked gate, added in A.10) | — | None. |
+| Next milestone: MCU ball/pad map and exact connector/footprint binding | existing items, not defects | **Already Fixed** (tracked: A6-R12, R9X-02) | — | The next schematic milestone (pin freeze). |
+
+**Result.**
+- No hardware, BOM or netlist change; the rev stays A.10.
+- ERC 891 pass / 0 fail; design-verify 118 PASS · 14 WARN · 0 FAIL (unchanged).

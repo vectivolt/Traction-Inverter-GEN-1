@@ -79,6 +79,11 @@ test on back-to-back rig).
 - Keep every polarized THT part in one orientation per board.
 - No bottom-side THT; bottom SMT limited to chip R/C if used at all.
 - CIN_TRK ≥0.5 µF effective placed at the FS26 TRKIN pin (VPRE bank) — DS placement rule.
+- ROHM ESR03 parts carry fault-hold power, so their fillet (terminal) temperature is part of the
+  rating (DS Fig. 2/4). RASCG (2.2 k, 1 kΩ < R row) is full-rated to 110 °C and allows ≤ 138 °C at
+  its 0.12 W; RFS4 (1 k, R ≤ 1 kΩ row) is full-rated to 130 °C and allows ≤ 132 °C at its 0.30 W
+  (FS1B held at 18 V). Keep both off the bias-module, shunt and busbar hot spots; check on the
+  thermal first article.
 
 ## 5. Proto vs production grade policy
 

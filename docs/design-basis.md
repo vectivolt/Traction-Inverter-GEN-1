@@ -409,6 +409,9 @@ in [`review-A10-disposition.md`](review-A10-disposition.md):
 - **Text.** The discharge sheet now reads 66 k; the gate divider is stated as 13.3–18.2 V (a
   divider, not a clamp); the A9 disposition quotes the final harness map.
 - **Cost:** +₹11/unit.
+- **Closure (round 11).** Two schematic-only rechecks of `3304b39` closed A9-S01, S9-01 and S9-02
+  and asked for no circuit change. The leftover "13.4–18.1 V" wording is corrected, and the ESR03
+  terminal-temperature limits are now a layout rule (`dfm.md` §4).
 
 ## 11i. Rev A.9 — review round nine (summary)
 
@@ -418,8 +421,8 @@ recommended no power-stage change.
 
 - **Bias module binding (A8-N01).** PSASC/PSQD are QA01C-18 (+18/−3 V). F61 had read the base
   QA01C's +20/−4 V sheet. The real envelope at these loads is 16.9–20.9 V, so ASC entry is 7.52 µs
-  and the FW-06 end-point 906 V. The discharge gate is now a 1.5 k/10 k divider at 13.4–18.1 V
-  (A8-N02).
+  and the FW-06 end-point 906 V. The discharge gate is now a 1.5 k/10 k divider: 13.3–18.2 V
+  with 1 % resistors, a divider, not a clamp (A8-N02, F122).
 - **FLT/RDY rating (A8-01).** The NSI6611 rates FLT/RDY to VCC1 with no +0.3 V. Their pull-ups, and
   the diode-OR pull-up, now sit on V5GD (harness pin 1; the harness map keeps every supply pin beside ground in both dual-row numberings). A lost V5GD ends
   deterministically in SPO.

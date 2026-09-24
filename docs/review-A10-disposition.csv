@@ -13,3 +13,11 @@ Review 2,"LV feed switch, CLVSM 50 V",correctly connected,Already Fixed,—,Kept
 Review 2,QA01C-18 and the discharge divider,"keep; a divider, not a clamp",Already Fixed / wording,—,"See review 1, note 1."
 Review 2,Harness: VBAT_H across from VBAT_L,"not a signal hazard, but not proof of independent fusing",Improvement Recommended (documentation),—,See review 1.
 Review 2,RFS4 ESR03,valid; no need for 1206,Already Fixed,—,Kept.
+Round 11,"A9-S01 (USCH3, CSCH3, RRDB)",closed; keep them; no second pull-down needed,Already Fixed,Pins and dead-state level above.,None.
+Round 11,"S9-01 (RASCG = ESR03EZPF2201, 2.2 k kept)",closed,Already Fixed,119 mW against 272 mW at 85 °C.,None.
+Round 11,S9-01 note: the ESR03 terminal-temperature curve applies too; mounted conditions must comply,"a qualification condition, not a change request",Improvement Recommended (documentation),"The curves were already in EXTRACTED-PARAMS §26, but the layout rules did not carry them. RFS4 (R ≤ 1 kΩ row, 130 °C) is in the same position.","New dfm.md §4 layout rule, at each part's worst load: RASCG terminal ≤ 138 °C, RFS4 terminal ≤ 132 °C."
+Round 11,"S9-01 note: 20.9 V is the design's QA01C-18 envelope, not a supplier no-load guarantee",—,Already Fixed (tracked),The existing bias/gate-level bench gate measures V18A/V18Q.,None.
+Round 11,S9-02 (66 k heading),"closed; the heading is approximate, not a 65.00 s limit",Already Fixed,56.5 s / 65.3 s.,None.
+Round 11,QDIS divider wording,"""≈18.2 V, a divider"" is right; not a hard 18.0 V",Already Fixed; the leftover wording is Confirmed (self-found),See the wording sweep.,"The ERC label, design-basis §11i and F107 now read 13.3–18.2 V with 1 % resistors. Text only."
+Round 11,Real RDY transitions,a no-HV waveform check,"Already Fixed (tracked gate, added in A.10)",—,None.
+Round 11,Next milestone: MCU ball/pad map and exact connector/footprint binding,"existing items, not defects","Already Fixed (tracked: A6-R12, R9X-02)",—,The next schematic milestone (pin freeze).

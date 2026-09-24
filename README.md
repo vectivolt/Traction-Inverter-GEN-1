@@ -485,7 +485,7 @@ Round six (46 findings) is answered line by line in
 [`docs/review-A6-disposition.md`](docs/review-A6-disposition.md), and round seven (24 findings)
 in [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md), round eight (12 findings plus a 23-item cross-check of the fixes) in
 [`docs/review-A8-disposition.md`](docs/review-A8-disposition.md), round nine in
-[`docs/review-A9-disposition.md`](docs/review-A9-disposition.md), and the A.9 schematic rechecks in
+[`docs/review-A9-disposition.md`](docs/review-A9-disposition.md), and the A.9 schematic rechecks, with their round-11 closure, in
 [`docs/review-A10-disposition.md`](docs/review-A10-disposition.md). Every contested number was
 recomputed by an independent second model.
 
@@ -503,6 +503,7 @@ recomputed by an independent second model.
 | Review 8 | A.8 | 16 (F90–F105, incl. its cross-check) | **a DESAT during latched ASC left the healthy low sides on** — the faulted driver holds itself off (NSI6611 Fig. 8.11) but only a ₹5 AND gate (ASC = latch AND no-FLT) guarantees SPO on every path; last slow latch preset buffered (FLT diode-OR now Schottky for the Schmitt threshold); discharge opto under-driven like the ASC one; boot self-test masked by RDY; FAULT_OUT battery-short clamp moved off the logic rail; atomic BOM publish; S4 junction path made static. Cross-check of the fixes: FW-15 always clears ASC, FW-16 on measured no-HV conditions with FS_GPIO1 and FLT-injection steps, dead-buffer pulls, 261 Ω LEDs inside 10–15 mA, B5V6 clamp, discharge header V15-GND-CMD-GND, ERC locks by net and MPN; +₹18/unit |
 | Review 9 | A.9 | 14 (F106–F119, incl. its cross-check) | **the ASC/discharge bias modules were modelled from the wrong datasheet** (QA01C-18 is +18/−3 V, not +20/−4 V) — timing re-derived, discharge gate given a 1.5 k divider; **FLT/RDY pulled above the drivers' VCC1 rating** — pull-ups moved to V5GD on a harness pin; self-test energy-limited; RFS4 made anti-surge; self-found **≈150 mA parking drain** removed with one card-side P-FET. Cross-check of the fixes: V5GD read on an ADC pin (a dead V5GD faked a 0 V bus), harness re-laid for both dual-row numberings, resolver LDO sleeps too, QLVS slew-limited, DESATs kept in NVM; +₹29/unit |
 | Review 10 | A.10 | 3 (F120–F122) | schematic-only rechecks of A.9 kept every correction; **RDY lines drove the AND gates at 20–100 ns/V against a 10 ns/V limit** — third Schmitt buffer (reverses a round-7/8 rejection); RASCG given a 0.33 W part; sheet and wording fixes; +₹11/unit |
+| Review 11 | A.10 | 0 (closure) | schematic-only rechecks of A.10 closed A9-S01, S9-01 and S9-02 and asked for no circuit change; leftover "13.4–18.1 V" wording corrected; ESR03 terminal-temperature limits added to the layout rules |
 
 Three review claims were **rebutted with evidence** (900 V divider corner — system max is
 850 V on a 0.1 % bottom leg; the GEN3-exact resolver monitor asymmetry; the discharge math —
@@ -608,7 +609,7 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/bom.md`](docs/bom.md) · [`bom-igbt.md`](docs/bom-igbt.md) · [`bom-igbt4.md`](docs/bom-igbt4.md) · [`bom-sic4.md`](docs/bom-sic4.md) | Generated BOMs, all four SKUs, with subsystem Pareto |
 | [`docs/variants.md`](docs/variants.md) | The platform: four SKUs on one set of boards, economics, recommended launch path |
 | [`docs/firmware-contract.md`](docs/firmware-contract.md) | Hardware → firmware contract: SKU identity, envelope, protection allocation, safe-state matrix, fault-latch recovery |
-| [`docs/review-A10-disposition.md`](docs/review-A10-disposition.md) · [`.csv`](docs/review-A10-disposition.csv) | Review round 10 (schematic rechecks of A.9): every finding classified, verified and dispositioned |
+| [`docs/review-A10-disposition.md`](docs/review-A10-disposition.md) · [`.csv`](docs/review-A10-disposition.csv) | Review round 10 (schematic rechecks of A.9) and its round-11 closure: every finding classified, verified and dispositioned |
 | [`docs/review-A9-disposition.md`](docs/review-A9-disposition.md) · [`.csv`](docs/review-A9-disposition.csv) | Review round 9: every finding classified, verified and dispositioned |
 | [`docs/review-A8-disposition.md`](docs/review-A8-disposition.md) · [`.csv`](docs/review-A8-disposition.csv) | Review round 8 and its cross-check: every finding classified, verified and dispositioned |
 | [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md) | Review round 7: every finding classified, verified and dispositioned |
