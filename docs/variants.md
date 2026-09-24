@@ -31,7 +31,7 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 |---|---|
 | Power PCB layout, D3 footprint, gate drivers, bias flybacks, V_DC/current sensing | Module MPN (HCS600 SiC / HCG600 IGBT) |
 | Control card (S32K396 + FS26), harness, CAN, resolver | IGBT: DESAT 4.7 k / 82 pF, gate 1.0/1.0 Ω, flyback RT 8.2 k |
-| Discharge PCB, cap-bank busbar drawing, enclosure/coldplate footprint | 4XX: 16 × 50 µF/600 V cans, discharge 4 × 220 Ω + 12 × 15 k |
+| Discharge PCB, cap-bank busbar drawing, enclosure/coldplate footprint | 4XX: 16 × 50 µF/600 V cans (Faratronic C3D1U506KFAA382, bound A.12), discharge 4 × 220 Ω (SQP10-220RJB15) + 12 × 15 k |
 | Firmware codebase, EOL rig, SMT program | Identity resistor RHWID; firmware parameter set (§2 of the contract) |
 
 ## 2. The four SKUs (verified numbers, 65 °C coolant)
@@ -47,9 +47,9 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | Tj end of 30 s peak at V_max (S4, static junction path; IGBT and diode share the plate — RR07/R7-07; with no plate mass: 135 / 142 / 133 / 143 °C, R8X-11) | 125 °C (175 °C max) | 132 °C (150 °C Tvjop) | 125 °C (150 °C) | 133 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
 | Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04). The 6 µs is given at 800 V / 15 V / 175 °C; the design corner is 850 V / 16.7 V, so hiitio's statement covers that corner too (round 12) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹70,913** | **₹45,413** | **₹45,413** | ₹70,913 |
-| Ex-works cost (cost-rollup method) | ≈ ₹1.15 L | ≈ ₹0.90 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.17 L |
-| Cost per peak kW | ≈ ₹525/kW | **≈ ₹410/kW** | ≈ ₹610/kW | ≈ ₹780/kW |
+| Electronics BOM @1k | **₹72,182** | **₹46,682** | **₹45,082** | ₹70,582 |
+| Ex-works cost (cost-rollup method) | ≈ ₹1.17 L | ≈ ₹0.91 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.16 L |
+| Cost per peak kW | ≈ ₹530/kW | **≈ ₹415/kW** | ≈ ₹610/kW | ≈ ₹775/kW |
 | Status | **launch** | **launch** | **launch** | on request |
 
 Notes. Peak power needs the voltage shown — below it firmware derates P(V_dc) (R-F09). The

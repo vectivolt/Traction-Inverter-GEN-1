@@ -1,7 +1,7 @@
-# Traction Inverter — Full unit cost @1,000 units (rev A.6)
+# Traction Inverter — Full unit cost @1,000 units (rev A.12)
 
 Complete ex-works build cost per inverter at a 1,000-unit run (India assembly, India+China
-supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹70,965 @1k** across
+supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹72,182 @1k** across
 the four assemblies). Figures are planning numbers (RFQ ±25 %); the two lines that move the
 answer are flagged in §3.
 
@@ -9,7 +9,7 @@ answer are flagged in §3.
 
 | # | Block | Low | Baseline | High | Notes |
 |---|---|---|---|---|---|
-| 1 | Electronics BOM (power + cap bank + discharge + card) | 65,000 | 70,965 | 95,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
+| 1 | Electronics BOM (power + cap bank + discharge + card) | 66,000 | 72,182 | 96,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
 | 2 | PCBs (power 6L 2–3 oz ~0.12 m² + card 6L + discharge 2L) | 4,500 | 5,300 | 6,100 | India/China fab @1k |
 | 3 | PCBA (SMT ~750 placements + TH + AOI, 3 boards) | 2,500 | 3,300 | 4,100 | discharge board panelized 4-up |
 | 4 | Liquid coldplate (FSW/gun-drilled Al, 3× EconoDUAL footprint, fittings) | 4,500 | 6,000 | 8,000 | ~360×160 mm, ≤0.05 K/W per switch to coolant (the S4 thermal-sim assumption — verify at thermal test) |
@@ -19,20 +19,22 @@ answer are flagged in §3.
 | 8 | Seals, Gore vent, EMC gasket, TIM (3 modules), fasteners, internal harnesses | 2,500 | 3,300 | 4,100 | incl. the 4-way discharge link + LEM harness |
 | 9 | Assembly + EOL test (hi-pot, discharge-time, spin/power on B2B rig) + conformal coat | 2,500 | 3,200 | 4,000 | incl. rig amortization over 1k |
 | 10 | Yield / scrap / warranty reserve (3 %) | 2,900 | 3,400 | 4,400 | |
-| | **Ex-works cost per unit** | **≈ 99,900** | **≈ 115,300** | **≈ 151,400** | |
+| | **Ex-works cost per unit** | **≈ 100,900** | **≈ 116,600** | **≈ 152,400** | |
 
-**Baseline: ≈ ₹1.15 lakh / unit ≈ $1,390 ≈ ₹525/kW ($6.3/kW).**
-1,000 units ⇒ **≈ ₹11.5 Cr** parts + build (range ₹10.0–15.1 Cr).
+**Baseline: ≈ ₹1.17 lakh / unit ≈ $1,400 ≈ ₹530/kW ($6.4/kW).**
+1,000 units ⇒ **≈ ₹11.7 Cr** parts + build (range ₹10.1–15.2 Cr).
 
 ### IGBT and 4XX SKUs (same boards — full comparison in [`variants.md`](variants.md))
 
 Swapping to the HCG600FH120D3E1EA IGBT (₹9.5k/module planning vs ₹18k SiC) drops line 1 to
-**₹45,465** and the ex-works baseline to **≈ ₹90k/unit (≈ ₹410/kW at 220 kW)** — at ≈0.45 pt
+**₹46,682** and the ex-works baseline to **≈ ₹91k/unit (≈ ₹415/kW at 220 kW)** — at ≈0.45 pt
 efficiency at the continuous point and 5 kHz switching. The 4XX IGBT SKU has the same
 electronics BOM (600 V cans at the same planning price) plus ≈₹1.5k of heavier DC busbar and
-HV connector for its ≈400 A DC peak: ≈ ₹0.92 L, **≈ ₹610/kW** at its 150 kW rating. Rev A.6
-added +₹31/unit of fixes to every SKU (review round 6). Both module quotes ride the same
-hiitio RFQ.
+HV connector for its ≈400 A DC peak: ≈ ₹0.92 L, **≈ ₹610/kW** at its 150 kW rating. Rev A.12
+added +₹1,269/unit to every SKU: the reinforced UCC14141-Q1 biases and VOW3120 optos in place of the
+uncertified QA01C-18/TLP152 pair (+₹1,006), the Samtec harness headers (+₹250) and the bias
+passives; the 4XX SKUs gain ₹1,600 back from the bound Faratronic 4XX can. Both module quotes ride
+the same hiitio RFQ.
 
 ## 2. One-time NRE (not in the per-unit number)
 

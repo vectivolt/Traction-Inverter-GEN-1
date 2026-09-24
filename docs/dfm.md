@@ -13,8 +13,8 @@ busbar assembly, bolt-on discharge PCB, control card). Grounded in two live sour
 |---|---|---|---|
 | T1 Direct | HCS600FH120D3C1 ×3 (SiC build) **or HCG600FH120D3E1EA ×3 (IGBT variant — same D3 pads/pins)**, HCM75S12T4K3 ×1 | 4 | hiitio (relationship in place) |
 | T2 Franchise/NXP | S32K396, FS2633D (programmed per design-basis §8a OTP table), LEM HC5FW 900-S ×3 | 5 | NXP direct + LEM/Mouser — the ASIL-D anchors; order FIRST, longest lead |
-| T3 DigiKey/Mouser ships-today | VGT12EEM-200S1A4 ×6, TE 770669-1 header + 770680-1 plug, 470 R/10 W wirewounds ×4, BAT64-04, NRVBAF360T3G, NCV4276C (5.0 fixed ×1 + DTADJ ×2), Mornsun QA01C ×2, Murata MGJ2D150505SC ×2 (**PO gate:** verify reinforced cert @850 VDC working + SIP-7 pin map), TDK ACT45B ×2, Coilcraft XAL4020-222 ×1 + XAL4040-103 ×2, BUK7Y14-80E ×2 | ~20 | one consolidated DigiKey order |
-| T4 LCSC-stocked specifics | NSI6611ASC-Q1SWR (full ordering code), AMC1311B, ALM2402Q-Q1, OPA348/333/376-Q1, UCC28C40DR, TCAN1042-Q1, TPS55340-Q1, 74LVC1G11/32-Q100, SN74LVC1G74 ×2, Faratronic 20 µF/1.1 kV ×16, Bourns MF-LSMF polyfuses, TLP152 ×2, PESD family, SMAJ13A ×2 … | ~60 | LCSC/JLC |
+| T3 DigiKey/Mouser ships-today | VGT12EEM-200S1A4 ×6, TE 770669-1 header + 770680-1 plug, TT SQP10-470RJB15 wirewounds ×4, BAT64-04, NRVBAF360T3G, NCV4276C (5.0 fixed ×1 + DTADJ ×4), TI UCC14141-Q1 ×2 + UCC12050 ×2 (**PO gate:** the UCC14141-Q1 VDE/UL certificates are "planned" in SLUSF10B §7.6 — confirm issued), Vishay VOW3120-X017T ×2, Vishay VY1 Y-caps ×2, Samtec IPL1-120-01-L-D-K ×2 + IPD1-20-D-K housings/CC79L crimps (harness), TDK ACT45B ×2, Coilcraft XAL4020-222 ×1 + XAL4040-103 ×2, BUK7Y14-80E ×2 | ~20 | one consolidated DigiKey order |
+| T4 LCSC-stocked specifics | NSI6611ASC-Q1SWR (full ordering code), AMC1311B, ALM2402Q-Q1, OPA348/333/376-Q1, UCC28C40DR, TCAN1042-Q1, TPS55340-Q1, 74LVC1G11/32-Q100, SN74LVC1G74 ×2, Faratronic 20 µF/1.1 kV ×16 (4XX: C3D1U506KFAA382 50 µF/600 V, LCSC C783662), Bourns MF-LSMF polyfuses, PESD family, SMAJ13A ×2, TPSMC24CA-VR ×3 … | ~60 | LCSC/JLC |
 | T5 CLASS jellybeans | all 0603/0805/1206/1210/2512 R+C, BZT52 zeners, 1N4148WS, SS34, 2N7002, studs/tabs | ~470 | LCSC basic / any |
 
 **Rules that fell out of the sweeps and reviews:** nothing outside T1–T2 is single-channel
@@ -79,6 +79,11 @@ test on back-to-back rig).
 - Keep every polarized THT part in one orientation per board.
 - No bottom-side THT; bottom SMT limited to chip R/C if used at all.
 - CIN_TRK ≥0.5 µF effective placed at the FS26 TRKIN pin (VPRE bank) — DS placement rule.
+- U5LB/U5LC (NCV4276C DPAK, ≈ 0.76 W each): ≥ 1.2 in² of 2 oz copper under each tab (DS 58.5 K/W on
+  1.14 in² → Tj ≈ 129 °C at 85 °C); the hot first article measures both (round 13, A11-R04).
+- UMCU 289-MAPBGA (0.8 mm pitch): via-in-pad or dog-bone per the NXP AN, 7×7 thermal via array under
+  the package (DS thermal test board), all 25 VSS balls to the ground plane; the 159 open balls stay
+  unconnected (docs/mcu-pin-manifest.md).
 - The cap-bank / discharge kit's voltage class is proven at EOL by measurement, not inferred: LCR the
   fitted bank (320 µF ± 10 % 8XX / 800 µF 4XX) and the discharge string (1.88 k / 880 Ω) against the
   serial-linked kit record before the first HV energisation. FW-02's runtime τ check is a plausibility
@@ -89,6 +94,16 @@ test on back-to-back rig).
   its 0.12 W; RFS4 (1 k, R ≤ 1 kΩ row) is full-rated to 130 °C and allows ≤ 132 °C at its 0.30 W
   (FS1B held at 18 V). Keep both off the bias-module, shunt and busbar hot spots; check on the
   thermal first article.
+
+- **UCC14141-Q1 (PSASC/PSQD, A.12)** — TI SLUSF10B §9.5.1: the 100 nF (CxxIB) at pins 6/7–8 and the
+  COUT 100 nF at pins 28/29–30/31 on the IC side with no via between cap and pin, the 10 µF bulk parts
+  beside them; VEEA (35) joins VEE at a single point next to the FBVDD divider and its 330 pF; keep the
+  primary/secondary copper split under the package (≥ 10 mm barrier, matching the VOW3120's ≥ 10 mm
+  creepage on the same net pair). TI recommends 4 layers / 2 oz outer copper for its thermal path
+  (RθJA 52.3 K/W at 1 W; ours carries a few mW).
+- **JIC/JICC (Samtec IPL1, A.12)** — confirm the header's pin-1 corner and the odd/even row numbering
+  against the Samtec print before the footprint is placed; the HARNESS40 map keeps VBAT/V5GD next to
+  ground under either scheme, but the silkscreen and the cable drawing must agree.
 
 ## 5. Proto vs production grade policy
 

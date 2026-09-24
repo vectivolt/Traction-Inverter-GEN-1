@@ -1,0 +1,2897 @@
+{
+ "package": "289-MAPBGA (17 x 17, rows A-H J-N P R T U)",
+ "source": "NXP EV-INVERTERGEN3 S32K396-HPWR-MC schematic SPF-91122 rev C, sheets 8-13 (MCU symbol ball numbers and pin functions); ball-to-name pairing anchored on the S32K39 DS supply balls J6 E7 B8 E9 G13 E11 F1 H5; FS26 48 pins verified against FS26 DS Table 3",
+ "rev": "A.12",
+ "balls": [
+  {
+   "ball": "A1",
+   "pinname": "PTG10/GPIO[202]/eMIOS_0_CH[7]_X/eTPU_A_CH[15]/EIRQ[26]",
+   "port": "PTG10",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "A2",
+   "pinname": "PTA8/GPIO[8]/LPSPI2_SOUT/FXIO_D6/CMP0_OUT/eTPU_A_CH[5]/eTPU_B_CH[0]/LCU0_OUT8/EXTWAKE/eTPU_B_TCRCLK/LPUART2_RX/EIRQ[16]/ADC2_P5/ADC3_P1/WKPU[23]",
+   "port": "PTA8",
+   "fn": "ADC3_P1",
+   "label": "A2_ISU",
+   "net": "ISNS_U",
+   "role": "phase current U",
+   "cls": "signal"
+  },
+  {
+   "ball": "A3",
+   "pinname": "PTA5/GPIO[5]/RESET_b/EIRQ[5]",
+   "port": "PTA5",
+   "fn": "RESET_b",
+   "label": "A3_RESET_B",
+   "net": "RESET_B",
+   "role": "reset",
+   "cls": "signal"
+  },
+  {
+   "ball": "A4",
+   "pinname": "PTE30/GPIO[158]/CAN4_TX/CMP1_OUT/eTPU_B_CH[10]",
+   "port": "PTE30",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "A5",
+   "pinname": "PTE1/GPIO[129]/LPSPI0_SCK/FXIO_D2/LPUART3_TX/LPUART1_DTR_B/eTPU_A_CH[2]/eTPU_B_CH[2]/CMP1_OUT/EIRQ[1]/ADC2_P7/ADC1_P6",
+   "port": "PTE1",
+   "fn": "ADC1_P6",
+   "label": "A5_VDC2",
+   "net": "VDC2_SE",
+   "role": "V_DC channel 2 (was PTB0: no ADC)",
+   "cls": "signal"
+  },
+  {
+   "ball": "A6",
+   "pinname": "PTF0/GPIO[160]/LPSPI2_SCK/LPUART1_TX/eMIOS_0_CH[7]_X/eTPU_A_CH[30]/eTPU_B_CH[12]/EIRQ[0]/SWG_EXT_REF_CLK",
+   "port": "PTF0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "A7",
+   "pinname": "VDDA_SWG01",
+   "port": "VDDA_SWG01",
+   "fn": "",
+   "label": "A7_VDDA_SWG01",
+   "net": "V5A",
+   "role": "SWG analog supply (filtered 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "A8",
+   "pinname": "SWG1_0",
+   "port": "SWG1_0",
+   "fn": "SWG1_0",
+   "label": "A8_SWG1",
+   "net": "SWG1",
+   "role": "resolver excitation source",
+   "cls": "signal"
+  },
+  {
+   "ball": "A9",
+   "pinname": "VREFH_R2R",
+   "port": "VREFH_R2R",
+   "fn": "",
+   "label": "A9_VREFH_R2R",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "A10",
+   "pinname": "PTA14/GPIO[14]/LPSPI1_PCS3/FXIO_D14/LPSPI5_PCS1/eTPU_A_CH[6]/eTPU_B_CH[9]/EIRQ[22]",
+   "port": "PTA14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "A11",
+   "pinname": "PTA15/GPI[15]/eMIOS_0_CH[10]_X/FXIO_D31/LPSPI0_PCS3/LPSPI2_PCS3/LPSPI5_PCS0/LPUART2_RX/EIRQ[23]/ADC3_P4/ADC4_P1/SDADC0_AN[2]/WKPU[20]",
+   "port": "PTA15",
+   "fn": "ADC3_P4",
+   "label": "A11_MT1",
+   "net": "MT1_SIG",
+   "role": "motor temp 1 (PTA12 absent)",
+   "cls": "signal"
+  },
+  {
+   "ball": "A12",
+   "pinname": "PTA16/GPI[16]/eMIOS_0_CH[11]_X/FXIO_D30/LPSPI0_PCS4/LPSPI1_PCS2/LPSPI4_PCS3/LPUART1_DSR_B/EIRQ[4]/ADC4_P2/ADC6_P6/SDADC1_AN[0]/WKPU[31]",
+   "port": "PTA16",
+   "fn": "SDADC1_AN[0]",
+   "label": "A12_VREXMP",
+   "net": "VREXM_P",
+   "role": "excitation monitor + (SDADC1 AN0)",
+   "cls": "signal"
+  },
+  {
+   "ball": "A13",
+   "pinname": "PTA0/GPI[0]/eMIOS_0_CH[17]_X/FXIO_D2/LPSPI0_PCS7/LPSPI4_PCS2/LPUART0_CTS/EIRQ[0]/ADC6_P4/SDADC3_AN[3]/ADC5_P6",
+   "port": "PTA0",
+   "fn": "ADC6_P4",
+   "label": "A13_VDC1",
+   "net": "VDC1_SE",
+   "role": "V_DC channel 1",
+   "cls": "signal"
+  },
+  {
+   "ball": "A14",
+   "pinname": "PTB8/GPI[40]/eMIOS_0_CH[15]_X/FXIO_D29/LPSPI0_PCS5/LPSPI4_PCS0/LPUART1_DCD_B/EIRQ[14]/ADC6_P1/ADC4_P5/SDADC2_AN[3]/WKPU[25]",
+   "port": "PTB8",
+   "fn": "ADC4_P5",
+   "label": "A14_ISV",
+   "net": "ISNS_V",
+   "role": "phase current V",
+   "cls": "signal"
+  },
+  {
+   "ball": "A15",
+   "pinname": "PTD27/GPI[123]/FXIO_D31/LPSPI5_SOUT/EIRQ[30]/ADC4_P6/ADC5_P2/SDADC2_AN[2]/WKPU[51]",
+   "port": "PTD27",
+   "fn": "ADC4_P6",
+   "label": "A15_V5GD",
+   "net": "V5GD_SNS",
+   "role": "V5GD/2 monitor (was PTB5: no ADC)",
+   "cls": "signal"
+  },
+  {
+   "ball": "A16",
+   "pinname": "PTD26/GPI[122]/eMIOS_0_CH[23]_X/FXIO_D30/FXIO_D7/LPSPI5_SCK/ADC6_P2/SDADC2_AN[1]/ADC5_P3",
+   "port": "PTD26",
+   "fn": "SDADC2_AN[1]",
+   "label": "A16_SINN",
+   "net": "SIN_N",
+   "role": "resolver SIN- (SDADC2 AN1)",
+   "cls": "signal"
+  },
+  {
+   "ball": "A17",
+   "pinname": "PTG11/GPIO[203]/eMIOS_0_CH[16]_X/eTPU_A_CH[16]/EIRQ[27]",
+   "port": "PTG11",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B1",
+   "pinname": "PTA18/GPIO[18]/LPUART1_TX/LPSPI1_SOUT/LCU0_OUT0/eTPU_B_CH[1]/eTPU_A_CH[3]/EIRQ[0]/EVTI_0/ADC1_P1/ADC3_S9",
+   "port": "PTA18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B2",
+   "pinname": "VSS3",
+   "port": "VSS",
+   "fn": "",
+   "label": "B2_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "B3",
+   "pinname": "PTA9/GPIO[9]/LPUART2_TX/LPSPI2_PCS0/FXIO_D7/LPSPI3_PCS0/CMP1_OUT/LPSPI1_PCS2/eTPU_A_CH[12]/eTPU_B_CH[1]/LCU0_OUT9/PGOOD/EIRQ[17]/ADC0_P7/ADC2_P6/WKPU[21]",
+   "port": "PTA9",
+   "fn": "ADC0_P7",
+   "label": "B3_TMU",
+   "net": "TMOD_U",
+   "role": "module NTC U",
+   "cls": "signal"
+  },
+  {
+   "ball": "B4",
+   "pinname": "PTE31/GPIO[159]/CMP1_RRT/eMIOS_0_CH[6]_X/eTPU_A_CH[31]/eTPU_B_CH[11]/CAN4_RX",
+   "port": "PTE31",
+   "fn": "",
+   "label": "B4_ILKP",
+   "net": "INTRLOK_P",
+   "role": "HVIL ladder drive",
+   "cls": "signal"
+  },
+  {
+   "ball": "B5",
+   "pinname": "PTE0/GPIO[128]/LPSPI0_SIN/FXIO_D3/eTPU_A_CH[1]/eTPU_B_CH[4]/LCU0_OUT11/CMP0_OUT/LPUART3_RX/EIRQ[0]/ADC3_P0/ADC1_P4/WKPU[26]",
+   "port": "PTE0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B6",
+   "pinname": "PTF1/GPIO[161]/LPSPI2_SIN/eMIOS_0_CH[16]_X/eTPU_A_CH[29]/eTPU_B_CH[17]/LPUART1_RX/EIRQ[1]/WKPU[20]",
+   "port": "PTF1",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B7",
+   "pinname": "SWG0_0",
+   "port": "SWG0_0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B8",
+   "pinname": "VSSA_SWG01",
+   "port": "VSSA_SWG01",
+   "fn": "",
+   "label": "B8_VSSA_SWG01",
+   "net": "AGND",
+   "role": "SWG analog ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "B9",
+   "pinname": "VREFL_R2R",
+   "port": "VREFL_R2R",
+   "fn": "",
+   "label": "B9_VREFL_R2R",
+   "net": "AGND",
+   "role": "ADC reference low",
+   "cls": "supply"
+  },
+  {
+   "ball": "B10",
+   "pinname": "PTE2/GPI[130]/eMIOS_0_CH[3]_X/FXIO_D13/LPSPI0_SOUT/LPUART1_CTS/EIRQ[2]/ADC3_P2/SDADC0_AN[0]/ADC2_S12/WKPU[27]",
+   "port": "PTE2",
+   "fn": "ADC3_P2",
+   "label": "B10_TMV",
+   "net": "TMOD_V",
+   "role": "module NTC V (was PTB2: mux-address output)",
+   "cls": "signal"
+  },
+  {
+   "ball": "B11",
+   "pinname": "PTE6/GPI[134]/FXIO_D12/LPSPI0_PCS2/EIRQ[6]/ADC3_P3/ADC4_P0/SDADC0_AN[1]/WKPU[29]",
+   "port": "PTE6",
+   "fn": "ADC3_P3",
+   "label": "B11_NTCH",
+   "net": "NTC_H",
+   "role": "board NTC hot zone (PTA11 absent on this package)",
+   "cls": "signal"
+  },
+  {
+   "ball": "B12",
+   "pinname": "PTC7/GPI[71]/FXIO_D10/LPI2C0_HREQ/LPI2C1_SCL/LPSPI0_PCS0/EIRQ[7]/ADC3_P7/ADC5_P5/SDADC1_AN[3]/WKPU[2]",
+   "port": "PTC7",
+   "fn": "EIRQ[7]",
+   "label": "B12_INTB",
+   "net": "SBC_INTB",
+   "role": "FS26 INTB (EIRQ)",
+   "cls": "signal"
+  },
+  {
+   "ball": "B13",
+   "pinname": "PTD28/GPI[124]/LPSPI5_SIN/EIRQ[31]/ADC6_P7/SDADC3_AN[0]/ADC5_P1",
+   "port": "PTD28",
+   "fn": "SDADC3_AN[0]",
+   "label": "B13_COSP",
+   "net": "COS_P",
+   "role": "resolver COS+ (SDADC3 AN0)",
+   "cls": "signal"
+  },
+  {
+   "ball": "B14",
+   "pinname": "PTA1/GPI[1]/eMIOS_0_CH[9]_X/FXIO_D3/LPSPI0_PCS6/LPSPI4_PCS1/EIRQ[1]/ADC6_P0/ADC4_P4/SDADC3_AN[1]/WKPU[5]",
+   "port": "PTA1",
+   "fn": "SDADC3_AN[1]",
+   "label": "B14_COSN",
+   "net": "COS_N",
+   "role": "resolver COS- (SDADC3 AN1)",
+   "cls": "signal"
+  },
+  {
+   "ball": "B15",
+   "pinname": "PTF9/GPIO[169]/ADC0_MA[0]/eMIOS_0_CH[5]_X/eTPU_B_CH[23]/EIRQ[17]",
+   "port": "PTF9",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "B16",
+   "pinname": "VSS6",
+   "port": "VSS",
+   "fn": "",
+   "label": "B16_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "B17",
+   "pinname": "PTF10/GPIO[170]/ADC0_MA[1]/eMIOS_0_CH[18]_X/eTPU_B_CH[24]/EIRQ[18]",
+   "port": "PTF10",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C1",
+   "pinname": "PTA19/GPIO[19]/LPSPI1_SCK/LCU0_OUT1/eTPU_A_CH[4]/EVTO_0/LPUART1_RX/EIRQ[1]/ADC0_P2/ADC2_S11",
+   "port": "PTA19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C2",
+   "pinname": "PTE16/GPIO[144]/FCCU_ERR1/LPUART3_TX/LPSPI2_SIN/eMIOS_0_CH[23]_X/LPUART1_RTS/FXIO_D3/TRGMUX_OUT7/LCU0_OUT3/eTPU_B_CH[8]/eTPU_A_CH[6]/FCCU_ERR_IN1/EIRQ[15]/ADC2_S10/ADC0_P4/WKPU[19]",
+   "port": "PTE16",
+   "fn": "FCCU_ERR1",
+   "label": "C2_FCCU1",
+   "net": "FCCU_ERR1",
+   "role": "FCCU error out 1",
+   "cls": "signal"
+  },
+  {
+   "ball": "C3",
+   "pinname": "PTA22/GPIO[22]/FXIO_D1/LPSPI1_PCS1/TRGMUX_OUT3/CLKOUT_STANDBY/CAN1_RX/SWG_EXT_REF_CLK/ADC1_P2/ADC0_S11",
+   "port": "PTA22",
+   "fn": "CAN1_RX",
+   "label": "C3_CAN1RX",
+   "net": "CAN1_RX",
+   "role": "FlexCAN1 RX",
+   "cls": "signal"
+  },
+  {
+   "ball": "C4",
+   "pinname": "PTE28/GPIO[156]/CAN3_TX/eTPU_B_CH[29]/eTPU_A_CH[21]/LPI2C0_SDAS",
+   "port": "PTE28",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C5",
+   "pinname": "PTE29/GPIO[157]/eMIOS_0_CH[5]_X/eTPU_B_CH[7]/CAN3_RX",
+   "port": "PTE29",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C6",
+   "pinname": "PTF2/GPIO[162]/LPSPI2_SOUT/LPUART2_TX/eMIOS_0_CH[23]_X/eTPU_B_CH[11]/EIRQ[2]",
+   "port": "PTF2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C7",
+   "pinname": "PTF4/GPIO[164]/CAN5_TX/FXIO_D0/eMIOS_0_CH[1]_X/eTPU_B_CH[12]/EIRQ[4]",
+   "port": "PTF4",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C8",
+   "pinname": "PTF5/GPIO[165]/eMIOS_0_CH[2]_X/eTPU_A_CH[27]/CAN5_RX/EIRQ[5]",
+   "port": "PTF5",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C9",
+   "pinname": "PTF7/GPIO[167]/LPI2C1_SCL/FXIO_D1/eTPU_B_CH[17]/EIRQ[7]",
+   "port": "PTF7",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C10",
+   "pinname": "PTE20/GPIO[148]/eMIOS_0_CH[2]_X/eTPU_B_CH[3]",
+   "port": "PTE20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C11",
+   "pinname": "PTE19/GPIO[147]/eMIOS_0_CH[22]_X/eTPU_A_CH[9]",
+   "port": "PTE19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C12",
+   "pinname": "PTC6/GPI[70]/CAN2_RX/FXIO_D11/LPSPI0_PCS1/LPSPI1_PCS1/LPUART1_RX/EIRQ[6]/ADC3_P6/ADC5_P4/SDADC1_AN[2]/WKPU[3]",
+   "port": "PTC6",
+   "fn": "ADC3_P6",
+   "label": "C12_HWID",
+   "net": "HW_ID",
+   "role": "SKU identity (was PTB4: no ADC)",
+   "cls": "signal"
+  },
+  {
+   "ball": "C13",
+   "pinname": "PTD31/GPIO[127]/FXIO_D6/LCU0_OUT9/eTPU_A_CH[8]/CAN1_RX/WKPU[53]",
+   "port": "PTD31",
+   "fn": "",
+   "label": "C13_ENFLYL",
+   "net": "MCU_EN_FLYBK_LS",
+   "role": "flyback LS enable (OR)",
+   "cls": "signal"
+  },
+  {
+   "ball": "C14",
+   "pinname": "PTD29/GPI[125]/CAN0_RX/LPSPI5_PCS2/ADC5_P7/ADC6_P5/SDADC3_AN[2]/WKPU[52]",
+   "port": "PTD29",
+   "fn": "ADC5_P7",
+   "label": "C14_NTCA",
+   "net": "NTC_A",
+   "role": "board NTC ambient (was PTA10 = JTAG_TDO)",
+   "cls": "signal"
+  },
+  {
+   "ball": "C15",
+   "pinname": "PTB9/GPI[41]/FXIO_D28/LPSPI4_SOUT/LPUART1_RIN_B/LPUART1_RX/EIRQ[15]/ADC4_P7/ADC6_P3/SDADC2_AN[0]/WKPU[17]",
+   "port": "PTB9",
+   "fn": "SDADC2_AN[0]",
+   "label": "C15_SINP",
+   "net": "SIN_P",
+   "role": "resolver SIN+ (SDADC2 AN0)",
+   "cls": "signal"
+  },
+  {
+   "ball": "C16",
+   "pinname": "PTD25/GPIO[121]/eMIOS_0_CH[1]_X/eTPU_A_CH[15]/eTPU_B_CH[10]/EVTI_1",
+   "port": "PTD25",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "C17",
+   "pinname": "PTB11/GPIO[43]/LPSPI4_SIN/LCU0_OUT8/FXIO_D26/eTPU_A_CH[0]/eMIOS_0_CH[9]_X/eTPU_A_TCRCLK/LPI2C0_HREQ/LPUART0_DSR_B/EIRQ[25]/WKPU[16]/CMP1_IN0/ADC0_S14/ADC0_X[3]",
+   "port": "PTB11",
+   "fn": "ADC0_S14",
+   "label": "C17_AMUX",
+   "net": "SBC_AMUX",
+   "role": "FS26 AMUX (was a named ADC0_S12 pin)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D1",
+   "pinname": "PTA21/GPIO[21]/LPSPI2_PCS2/FXIO_D0/LPSPI1_PCS0/eMIOS_0_CH[4]_X/eTPU_B_CH[11]/eTPU_A_CH[1]/LCU1_OUT9/EIRQ[3]/ADC2_P4/ADC0_S10",
+   "port": "PTA21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D2",
+   "pinname": "PTE15/GPIO[143]/FCCU_ERR0/LPSPI2_SCK/eMIOS_0_CH[22]_X/CMP1_RRT/FXIO_D2/TRGMUX_OUT6/eTPU_B_CH[10]/eTPU_A_CH[0]/LCU1_OUT8/eTPU_A_TCRCLK/FCCU_ERR_IN0/LPUART1_CTS/LPUART3_RX/EIRQ[14]/ADC0_P3/ADC2_S9",
+   "port": "PTE15",
+   "fn": "FCCU_ERR0",
+   "label": "D2_FCCU0",
+   "net": "FCCU_ERR0",
+   "role": "FCCU error out 0",
+   "cls": "signal"
+  },
+  {
+   "ball": "D3",
+   "pinname": "PTA23/GPIO[23]/CAN1_TX/FXIO_D2/LPI2C0_SCLS/eTPU_A_CH[24]/eTPU_B_CH[13]/LCU0_OUT0",
+   "port": "PTA23",
+   "fn": "CAN1_TX",
+   "label": "D3_CAN1TX",
+   "net": "CAN1_TX",
+   "role": "FlexCAN1 TX",
+   "cls": "signal"
+  },
+  {
+   "ball": "D4",
+   "pinname": "VSS4",
+   "port": "VSS",
+   "fn": "",
+   "label": "D4_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "D5",
+   "pinname": "PTE26/GPIO[154]/LPSPI1_PCS5/LPSPI2_PCS3/eTPU_A_CH[0]/eTPU_B_CH[3]/LCU0_OUT10/eTPU_A_TCRCLK/ADC0_P6/ADC1_P0",
+   "port": "PTE26",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D6",
+   "pinname": "PTF3/GPIO[163]/LPSPI2_PCS0/eMIOS_0_CH[0]_X/eTPU_A_CH[28]/LPUART2_RX/EIRQ[3]/WKPU[51]",
+   "port": "PTF3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D7",
+   "pinname": "PTF6/GPIO[166]/LPI2C1_SDA/EIRQ[6]/EVTI_1/ADC0_S13/ADC3_S11",
+   "port": "PTF6",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D8",
+   "pinname": "PTE23/GPIO[151]/LPSPI4_PCS0/eMIOS_0_CH[4]_X/SWG_EXT_REF_CLK/ADC1_P7/ADC0_S12/WKPU[57]",
+   "port": "PTE23",
+   "fn": "ADC1_P7",
+   "label": "D8_ILKN",
+   "net": "INTRLOK_N",
+   "role": "HVIL signature (was PTF5: no ADC)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D9",
+   "pinname": "VSS10",
+   "port": "VSS",
+   "fn": "",
+   "label": "D9_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "D10",
+   "pinname": "PTF8/GPIO[168]/LPI2C1_SDA/FXIO_D2/CAN2_TX/eMIOS_0_CH[4]_X/eTPU_B_CH[22]/EIRQ[16]",
+   "port": "PTF8",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D11",
+   "pinname": "PTE18/GPI[146]/FXIO_D4/ADC3_P5/SDADC0_AN[3]/ADC1_S12/WKPU[55]",
+   "port": "PTE18",
+   "fn": "ADC3_P5",
+   "label": "D11_MT2",
+   "net": "MT2_SIG",
+   "role": "motor temp 2 (PTA13 absent)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D12",
+   "pinname": "PTE17/GPI[145]/FXIO_D5/ADC4_P3/SDADC1_AN[1]/ADC5_P0",
+   "port": "PTE17",
+   "fn": "SDADC1_AN[1]",
+   "label": "D12_VREXMN",
+   "net": "VREXM_N",
+   "role": "excitation monitor - (SDADC1 AN1)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D13",
+   "pinname": "PTD30/GPIO[126]/LCU0_OUT8/LPSPI5_PCS3/CAN1_TX/eTPU_A_CH[16]",
+   "port": "PTD30",
+   "fn": "",
+   "label": "D13_ENFLYH",
+   "net": "MCU_EN_FLYBK_HS",
+   "role": "flyback HS enable (OR)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D14",
+   "pinname": "VDD_HV_A_6",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "D14_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "D15",
+   "pinname": "PTB10/GPIO[42]/LPSPI4_SCK/LPUART0_DTR_B/LCU0_OUT9/FXIO_D27/LPUART1_TX/EVTO_1/EIRQ[24]/SWG_EXT_REF_CLK/CMP1_IN1/ADC0_X[2]",
+   "port": "PTB10",
+   "fn": "EIRQ[24]",
+   "label": "D15_RDYHS",
+   "net": "RDY_HS",
+   "role": "RDY HS bank (GPIO/EIRQ)",
+   "cls": "signal"
+  },
+  {
+   "ball": "D16",
+   "pinname": "PTD24/GPIO[120]/FXIO_D29/LCU0_OUT11/eTPU_A_CH[1]/LCU0_OUT1/PWM_0_A[0]/LPSPI0_PCS5/HSE_TAMPER_EXTIN0/EIRQ[29]/ADC1_X[0]/ADC1_S14",
+   "port": "PTD24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "D17",
+   "pinname": "PTA2/GPIO[2]/FCCU_ERR0/FXIO_D4/LCU0_OUT3/LPSPI5_SIN/eTPU_A_CH[2]/LCU0_OUT0/PWM_0_B[0]/eMIOS_0_CH[19]_X/LPSPI1_SIN/FCCU_ERR_IN0/LPUART0_RX/EIRQ[2]/CMP1_IN2/ADC0_X[0]/ADC0_S15/WKPU[0]",
+   "port": "PTA2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E1",
+   "pinname": "PTE11/GPIO[139]/LPSPI2_PCS0/eMIOS_0_CH[1]_X/eMIOS_0_CH[21]_X/FXIO_D5/TRGMUX_OUT5/LPUART0_TX/LCU0_OUT4/LPSPI1_PCS4/eTPU_B_CH[22]/eTPU_A_CH[9]/EIRQ[10]/ADC0_S9/ADC1_P5/WKPU[28]",
+   "port": "PTE11",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E2",
+   "pinname": "PTE10/GPIO[138]/LPSPI3_SIN/LPSPI2_PCS1/eMIOS_0_CH[20]_X/CLKOUT_STANDBY/FXIO_D4/TRGMUX_OUT4/LCU0_OUT5/eTPU_B_CH[23]/eTPU_A_CH[10]/LPUART0_RX/EIRQ[9]/ADC0_P5/WKPU[25]/ADC1_S11",
+   "port": "PTE10",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E3",
+   "pinname": "PTD1/GPIO[97]/eMIOS_0_CH[3]_X/LPSPI3_SCK/eMIOS_0_CH[17]_X/FXIO_D1/TRGMUX_OUT2/LPUART1_TX/LPUART0_RTS/eTPU_B_CH[12]/eTPU_A_CH[2]/LCU1_OUT10/EIRQ[9]/ADC0_P0/ADC1_S13",
+   "port": "PTD1",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E4",
+   "pinname": "PTA20/GPIO[20]/LPSPI1_SIN/LCU0_OUT2/eTPU_B_CH[4]/eTPU_A_CH[5]/PGOOD/EIRQ[2]/ADC1_P3/ADC3_S8/WKPU[59]",
+   "port": "PTA20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E5",
+   "pinname": "VDD_HV_A_2",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "E5_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "E6",
+   "pinname": "VREFH_SAR_456",
+   "port": "VREFH_SAR_456",
+   "fn": "",
+   "label": "E6_VREFH_SAR_456",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "E7",
+   "pinname": "VREFL_SAR_456",
+   "port": "VREFL_SAR_456",
+   "fn": "",
+   "label": "E7_VREFL_SAR_456",
+   "net": "AGND",
+   "role": "ADC reference low",
+   "cls": "supply"
+  },
+  {
+   "ball": "E8",
+   "pinname": "V11_1",
+   "port": "V11",
+   "fn": "",
+   "label": "E8_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "E9",
+   "pinname": "VREFL_SDADC_01",
+   "port": "VREFL_SDADC_01",
+   "fn": "",
+   "label": "E9_VREFL_SDADC_01",
+   "net": "AGND",
+   "role": "ADC reference low",
+   "cls": "supply"
+  },
+  {
+   "ball": "E10",
+   "pinname": "VREFH_SDADC_01",
+   "port": "VREFH_SDADC_01",
+   "fn": "",
+   "label": "E10_VREFH_SDADC_01",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "E11",
+   "pinname": "VSSA_SDADC",
+   "port": "VSSA_SDADC",
+   "fn": "",
+   "label": "E11_VSSA_SDADC",
+   "net": "AGND",
+   "role": "SDADC analog ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "E12",
+   "pinname": "VDDA_SDADC",
+   "port": "VDDA_SDADC",
+   "fn": "",
+   "label": "E12_VDDA_SDADC",
+   "net": "V5A",
+   "role": "SDADC analog supply (filtered 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "E13",
+   "pinname": "VSS11",
+   "port": "VSS",
+   "fn": "",
+   "label": "E13_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "E14",
+   "pinname": "PTF13/GPIO[173]/ADC0_MA[1]/LPSPI3_SCK/eMIOS_0_CH[21]_X/eTPU_B_CH[27]/LPUART2_RX/EIRQ[21]/WKPU[29]",
+   "port": "PTF13",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E15",
+   "pinname": "PTF12/GPIO[172]/ADC0_MA[0]/LPSPI3_SIN/LPUART2_TX/eMIOS_0_CH[20]_X/eTPU_B_CH[26]/EIRQ[20]",
+   "port": "PTF12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E16",
+   "pinname": "PTA3/GPIO[3]/FCCU_ERR1/LPSPI1_SCK/LCU0_OUT2/FXIO_D5/LPUART0_TX/LPSPI5_SCK/eTPU_A_CH[3]/LCU0_OUT3/PWM_0_A[1]/FCCU_ERR_IN1/EIRQ[3]/ADC1_S15/ADC2_S13",
+   "port": "PTA3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "E17",
+   "pinname": "PTD23/GPIO[119]/FXIO_D28/HSE_TAMPER_LOOP_OUT0",
+   "port": "PTD23",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F1",
+   "pinname": "NMOS_CTRL",
+   "port": "NMOS_CTRL",
+   "fn": "",
+   "label": "F1_NMOS_CTRL",
+   "net": "BCTRL",
+   "role": "gate of the external V11 ballast NMOS",
+   "cls": "supply"
+  },
+  {
+   "ball": "F2",
+   "pinname": "PTE5/GPIO[133]/eMIOS_0_CH[19]_X/FXIO_D7/TRGMUX_OUT0/LCU0_OUT6/LPSPI1_PCS3/eTPU_B_CH[5]/eTPU_A_CH[11]/EIRQ[5]/ADC1_S8/ADC2_P3/WKPU[32]",
+   "port": "PTE5",
+   "fn": "ADC1_S8",
+   "label": "F2_TMW",
+   "net": "TMOD_W",
+   "role": "module NTC W (was PTB3: mux-address output)",
+   "cls": "signal"
+  },
+  {
+   "ball": "F3",
+   "pinname": "PTD0/GPIO[96]/eMIOS_0_CH[2]_X/LPSPI3_SOUT/eMIOS_0_CH[16]_X/FXIO_D0/TRGMUX_OUT1/eTPU_B_CH[17]/eTPU_A_CH[7]/LCU1_OUT11/LPUART0_CTS/LPUART1_RX/EIRQ[8]/ADC2_S8/ADC0_P1/WKPU[6]",
+   "port": "PTD0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F4",
+   "pinname": "PTG8/GPIO[200]/CAN4_TX/FXIO_D12/LPI2C0_SCL/eTPU_A_CH[25]/eTPU_B_CH[14]/LCU0_OUT1/eMIOS_0_CH[22]_X/EIRQ[24]",
+   "port": "PTG8",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F5",
+   "pinname": "VSS23",
+   "port": "VSS",
+   "fn": "",
+   "label": "F5_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "F6",
+   "pinname": "PTA4/GPIO[4]/FXIO_D6/CMP0_OUT/JTAG_TMS/SWD_DIO/EIRQ[4]/ADC1_S15",
+   "port": "PTA4",
+   "fn": "JTAG_TMS",
+   "label": "F6_TMS",
+   "net": "TMS",
+   "role": "JTAG TMS / SWDIO",
+   "cls": "signal"
+  },
+  {
+   "ball": "F7",
+   "pinname": "PTC4/GPIO[68]/eMIOS_0_CH[8]_X/FXIO_D5/JTAG_TCK/SWD_CLK/EIRQ[4]/CMP1_IN3",
+   "port": "PTC4",
+   "fn": "JTAG_TCK",
+   "label": "F7_TCK",
+   "net": "TCK",
+   "role": "JTAG TCK / SWCLK",
+   "cls": "signal"
+  },
+  {
+   "ball": "F8",
+   "pinname": "PTC5/GPIO[69]/eMIOS_0_CH[16]_X/FXIO_D4/JTAG_TDI/LPI2C1_HREQ/EIRQ[5]",
+   "port": "PTC5",
+   "fn": "JTAG_TDI",
+   "label": "F8_TDI",
+   "net": "TDI",
+   "role": "JTAG TDI",
+   "cls": "signal"
+  },
+  {
+   "ball": "F9",
+   "pinname": "PTE21/GPIO[149]/LPSPI4_SIN/eTPU_B_CH[6]/EXTWAKE/WKPU[56]",
+   "port": "PTE21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F10",
+   "pinname": "PTG27/GPIO[219]/FXIO_D26/TRACE_ETM_D15/CAN1_RX",
+   "port": "PTG27",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F11",
+   "pinname": "PTG26/GPIO[218]/FXIO_D25/TRACE_ETM_D14/CAN1_TX",
+   "port": "PTG26",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F12",
+   "pinname": "PTG25/GPIO[217]/FXIO_D24/TRACE_ETM_D13/WKPU[45]",
+   "port": "PTG25",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F13",
+   "pinname": "VREFH_SDADC_23",
+   "port": "VREFH_SDADC_23",
+   "fn": "",
+   "label": "F13_VREFH_SDADC_23",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "F14",
+   "pinname": "PTF15/GPIO[175]/CMP0_RRT/LPSPI3_SOUT/FCCU_ERR1/eTPU_A_CH[30]/eTPU_B_CH[1]/eTPU_B_CH[20]/LCU0_OUT6/eMIOS_0_CH[22]_X/DSPI_MSC0_PCS[1]/CAN1_RX/FCCU_ERR_IN1/EIRQ[23]",
+   "port": "PTF15",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F15",
+   "pinname": "PTF14/GPIO[174]/CAN1_TX/CMP0_OUT/FCCU_ERR0/FXIO_D3/CAN0_TX/eTPU_A_CH[28]/eTPU_B_CH[18]/LCU0_OUT4/eMIOS_0_CH[17]_X/DSPI_MSC0_PCS[0]/FCCU_ERR_IN0/EXT_CLKIN0/EIRQ[22]",
+   "port": "PTF14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F16",
+   "pinname": "PTD2/GPIO[98]/LCU0_OUT1/LPSPI1_SOUT/FXIO_D4/FXIO_D6/LPUART3_TX/LPSPI5_SOUT/eTPU_A_CH[10]/LCU0_OUT5/PWM_0_A[2]/EIRQ[10]/TRGMUX_IN5/ADC1_S16/ADC2_S15/WKPU[9]",
+   "port": "PTD2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "F17",
+   "pinname": "PTD3/GPIO[99]/LPSPI1_PCS0/FXIO_D5/FXIO_D7/LCU0_OUT0/eTPU_A_CH[11]/LCU0_OUT4/PWM_0_B[2]/LPUART3_RX/EIRQ[11]/TRGMUX_IN4/WKPU[1]/ADC1_S17/ADC2_S16/NMI_b",
+   "port": "PTD3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G1",
+   "pinname": "PTA24/GPIO[24]/FXIO_D3/eTPU_B_CH[8]/LCU0_OUT8/ADC1_S10/ADC2_P1",
+   "port": "PTA24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G2",
+   "pinname": "PTG9/GPIO[201]/eMIOS_0_CH[23]_X/eTPU_A_CH[24]/CAN4_RX/EIRQ[25]/WKPU[55]",
+   "port": "PTG9",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G3",
+   "pinname": "PTG13/GPIO[205]/CAN5_TX/FXIO_D13/LPI2C0_SDA/eTPU_B_CH[28]/eTPU_A_CH[20]/LCU1_OUT4/eMIOS_0_CH[19]_X/EIRQ[29]",
+   "port": "PTG13",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G4",
+   "pinname": "PTG4/GPIO[196]/eTPU_A_CH[26]/eTPU_B_CH[15]/LCU0_OUT2/eMIOS_0_CH[20]_X/EIRQ[12]",
+   "port": "PTG4",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G5",
+   "pinname": "VSS24",
+   "port": "VSS",
+   "fn": "",
+   "label": "G5_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "G6",
+   "pinname": "PTE4/GPIO[132]/LPSPI0_PCS0/LPSPI1_PCS1/eMIOS_0_CH[18]_X/FXIO_D6/LCU0_OUT7/eTPU_B_CH[6]/eTPU_A_CH[12]/EIRQ[4]/ADC2_P2/ADC1_S9",
+   "port": "PTE4",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G7",
+   "pinname": "VSS8",
+   "port": "VSS",
+   "fn": "",
+   "label": "G7_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "G8",
+   "pinname": "PTA10/GPIO[10]/eMIOS_0_CH[12]_X/FXIO_D0/JTAG_TDO/TRACEnoETM_SWO/EIRQ[18]",
+   "port": "PTA10",
+   "fn": "JTAG_TDO",
+   "label": "G8_TDO",
+   "net": "TDO",
+   "role": "JTAG TDO / SWO",
+   "cls": "signal"
+  },
+  {
+   "ball": "G9",
+   "pinname": "PTE27/GPIO[155]/eTPU_B_CH[28]/eTPU_A_CH[20]/eMIOS_0_CH[4]_X",
+   "port": "PTE27",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G10",
+   "pinname": "VDD_HV_A_5",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "G10_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "G11",
+   "pinname": "VSS9",
+   "port": "VSS",
+   "fn": "",
+   "label": "G11_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "G12",
+   "pinname": "PTG24/GPIO[216]/FXIO_D23/TRACE_ETM_D12",
+   "port": "PTG24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G13",
+   "pinname": "VREFL_SDADC_23",
+   "port": "VREFL_SDADC_23",
+   "fn": "",
+   "label": "G13_VREFL_SDADC_23",
+   "net": "AGND",
+   "role": "ADC reference low",
+   "cls": "supply"
+  },
+  {
+   "ball": "G14",
+   "pinname": "PTF17/GPIO[177]/ADC1_MA[1]/eTPU_B_CH[22]/EXT_DATA1",
+   "port": "PTF17",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G15",
+   "pinname": "PTF16/GPIO[176]/ADC1_MA[0]/LPSPI3_PCS0/eTPU_A_CH[31]/eTPU_B_CH[2]/eTPU_B_CH[21]/LCU0_OUT7/DSPI_MSC0_PCS[0]/EXT_DATA0",
+   "port": "PTF16",
+   "fn": "LPSPI3_PCS0",
+   "label": "G15_CS",
+   "net": "SBC_CS",
+   "role": "LPSPI3 PCS0",
+   "cls": "signal"
+  },
+  {
+   "ball": "G16",
+   "pinname": "PTD4/GPIO[100]/LPSPI1_PCS1/LCU0_OUT6/LPSPI5_PCS0/eTPU_A_CH[6]/PWM_0_A[3]/eMIOS_0_CH[23]_X/EIRQ[12]/ADC0_S17/ADC2_S17/WKPU[22]",
+   "port": "PTD4",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "G17",
+   "pinname": "PTD22/GPIO[118]/FXIO_D27/LCU0_OUT5/eTPU_B_CH[0]/PWM_0_B[3]/LCU0_OUT7/eMIOS_0_CH[19]_X/eTPU_B_TCRCLK/EIRQ[27]/ADC1_S18/ADC2_S18",
+   "port": "PTD22",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H1",
+   "pinname": "PTA25/GPIO[25]/FXIO_D2/eMIOS_0_CH[8]_X/eTPU_B_CH[9]/LCU0_OUT9/EXTWAKE/EIRQ[5]/ADC0_S8/ADC2_P0/WKPU[34]",
+   "port": "PTA25",
+   "fn": "ADC0_S8",
+   "label": "H1_IGN",
+   "net": "IGN_SNS",
+   "role": "KL15 sense",
+   "cls": "signal"
+  },
+  {
+   "ball": "H2",
+   "pinname": "PTG1/GPIO[193]/eMIOS_0_CH[17]_X/eTPU_A_CH[13]/EIRQ[9]",
+   "port": "PTG1",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H3",
+   "pinname": "PTG14/GPIO[206]/eTPU_A_CH[25]/CAN5_RX/EIRQ[30]/WKPU[52]",
+   "port": "PTG14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H4",
+   "pinname": "PTG5/GPIO[197]/eTPU_A_CH[27]/eTPU_B_CH[16]/LCU0_OUT3/eMIOS_0_CH[21]_X/EIRQ[13]",
+   "port": "PTG5",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H5",
+   "pinname": "VREFH_SAR_456",
+   "port": "VREFH_SAR_456",
+   "fn": "",
+   "label": "H5_VREFH_SAR_456",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "H6",
+   "pinname": "VREFH_SAR_0123",
+   "port": "VREFH_SAR_0123",
+   "fn": "",
+   "label": "H6_VREFH_SAR_0123",
+   "net": "VREF5",
+   "role": "ADC reference high (FS26 VREF 5 V)",
+   "cls": "supply"
+  },
+  {
+   "ball": "H7",
+   "pinname": "VDD_HV_A_4",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "H7_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "H8",
+   "pinname": "V11_3",
+   "port": "V11",
+   "fn": "",
+   "label": "H8_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "H9",
+   "pinname": "V11_7",
+   "port": "V11",
+   "fn": "",
+   "label": "H9_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "H10",
+   "pinname": "V11_2",
+   "port": "V11",
+   "fn": "",
+   "label": "H10_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "H11",
+   "pinname": "PTF11/GPIO[171]/ADC0_MA[2]/eMIOS_0_CH[19]_X/eTPU_B_CH[25]/HSE_TAMPER_EXTIN0/EIRQ[19]",
+   "port": "PTF11",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H12",
+   "pinname": "PTG23/GPIO[215]/FXIO_D22/TRACE_ETM_D11",
+   "port": "PTG23",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H13",
+   "pinname": "VDD_HV_A_7",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "H13_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "H14",
+   "pinname": "PTF18/GPIO[178]/ADC1_MA[2]/LPSPI3_PCS1/LPUART3_TX/eTPU_B_CH[26]/eTPU_A_CH[18]/LCU1_OUT2/DSPI_MSC0_PCS[1]/EXT_DATA2",
+   "port": "PTF18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H15",
+   "pinname": "PTD21/GPIO[117]/FXIO_D26/LCU0_OUT4/eTPU_A_CH[7]/LCU0_OUT10/PWM_0_X[2]/LCU0_OUT0/eTPU_A_CH[2]/LPSPI0_PCS7/DSPI_MSC0_PCS[1]/EIRQ[26]/ADC2_S20/ADC1_S20",
+   "port": "PTD21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "H16",
+   "pinname": "PTB13/GPIO[45]/LPSPI3_PCS2/eMIOS_0_CH[1]_X/FXIO_D8/LCU0_OUT3/FXIO_D24/LPUART0_TX/eTPU_B_CH[4]/LCU0_OUT9/PWM_0_X[1]/LCU0_OUT1/eTPU_A_CH[1]/LPUART0_RIN_B/LPUART_MSC0_RX/EIRQ[27]/ADC0_S19/ADC1_S19/ADC2_S19/WKPU[11]",
+   "port": "PTB13",
+   "fn": "ADC0_S19",
+   "label": "H16_ISW",
+   "net": "ISNS_W",
+   "role": "phase current W",
+   "cls": "signal"
+  },
+  {
+   "ball": "H17",
+   "pinname": "PTB12/GPIO[44]/LPSPI3_PCS3/eMIOS_0_CH[0]_X/LCU0_OUT2/FXIO_D25/eTPU_B_CH[2]/LCU0_OUT8/PWM_0_X[0]/eTPU_A_CH[0]/eTPU_A_TCRCLK/LPUART0_DCD_B/LPUART0_RX/EIRQ[26]/ADC1_X[1]/ADC0_S18/WKPU[12]",
+   "port": "PTB12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J1",
+   "pinname": "VSS18",
+   "port": "VSS",
+   "fn": "",
+   "label": "J1_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "J2",
+   "pinname": "PTG0/GPIO[192]/eMIOS_0_CH[6]_X/eTPU_A_CH[8]/EIRQ[8]",
+   "port": "PTG0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J3",
+   "pinname": "PTG2/GPIO[194]/eTPU_B_CH[30]/eTPU_A_CH[1]/eTPU_A_CH[22]/LCU1_OUT6/EIRQ[10]/EVTI_0",
+   "port": "PTG2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J4",
+   "pinname": "VSS15",
+   "port": "VSS",
+   "fn": "",
+   "label": "J4_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "J5",
+   "pinname": "VSS_DCDC",
+   "port": "VSS_DCDC",
+   "fn": "",
+   "label": "J5_VSS_DCDC",
+   "net": "DGND",
+   "role": "internal DC/DC ground (PMIC option)",
+   "cls": "supply"
+  },
+  {
+   "ball": "J6",
+   "pinname": "VREFL_SAR_0123",
+   "port": "VREFL_SAR_0123",
+   "fn": "",
+   "label": "J6_VREFL_SAR_0123",
+   "net": "AGND",
+   "role": "ADC reference low",
+   "cls": "supply"
+  },
+  {
+   "ball": "J7",
+   "pinname": "VSS (DS figure)",
+   "port": "VSS",
+   "fn": "",
+   "label": "J7_VSS",
+   "net": "DGND",
+   "role": "DS PMIC figure lists J7 as a ground ball (\"V25\" in the figure text); grounded",
+   "cls": "ground"
+  },
+  {
+   "ball": "J8",
+   "pinname": "V11_8",
+   "port": "V11",
+   "fn": "",
+   "label": "J8_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "J9",
+   "pinname": "VSS7",
+   "port": "VSS",
+   "fn": "",
+   "label": "J9_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "J10",
+   "pinname": "V11_5",
+   "port": "V11",
+   "fn": "",
+   "label": "J10_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "J11",
+   "pinname": "PTF19/GPIO[179]/ADC0_MA[2]/LPSPI3_PCS2/HSE_TAMPER_LOOP_OUT0",
+   "port": "PTF19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J12",
+   "pinname": "PTG22/GPIO[214]/FXIO_D21/TRACE_ETM_D10",
+   "port": "PTG22",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J13",
+   "pinname": "V11_4",
+   "port": "V11",
+   "fn": "",
+   "label": "J13_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "J14",
+   "pinname": "VSS17",
+   "port": "VSS",
+   "fn": "",
+   "label": "J14_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "J15",
+   "pinname": "PTF20/GPIO[180]/LPI2C0_SCL/LPSPI3_PCS3/CAN0_TX/FXIO_D4/LPUART0_TX/eTPU_A_CH[29]/eTPU_B_CH[0]/eTPU_B_CH[19]/LCU0_OUT5/eMIOS_0_CH[13]_X/eTPU_B_TCRCLK/DSPI_MSC0_SIN/EXT_CLKIN1",
+   "port": "PTF20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J16",
+   "pinname": "PTB15/GPIO[47]/eMIOS_0_CH[3]_X/LPSPI1_SIN/FXIO_D22/LPUART3_TX/eTPU_B_CH[13]/LCU0_OUT2/eTPU_A_CH[4]/PWM_0_FAULT[0]/EIRQ[29]/TRGMUX_IN0/ADC0_S20/ADC1_S22/WKPU[33]",
+   "port": "PTB15",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "J17",
+   "pinname": "PTB14/GPIO[46]/eMIOS_0_CH[2]_X/LPSPI1_SCK/LCU0_OUT7/FXIO_D23/eTPU_A_CH[9]/LCU0_OUT11/PWM_0_X[3]/LCU0_OUT3/eTPU_A_CH[3]/DSPI_MSC0_PCS[0]/LPUART3_RX/EIRQ[28]/ADC1_S21/ADC2_S21/ADC0_S21",
+   "port": "PTB14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K1",
+   "pinname": "EXTAL",
+   "port": "EXTAL",
+   "fn": "",
+   "label": "K1_EXTAL",
+   "net": "EXTAL",
+   "role": "40 MHz crystal",
+   "cls": "signal"
+  },
+  {
+   "ball": "K2",
+   "pinname": "PTG3/GPIO[195]/eMIOS_0_CH[19]_X/EVTO_0/eTPU_B_CH[31]/eTPU_A_CH[2]/eTPU_A_CH[23]/LCU1_OUT7/EIRQ[11]",
+   "port": "PTG3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K3",
+   "pinname": "PTF30/GPIO[190]/ADC1_MA[1]/eMIOS_0_CH[14]_X/eTPU_B_CH[31]/CAN3_RX/WKPU[58]",
+   "port": "PTF30",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K4",
+   "pinname": "PTF29/GPIO[189]/CAN3_TX/ADC1_MA[0]/LPSPI3_PCS1/FXIO_D8/eMIOS_0_CH[13]_X/LPI2C1_SCL/eTPU_B_CH[29]/eTPU_A_CH[0]/eTPU_A_CH[21]/LCU1_OUT5/eTPU_A_TCRCLK/LPI2C0_HREQ",
+   "port": "PTF29",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K5",
+   "pinname": "PMOS_CTRL",
+   "port": "PMOS_CTRL",
+   "fn": "",
+   "label": "K5_PMOS_CTRL",
+   "net": null,
+   "role": "PMOS_CTRL \u2014 used only with the internal SMPS option; open in the PMIC option (GEN3 note)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K6",
+   "pinname": "PTG7/GPIO[199]/FXIO_D11/TRACE_ETM_D0/eMIOS_0_CH[23]_X/EIRQ[15]",
+   "port": "PTG7",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K7",
+   "pinname": "PTG6/GPIO[198]/FXIO_D10/TRACE_ETM_CLKOUT/EIRQ[14]",
+   "port": "PTG6",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K8",
+   "pinname": "V11_9",
+   "port": "V11",
+   "fn": "",
+   "label": "K8_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "K9",
+   "pinname": "V11_6",
+   "port": "V11",
+   "fn": "",
+   "label": "K9_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "K10",
+   "pinname": "V11_10",
+   "port": "V11",
+   "fn": "",
+   "label": "K10_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "K11",
+   "pinname": "VDD_HV_A_3",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "K11_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "K12",
+   "pinname": "PTG21/GPIO[213]/FXIO_D20/TRACE_ETM_D9/CAN0_RX",
+   "port": "PTG21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K13",
+   "pinname": "PTH7/GPIO[231]/FXIO_D23/TRACE_ETM_D10/LPUART0_RX/EIRQ[23]/WKPU[8]",
+   "port": "PTH7",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K14",
+   "pinname": "PTF21/GPIO[181]/LPI2C0_SDA/LPSPI1_PCS0/FXIO_D5/eTPU_B_CH[24]/eTPU_A_CH[14]/LCU1_OUT0/eMIOS_0_CH[14]_X/DSPI_MSC0_SOUT/CAN0_RX/LPUART0_RX/EXT_CLKIN2/WKPU[17]",
+   "port": "PTF21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K15",
+   "pinname": "PTD20/GPIO[116]/FXIO_D25/LPSPI1_PCS2/LPSPI3_SIN/eTPU_B_CH[15]/eTPU_B_CH[3]/LCU0_OUT4/eTPU_A_CH[11]/LPSPI0_PCS6/eMIOS_0_CH[17]_X/PWM_0_EXT_FORCE/PWM_0_FAULT[2]/EIRQ[25]/TRGMUX_IN2/WKPU[54]/ADC1_X[2]/ADC0_S22",
+   "port": "PTD20",
+   "fn": "LPSPI3_SIN",
+   "label": "K15_MISO",
+   "net": "SBC_MISO",
+   "role": "LPSPI3 SIN",
+   "cls": "signal"
+  },
+  {
+   "ball": "K16",
+   "pinname": "PTB17/GPIO[49]/eMIOS_0_CH[5]_X/LPSPI1_PCS3/LPSPI3_PCS0/FXIO_D20/eTPU_B_CH[16]/eTPU_A_CH[5]/eTPU_A_CH[7]/PWM_0_EXT_CLK/PWM_0_FAULT[3]/LPUART0_RX/EIRQ[31]/TRGMUX_IN3/ADC2_S23/ADC1_X[3]/WKPU[14]",
+   "port": "PTB17",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "K17",
+   "pinname": "PTB16/GPIO[48]/eMIOS_0_CH[4]_X/LPSPI1_SOUT/FXIO_D21/LPUART0_TX/eTPU_B_CH[14]/eTPU_B_CH[1]/LCU0_OUT5/eTPU_A_CH[10]/PWM_0_FAULT[1]/EIRQ[30]/TRGMUX_IN1/ADC2_S22/ADC0_X[1]/WKPU[13]",
+   "port": "PTB16",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L1",
+   "pinname": "XTAL",
+   "port": "XTAL",
+   "fn": "",
+   "label": "L1_XTAL",
+   "net": "XTAL",
+   "role": "40 MHz crystal",
+   "cls": "signal"
+  },
+  {
+   "ball": "L2",
+   "pinname": "PTA26/GPIO[26]/LPSPI1_PCS0/LPSPI0_PCS0/FXIO_D1/EMAC_PPS0/eMIOS_0_CH[9]_X/PGOOD/WKPU[35]",
+   "port": "PTA26",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L3",
+   "pinname": "PTE14/GPIO[142]/eMIOS_0_CH[19]_X/FXIO_D7/EMAC_PPS1/LPUART1_TX/CAN4_RX/EIRQ[13]/WKPU[30]",
+   "port": "PTE14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L4",
+   "pinname": "PTD15/GPIO[111]/FXIO_D6/eMIOS_0_CH[0]_X/LPSPI0_SCK/EMAC_PPS2/FXIO_D10/CAN3_RX/LPUART0_RX/LPUART2_CTS/EIRQ[31]/CMP0_IN1",
+   "port": "PTD15",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L5",
+   "pinname": "VDD_DCDC",
+   "port": "VDD_DCDC",
+   "fn": "",
+   "label": "L5_VDD_DCDC",
+   "net": "V5A",
+   "role": "internal DC/DC input \u2014 follows HV_A (DS: never above VDD_HV_A; GEN3 default)",
+   "cls": "supply"
+  },
+  {
+   "ball": "L6",
+   "pinname": "PTG15/GPIO[207]/FXIO_D14/TRACE_ETM_D1/EIRQ[31]",
+   "port": "PTG15",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L7",
+   "pinname": "VSS1",
+   "port": "VSS",
+   "fn": "",
+   "label": "L7_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "L8",
+   "pinname": "VDD_HV_A_1",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "L8_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "L9",
+   "pinname": "PTF31/GPIO[191]/ADC1_MA[2]/FXIO_D9/TRACE_ETM_D3/eMIOS_0_CH[15]_X/EMAC_MII_RMII_TX_EN/TRGMUX_IN6",
+   "port": "PTF31",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L10",
+   "pinname": "PTF28/GPIO[188]/FXIO_D7/LPSPI0_PCS0/LPSPI4_PCS3/TRACE_ETM_D5/LPUART3_RX",
+   "port": "PTF28",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L11",
+   "pinname": "VSS2",
+   "port": "VSS",
+   "fn": "",
+   "label": "L11_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "L12",
+   "pinname": "PTG20/GPIO[212]/FXIO_D19/TRACE_ETM_D8/CAN0_TX",
+   "port": "PTG20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L13",
+   "pinname": "PTH8/GPIO[232]/FXIO_D24/TRACE_ETM_D11/LPUART2_TX/EIRQ[24]",
+   "port": "PTH8",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L14",
+   "pinname": "PTC31/GPIO[95]/FXIO_D1/LPUART1_DTR_B/FXIO_D24/eTPU_A_CH[17]/LCU1_OUT1/PWM_1_A[0]/eMIOS_0_CH[14]_X/CAN4_RX/ADC3_S10/WKPU[49]",
+   "port": "PTC31",
+   "fn": "PWM_1_A[0]",
+   "label": "L14_PWMUH",
+   "net": "PWM_UH",
+   "role": "PWM U high",
+   "cls": "signal"
+  },
+  {
+   "ball": "L15",
+   "pinname": "PTD19/GPIO[115]/FXIO_D3/eTPU_B_CH[27]/eTPU_A_CH[19]/LCU1_OUT3/eMIOS_0_CH[0]_X/DSPI_MSC0_PCS[0]/CAN2_RX/EXT_DATA3",
+   "port": "PTD19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L16",
+   "pinname": "PTD18/GPIO[114]/CAN2_TX/FXIO_D2/eMIOS_0_CH[15]_X/eTPU_B_CH[25]/eTPU_A_CH[17]/LCU1_OUT1/DSPI_MSC0_SCK/EXT_CLKIN3",
+   "port": "PTD18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "L17",
+   "pinname": "PTA17/GPIO[17]/eMIOS_0_CH[6]_X/LPSPI3_SOUT/FXIO_D19/LPUART0_TX/eTPU_A_CH[8]/eMIOS_0_CH[10]_X/ADC1_S23/ADC0_S23",
+   "port": "PTA17",
+   "fn": "LPSPI3_SOUT",
+   "label": "L17_MOSI",
+   "net": "SBC_MOSI",
+   "role": "LPSPI3 SOUT",
+   "cls": "signal"
+  },
+  {
+   "ball": "M1",
+   "pinname": "LFAST_0_TxD_P",
+   "port": "LFAST_0_TxD_P",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M2",
+   "pinname": "LFAST_0_TxD_N",
+   "port": "LFAST_0_TxD_N",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M3",
+   "pinname": "PTA29/GPIO[29]/EMAC_PPS2/LPUART2_TX/LPSPI1_SIN/LFAST_0_EXT_REF_O/EMAC_MII_RMII_MDIO/LFAST_0_EXT_REF_I",
+   "port": "PTA29",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M4",
+   "pinname": "PTD14/GPIO[110]/LPSPI5_SCK/eMIOS_0_CH[21]_X/LPUART1_TX/LPI2C0_SCL/EMAC_PPS0/CMP0_RRT/CLKOUT_RUN/CAN4_TX/EMAC_MII_RMII_RX_DV/QuadSPI_INTA/EIRQ[30]",
+   "port": "PTD14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M5",
+   "pinname": "VSS16",
+   "port": "VSS",
+   "fn": "",
+   "label": "M5_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "M6",
+   "pinname": "PTB22/GPIO[54]/CAN1_TX/LPSPI3_PCS1/LPUART1_TX/FXIO_D15/TRGMUX_OUT13/EMAC_MII_CRS/EIRQ[9]",
+   "port": "PTB22",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M7",
+   "pinname": "PTB23/GPIO[55]/ADC1_MA[0]/FXIO_D4/TRGMUX_OUT14/eMIOS_0_CH[19]_X/eTPU_A_CH[30]/eTPU_B_CH[20]/CAN1_RX/EMAC_MII_COL/EMAC_MII_RMII_RXD[0]/EMAC_MII_RMII_RXD[1]/EMAC_MII_RXD2/LPUART1_RX/EIRQ[10]/WKPU[40]",
+   "port": "PTB23",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M8",
+   "pinname": "PTG16/GPIO[208]/FXIO_D15/TRACE_ETM_D2",
+   "port": "PTG16",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M9",
+   "pinname": "PTG17/GPIO[209]/FXIO_D16/TRACE_ETM_D4",
+   "port": "PTG17",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M10",
+   "pinname": "PTG18/GPIO[210]/FXIO_D17/TRACE_ETM_D6",
+   "port": "PTG18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M11",
+   "pinname": "PTG19/GPIO[211]/FXIO_D18/TRACE_ETM_D7",
+   "port": "PTG19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M12",
+   "pinname": "PTF24/GPIO[184]/eMIOS_0_CH[8]_X/LPUART1_RX/EVTI_0/WKPU[54]",
+   "port": "PTF24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M13",
+   "pinname": "PTH9/GPIO[233]/FXIO_D25/TRACE_ETM_D12/LPUART2_RX/EIRQ[25]/WKPU[27]",
+   "port": "PTH9",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M14",
+   "pinname": "PTF23/GPIO[183]/LPSPI3_PCS3/LPUART1_TX/CMP0_OUT/eTPU_B_CH[7]/eTPU_A_CH[13]/DSPI_MSC0_PCS[0]/EVTI_0",
+   "port": "PTF23",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "M15",
+   "pinname": "PTA6/GPIO[6]/LPSPI1_PCS1/FXIO_D19/LPSPI3_PCS1/eTPU_A_CH[18]/LCU1_OUT0/PWM_1_B[0]/eMIOS_0_CH[13]_X/CAN0_RX/LPUART0_RIN_B/LPUART1_CTS/LPUART3_RX/EIRQ[6]/ADC4_S8/WKPU[15]",
+   "port": "PTA6",
+   "fn": "PWM_1_B[0]",
+   "label": "M15_PWMUL",
+   "net": "PWM_UL",
+   "role": "PWM U low",
+   "cls": "signal"
+  },
+  {
+   "ball": "M16",
+   "pinname": "PTA7/GPIO[7]/LPUART3_TX/LPSPI0_PCS1/CAN0_TX/LPUART1_RTS/FXIO_D9/eTPU_A_CH[20]/LCU1_OUT2/PWM_1_B[1]/eMIOS_0_CH[11]_X/LPUART0_DCD_B/EIRQ[7]/ADC4_S9",
+   "port": "PTA7",
+   "fn": "PWM_1_B[1]",
+   "label": "M16_PWMVL",
+   "net": "PWM_VL",
+   "role": "PWM V low",
+   "cls": "signal"
+  },
+  {
+   "ball": "M17",
+   "pinname": "PTE7/GPIO[135]/eMIOS_0_CH[7]_X/LPSPI3_SCK/FXIO_D11/eTPU_A_CH[16]/eMIOS_0_CH[11]_X/ADC0_MA[0]/LPUART0_RX",
+   "port": "PTE7",
+   "fn": "LPSPI3_SCK",
+   "label": "M17_SCK",
+   "net": "SBC_SCK",
+   "role": "LPSPI3 SCK",
+   "cls": "signal"
+  },
+  {
+   "ball": "N1",
+   "pinname": "LFAST_0_RxD_P",
+   "port": "LFAST_0_RxD_P",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N2",
+   "pinname": "LFAST_0_RxD_N",
+   "port": "LFAST_0_RxD_N",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N3",
+   "pinname": "PTD17/GPIO[113]/LPSPI5_PCS0/eMIOS_0_CH[18]_X/EMAC_MII_RMII_MDC/LPSPI3_PCS0/FXIO_D9/EMAC_PPS2/CAN5_RX/LPUART2_RX/EIRQ[24]",
+   "port": "PTD17",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N4",
+   "pinname": "VDD_HV_B_1",
+   "port": "VDD_HV_B",
+   "fn": "",
+   "label": "N4_VDD_HV_B",
+   "net": "V5A",
+   "role": "5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC \u2014 a 3.3 V domain could not drive them)",
+   "cls": "supply"
+  },
+  {
+   "ball": "N5",
+   "pinname": "VDD_LVDS",
+   "port": "VDD_LVDS",
+   "fn": "",
+   "label": "N5_VDD_LVDS",
+   "net": "V3B",
+   "role": "LVDS/LFAST supply 2.97\u20133.63 V (unused LFAST; DS: ramp after HV_A) \u2014 the LDO1 3.3 V rail",
+   "cls": "supply"
+  },
+  {
+   "ball": "N6",
+   "pinname": "VSS21",
+   "port": "VSS",
+   "fn": "",
+   "label": "N6_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "N7",
+   "pinname": "V11_11",
+   "port": "V11",
+   "fn": "",
+   "label": "N7_V11",
+   "net": "V11",
+   "role": "1.1 V core (from the external NMOS ballast)",
+   "cls": "supply"
+  },
+  {
+   "ball": "N8",
+   "pinname": "VSS25",
+   "port": "VSS",
+   "fn": "",
+   "label": "N8_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "N9",
+   "pinname": "VDD_HV_A_8",
+   "port": "VDD_HV_A",
+   "fn": "",
+   "label": "N9_VDD_HV_A",
+   "net": "V5A",
+   "role": "5 V I/O and analog domain A",
+   "cls": "supply"
+  },
+  {
+   "ball": "N10",
+   "pinname": "VSS22",
+   "port": "VSS",
+   "fn": "",
+   "label": "N10_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "N11",
+   "pinname": "PTH12/GPIO[236]/FXIO_D28/TRACE_ETM_D15/EIRQ[28]",
+   "port": "PTH12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N12",
+   "pinname": "PTH11/GPIO[235]/FXIO_D27/TRACE_ETM_D14/LPUART3_RX/EIRQ[27]/WKPU[18]",
+   "port": "PTH11",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N13",
+   "pinname": "PTH10/GPIO[234]/FXIO_D26/TRACE_ETM_D13/LPUART3_TX/EIRQ[26]",
+   "port": "PTH10",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N14",
+   "pinname": "PTC9/GPIO[73]/LPI2C0_SDA/LPUART1_TX/LPUART0_RTS/LCU1_OUT6/LPSPI0_SIN/FXIO_D13/eTPU_A_CH[13]/PWM_1_A[3]/eMIOS_0_CH[8]_X/CAN1_RX/LPUART_MSC0_RX/EIRQ[17]/ADC6_S8/WKPU[10]",
+   "port": "PTC9",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "N15",
+   "pinname": "PTC8/GPIO[72]/LPI2C0_SCL/CAN1_TX/LCU1_OUT7/LPSPI0_SCK/FXIO_D12/eTPU_A_CH[22]/LCU1_OUT4/PWM_1_B[2]/ADC0_MA[1]/eMIOS_0_CH[9]_X/LPUART0_CTS/LPUART1_RX/EIRQ[16]/ADC5_S9",
+   "port": "PTC8",
+   "fn": "PWM_1_B[2]",
+   "label": "N15_PWMWL",
+   "net": "PWM_WL",
+   "role": "PWM W low",
+   "cls": "signal"
+  },
+  {
+   "ball": "N16",
+   "pinname": "PTC29/GPIO[93]/FXIO_D22/LPI2C1_SDA/FXIO_D3/eTPU_A_CH[21]/LCU1_OUT5/PWM_1_A[2]/eMIOS_0_CH[10]_X/CAN3_RX/LPUART1_DCD_B/EIRQ[23]/ADC5_S8/WKPU[47]",
+   "port": "PTC29",
+   "fn": "PWM_1_A[2]",
+   "label": "N16_PWMWH",
+   "net": "PWM_WH",
+   "role": "PWM W high",
+   "cls": "signal"
+  },
+  {
+   "ball": "N17",
+   "pinname": "PTC30/GPIO[94]/CAN4_TX/FXIO_D0/FXIO_D23/eTPU_A_CH[19]/LCU1_OUT3/PWM_1_A[1]/CMP1_OUT/LPUART1_DSR_B",
+   "port": "PTC30",
+   "fn": "PWM_1_A[1]",
+   "label": "N17_PWMVH",
+   "net": "PWM_VH",
+   "role": "PWM V high",
+   "cls": "signal"
+  },
+  {
+   "ball": "P1",
+   "pinname": "PTA31/GPIO[31]/EMAC_PPS0/FXIO_D0/LPSPI0_PCS1/TRGMUX_OUT8/eMIOS_0_CH[14]_X/eTPU_B_CH[28]",
+   "port": "PTA31",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P2",
+   "pinname": "PTD16/GPIO[112]/eMIOS_0_CH[1]_X/EMAC_MII_RMII_MDIO/LPSPI0_SIN/LPUART2_RTS/LPUART0_TX/CMP0_IN5",
+   "port": "PTD16",
+   "fn": "",
+   "label": "P2_GATEEN",
+   "net": "MCU_GATE_EN",
+   "role": "gate enable (UAND1.B)",
+   "cls": "signal"
+  },
+  {
+   "ball": "P3",
+   "pinname": "PTA30/GPIO[30]/LPSPI1_SOUT/LPSPI0_SOUT/eMIOS_0_CH[13]_X/LPUART2_RX/EIRQ[7]/WKPU[37]",
+   "port": "PTA30",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P4",
+   "pinname": "VSS19",
+   "port": "VSS",
+   "fn": "",
+   "label": "P4_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "P5",
+   "pinname": "PTD13/GPIO[109]/LPSPI5_SIN/eMIOS_0_CH[20]_X/FXIO_D7/LPI2C0_SDA/EMAC_PPS1/LPUART1_RX/EIRQ[29]/WKPU[24]",
+   "port": "PTD13",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P6",
+   "pinname": "PTC16/GPIO[80]/LPSPI3_SIN/LPI2C1_SDAS/FXIO_D15/LPI2C1_SDA/eMIOS_0_CH[9]_X/CAN2_RX/EMAC_MII_RMII_RX_ER/EMAC_MII_RX_CLK/LPUART2_RX/WKPU[3]",
+   "port": "PTC16",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P7",
+   "pinname": "PTB24/GPIO[56]/ADC1_MA[1]/FXIO_D5/LPSPI2_PCS2/EMAC_MII_RMII_RXD[1]/EMAC_MII_RXD2/EMAC_MII_RXD3/EIRQ[11]",
+   "port": "PTB24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P8",
+   "pinname": "PTB25/GPIO[57]/FXIO_D6/LPSPI2_PCS0/eTPU_A_CH[31]/eTPU_B_CH[21]/EMAC_MII_COL/EMAC_MII_RMII_RX_ER/EIRQ[12]",
+   "port": "PTB25",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P9",
+   "pinname": "PTB27/GPIO[59]/FXIO_D8/LPSPI2_SOUT/LPUART1_TX/eMIOS_0_CH[23]_X/EMAC_MII_COL/EMAC_MII_CRS/QuadSPI_INTA",
+   "port": "PTB27",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P10",
+   "pinname": "PTB28/GPIO[60]/ADC1_MA[2]/EMAC_MII_TXD2/FXIO_D9/LPSPI2_SIN/LCU1_OUT11/EMAC_PPS3/EMAC_MII_TXD3/LPUART1_RX/EIRQ[14]/WKPU[42]",
+   "port": "PTB28",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P11",
+   "pinname": "PTC12/GPIO[76]/ADC1_MA[2]/eMIOS_0_CH[22]_X/LPSPI2_PCS1/FXIO_D19/LCU1_OUT9/EMAC_MII_CRS/EMAC_MII_RMII_RX_ER/LPUART2_RX/EIRQ[20]",
+   "port": "PTC12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P12",
+   "pinname": "PTF25/GPIO[185]/CAN2_TX/LPSPI2_PCS2/LPSPI4_PCS0/FXIO_D6/DSPI_MSC0_PCS[0]/eMIOS_0_CH[9]_X/EVTO_0/eTPU_B_CH[0]/eTPU_B_TCRCLK",
+   "port": "PTF25",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P13",
+   "pinname": "PTF27/GPIO[187]/LPSPI4_PCS2/DSPI_MSC0_PCS[0]/LPUART3_TX/eMIOS_0_CH[11]_X/eTPU_B_CH[30]",
+   "port": "PTF27",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P14",
+   "pinname": "VSS20",
+   "port": "VSS",
+   "fn": "",
+   "label": "P14_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "P15",
+   "pinname": "PTC26/GPIO[90]/FXIO_D19/LCU1_OUT9/LPSPI4_SIN/eTPU_B_CH[18]/ADC1_MA[1]/eMIOS_0_CH[5]_X/CAN5_RX/PWM_1_FAULT[0]/EIRQ[21]/TRGMUX_IN4/WKPU[48]",
+   "port": "PTC26",
+   "fn": "PWM_1_FAULT[0]",
+   "label": "P15_FLTHS",
+   "net": "FLT_HS_N",
+   "role": "driver fault HS bank -> eFlexPWM1 FAULT0 (hardware PWM inhibit, FW-15)",
+   "cls": "signal"
+  },
+  {
+   "ball": "P16",
+   "pinname": "PTB0/GPIO[32]/LPI2C0_SDAS/FXIO_D14/LPSPI0_PCS0/eMIOS_0_CH[3]_X/LCU1_OUT5/HSE_TAMPER_LOOP_OUT0",
+   "port": "PTB0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "P17",
+   "pinname": "PTC28/GPIO[92]/CAN3_TX/FXIO_D21/FXIO_D2/LPI2C1_SCL/LCU1_OUT8/eTPU_B_CH[5]/LCU1_OUT7/PWM_1_B[3]/DSPI_MSC0_PCS[1]/LPUART1_RIN_B/ADC6_S9",
+   "port": "PTC28",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R1",
+   "pinname": "PTB18/GPIO[50]/FXIO_D1/LPSPI1_PCS1/TRGMUX_OUT9/LPSPI5_PCS2/eMIOS_0_CH[15]_X/eTPU_B_CH[29]/EMAC_MII_RMII_RX_DV",
+   "port": "PTB18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R2",
+   "pinname": "PTB19/GPIO[51]/EMAC_PPS0/FXIO_D2/EMAC_MII_RMII_TX_EN/TRGMUX_OUT10/eMIOS_0_CH[15]_X/WKPU[38]",
+   "port": "PTB19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R3",
+   "pinname": "PTE9/GPIO[137]/LPSPI5_SOUT/eMIOS_0_CH[7]_X/CAN3_TX/EMAC_PPS3/EMAC_MII_RMII_TX_EN/FXIO_D11/LPUART2_CTS/EIRQ[8]/SWG_EXT_REF_CLK/CMP0_IN0",
+   "port": "PTE9",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R4",
+   "pinname": "PTE8/GPIO[136]/LPSPI3_PCS1/eMIOS_0_CH[6]_X/LPSPI5_PCS1/FXIO_D12/EMAC_MII_RMII_MDC/FXIO_D8/EIRQ[7]/CMP0_IN3",
+   "port": "PTE8",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R5",
+   "pinname": "PTD12/GPIO[108]/EMAC_MII_RMII_TX_CLK/eMIOS_0_CH[18]_X/LPUART2_RTS/TRACE_ETM_D1/EMAC_MII_RMII_TX_EN/LPSPI0_SOUT/QuadSPI_IOFA2/LPI2C1_HREQ/EIRQ[28]",
+   "port": "PTD12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R6",
+   "pinname": "PTC17/GPIO[81]/LPSPI3_SCK/CAN2_TX/LPI2C1_SCLS/EMAC_MII_RMII_RX_DV/FXIO_D14/FXIO_D2/QuadSPI_IOFA7/eTPU_A_CH[29]/eTPU_B_CH[19]/TRACE_ETM_D3",
+   "port": "PTC17",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R7",
+   "pinname": "VDD_HV_B_2",
+   "port": "VDD_HV_B",
+   "fn": "",
+   "label": "R7_VDD_HV_B",
+   "net": "V5A",
+   "role": "5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC \u2014 a 3.3 V domain could not drive them)",
+   "cls": "supply"
+  },
+  {
+   "ball": "R8",
+   "pinname": "PTD8/GPIO[104]/LPSPI3_SOUT/LPI2C1_SDA/EMAC_MII_RXD3/FXIO_D1/eMIOS_0_CH[12]_X/FXIO_D11/QuadSPI_IOFA6/eTPU_A_CH[28]/eTPU_B_CH[18]/TRACE_ETM_D2/EMAC_MII_RMII_RXD[1]/LPUART2_RX/EIRQ[24]",
+   "port": "PTD8",
+   "fn": "",
+   "label": "R8_ASCCLR",
+   "net": "ASC_CLR_M",
+   "role": "ASC clear",
+   "cls": "signal"
+  },
+  {
+   "ball": "R9",
+   "pinname": "PTB26/GPIO[58]/FXIO_D7/LPSPI2_PCS3/EMAC_MII_RX_CLK/QuadSPI_INTA/EIRQ[13]/WKPU[41]",
+   "port": "PTB26",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R10",
+   "pinname": "VDD_HV_B_3",
+   "port": "VDD_HV_B",
+   "fn": "",
+   "label": "R10_VDD_HV_B",
+   "net": "V5A",
+   "role": "5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC \u2014 a 3.3 V domain could not drive them)",
+   "cls": "supply"
+  },
+  {
+   "ball": "R11",
+   "pinname": "PTC13/GPIO[77]/eMIOS_0_CH[23]_X/ADC1_MA[1]/FXIO_D16/LCU1_OUT8/LPUART2_TX/LPSPI2_PCS2/EMAC_MII_COL/EMAC_MII_RMII_RX_DV/QuadSPI_INTA/EIRQ[21]",
+   "port": "PTC13",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R12",
+   "pinname": "PTF26/GPIO[186]/LPSPI2_PCS3/LPSPI4_PCS1/eMIOS_0_CH[10]_X/eTPU_B_CH[2]/CAN2_RX/LPUART_MSC0_RX/WKPU[57]",
+   "port": "PTF26",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R13",
+   "pinname": "PTC21/GPIO[85]/EMAC_PPS1/FXIO_D15/ADC1_MA[1]/LCU1_OUT4/CAN0_TX/eTPU_B_CH[31]/eTPU_A_CH[23]/EVTO_1/EIRQ[17]",
+   "port": "PTC21",
+   "fn": "CAN0_TX",
+   "label": "R13_CAN0TX",
+   "net": "CAN0_TX",
+   "role": "FlexCAN0 TX (GEN3 choice)",
+   "cls": "signal"
+  },
+  {
+   "ball": "R14",
+   "pinname": "PTC25/GPIO[89]/FXIO_D18/LPSPI4_PCS1/LCU1_OUT2/eTPU_B_CH[20]/eTPU_B_CH[8]/ADC0_MA[2]/CAN1_RX/PWM_1_EXT_FORCE/PWM_1_FAULT[2]/EIRQ[20]/TRGMUX_IN6/ADC6_S10/WKPU[45]",
+   "port": "PTC25",
+   "fn": "PWM_1_FAULT[2]",
+   "label": "R14_FLTLS",
+   "net": "FLT_LS_N",
+   "role": "driver fault LS bank -> eFlexPWM1 FAULT2",
+   "cls": "signal"
+  },
+  {
+   "ball": "R15",
+   "pinname": "PTC24/GPIO[88]/FXIO_D17/LCU1_OUT1/TRGMUX_OUT15/CAN1_TX/eTPU_B_CH[21]/eTPU_A_CH[12]/LPSPI4_PCS3/PWM_1_EXT_CLK/PWM_1_FAULT[3]/EIRQ[19]/TRGMUX_IN7/ADC6_S11/WKPU[46]",
+   "port": "PTC24",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R16",
+   "pinname": "PTC27/GPIO[91]/CAN5_TX/FXIO_D20/ADC1_MA[0]/LCU1_OUT3/LPSPI4_SCK/eTPU_A_CH[14]/LCU1_OUT10/PWM_1_X[2]/DSPI_MSC0_SOUT/LPI2C0_HREQ/EIRQ[22]",
+   "port": "PTC27",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "R17",
+   "pinname": "PTB1/GPIO[33]/LPI2C0_SCLS/LPUART0_TX/LPSPI0_SOUT/eMIOS_0_CH[7]_X/CAN0_TX/LCU1_OUT4/eTPU_B_CH[9]/LCU1_OUT9/PWM_1_X[1]/DSPI_MSC0_SCK/HSE_TAMPER_EXTIN0/EIRQ[9]/ADC4_S11",
+   "port": "PTB1",
+   "fn": "ADC4_S11",
+   "label": "R17_VOFS",
+   "net": "VOFS",
+   "role": "receiver offset monitor",
+   "cls": "signal"
+  },
+  {
+   "ball": "T1",
+   "pinname": "PTB20/GPIO[52]/FXIO_D3/TRGMUX_OUT11/LPSPI5_PCS3/eTPU_A_CH[24]/eTPU_B_CH[13]/QuadSPI_INTA",
+   "port": "PTB20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T2",
+   "pinname": "VSS5",
+   "port": "VSS",
+   "fn": "",
+   "label": "T2_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "T3",
+   "pinname": "PTC3/GPIO[67]/eMIOS_0_CH[3]_X/CAN0_TX/LPUART0_TX/QuadSPI_PCSFA/EIRQ[3]/CMP0_IN4",
+   "port": "PTC3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T4",
+   "pinname": "PTC2/GPIO[66]/EMAC_MII_RMII_TXD[1]/eMIOS_0_CH[2]_X/LPSPI3_PCS2/LPSPI0_PCS2/EMAC_MII_RMII_TXD[0]/TRACE_ETM_CLKOUT/QuadSPI_IOFA3/CAN0_RX/LPUART0_RX/EIRQ[2]/CMP0_IN2",
+   "port": "PTC2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T5",
+   "pinname": "PTD6/GPIO[102]/EMAC_MII_TXD3/FXIO_D3/EMAC_MII_RMII_TX_CLK/EMAC_MII_TXD2/FXIO_D13/LPSPI0_PCS0/eTPU_A_CH[26]/eTPU_B_CH[15]/LPUART2_RX/EIRQ[14]/CMP0_IN7",
+   "port": "PTD6",
+   "fn": "",
+   "label": "T5_ASCREQ",
+   "net": "ASC_REQ",
+   "role": "ASC request (latch clock)",
+   "cls": "signal"
+  },
+  {
+   "ball": "T6",
+   "pinname": "PTD10/GPIO[106]/EMAC_MII_TXD3/eMIOS_0_CH[16]_X/TRACE_ETM_D3/LPSPI0_SIN/CLKOUT_RUN/QuadSPI_SCKFA/eTPU_B_CH[25]/eTPU_A_CH[17]/EMAC_MII_RX_CLK/EIRQ[26]",
+   "port": "PTD10",
+   "fn": "",
+   "label": "T6_DRVENRB",
+   "net": "DRV_EN_RB",
+   "role": "DRV_EN read-back",
+   "cls": "signal"
+  },
+  {
+   "ball": "T7",
+   "pinname": "VSS13",
+   "port": "VSS",
+   "fn": "",
+   "label": "T7_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "T8",
+   "pinname": "PTC1/GPIO[65]/eMIOS_0_CH[1]_X/QuadSPI_DQSFA/FXIO_D5/EMAC_MII_RMII_RXD[1]/eMIOS_0_CH[15]_X/TRACE_ETM_CLKOUT/CAN3_RX/EMAC_MII_RMII_RXD[0]/EMAC_MII_RX_CLK/EIRQ[1]/WKPU[5]",
+   "port": "PTC1",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T9",
+   "pinname": "PTC14/GPIO[78]/eMIOS_0_CH[10]_X/LPSPI2_PCS0/ADC0_MA[1]/LCU1_OUT1/FXIO_D16/CAN2_RX/EMAC_MII_COL/EMAC_MII_RMII_RXD[0]/EMAC_MII_RMII_RX_ER/EMAC_MII_RXD2/EMAC_MII_RXD3/EIRQ[22]/WKPU[4]",
+   "port": "PTC14",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T10",
+   "pinname": "VSS14",
+   "port": "VSS",
+   "fn": "",
+   "label": "T10_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "T11",
+   "pinname": "PTB2/GPIO[34]/ADC1_MA[0]/eMIOS_0_CH[8]_X/LPSPI2_SIN/LCU1_OUT3/FXIO_D18/CAN4_RX/LPUART1_RX/LPUART_MSC0_RX/QuadSPI_INTA/EIRQ[10]/TRGMUX_IN3/WKPU[8]",
+   "port": "PTB2",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T12",
+   "pinname": "PTC19/GPIO[83]/FXIO_D13/LPSPI2_PCS1/LCU1_OUT6/EMAC_MII_RMII_TXD[0]/LPUART3_TX/EMAC_MII_RMII_TX_CLK",
+   "port": "PTC19",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T13",
+   "pinname": "PTC20/GPIO[84]/FXIO_D14/ADC1_MA[2]/LCU1_OUT5/EMAC_PPS0/CMP0_RRT/eTPU_B_CH[30]/eTPU_A_CH[22]/LPUART3_RX/QuadSPI_INTA/EIRQ[16]/EVTI_1/WKPU[43]",
+   "port": "PTC20",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T14",
+   "pinname": "DSPI_MSC0_SOUT_N",
+   "port": "DSPI_MSC0_SOUT_N",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T15",
+   "pinname": "PTC11/GPIO[75]/LPUART0_DTR_B/FXIO_D15/LPSPI4_SOUT/FXIO_D19/LCU1_OUT10/eTPU_B_CH[19]/eTPU_B_CH[6]/CAN5_RX/PWM_1_FAULT[1]/LPUART3_RX/EIRQ[19]/TRGMUX_IN5/ADC5_S11/WKPU[18]",
+   "port": "PTC11",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "T16",
+   "pinname": "VSS12",
+   "port": "VSS",
+   "fn": "",
+   "label": "T16_VSS",
+   "net": "DGND",
+   "role": "ground",
+   "cls": "supply"
+  },
+  {
+   "ball": "T17",
+   "pinname": "PTC10/GPIO[74]/eMIOS_0_CH[6]_X/CAN5_TX/LPSPI2_PCS1/LPSPI4_PCS0/LCU1_OUT11/LPUART3_TX/eTPU_A_CH[23]/PWM_1_X[3]/FXIO_D18/eTPU_B_CH[5]/LPUART0_DSR_B/DSPI_MSC0_SIN/EIRQ[18]/ADC5_S10",
+   "port": "PTC10",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U1",
+   "pinname": "PTB21/GPIO[53]/FXIO_D4/TRGMUX_OUT12/eMIOS_0_CH[17]_X/eTPU_A_CH[25]/eTPU_B_CH[14]/EIRQ[8]/WKPU[39]",
+   "port": "PTB21",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U2",
+   "pinname": "PTB5/GPIO[37]/EMAC_MII_RMII_TXD[0]/eMIOS_0_CH[5]_X/LPSPI0_PCS1/LPSPI0_PCS0/CLKOUT_RUN/EMAC_MII_RMII_MDC/EIRQ[13]/TRGMUX_IN0",
+   "port": "PTB5",
+   "fn": "EIRQ[13]",
+   "label": "U2_RDYLS",
+   "net": "RDY_LS",
+   "role": "RDY LS bank (GPIO/EIRQ)",
+   "cls": "signal"
+  },
+  {
+   "ball": "U3",
+   "pinname": "PTB4/GPIO[36]/EMAC_MII_RMII_TXD[1]/eMIOS_0_CH[4]_X/LPSPI0_SOUT/EMAC_MII_RMII_MDIO/EIRQ[12]/TRGMUX_IN1",
+   "port": "PTB4",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U4",
+   "pinname": "PTD7/GPIO[103]/EMAC_MII_RMII_TXD[0]/LPUART2_TX/LPSPI3_PCS3/LPSPI0_PCS3/EMAC_MII_RMII_TXD[1]/TRACE_ETM_D0/QuadSPI_IOFA1/EIRQ[15]/CMP0_IN6",
+   "port": "PTD7",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U5",
+   "pinname": "PTD5/GPIO[101]/EMAC_MII_TXD2/eMIOS_0_CH[19]_X/eMIOS_0_CH[2]_X/EMAC_MII_TXD3/FXIO_D15/LPSPI0_PCS1/eTPU_A_CH[27]/eTPU_B_CH[16]/TRGMUX_OUT15/EMAC_MII_RX_CLK/EIRQ[13]/TRGMUX_IN7",
+   "port": "PTD5",
+   "fn": "",
+   "label": "U5_QDIS",
+   "net": "QDIS_M",
+   "role": "discharge command",
+   "cls": "signal"
+  },
+  {
+   "ball": "U6",
+   "pinname": "PTD11/GPIO[107]/EMAC_MII_TXD2/eMIOS_0_CH[17]_X/EMAC_MII_RMII_TX_EN/TRACE_ETM_D2/EMAC_MII_RMII_TX_CLK/LPSPI0_SCK/QuadSPI_IOFA0/eTPU_B_CH[24]/eTPU_A_CH[14]/LPUART2_CTS/EIRQ[27]",
+   "port": "PTD11",
+   "fn": "",
+   "label": "U6_ASCRB",
+   "net": "ASC_CMD_RB",
+   "role": "ASC_CMD read-back",
+   "cls": "signal"
+  },
+  {
+   "ball": "U7",
+   "pinname": "PTC0/GPIO[64]/CAN3_TX/eMIOS_0_CH[0]_X/QuadSPI_IOFA4/EMAC_MII_RMII_RXD[0]/eMIOS_0_CH[14]_X/EMAC_MII_RMII_TX_CLK/eTPU_B_CH[26]/eTPU_A_CH[18]/TRACE_ETM_D0/EMAC_MII_RMII_RXD[1]/EMAC_MII_RX_CLK/EIRQ[0]",
+   "port": "PTC0",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U8",
+   "pinname": "PTD9/GPIO[105]/EMAC_MII_RXD2/LPI2C1_SCL/FXIO_D0/eMIOS_0_CH[13]_X/FXIO_D10/QuadSPI_IOFA5/LPUART2_TX/eTPU_B_CH[27]/eTPU_A_CH[19]/TRACE_ETM_D1/EMAC_MII_RMII_RXD[0]/EIRQ[25]",
+   "port": "PTD9",
+   "fn": "",
+   "label": "U8_FLTCLR",
+   "net": "FLT_CLR_M",
+   "role": "fault-latch clear one-shot",
+   "cls": "signal"
+  },
+  {
+   "ball": "U9",
+   "pinname": "PTC15/GPIO[79]/CAN2_TX/eMIOS_0_CH[11]_X/LPSPI2_SCK/ADC0_MA[2]/LPUART2_TX/LCU1_OUT0/LPI2C1_SCL/FXIO_D18/EMAC_MII_CRS/EMAC_MII_RMII_RXD[0]/EMAC_MII_RMII_RXD[1]/EMAC_MII_RMII_RX_DV/EMAC_MII_RXD2/EMAC_MII_RXD3/EIRQ[23]",
+   "port": "PTC15",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U10",
+   "pinname": "PTB3/GPIO[35]/eMIOS_0_CH[9]_X/LPSPI2_SOUT/ADC0_MA[0]/CAN4_TX/LCU1_OUT2/FXIO_D17/EMAC_MII_TXD3/LPUART1_TX/EMAC_MII_RMII_TX_CLK/EIRQ[11]/TRGMUX_IN2",
+   "port": "PTB3",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U11",
+   "pinname": "PTC18/GPIO[82]/EMAC_MII_RMII_TXD[0]/FXIO_D6/FXIO_D12/EMAC_MII_RMII_TXD[1]/LCU1_OUT7/EMAC_MII_TXD2/LPSPI2_PCS3/LPUART2_RX/WKPU[36]",
+   "port": "PTC18",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U12",
+   "pinname": "PTB29/GPIO[61]/EMAC_MII_RMII_TXD[0]/FXIO_D10/LPSPI2_SCK/LCU1_OUT10/EMAC_MII_RMII_TXD[1]/EMAC_MII_TXD2/LPUART2_TX/CAN4_RX/WKPU[2]",
+   "port": "PTB29",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U13",
+   "pinname": "DSPI_MSC0_SOUT_P",
+   "port": "DSPI_MSC0_SOUT_P",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U14",
+   "pinname": "PTC23/GPIO[87]/FXIO_D16/LCU1_OUT0/ADC1_MA[2]/eTPU_A_CH[15]/eMIOS_0_CH[12]_X/LPSPI4_PCS2/EVTO_0/CAN0_RX/QuadSPI_INTA/EIRQ[18]/WKPU[44]",
+   "port": "PTC23",
+   "fn": "CAN0_RX",
+   "label": "U14_CAN0RX",
+   "net": "CAN0_RX",
+   "role": "FlexCAN0 RX (GEN3 choice)",
+   "cls": "signal"
+  },
+  {
+   "ball": "U15",
+   "pinname": "DSPI_MSC0_SCK_P",
+   "port": "DSPI_MSC0_SCK_P",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U16",
+   "pinname": "DSPI_MSC0_SCK_N",
+   "port": "DSPI_MSC0_SCK_N",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  },
+  {
+   "ball": "U17",
+   "pinname": "PTG12/GPIO[204]/LPSPI4_PCS3/eMIOS_0_CH[18]_X/eTPU_A_CH[26]/EVTO_1/EIRQ[28]",
+   "port": "PTG12",
+   "fn": "",
+   "label": null,
+   "net": null,
+   "role": "not used \u2014 no connection (pad left open)",
+   "cls": "nc"
+  }
+ ]
+}

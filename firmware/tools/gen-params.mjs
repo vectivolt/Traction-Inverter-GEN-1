@@ -1,0 +1,248 @@
+#!/usr/bin/env node
+// gen-params.mjs — writes include/params_<sku>.h (x4) and include/cal_ranges.h.
+//
+// Source of every number: docs/firmware-contract.md rev A.11 (section named per row) and the SKU
+// data of calculations/loss-model.mjs / design-verify.mjs (bank, bleeder, discharge string).
+// Derived values are computed here, not typed: the contract's "±601 A / ±707 A" is
+// 1.25·√2·I_pk,rms; HW_ID windows come from RHWID and the 10 k pull-up; C_min/C_max use the
+// design-verify tolerance model. cal_* rows are the values the contract does not fix; each has
+// a default, a range and a stated basis. Run: node tools/gen-params.mjs  (make params)
+
+import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", "include");
+
+// ---------------- contract tables, per SKU ----------------
+const BANK8 = { can: 20e-6, un: 1000, rAct: 4 * 470, rBleed: 66e3, tau: 0.60, tau2: 1.35, passive: 65 };
+const BANK4 = { can: 50e-6, un: 600, rAct: 4 * 220, rBleed: 45e3, tau: 0.71, tau2: 1.64, passive: 89 };
+const SKUS = [
+  { key: "8xx_sic", id: "TI_SKU_8XX_SIC", name: "8XX SiC", sic: true, class8: true, vMin: 500, vMax: 850, ov: 880,
+    iPk: 340, iCont: 185, fsw: [10000, 8000], fc: [1200, 1100], dt: 1000, p: [220e3, 120e3], rhwid: 10e3, bank: BANK8 },
+  { key: "8xx_igbt", id: "TI_SKU_8XX_IGBT", name: "8XX IGBT", sic: false, class8: true, vMin: 500, vMax: 850, ov: 880,
+    iPk: 340, iCont: 185, fsw: [5000], fc: [700], dt: 2500, p: [220e3, 120e3], rhwid: 4.7e3, bank: BANK8 },
+  { key: "4xx_igbt", id: "TI_SKU_4XX_IGBT", name: "4XX IGBT", sic: false, class8: false, vMin: 250, vMax: 500, ov: 530,
+    iPk: 400, iCont: 250, fsw: [5000], fc: [700], dt: 2500, p: [150e3, 90e3], rhwid: 2.2e3, bank: BANK4 },
+  { key: "4xx_sic", id: "TI_SKU_4XX_SIC", name: "4XX SiC", sic: true, class8: false, vMin: 250, vMax: 500, ov: 530,
+    iPk: 400, iCont: 250, fsw: [10000, 8000], fc: [1200, 1100], dt: 1000, p: [150e3, 90e3], rhwid: 22e3, bank: BANK4 },
+];
+
+// ---------------- rows shared by every SKU (contract) ----------------
+// [field, value, "source"]
+const COMMON = [
+  ["s6_delay_tsw", 0.75, "§2: double-update PWM, sample-to-actuation 0.75 T_sw (R2-F24)"],
+  ["fw03_mod_reserve", 0.95, "FW-03 √(3/2)·0.95·V·I·0.85"],
+  ["fw03_pf", 0.85, "FW-03"],
+  ["peak_time_s", 30, "§3 peak 30 s"],
+  ["hwid_pullup_ohm", 10e3, "FW-01 card 10 k pull-up to VREF5"],
+  ["hwid_window_frac", 0.04, "FW-01 ±4 % window (1 % parts)"],
+  ["hwid_open_v", 4.6, "FW-01 open > 4.6 V"],
+  ["hwid_short_v", 0.2, "FW-01 short < 0.2 V"],
+  ["tau_band_frac", 0.20, "FW-02 τ > 20 % off => DTC"],
+  ["qdis_on_max_ms", 5000, "FW-17 auto-release after 5 s", "u"],
+  ["qdis_window_ms", 300000, "FW-17 3 per 5 min", "u"],
+  ["qdis_max_per_window", 3, "FW-17", "u8"],
+  ["qdis_nodecay_ms", 200, "FW-18 no decay within 200 ms => stuck-off", "u"],
+  ["hv_safe_v", 60, "FW-18 / §8 < 60 V"],
+  ["isns_valid_min_v", 0.2, "FW-05 validity window 0.2–4.8 V (HC5FW output range)"],
+  ["isns_valid_max_v", 4.8, "FW-05"],
+  ["isns_zero_v", 2.5, "HC5FW 900-S: 2.5 V at 0 A (EOL cal replaces)"],
+  ["isns_sens_v_per_a", 2.22e-3, "HC5FW 900-S: 2.22 mV/A at 5 V (EOL cal replaces)"],
+  ["fw06_budget_us", 15.6, "FW-06 table: to the ASC request"],
+  ["fw06_analog_us", 8.6, "FW-06: divider 6.2 + AMC1311B 2.1 + receiver 0.3"],
+  ["fw06_sample_hz", 200e3, "FW-06: each V_DC channel free-running >= 200 kS/s"],
+  ["fw06_conv_us", 1.0, "FW-06 conversion"],
+  ["fw06_action_us", 1.0, "FW-06 ADC watchdog -> eFlexPWM fault -> ASC_REQ"],
+  ["asc_entry_max_us", 7.5, "§4c hardware ASC entry <= 7.5 µs"],
+  ["vdc_div_ratio", (6 * 470e3 + 6.2e3) / 6.2e3, "design-basis §6: 6 x 470 k over 6.2 k into the AMC1311B"],
+  ["vofs_nom_v", 0.5, "FW-07 receivers' shared +0.5 V offset"],
+  ["vofs_min_v", 0.475, "FW-07"],
+  ["vofs_max_v", 0.525, "FW-07"],
+  ["v5gd_min_v", 4.75, "FW-07 / §4c V5GD 4.75–5.25 V"],
+  ["v5gd_max_v", 5.25, "FW-07"],
+  ["v5gd_sns_ratio", 0.5, "card RV5GP/RV5GS 47 k/47 k: V5GD/2"],
+  ["vdc_disagree_frac", 0.05, "FW-07 |VDC1 - VDC2| > 5 %"],
+  ["vdc_bms_frac", 0.03, "FW-07 |V_DC - V_pack| > 3 % with contactors closed"],
+  ["vdc_failsafe_v", 0.25, "FW-07 channel < 0.25 V = AMC1311 fail-safe"],
+  ["hvil_closed_hi_v", 3.0, "FW-09 signature (drive high)"],
+  ["hvil_closed_lo_v", 2.0, "FW-09 signature (drive low)"],
+  ["hvil_open_v", 2.5, "FW-09 signature (open = V5A/2)"],
+  ["hvil_reaction_ms", 100, "FW-09 reaction <= 100 ms", "u"],
+  ["can_stale_ms", 20, "FW-11 <= 20 ms staleness", "u"],
+  ["fs26_wd_err_limit", 2, "FW-12 WD_ERR_LIMIT = 2", "u8"],
+  ["fs26_wdw_period_ms", 3, "FW-12 window <= 3 ms", "u8"],
+  ["fs26_fs1b_tdelay_ms", 0, "FW-12 FS1B_TDELAY = 0", "u8"],
+  ["fs26_fs1b_tdur_ms", 100, "FW-12 FS1B_TDUR = 100 ms", "u8"],
+  ["fs26_backup_fs0b", true, "FW-12 BACKUP_SAFETY_PATH_FS0B = 1", "b"],
+  ["fs26_backup_fs1b", false, "FW-12 BACKUP_SAFETY_PATH_FS1B = 0", "b"],
+  ["ntc_b_k", 3375, "§2 module NTC B25/50 3375 (both modules)"],
+  ["ntc_r25_ohm", 5000, "HCS600/HCG600 DS: R25 = 5 kΩ"],
+  ["ntc_pullup_ohm", 5100, "card RSN<ph>P 5.1 k to VREF5"],
+  ["ntc_series_ohm", 100, "power board R<ph>TS 100 Ω in series (ModNtc)"],
+  ["bntc_b_k", 3435, "board NTC 10 k 0603, B25/85 3435 class (BOM RTAMB/RTHS)"],
+  ["bntc_r25_ohm", 10e3, "BOM RTAMB/RTHS"],
+  ["bntc_pullup_ohm", 10e3, "NtcIn RT<id>P 10 k to VREF5"],
+  ["mt_pullup_ohm", 10e3, "RMT<k>P 10 k to VREF5"],
+  ["fw15_low_us", 1500, "FW-15 / §7 >= 1.5 ms RST/EN low", "u"],
+  ["desat_retry_min_ms", 1000, "FW-15 step 4: retry no sooner than 1 s", "u"],
+  ["fw16_both_below_v", 3, "FW-16 both channels below 3 V"],
+  ["fw16_topup_below_v", 60, "FW-16 QDIS 2τ top-up from any reading below 60 V"],
+  ["fw16_energy_max_j", 0.1, "FW-16 residual energy <= 0.1 J"],
+  ["fw16_ss_ell_v", 12, "FW-16 n_ss: E_LL,pk(n_ss) <= 12 V"],
+  ["fw16_asc_rb_us", 20, "FW-16 step a: ASC_CMD_RB within 20 µs", "u"],
+  ["fw16_drven_rb_us", 60, "FW-16 step h: DRV_EN_RB 0 within 60 µs", "u"],
+  ["asc_exit_hs_delay_ns", 1000, "FW-06a step 3: first HS pulse >= 1 µs after ASC_CLR", "u"],
+  ["precharge_sig_frac", 0.05, "FW-19 plateau ≈5 % below the pack"],
+];
+
+// ---------------- CAL rows: [field, default, min, max, type, basis] ----------------
+const CAL = [
+  ["cal_vdc_disagree_floor_v", 18, 5, 40, "f", "FW-07 5 % has no low-voltage floor; 2 x the ±9 V uncalibrated low-level error (R9X-07)"],
+  ["cal_vdc_stale_us", 100, 20, 1000, "u", "free-running channel delivers a sample every <= 5 µs"],
+  ["cal_vdc_bms_debounce_ms", 50, 10, 500, "u", "contactor/BMS transients"],
+  ["cal_isum_tol_a", 45, 15, 90, "f", "Σi plausibility: 5 % of the ±900 A LEM range"],
+  ["cal_isum_debounce", 3, 1, 10, "u8", "consecutive samples"],
+  ["cal_isns_offset_tol_v", 0.1, 0.02, 0.25, "f", "zero-current offset vs EOL cal at standstill"],
+  ["cal_dtcomp_band_a", 5, 1, 30, "f", "dead-time compensation linear band"],
+  ["cal_isns_stale_us", 200, 50, 1000, "u", "phase-current sample age limit"],
+  ["cal_ntc_open_v", 4.9, 4.7, 4.98, "f", "pull-up to VREF5: open reads the rail"],
+  ["cal_ntc_short_v", 0.1, 0.02, 0.3, "f", "short reads ground"],
+  ["cal_temp_rate_c_s", 20, 5, 100, "f", "NTC thermal mass bounds dT/dt"],
+  ["cal_tmod_derate_start_c", 90, 60, 120, "f", "FW-04 NTC derate start (thermal test T7-10 binds it)"],
+  ["cal_tmod_derate_end_c", 115, 80, 140, "f", "FW-04 NTC derate to zero"],
+  ["cal_derate_hyst_c", 5, 1, 15, "f", "FW-04 hysteresis"],
+  ["cal_coolant_derate_start_c", 65, 50, 80, "f", "FW-04: the rated peak assumes 65 degC coolant"],
+  ["cal_coolant_derate_end_c", 80, 60, 95, "f", "FW-04"],
+  ["cal_peak_recovery_s", 180, 60, 600, "f", "FW-04 'S4 time constants': 3 x the assumed 60 s plate pole"],
+  ["cal_ign_on_v", 6, 4, 9, "f", "KL15 on threshold"],
+  ["cal_ign_off_v", 4, 2, 6, "f", "KL15 off threshold"],
+  ["cal_ign_debounce_ms", 20, 5, 100, "u", "KL15 debounce"],
+  ["cal_hvil_tol_v", 0.2, 0.1, 0.24, "f", "FW-09 window half-width (signatures 0.5 V apart)"],
+  ["cal_hvil_period_ms", 10, 5, 25, "u", "INTRLOK_P toggle period"],
+  ["cal_hvil_debounce", 3, 2, 5, "u8", "consecutive samples (3 x 10 ms + 10 ms <= 100 ms)"],
+  ["cal_can_ctr_max_jump", 2, 1, 3, "u8", "FW-11 counter: one lost frame tolerated"],
+  ["cal_bms_timeout_ms", 100, 20, 500, "u", "FW-11 BMS-limit timeout (own timer)"],
+  ["cal_torque_ramp_nm_s", 2000, 200, 10000, "f", "FW-11 ramp-to-zero rate"],
+  ["cal_dir_change_rpm", 30, 5, 100, "f", "direction change only near standstill"],
+  ["cal_rslv_amp_min", 0.75, 0.5, 0.9, "f", "FW-10 amplitude window (ratio to calibrated)"],
+  ["cal_rslv_amp_max", 1.25, 1.1, 1.5, "f", "FW-10"],
+  ["cal_rslv_exc_min", 0.8, 0.5, 0.95, "f", "FW-10 excitation monitor window"],
+  ["cal_rslv_exc_max", 1.2, 1.05, 1.5, "f", "FW-10"],
+  ["cal_rslv_track_err_rad", 0.0873, 0.02, 0.26, "f", "FW-10 tracking error (5 deg)"],
+  ["cal_rslv_debounce", 3, 1, 10, "u8", "FW-10 consecutive updates"],
+  ["cal_rslv_phase_comp_deg", 24, 10, 40, "f", "card sin/cos input filter lags 24 deg at 10 kHz (round 13)"],
+  ["cal_rslv_bw_hz", 300, 100, 1000, "f", "tracking observer bandwidth"],
+  ["cal_rslv_rate_tol_frac", 0.2, 0.05, 0.5, "f", "FW-10 angle-rate vs current model, relative"],
+  ["cal_rslv_rate_tol_rad_s", 50, 10, 200, "f", "FW-10 angle-rate vs current model, absolute (el)"],
+  ["cal_rslv_rate_min_rad_s", 200, 50, 1000, "f", "back-EMF observable above this (el)"],
+  ["cal_rslv_accel_max_rad_s2", 2e4, 5e3, 2e5, "f", "FW-10 angle-rate plausibility: driveline accel bound (el)"],
+  ["cal_rslv_latency_us", 0, 0, 200, "f", "resolver chain latency beyond the mid-block reference (SDADC group delay, filter envelope delay): HIL-measured"],
+  ["cal_speed_hold_ms", 200, 0, 1000, "u", "§6 column choice after a resolver fault: last valid speed held (inertia; FW-06 backstops a rise above n_x)"],
+  ["cal_rdy_timeout_ms", 400, 250, 1000, "u", "FW-14: S1 73–240 ms to rails"],
+  ["cal_spo_release_a", 10, 2, 50, "f", "§6 'release to SPO once the current is gone'"],
+  ["cal_precharge_low_frac", 0.025, 0.01, 0.04, "f", "FW-19: half the 5 % signature"],
+  ["cal_precharge_tau_min_s", 0.02, 0.001, 1, "f", "FW-19: vehicle R_pre·C_min (commissioning)"],
+  ["cal_precharge_plateau_ms", 100, 20, 500, "u", "FW-19 plateau detection window"],
+  ["cal_precharge_timeout_ms", 3000, 500, 10000, "u", "FW-19"],
+  ["cal_qdis_decay_min_frac", 0.10, 0.05, 0.25, "f", "FW-18: minimum drop in 200 ms (τ 0.6 s gives 28 %)"],
+  ["cal_qdis_stuck_on_frac", 0.25, 0.1, 0.5, "f", "stuck-ON: QDIS off but τ below this fraction of the bleeder τ"],
+  ["cal_fc_fraction", 0.9, 0.5, 1.0, "f", "current-loop crossover as a fraction of the §2 ceiling"],
+  ["cal_mod_index_max", 0.95, 0.8, 1.0, "f", "5 % modulation reserve (FW-03)"],
+  ["cal_dcl_kp_nm_v", 0.5, 0.05, 5, "f", "FW-08 DC-link voltage controller"],
+  ["cal_dcl_ki_nm_vs", 20, 1, 200, "f", "FW-08"],
+  ["cal_dcl_tmax_nm", 50, 5, 200, "f", "FW-08 torque authority"],
+  ["cal_sensor_selftest_ms", 500, 100, 2000, "u", "§9 step 3 timeout"],
+  ["cal_fs0b_release_ms", 200, 50, 1000, "u", "§9 step 4: the FS26 needs WD_RFR_LIMIT good refreshes first"],
+  ["cal_fs26_prog_id", 0xFFFF, 0, 0xFFFF, "u16", "FW-12: M_PROGID of the procured OTP variant; 0xFFFF = unbound (no arming)"],
+  ["cal_desat_retry_torque_frac", 0.3, 0.1, 0.5, "f", "FW-15 step 4 'at reduced torque'"],
+  ["cal_fw16_rdy_drop_ms", 50, 5, 200, "u", "FW-16 d/e RDY drop timeout"],
+  ["cal_fw16_rdy_rise_ms", 300, 250, 1000, "u", "FW-16 d/e RDY rise timeout (S1 240 ms)"],
+  ["cal_oneshot_wait_us", 300, 260, 1000, "u", "§7: one-shot 72–210 µs + DRV_EN RC 16–46 µs"],
+  ["cal_torque_max_nm", 450, 50, 2000, "f", "motor torque limit (commissioning)"],
+];
+
+// ---------------- emit ----------------
+const num = (v, t) => {
+  if (t === "b") return v ? "true" : "false";
+  if (t === "u" || t === "u8" || t === "u16") return `${Math.round(v)}u`;
+  const s = Number.isInteger(v) ? `${v}.0` : `${+v.toPrecision(7)}`;
+  return `${s}f`.replace("e", "e").replace(/^(\d+)e/, "$1.0e");
+};
+const perSku = (s) => {
+  const c = s.bank.can, cNom = 16 * c + 3e-6, cMin = 16 * c * 0.9 + 3e-6, cMax = 16 * c * 1.1 + 3.3e-6;
+  const crest = Math.SQRT2 * s.iPk, oc = 1.25 * Math.SQRT2 * s.iPk;
+  const ratio = s.rhwid / (s.rhwid + 10e3);
+  const fsw = [...s.fsw, 0].slice(0, 2), fc = [...s.fc, 0].slice(0, 2);
+  return [
+    ["sku", s.id, "FW-02", "raw"],
+    ["name", `"${s.name}"`, "", "raw"],
+    ["sic", s.sic, "", "b"],
+    ["class8", s.class8, "", "b"],
+    ["vdc_min_v", s.vMin, "§2 normal range"],
+    ["vdc_max_v", s.vMax, "§2 normal range"],
+    ["ov_trip_v", s.ov, "§2 OV trip (both channels)"],
+    ["cap_un_v", s.bank.un, "§6 U_N at 85 degC"],
+    ["c_nom_f", cNom, "16 cans + 3 µF local"],
+    ["c_min_f", cMin, "§6 C_min: -10 % + local (design-verify)"],
+    ["c_max_f", cMax, "+10 % + 3.3 µF (FW-16 energy bound)"],
+    ["i_pk_rms_a", s.iPk, "§2 peak A rms"],
+    ["i_cont_rms_a", s.iCont, "§2 continuous A rms"],
+    ["i_crest_a", crest, "√2·I_pk,rms"],
+    ["i_oc_trip_a", Math.round(oc * 10) / 10, "FW-05 1.25·√2·I_pk,rms (instantaneous, both polarities)"],
+    ["n_fsw", s.fsw.length, "§2 f_sw options", "u8"],
+    ["fsw_hz", `{${fsw.map((x) => `${x}u`).join(", ")}}`, "§2 f_sw", "raw"],
+    ["fc_ceiling_hz", `{${fc.map((x) => num(x)).join(", ")}}`, "§2 crossover ceiling per f_sw (S6, 45 deg PM)", "raw"],
+    ["dead_time_ns", s.dt, "§2 dead time (commissioning)", "u"],
+    ["p_peak_w", s.p[0], "§3 peak 30 s"],
+    ["p_cont_w", s.p[1], "§3 continuous"],
+    ["hwid_r_ohm", s.rhwid, "FW-01 RHWID"],
+    ["hwid_ratio_nom", ratio, `FW-01 V_ID ${(5 * ratio).toFixed(2)} V at VREF5 = 5.0 V`],
+    ["r_active_ohm", s.bank.rAct, "discharge string (design-basis §4)"],
+    ["r_bleed_ohm", s.bank.rBleed, "passive bleeder (design-basis §4)"],
+    ["tau_dis_s", s.bank.tau, "FW-02 / FW-18 expected τ"],
+    ["qdis_2tau_s", s.bank.tau2, "FW-16 2τ top-up"],
+    ["passive_60v_s", s.bank.passive, "FW-18 passive bleeder worst case to 60 V"],
+  ];
+};
+
+const header = (s) => {
+  const rows = [...perSku(s), ...COMMON.map(([f, v, src, t]) => [f, v, src, t || "f"]),
+    ...CAL.map(([f, d, lo, hi, t, why]) => [f, d, `CAL [${lo}, ${hi}] ${why}`, t])];
+  const lines = rows.map(([f, v, src, t]) => {
+    const val = t === "raw" ? v : num(v, t || "f");
+    return `    .${f} = ${val}, ${src ? `/* ${src} */` : ""} \\`;
+  });
+  const guard = `PARAMS_${s.key.toUpperCase()}_H`;
+  return `/* GENERATED by tools/gen-params.mjs — do not edit. Source: docs/firmware-contract.md rev A.11
+ * (+ design-verify SKU data); cal_* rows: default [range] basis. */
+#ifndef ${guard}
+#define ${guard}
+
+#define TI_PARAMS_${s.key.toUpperCase()}_INIT { \\
+${lines.join("\n")}
+}
+
+#endif /* ${guard} */
+`;
+};
+
+for (const s of SKUS) writeFileSync(join(OUT, `params_${s.key}.h`), header(s));
+
+const tcode = { f: "TI_CAL_F32", u: "TI_CAL_U32", u16: "TI_CAL_U16", u8: "TI_CAL_U8" };
+writeFileSync(join(OUT, "cal_ranges.h"), `/* GENERATED by tools/gen-params.mjs — do not edit. Range of every cal_* parameter. */
+#ifndef CAL_RANGES_H
+#define CAL_RANGES_H
+
+#include <stddef.h>
+#include "ti_params.h"
+
+#define TI_CAL_RANGES_INIT { \\
+${CAL.map(([f, , lo, hi, t]) => `    {"${f}", offsetof(ti_params_t, ${f}), ${tcode[t]}, ${num(lo)}, ${num(hi)}}, \\`).join("\n")}
+}
+
+#define TI_CAL_RANGE_COUNT ${CAL.length}u
+
+#endif /* CAL_RANGES_H */
+`);
+console.log(`wrote ${SKUS.length} parameter sets (${perSku(SKUS[0]).length + COMMON.length + CAL.length} fields each) and cal_ranges.h (${CAL.length} CAL rows)`);

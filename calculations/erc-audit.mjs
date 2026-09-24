@@ -69,6 +69,7 @@ const C = (k) => CARD.pinNet.get(k);
 const same = (a, b) => a !== undefined && a === b;
 const V = (DD, ref) => DD.vals.get(ref);
 const near = (x, y) => Number.isFinite(x) && Math.abs(x - y) <= 1e-3 * Math.abs(y);
+const open = (n) => n === undefined || n.startsWith("@");   // pin on no named net (anonymous root)
 
 // ---------- generic: single-pin named nets (dead labels) ----------
 for (const [b, DD] of [["power", PWR], ["capbank", CB], ["discharge", DIS], ["card", CARD]]) {
@@ -136,7 +137,7 @@ ok(same(D("RDIS1.pin1"), "DCP"), "active discharge string starts at DCP");
 ok(same(D("QDIS.S"), "DCN") && same(D("QDIS.KS"), "DCN"), "QDIS source/Kelvin on DCN");
 ok(same(D("RQDG.pin1"), D("UQD.VO")) && same(D("RQDG.pin2"), D("QDIS.G")), "opto drives QDIS gate");
 ok(same(D("RQDPD.pin1"), D("QDIS.G")) && same(D("RQDPD.pin2"), "DCN"), "QDIS gate default-OFF pulldown");
-ok(same(D("UQD.GND"), "DCN") && same(D("PSQD.COM"), "DCN"), "discharge bias DCN-referenced");
+ok(same(D("UQD.VEE"), "DCN") && same(D("PSQD.VEEA"), "DCN"), "discharge bias DCN-referenced");
 ok(same(P("ZASC.cathode"), "ASC_DRV") && same(P("ZASC.anode"), "DCN"), "ASC 5.1 V clamp fitted (F28)");
 ok(same(P("RASCG.pin2"), "ASC_DRV") && same(P("RASCPD.pin1"), "ASC_DRV") && same(P("RASCPD.pin2"), "DCN"), "ASC drive series + default-OFF pulldown");
 for (const st of [0, 1]) {
@@ -210,8 +211,27 @@ for (const ph of ["U", "V", "W"]) for (const sd of ["H", "L"]) {
   ok(same(P(`D${q}SB.A`), `DST_${q}`) && same(P(`D${q}SB.K`), `VCC_${q}`), `D${q}SB clamps DESAT to VCC2 (not VCC into DESAT)`);
   ok(same(P(`C${q}IN.pin1`), "V5GD") && same(P(`C${q}IN.pin2`), "DGND"), `C${q}IN input-side driver bypass`);
 }
-// QA01C-class SIP-7 module: +Vo on pin7-label VOP, output common on COM, -Vo unloaded
-ok(P("PSASC.VOP") !== undefined && P("PSASC.COM") !== undefined, "PSASC real SIP-7 output pins bound");
+// Rev A.12 (barrier closure): both DCN-referenced biases are UCC14141-Q1s in the single-output configuration
+// (DS Fig. 9-2) and both optos are VOW3120s, checked by pin on each board
+const GNDP = [1, 2, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => `GNDP${n}`);
+const VEES = [19, 20, 21, 22, 23, 24, 25, 26, 27, 30, 31, 36].map((n) => `VEE${n}`).concat("VEEA");
+for (const [B, BD, u, p, vout, tag] of [[P, PWR, "PSASC", "ASC", "V18A", "power"], [D, DIS, "PSQD", "QD", "V18Q", "discharge"]]) {
+  const all = (labels, net) => labels.every((l) => same(B(`${u}.${l}`), net));
+  ok(all(GNDP, "DGND") && all(["VIN6", "VIN7"], "V15") && same(B(`${u}.ENA`), `ENA_${p}`), `${u} (${tag}): UCC14141-Q1 primary — GNDP x14 on DGND, VIN x2 on V15, ENA driven`);
+  ok(all(VEES, "DCN") && all(["VDD28", "VDD29"], vout), `${u}: secondary — VEE x12 + VEEA on DCN, VDD x2 on ${vout}`);
+  ok(same(B(`${u}.FBVDD`), `FB_${p}`) && same(B(`${u}.FBVEE`), `FB_${p}`) && open(B(`${u}.RLIM`)) && open(B(`${u}.PG`)),
+    `${u}: single-output configuration — FBVEE tied to FBVDD, RLIM and PG open (DS Fig. 9-2)`);
+  ok(same(B(`R${p}F1.pin1`), vout) && same(B(`R${p}F1.pin2`), `FB_${p}`) && same(B(`R${p}F2.pin1`), `FB_${p}`) && same(B(`R${p}F2.pin2`), "DCN")
+    && same(B(`C${p}F.pin1`), `FB_${p}`) && same(B(`C${p}F.pin2`), "DCN") && near(V(BD, `R${p}F1`), 62e3) && near(V(BD, `R${p}F2`), 10e3),
+    `${u}: 62 k / 10 k feedback = 18.0 V, 330 pF at FBVDD`);
+  ok(same(B(`R${p}E1.pin1`), "V15") && same(B(`R${p}E1.pin2`), `ENA_${p}`) && same(B(`R${p}E2.pin1`), `ENA_${p}`) && same(B(`R${p}E2.pin2`), "DGND")
+    && near(V(BD, `R${p}E1`), 10e3) && near(V(BD, `R${p}E2`), 4.7e3), `${u}: ENA from V15 through 10 k / 4.7 k (4.65-4.94 V, under the 5.5 V maximum)`);
+  ok(same(B(`C${p}I1.pin1`), "V15") && same(B(`C${p}I2.pin1`), "V15") && same(B(`C${p}IB.pin1`), "V15") && same(B(`C${p}I1.pin2`), "DGND")
+    && same(B(`C${p}O.pin1`), vout) && same(B(`C${p}O.pin2`), "DCN"), `${u}: CIN 2 x 10 uF + 100 nF, COUT1 10 uF (DS Table 9-2)`);
+}
+for (const [B, u, vcc, tag] of [[P, "UASC", "V18A", "power"], [D, "UQD", "V18Q", "discharge"]])
+  ok(same(B(`${u}.VCC`), vcc) && same(B(`${u}.VEE`), "DCN") && same(B(`${u}.CAT`), "DGND") && open(B(`${u}.NC1`)) && open(B(`${u}.NC4`)) && open(B(`${u}.NC6`)),
+    `${u} (${tag}): VOW3120 SMD-8 by pin — 2=A 3=C 5=VEE 7=VO 8=VCC, 1/4/6 NC open; VCC on ${vcc}, VEE on DCN`);
 // Round 12 (R2-F02/F03): the VDC biases are UCC12050s, one per channel, each behind its own LDO from V15
 for (const [k, v] of [["B", "V5ISO"], ["C", "V5ISO2"]]) {
   ok(same(P(`PS5${k}.VISO`), v) && same(P(`PS5${k}.SEL`), v) && same(P(`PS5${k}.GNDS`), "DCN") && same(P(`PS5${k}.GNDS9`), "DCN") && same(P(`PS5${k}.GNDS16`), "DCN"),
@@ -221,7 +241,6 @@ for (const [k, v] of [["B", "V5ISO"], ["C", "V5ISO2"]]) {
   ok(same(P(`U5L${k}.IN`), "V15") && same(P(`U5L${k}.INH`), "V15") && same(P(`U5L${k}.OUT`), `V5S${k}`) && same(P(`C5L${k}2.pin1`), `V5S${k}`) && same(P(`C5${k}1.pin1`), v),
     `bias LDO ${k} from V15 with its 10 uF, UCC12050 ${k} output 10 uF`);
 }
-ok(same(D("PSQD.VOP"), "V18Q") && same(D("PSQD.COM"), "DCN"), "PSQD real SIP-7 output pins bound");
 // VCC1 LDO alive whenever LV is present (sensing decoupled from gate-power enable)
 ok(same(P("UGDL.INH"), "GDL_ON") && same(P("RGDLE.pin1"), "V12L") && same(P("RGDLE.pin2"), "GDL_ON"),
   "V5GD LDO enable is tied on (not slaved to EN_FLYBK_LS)");
@@ -298,6 +317,7 @@ ok(same(C("RDBG.pin1"), "SBC_DBG") && same(C("USBC.DEBUG"), "SBC_DBG"), "FS26 DE
 // (HARNESS40 lives in cells.tsx which node cannot import — parse it from source instead,
 // so this audit always checks against the map the boards were actually built from)
 const HARNESS40 = [...readFileSync(join(ROOT, "packages/cells.tsx"), "utf8")
+  .replace(/[\s\S]*export const HARNESS40[^\n]*\n/, "").replace(/\n\];[\s\S]*/, "")   // the map only, not other pin tables
   .match(/\[(\d+), "([A-Z0-9_]+)"\]/g)].map((m) => {
   const t = m.match(/\[(\d+), "([A-Z0-9_]+)"\]/);
   return [Number(t[1]), t[2]];
@@ -324,8 +344,8 @@ ok(same(C("RFS1.pin1"), "FS1B_N") && same(C("RFS1.pin2"), "ASC_SET_N"), "FS1B ca
 ok(same(C("UOR1.A"), "MCU_EN_FLYBK_HS") && same(C("UOR1.B"), "FS_GPIO1") && same(C("UOR1.Y"), "EN_FLYBK_HS"), "OR1 flyback-HS enable");
 ok(same(C("UOR2.A"), "MCU_EN_FLYBK_LS") && same(C("UOR2.B"), "FS_GPIO1") && same(C("UOR2.Y"), "EN_FLYBK_LS"), "OR2 flyback-LS enable");
 ok(same(C("USBC.FS0B"), "FS0B_N") && same(C("USBC.FS1B"), "FS1B_N") && same(C("USBC.GPIO1"), "FS_GPIO1"), "FS26 safety pins landed");
-ok(same(C("USBC.FCCU1"), C("UMCU.PTE15_FCCU0")) && same(C("USBC.FCCU2"), C("UMCU.PTE16_FCCU1")), "FCCU pair MCU<->SBC");
-ok(same(C("USBC.RSTB"), C("UMCU.RESET_B")), "SBC resets MCU");
+ok(same(C("USBC.FCCU1"), C("UMCU.D2_FCCU0")) && same(C("USBC.FCCU2"), C("UMCU.C2_FCCU1")), "FCCU pair MCU<->SBC");
+ok(same(C("USBC.RSTB"), C("UMCU.A3_RESET_B")), "SBC resets MCU");
 
 // ---------- card: analog chains ----------
 for (const x of ["U", "V", "W"]) {
@@ -336,9 +356,9 @@ for (const x of ["U", "V", "W"]) {
 }
 for (const k of ["1", "2"]) {
   ok(same(C(`UVD${k}.OUT`), `VDC${k}_SE`) && same(C(`RVD${k}D.pin2`), `VDC${k}_SE`), `VDC${k} diff-amp closes on output`);
-  ok(same(C(`UMCU.PTA0_VDC1`), "VDC1_SE") || k === "2", `MCU reads VDC1`);
+  ok(same(C(`UMCU.A13_VDC1`), "VDC1_SE") || k === "2", `MCU reads VDC1`);
 }
-ok(same(C("UMCU.PTB0_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
+ok(same(C("UMCU.A5_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
 ok(same(C("UEXF.INN"), C("CEXA1.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes (feedback cap to the inverting input)");
 ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H-bridge outputs");
 ok(same(C("JVEH.R1"), "VREX_P") && same(C("JVEH.R2"), "VREX_N"), "resolver drive reaches vehicle connector");
@@ -361,12 +381,12 @@ for (const k of ["H", "L"]) {
 }
 ok(DIS.comps.filter((c) => /^RBLD\d+$/.test(c.name)).every((c) => near(Number(c.resistance), 22e3)), "bleeder parts 22 k (66 k total)");
 ok(same(P("RHWID.pin1"), "HW_ID") && same(P("RHWID.pin2"), "DGND"), "SKU identity resistor on the power board (platform)");
-ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.PTB4_HWID"), "HW_ID"), "SKU identity read by the MCU ADC");
-ok(same(C("UMCU.PTB1_VOFS"), "VOFS"), "shared VDC receiver offset monitored by the MCU (F11 common cause)");
+ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.C12_HWID"), "HW_ID"), "SKU identity read by the MCU ADC");
+ok(same(C("UMCU.R17_VOFS"), "VOFS"), "shared VDC receiver offset monitored by the MCU (F11 common cause)");
 ok(same(C("JVEH.SHLDR"), "DGND") && same(C("JVEH.SHLDS"), "DGND"), "resolver shields return at the connector ground, not AGND (F35)");
 ok(same(C("CFLTD.pin1"), "FLT_OKD") && same(C("CFLTD.pin2"), "DGND") && near(V(CARD, "CFLTD"), 3.3e-9) && near(V(CARD, "RFLTD"), 10e3),
   "global fault drop delayed 10 k/3.3 nF past the driver soft turn-off (F05)");
-ok(same(C("UMCU.PTD9_FLTCLR"), "FLT_CLR_M") && same(C("CCLR.pin1"), "FLT_CLR_M") && same(C("CCLR.pin2"), "FLT_CLR_N")
+ok(same(C("UMCU.U8_FLTCLR"), "FLT_CLR_M") && same(C("CCLR.pin1"), "FLT_CLR_M") && same(C("CCLR.pin2"), "FLT_CLR_N")
   && same(C("RLAT2.pin2"), "FLT_CLR_N") && same(C("DCLR.anode"), "FLT_CLR_N") && same(C("DCLR.cathode"), "V5A"),
   "fault-latch clear is a hardware one-shot (stuck MCU pin cannot hold the chain permissive — F06)");
 
@@ -388,7 +408,7 @@ ok(same(C("DFO.anode"), "FAULT_OUT") && same(C("DFO.cathode"), C("RFS4.pin2")) &
   "FAULT_OUT is sink-only (a grounded wire cannot preset ASC); a KL30 short is clamped to ground, not into V5A (A7-N04)");
 ok(same(C("ULAT.QN"), "NC_LATQN") && !C("DASC.anode"),
   "ASC does not drive EN: the NSI6611 gives DESAT priority over ASC only with EN high (DS §8.12)");
-ok(same(C("RDRB.pin1"), "DRV_EN") && same(C("UMCU.PTD10_DRVENRB"), C("RDRB.pin2")) && same(C("RARB.pin1"), "ASC_CMD") && same(C("UMCU.PTD11_ASCRB"), C("RARB.pin2")),
+ok(same(C("RDRB.pin1"), "DRV_EN") && same(C("UMCU.T6_DRVENRB"), C("RDRB.pin2")) && same(C("RARB.pin1"), "ASC_CMD") && same(C("UMCU.U6_ASCRB"), C("RARB.pin2")),
   "DRV_EN and ASC_CMD read back by the MCU (boot self-test, FW-16)");
 ok(same(P("CASCD.pin1"), "ASC_DRV") && same(P("CASCD.pin2"), "DCN") && near(V(PWR, "CASCD"), 12e-9)
   && same(P("DASCR.anode"), "ASC_DRV") && same(P("DASCR.cathode"), "ASCVO") && near(V(PWR, "RASCG"), 2.2e3) && near(V(PWR, "RASCPD"), 10e3),
@@ -397,7 +417,7 @@ for (const x of ["U", "V", "W"]) {
   ok(same(P(`R${x}LAS.pin1`), "ASC_DRV") && same(P(`U${x}LG.ASC`), P(`R${x}LAS.pin2`)) && !same(P(`U${x}LG.ASC`), "ASC_DRV") && near(V(PWR, `R${x}LAS`), 1e3),
     `U${x}LG ASC pin through its own 1 k from the shared ASC node`);
 }
-ok(near(V(PWR, "RASCL"), 261), "TLP152 LED driven 10-15 mA (recommended I_F; I_FLH 7.5 mA max)");
+ok(near(V(PWR, "RASCL"), 270), "VOW3120 LED driven 10-16 mA (recommended I_F; I_FLH 8 mA max)");
 for (const k of ["H", "L"]) {
   ok(same(P(`DF${k}FS.anode`), `FAX_${k}`) && same(P(`DF${k}FS.cathode`), P(`RF${k}FS.pin1`)) && !same(P(`RF${k}FS.pin1`), `FVCC_${k}`)
     && same(P(`RF${k}FS.pin2`), `FFS_${k}`) && same(P(`CF${k}FS.pin1`), `FFS_${k}`)
@@ -415,9 +435,9 @@ ok(same(C("UASCG.#2"), C("ULAT.#5")) && same(C("UASCG.#4"), "ASC_CMD") && same(C
   "ASC_CMD = ASC latch AND no driver FLT: a latched DESAT masks ASC on every path (R7-01/A7-N01)");
 ok(!same(C("ULAT2.PRE_N"), "FLT_CMB_N") && !same(C("ULAT.PRE_N"), "ASC_SET_N") && !same(C("ULAT.Q"), "ASC_CMD"),
   "no open-drain node on a flip-flop asynchronous input; the latch output never drives the opto directly (R7-02)");
-ok(same(C("UMCU.PTD5_QDIS"), "QDIS_M") && same(C("RQDM.pin1"), "QDIS_M") && same(C("RQDM.pin2"), "DGND") && !same(C("UMCU.PTD5_QDIS"), "QDIS_CMD"),
+ok(same(C("UMCU.U5_QDIS"), "QDIS_M") && same(C("RQDM.pin1"), "QDIS_M") && same(C("RQDM.pin2"), "DGND") && !same(C("UMCU.U5_QDIS"), "QDIS_CMD"),
   "discharge command buffered (MCU pin sees a CMOS input) and default-off through reset (R7-03)");
-ok(near(V(DIS, "RQDL"), 261) && near(V(PWR, "RASCL"), 261), "both TLP152 LEDs driven 10.3-14.8 mA from buffered 5 V logic (R7-03/A7-N03, cross-check R8X-04)");
+ok(near(V(DIS, "RQDL"), 270) && near(V(PWR, "RASCL"), 270), "both VOW3120 LEDs driven 10.8-15.8 mA from buffered 5 V logic (R7-03/A7-N03, cross-check R8X-04; 270 R for the 1.0-1.6 V V_F, A.12)");
 
 // ---------- round-8 cross-check lock-ins (R8X-01…17 — docs/review-A8-disposition.md) ----------
 // R8X-08: the FLT diode-OR itself (a moved DFLT2 anode passed 854/0), and the A7-N04 back-feed by net, not by name
@@ -443,9 +463,9 @@ ok(same(P("JDIS.#1"), "V15") && same(P("JDIS.#2"), "DGND") && same(P("JDIS.#3"),
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
   const want = { DFLT1: /BAT46/, DFLT2: /BAT46/, ZSET: /BZT52-B5V6/, UASCG: /74LVC1G08/, USCH: /74LVC3G17/, USCH2: /74LVC3G17/,
-    ULAT: /74LVC1G74/, ULAT2: /74LVC1G74/, RASCL: /261R/, RQDL: /261R/, RFCB: /100k/, CFLTF2: /100pF/ };
+    ULAT: /74LVC1G74/, ULAT2: /74LVC1G74/, RASCL: /270R/, RQDL: /270R/, RFCB: /100k/, CFLTF2: /100pF/ };
   const bad = Object.entries(want).filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: safety parts resolve to the intended MPNs (Schottky OR, ±2 % clamp, AND gate, Schmitt, D flip-flop, 261 R)`, bad.join(", "));
+  ok(!bad.length, `${sku}: safety parts resolve to the intended MPNs (Schottky OR, ±2 % clamp, AND gate, Schmitt, D flip-flop, 270 R since A.12)`, bad.join(", "));
 }
 
 // ---------- round-9 lock-ins (A8-01…03, A8-N01…N03 — docs/review-A9-disposition.md) ----------
@@ -453,7 +473,7 @@ for (const [sku, k] of Object.entries(SKUS)) {
 // rail V5GD (harness pin 1); its 2 x 47 k pull-down doubles as the monitor divider into PTB5 (R9X-01/06)
 ok(["RFLTP1", "RFLTP2", "RRDYP1", "RRDYP2", "RFLTC"].every((r) => same(C(`${r}.pin1`), "V5GD"))
   && same(C("RV5GP.pin1"), "V5GD") && same(C("RV5GP.pin2"), "V5GD_SNS") && same(C("RV5GS.pin1"), "V5GD_SNS") && same(C("RV5GS.pin2"), "DGND")
-  && near(V(CARD, "RV5GP"), 47e3) && near(V(CARD, "RV5GS"), 47e3) && same(C("UMCU.PTB5_V5GD"), "V5GD_SNS"),
+  && near(V(CARD, "RV5GP"), 47e3) && near(V(CARD, "RV5GS"), 47e3) && same(C("UMCU.A15_V5GD"), "V5GD_SNS"),
   "FLT/RDY pull-ups on the driver VCC1 rail (abs max = VCC1); an open V5GD pin reads FLT/RDY low; V5GD read by the MCU");
 ok(bridges(CARD, "V5GD", "V5A").length === 0, "no part ties V5GD to V5A on the card (keyed by net — R9X-05)");
 ok(["FLT_HS_N", "FLT_LS_N", "RDY_HS", "RDY_LS", "FLT_CMB_N"].every((n) => bridges(CARD, n, "V5A").length === 0),
@@ -511,12 +531,12 @@ for (const [id, n] of [["AMB", "NTC_A"], ["HS", "NTC_H"]])
 ok(bridges(PWR, "V5SB", "V5SC").length === 0 && bridges(PWR, "V5SB", "V5GD").length === 0 && bridges(PWR, "V5SC", "V5GD").length === 0,
   "the two VDC bias 5 V rails are separate from each other and from V5GD (keyed by net)");
 // R2-F13: resolver-pin short to KL30 limited to the S32K39's 3 mA injection; R2-F11: VREF5 inside the FS26 window
-ok(["RSINF1", "RSINF2", "RCOSF1", "RCOSF2", "RSIN1", "RSIN2", "RCOS1", "RCOS2"].every((r) => near(V(CARD, r), 10e3))
-  && ["CSIND", "CCOSD"].every((r) => near(V(CARD, r), 47e-12)) && ["CSINA2", "CCOSA2"].every((r) => near(V(CARD, r), 100e-12))
+ok(["RSINF1", "RSINF2", "RCOSF1", "RCOSF2", "RSIN1", "RSIN2", "RCOS1", "RCOS2"].every((r) => near(V(CARD, r), 12e3))
+  && ["CSIND", "CCOSD"].every((r) => near(V(CARD, r), 47e-12)) && ["CSINA2", "CCOSA2"].every((r) => near(V(CARD, r), 220e-12))
   && ["CSINF1", "CSINF2", "CCOSF1", "CCOSF2", "CSINA1", "CSINA3", "CCOSA1", "CCOSA3"].every((r) => near(V(CARD, r), 22e-12))
   && same(C("CSINF2.pin1"), "SINF_N") && same(C("CSINA3.pin1"), "SIN_N") && same(C("CCOSF2.pin1"), "COSF_N") && same(C("CCOSA3.pin1"), "COS_N")
   && same(C("CEXA4.pin1"), "SWG1") && near(V(CARD, "CEXA4"), 47e-12),
-  "resolver series/bias 10 k (pin injection <= 2.9 mA at 35 V), caps rescaled 47 p / 100 p diff + 22 p common-mode on BOTH legs; SWG 47 pF load");
+  "resolver series/bias 12 k (pin injection <= 2.92 mA at 35 V into an unpowered MCU), 220 pF C_AAF at the SDADC pins + 47 p at the clamp + 22 p common-mode on BOTH legs; SWG 47 pF load");
 ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "CMA2"), 100e-9), "VREF5 rail 2.1 uF nominal (CSB5 1 uF + CMA1 + CMA2)");
 // round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 24 V-stand-off TVS (-VR) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
@@ -524,6 +544,33 @@ for (const [sku, k] of Object.entries(SKUS)) {
   const bad = Object.entries({ PS5B: /^UCC12050/, PS5C: /^UCC12050/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-12 parts resolve (UCC12050 + LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs)`, bad.join(", "));
+}
+// ---------- round-13 PIN FREEZE: every UMCU pin label is <ball>_<signal>, on the net the manifest gives, and a
+// signal ball carries the peripheral function it is used for (calculations/mcu-ballmap.json, from SPF-91122 + DS anchors)
+{
+  const man = JSON.parse(readFileSync(join(ROOT, "calculations", "mcu-ballmap.json"), "utf8"));
+  const byBall = new Map(man.balls.map((r) => [r.ball, r]));
+  const mcu = CARD.comps.find((c) => c.name === "UMCU");
+  const labels = mcu ? [...CARD.pinNet.keys()].filter((k) => /^UMCU\.[A-U]\d{1,2}_/.test(k)).map((k) => k.slice(5)) : [];   // ball labels only (not pinN / #N / hint keys)
+  const bad = [];
+  for (const l of labels) {
+    const ball = l.split("_")[0], r = byBall.get(ball), net = CARD.pinNet.get(`UMCU.${l}`);
+    if (!r) { bad.push(`${l}: no such ball`); continue; }
+    if (r.label !== l) { bad.push(`${l}: manifest label ${r.label}`); continue; }
+    if (r.net !== net) { bad.push(`${l}: on ${net}, manifest ${r.net}`); continue; }
+    if (r.cls === "signal" && r.fn && !r.pinname.split("/").includes(r.fn)) bad.push(`${l}: ${r.fn} not a function of ${r.pinname.split("/")[0]}`);
+  }
+  const want = man.balls.filter((r) => r.net).map((r) => r.label), have = new Set(labels);
+  const missing = want.filter((l) => !have.has(l));
+  ok(mcu && labels.length === 130 && !bad.length && !missing.length, `MCU pin freeze: ${labels.length} balls bound to the manifest (nets, functions), 289-MAPBGA`, [...bad, ...missing.map((l) => `missing ${l}`)].join("; "));
+  // the PWM pairs sit on one eFlexPWM instance with its FAULT inputs; the three currents and both V_DC channels on separate ADC instances
+  const fn = (l) => byBall.get(l.split("_")[0])?.fn ?? "";
+  ok(/^PWM_1_A\[0\]$/.test(fn("L14_PWMUH")) && /^PWM_1_B\[0\]$/.test(fn("M15_PWMUL")) && /^PWM_1_A\[1\]$/.test(fn("N17_PWMVH")) && /^PWM_1_B\[1\]$/.test(fn("M16_PWMVL"))
+    && /^PWM_1_A\[2\]$/.test(fn("N16_PWMWH")) && /^PWM_1_B\[2\]$/.test(fn("N15_PWMWL")) && /^PWM_1_FAULT\[0\]$/.test(fn("P15_FLTHS")) && /^PWM_1_FAULT\[2\]$/.test(fn("R14_FLTLS")),
+    "PWM: eFlexPWM1 submodules 0-2 A/B pairs; FLT_HS/FLT_LS on eFlexPWM1 FAULT0/FAULT2 (gate 16 closed)");
+  const inst = (l) => (fn(l).match(/^ADC(\d)_/) || [])[1];
+  ok(new Set([inst("A2_ISU"), inst("A14_ISV"), inst("H16_ISW")]).size === 3 && inst("A13_VDC1") !== inst("A5_VDC2") && inst("A13_VDC1") && inst("A5_VDC2"),
+    "phase currents on three ADC instances (simultaneous sampling); V_DC1/V_DC2 on different instances");
 }
 // R1-F05/R2-F26: the ALM2402 is bought as the 14-pin PWP package the symbol draws
 {
@@ -533,9 +580,9 @@ for (const [sku, k] of Object.entries(SKUS)) {
 }
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^QA01C-18$/, PSQD: /^QA01C-18$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
+  const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^UCC14141QDWNRQ1$/, PSQD: /^UCC14141QDWNRQ1$/, UASC: /^VOW3120-X017T$/, UQD: /^VOW3120-X017T$/, CY1: /^VY1472M63Y5UQ6TV0$/, JIC: /^IPL1-120-01-L-D-K$/, JICC: /^IPL1-120-01-L-D-K$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: round-9 parts resolve (QA01C-18 bias, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
+  ok(!bad.length, `${sku}: round-9/A.12 parts resolve (UCC14141-Q1 bias, VOW3120 optos, VY1 Y-caps, Samtec harness, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
 }
 
 // ---------- round-10 lock-ins (schematic rechecks of 7235337 — docs/review-A10-disposition.md) ----------

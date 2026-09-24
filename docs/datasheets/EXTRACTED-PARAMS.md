@@ -127,7 +127,29 @@ reset, UCC28C40 UVLO corners, AMC1311B, HCS600 switching table, HCG600 SC 6 µs,
 | SWG output (round 12) | sine amplitude programmable **0.394–2.302 V pk-pk** (MAXAPP 1.884 / 2.093 / 2.302 V min/typ/max, MINAPP 0.394–0.482 V), amplitude variation ±10 %, common voltage 1.3 V typ ±6 %; input clock 12–20 MHz | Table 40 "Sine wave generator" |
 | Pin injection (round 12) | I_INJPAD_DC_OP **−3…+3 mA per I/O pin continuous** (−2…+3 mA at VDD_HV_A ≥ 2.97 V); sum over all pins ±30 mA; LVDS pins 100 µA | Operating conditions table; note 10 (see AN4731) |
 | SDADC input impedance (round 12) | Z_DIFF **215–380 kΩ** (gain 1, Fs 40 MHz; 430–760 kΩ at 20 MHz), 40 kΩ min at gain 8/16; Z_CM 400–640 kΩ (gain 1, 20 MHz) | Table 38 |
+| SDADC external anti-alias filter (round 13) | R_AAF 5 kΩ typ / 20 kΩ max series; **C_AAF 180 pF min / 220 pF typ** across the inputs | Table 38 |
 | Max ADC input | SAR ADC: V_AD_INPUT = VREFL to VREFH (VREFH_SAR up to 5.5 V max; accuracy guaranteed only in this range). SDADC: AVDD 4.5–5.5 V, VREFP = AVDD ±0.025 V; single-ended p-p range VREFP/GAIN; SDADC intended only with VDD_HV_A = 5 V | Table 37 (SAR_ADC); Table 38 (SDADC); Table 4 note 6 |
+
+### 10a. S32K396 289-MAPBGA ball map — pin freeze (rev A.12)
+
+The datasheet on disk carries the supply balls only (PMIC-option figure: K9/K10/N7 V11, H5 V15, B8 VSSA_SWG01,
+E11 VSSA_SDADC, J6 VREFL_SAR_0123, E7 VREFL_SAR_456, E9 VREFL_SDADC_01, G13 VREFL_SDADC_23, F1 NMOS_CTRL). The
+full ball ↔ port/function table was taken from NXP's own GEN3 control-card schematic **SPF-91122 rev C**
+(sheets 8–13, on the user's disk), whose MCU symbol prints every ball with its alternate-function list. The
+text layer pairs a ball with the function string 2.4 px below it (the string 1.1 px above belongs to the
+previous pin); all eight datasheet balls confirm that rule, and it reproduces GEN3's resolver as matched
+SDADC AN[0]/AN[1] pairs. Result: `calculations/mcu-ballmap.json` (289 balls: 63 signal, 67 supply/ground,
+159 open) and `docs/mcu-pin-manifest.md`. Two balls have no text in SPF-91122: J7 (the DS figure lists it as
+a ground ball — grounded) and K5 (PMOS_CTRL — open in the PMIC option).
+
+### 10b. FS26 pin map — verified (rev A.12)
+
+`SBC_PINS` (48 + EP) matches FS26 DS Table 3 pin for pin: 1 VBST_PG · 2 WAKE2 · 3 GPIO1 · 4 TRK1 · 5 TRK2 ·
+6 GPIO2 · 7 TRKIN · 8 VREF · 9 LDO2OUT · 10 LDOIN · 11 LDO1OUT · 12 FS1B · 13 FS0B · 14 VMONEXT · 15 VMONCORE ·
+16 RSTB · 17 FCCU1 · 18 FCCU2 · 19 GNDFS · 20 GND · 21 VDIG · 22 GNDSUB · 23 VDDIO · 24 INTB · 25 MISO ·
+26 MOSI · 27 SCLK · 28 CSB · 29 AMUX · 30 CORE_FB · 31 DEBUG · 32 CORE_SW · 33 CORE_BT · 34 CORE_IN · 35 VBOS ·
+36 VMONPRE · 37 VPRE_FB · 38 NC · 39 VPRE_BT · 40 VPRE_SW · 41 VSUP_PWR · 42 VSUP · 43 VBST_FB · 44 VBST_ISL ·
+45 VBST_G · 46 VBST_ISH · 47 WAKE1 · 48 BATSENSE · EP.
 
 ## 11. FS26 (`FS26.pdf` = FS26 Product data sheet Rev.3 17-Nov-2022, 235 pp)
 
@@ -199,6 +221,13 @@ Base QA01C, for reference only (not fitted):
 | ADJ range / ref | 2.5–20 V out (VA regulated to 2.5 V); ±2 %; 400 mA; dropout ≤500 mV; **40 V operating / 45 V peak input** | Features; Abs Max |
 | ADJ + ceramic COUT | requires **Cb across the upper divider leg** (11–18 kHz zero guidance for the 22 µF example) — 220 pF/49.9 k (ULDO15), 270 pF/38.3 k (ULDOEX) | Fig. 4 note; stability section |
 | Ordering codes (F57) | fixed 5.0 DPAK = NCV4276CDT50RKG; **adjustable DPAK = NCV4276CDTADJRKG** | ordering table |
+
+### 16a. NCV4276C thermal (round 13, A11-R04)
+
+| Package | RθJA, 1 oz copper 0.26 in² (168 mm²) | RθJA, 1 oz copper 1.14 in² (736 mm²) | Citation |
+|---|---|---|---|
+| DPAK 5-pin (U5LB/U5LC, UGDL) | 75.1 K/W | **58.5 K/W** | thermal table p.3, notes 4/5 |
+| D2PAK 5-pin | 54.2 K/W (0.373 in²) | 43.3 K/W (1.222 in²) | notes 6/7 |
 
 ## 17. Coilcraft XAL4020-222 / XAL4040-103 (`XAL4000.pdf`) — LCOR / LB15+LSBC (rev A.4.4)
 
@@ -356,8 +385,56 @@ https://assets.nexperia.com/documents/data-sheet/74LVC1G74_Q100.pdf. **Not yet a
 | TLP152 | I_FLH (turn-on threshold) | typ 1.5 / **max 7.5 mA**; recommended I_F(ON) 10–15 mA; V_F 1.40–1.80 V at 10 mA | §8/§9 |
 | TLP152 | t_pLH / t_pHL max (−40…100 °C) | 170 / 190 ns | §11 |
 | UCC28C4x | I_VDD | typ 2.3 / max 3 mA, **no minimum**; no internal VDD clamp (20 V abs) | §6.5, §7.3.1.7 |
-| TPS55340 | abs max VIN / SW | 34 V / 40 V; no pass-through statement | §6.1 |
+| TPS55340 | abs max VIN / SW | 34 V / 40 V; no pass-through statement — **these are the COMMERCIAL part's figures (SLVSBD4E, the archived `TPS55340.pdf`)**. The fitted **TPS55340QRTERQ1 (-Q1, SLVSBV5C §6.1/6.3): VIN 38 V recommended max, 40 V absolute, SW 40 V** — see `TPS55340-Q1.pdf` (round 13, A11-R03) | §6.1 |
 | AMC1311B | IN→OUT delay 50–50 % | typ 1.6 / max 2.1 µs | §7.10 |
+
+## 27. Vishay VOW3120 (`VOW3120.pdf`, doc 82442 rev 1.3) — UASC/UQD since rev A.12
+
+| Parameter | Value | Where |
+|---|---|---|
+| Package / order code | SMD-8 widebody, tape, VDE option: **VOW3120-X017T** | p.1 |
+| Pins | 1 NC · 2 A · 3 C · 4 NC · 5 VEE · 6 NC · 7 VO · 8 VCC | p.1 (DIP-8 numbering) |
+| Isolation | V_ISO 5300 Vrms (UL 1577); V_IOTM 8000 Vpk; **V_IORM 1414 Vpk**; DIN EN 60747-5-5 (VDE 0884-5) option 1; creepage/clearance ≥ 10 mm | p.5 |
+| Approvals | UL/cUL, VDE, CQC — **no AEC-Q101** | p.1 |
+| LED | V_F 1.0 / 1.36 / 1.6 V at 10 mA; ΔV_F/ΔT −1.4 mV/°C (typ); I_FLH 3.4 typ / **8 mA max**; I_F(ON) recommended 10–16 mA; **25 mA abs**; V_R 5 V | p.3–4 |
+| Output | I_OH/I_OL 2.5 A peak (0.5 A at V_CC − 4 V / V_EE + 2.5 V); V_OH ≥ V_CC − 4 V at −100 mA; V_OL ≤ 0.5 V at 100 mA; I_CC ≤ 2.5 mA | p.3 |
+| Supply | V_CC − V_EE 15–32 V recommended, 35 V abs; **UVLO 11–13.5 V rising / 9.5–12 V falling**, 1.6 V hysteresis | p.3 |
+| Timing | t_PLH / t_PHL 0.1 / 0.25 / **0.5 µs** max; CMR 50 kV/µs typ at 1500 V | p.4 |
+| Thermal | T_amb −40…100 °C; P_diss 220 mW output, 260 mW total; θ_BA 50 °C/W | p.2–3 |
+
+Design use: 270 Ω 1 % LED series from the 5 V LVC outputs (10.8–15.8 mA, verifier row); ASC path through
+2.2 k + 5.1 V clamp; discharge gate through 1.5 k/10 k with the V_OH bound (verifier row).
+
+## 28. TI UCC14141-Q1 (`UCC14141-Q1.pdf`, SLUSF10B) — PSASC/PSQD since rev A.12
+
+| Parameter | Value | Where |
+|---|---|---|
+| Order code / package | **UCC14141QDWNRQ1**, 36-pin DWN (wide SSOP 12.83 × 7.50 mm); AEC-Q100 | p.1, addendum |
+| Pins | GNDP 1,2,5,8–18 · PG 3 · ENA 4 · VIN 6,7 · VEE 19–27,30,31,36 · VDD 28,29 · RLIM 32 · FBVEE 33 · FBVDD 34 · VEEA 35 | Table 6-1 |
+| Input | V_IN 8–18 V (one bin); 1 W typical over the bin (1.5 W within 10.8–13.2 V); 2.5 W abs (VDD−VEE, 25 °C) | §5, §7.1 |
+| Regulation | V_FBVDD_REF / V_FBVEE_REF 2.4675 / 2.5 / 2.5325 V; FB hysteresis 9 / 10 / 12.3 mV; VDD−VEE = 2.5 V × (1 + R_TOP/R_BOT) — **62 k/10 k → 18.0 V, 17.4–18.6 V** with 1 % parts | §7.5, §8.3.1.1 |
+| Single-output configuration | FBVEE tied to FBVDD, RLIM open ("optional"), VEEA to VEE; 330 pF at FBVDD | Fig. 9-2, Table 6-1 |
+| Capacitors | C_IN 2 × 10 µF + 0.1 µF at VIN–GNDP; C_OUT1 10 µF + 0.1 µF at VDD–VEE; 0.1 µF parts at the pins, no vias between | Table 9-2, §9.5.1 |
+| ENA / PG | V_EN_IR 2.1 V max rising, V_EN_IF 0.8 V min falling; ENA 0–5.5 V recommended (7 V abs) — ours: V15 through 10 k/4.7 k = 4.65–4.94 V; PG open-drain, left open | §7.5, Table 6-1 |
+| Isolation | **V_IORM 1414 Vpk; V_IOWM 1000 Vrms / 1414 VDC; V_IOTM 7071 Vpk**; reinforced per DIN EN IEC 60747-17 (VDE 0884-17); V_ISO 5000 Vrms (UL 1577) | §7.5 |
+| Certificates | VDE / UL / CQC each listed **"(planned)"** — no file numbers issued in SLUSF10B; check at PO (gate ㉔ residual) | §7.6 |
+| Thermal | RθJA 52.3 °C/W; T_J −40…150 °C | §7.4 |
+
+## 29. Y-caps: Vishay VY1 (`VY1-series.pdf`, doc 28537) and Murata DE1 (`DE1-RA.pdf`) — CY1/CY2 since rev A.12
+
+| Parameter | Vishay VY1 4.7 nF | Murata DE1 4.7 nF (alternate) |
+|---|---|---|
+| Order code | **VY1472M63Y5UQ6TV0** (kinked leads, 10 mm) / …TL0 straight; K for ±10 % | DE1E3RA472MJ4BP01F (bulk), …MA4BP01F ammo, …MN4AP01F tape |
+| Class / rating | **Y1 500 VAC, X1 760 VAC, 1500 VDC** | Y1 300 VAC, X1 440 VAC, 1500 VDC |
+| Body | D 16.0 mm max, T 5.0 mm, leads 0.6 mm, 30 ± 5 mm | D 12.0 mm, T 5.0 mm, F 10.0 mm |
+| Dielectric | Y5U (size code 63) | RA |
+
+## 30. Discharge resistors: TT/Welwyn SQP10 (`SQP.pdf`) and Yageo SQP (`Yageo-SQP.pdf`) — RDIS since rev A.12
+
+Bound: **SQP10-470RJB15** (8XX) / **SQP10-220RJB15** (4XX), TT Electronics (Welwyn) SQP series — 10 W ceramic-cased
+wirewound, the sheet archived as `SQP.pdf` (round 12). Alternate: Yageo **SQP10AJB-470R / -220R** (V.5 sheet):
+body 48 × 9.5 × 9.0 mm, 0.8 mm leads, 10 W at 40 °C, 500 V working / 1000 V overload, "flameproof ceramic case"
+(no UL 94 class printed). Neither sheet publishes fail-open data — gate ㉖ stays.
 
 ## 26. Round-8 data (rev A.8)
 
@@ -533,3 +610,10 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | QA01C-18.pdf | 934,145 | Mornsun QA01C-18 (PSASC/PSQD) — round 9 data, archived round 12 |
 | TPSMC-classic.pdf | 840,654 | Littelfuse classic TPSMC series (V_BR 22.8–25.2 V) — evidence for the round-12 TVS correction, not fitted |
 | 5.0SMDJ-series.pdf | 1,079,284 | Littelfuse 5.0SMDJ 5 kW series — evaluated round 12, not fitted (no AEC-Q101) |
+| TPS55340-Q1.pdf | 2,098,268 | TI SLVSBV5C — the fitted TPS55340QRTERQ1 (38 V rec / 40 V abs; round 13) |
+| PESD2IVN24-T.pdf | 262,019 | Nexperia PESD2IVN24 (same document as PESD2IVN24.pdf; archived under the fitted -T code, round 13) |
+| VOW3120.pdf | 223,172 | Vishay VOW3120 (UASC/UQD since A.12; doc 82442 rev 1.3) |
+| UCC14141-Q1.pdf | 3,133,172 | TI UCC14141-Q1 (PSASC/PSQD since A.12; SLUSF10B) |
+| VY1-series.pdf | 265,078 | Vishay VY1 Y1 disc series (CY1/CY2 since A.12; doc 28537) |
+| DE1-RA.pdf | 527,564 | Murata DE1 Y1 series — CY alternate (lower AC class) |
+| Yageo-SQP.pdf | 620,597 | Yageo SQP/NSP — RDIS alternate (SQP10AJB-470R / -220R) |

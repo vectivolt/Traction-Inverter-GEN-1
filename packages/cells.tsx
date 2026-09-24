@@ -83,16 +83,48 @@ export const XfmrEEFP = (n = 6) => (
     <courtyardrect pcbX={0} pcbY={0} width="20mm" height="16mm" />
   </footprint>
 );
-// Mornsun QA01C-class SIP-7 iso module: real pins 1=Vin 2=GND(in) 5=-Vo 6=0V(out common)
-// 7=+Vo; positions 3/4 have no pins (DS "Design Reference" fig).
-export const Sip7FP = () => (
-  <footprint>
-    {[["pin1", 0], ["pin2", 2.54], ["pin5", 10.16], ["pin6", 12.7], ["pin7", 15.24]].map(([h, x]) => (
-      <platedhole key={h as string} portHints={[h as string]} pcbX={x as number} pcbY={0} holeDiameter="1mm" outerDiameter="1.8mm" shape="circle" />
-    ))}
-    <courtyardrect pcbX={7.62} pcbY={0} width="20mm" height="10mm" />
-  </footprint>
-);
+// TI UCC14141-Q1 (DWN-36, SLUSF10B Table 6-1): GNDP 1,2,5,8-18 · PG 3 · ENA 4 · VIN 6,7 · VEE 19-27,30,31,36 ·
+// VDD 28,29 · RLIM 32 · FBVEE 33 · FBVDD 34 · VEEA 35. Reinforced isolated bias (V_IORM 1414 Vpk,
+// V_IOWM 1000 Vrms, DS §7.5) drawn in the single-output configuration of DS Fig. 9-2: FBVEE tied to
+// FBVDD, RLIM and PG open, VEEA on VEE. VDD-VEE = 2.5 V x (1 + 62 k/10 k) = 18.0 V (17.4-18.6 V over the
+// 2.4675-2.5325 V reference, 1 % resistors and the 12.3 mV hysteresis). CIN 2 x 10 uF + 100 nF at VIN,
+// COUT1 10 uF (+ the board's 100 nF at the load) — DS Table 9-2. ENA from V15 through 10 k/4.7 k
+// (4.65-4.94 V: above V_EN_IR 2.1 V, under the 5.5 V recommended maximum), so the bias is on
+// whenever V15 is, as the QA01C-18 it replaces was.
+const UCC14141_PINS: [number, string][] = [
+  [1, "GNDP1"], [2, "GNDP2"], [3, "PG"], [4, "ENA"], [5, "GNDP5"], [6, "VIN6"], [7, "VIN7"],
+  ...Array.from({ length: 11 }, (_, i) => [8 + i, `GNDP${8 + i}`] as [number, string]),
+  ...Array.from({ length: 9 }, (_, i) => [19 + i, `VEE${19 + i}`] as [number, string]),
+  [28, "VDD28"], [29, "VDD29"], [30, "VEE30"], [31, "VEE31"], [32, "RLIM"], [33, "FBVEE"], [34, "FBVDD"], [35, "VEEA"], [36, "VEE36"],
+];
+export const IsoBias18 = ({ p, name, vout, vin = "net.V15", gnd = "net.DGND", ref = "net.DCN" }:
+  { p: string; name: string; vout: string; vin?: string; gnd?: string; ref?: string }) => {
+  const fb = `net.FB_${p}`, ena = `net.ENA_${p}`;
+  const conn: Record<string, string> = {};
+  for (const [, l] of UCC14141_PINS) {
+    if (l.startsWith("GNDP")) conn[l] = gnd;
+    else if (l.startsWith("VIN")) conn[l] = vin;
+    else if (l.startsWith("VEE")) conn[l] = ref;          // VEE19..36 and VEEA
+    else if (l.startsWith("VDD")) conn[l] = vout;
+    else if (l === "FBVDD" || l === "FBVEE") conn[l] = fb;
+    else if (l === "ENA") conn[l] = ena;                   // PG, RLIM: open
+  }
+  return (
+    <group>
+      <chip name={name} footprint={SmdFP(36)} {...gp()}
+        pinLabels={Object.fromEntries(UCC14141_PINS.map(([n, l]) => [`pin${n}`, l]))} connections={conn} />
+      <capacitor name={`C${p}I1`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: vin, pin2: gnd }} />
+      <capacitor name={`C${p}I2`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: vin, pin2: gnd }} />
+      <capacitor name={`C${p}IB`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: vin, pin2: gnd }} />
+      <resistor name={`R${p}E1`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: vin, pin2: ena }} />
+      <resistor name={`R${p}E2`} resistance="4.7k" footprint="0603" {...gp()} connections={{ pin1: ena, pin2: gnd }} />
+      <capacitor name={`C${p}O`} capacitance="10uF" footprint="1210" {...gp()} connections={{ pin1: vout, pin2: ref }} />
+      <resistor name={`R${p}F1`} resistance="62k" footprint="0603" {...gp()} connections={{ pin1: vout, pin2: fb }} />
+      <resistor name={`R${p}F2`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: ref }} />
+      <capacitor name={`C${p}F`} capacitance="330pF" footprint="0603" {...gp()} connections={{ pin1: fb, pin2: ref }} />
+    </group>
+  );
+};
 export const Header = (n: number, rows = 1) => (
   <footprint>
     {Array.from({ length: n }, (_, i) => (

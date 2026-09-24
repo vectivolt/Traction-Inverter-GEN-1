@@ -437,7 +437,8 @@ const HAND = {
   "DISCHARGE / ENTRY": [["JDCP", "JDCN", "JCTL"]],
   // Discharge in work order: bias, opto, LED/gate network | the switch with its string.
   "DISCHARGE / ACTIVE": [
-    ["PSQD", "UQD", "RQDL", "RQDG", "RQDPD", "CQD"],
+    ["PSQD", "CQDI1", "CQDI2", "CQDIB", "RQDE1", "RQDE2", "RQDF1", "RQDF2", "CQDF", "CQDO"],
+    ["UQD", "RQDL", "RQDG", "RQDPD", "CQD"],
     ["QDIS", "RDIS1", "RDIS2", "RDIS3", "RDIS4"],
   ],
   // An isolated voltage sense is a divider feeding an amplifier — string first, then the tap.
@@ -450,7 +451,8 @@ const HAND = {
     ["RVBDL", "CVBDF", "UIVB"],
   ],
   "HV-SENSING / ASC-BUFFER": [
-    ["PSASC", "UASC", "RASCL", "RASCG", "RASCPD", "CASC"],
+    ["PSASC", "CASCI1", "CASCI2", "CASCIB", "RASCE1", "RASCE2", "RASCF1", "RASCF2", "CASCF", "CASCO"],
+    ["UASC", "RASCL", "RASCG", "RASCPD", "CASC"],
   ],
   // A flyback chain: controller + its comp/CT network | switch + sense + snubber |
   // regulation | the three transformers.

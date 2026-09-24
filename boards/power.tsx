@@ -3,7 +3,7 @@
 // dual gate-power flybacks, isolated DC-link sensing x2, module NTC routing, LV protection,
 // ASC buffer, 40-way harness. Schematic-complete; layout is a later phase.
 import {
-  StudFP, FilmCanFP, FilmBoxFP, DiscFP, AxialFP, TO247_4L, EconoDual3FP, Header, Sip7FP,
+  StudFP, FilmCanFP, FilmBoxFP, DiscFP, AxialFP, TO247_4L, EconoDual3FP, Header, IsoBias18,
   SmdFP, Smd2FP, GateDrive, FlybackChain, IsoVSense, ModNtc, Harness, gp,
 } from "../packages/cells";
 
@@ -85,27 +85,32 @@ export default () => (
     <FlybackChain id="L" v12="net.V12L" />
 
     {/* ---- ASC buffer: DCN-referenced, drives the 3 LS ASC pins ---- */}
-    {/* QA01C-18 real SIP-7: 1=Vin 2=GND(in) 5=-Vo 6=0V 7=+Vo — +18 V used, -Vo unloaded */}
-    <chip name="PSASC" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PSASCN", COM: "net.DCN", VOP: "net.V18A" }} />
-    <chip name="UASC" footprint={SmdFP(6)} {...gp()} pinLabels={{ pin1: "ANO", pin2: "NC2", pin3: "CAT", pin4: "GND", pin5: "VO", pin6: "VCC" }}
-      connections={{ ANO: "net.ASCA", CAT: "net.DGND", GND: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
-    {/* TLP152 LED 261 R 1 % from UASCG: 10.3-14.8 mA over V5A 4.9-5.1 V and -40...100 C, inside the
-        DS 10-15 mA recommended I_F (I_FLH 7.5 mA max). Round 7: 470 R gave 5.4-7 mA; round-8
-        cross-check: 270 R dipped to 9.9 mA cold. */}
-    <resistor name="RASCL" resistance="261" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
+    {/* Rev A.12 (barrier closure, gates ⑪/㉔): the bias is a TI UCC14141-Q1 — reinforced, V_IORM 1414 Vpk /
+        V_IOWM 1000 Vrms (DS §7.5) — in its single-output configuration, 18.0 V = 2.5 V x (1 + 62 k/10 k),
+        17.4-18.6 V over reference, 1 % divider and hysteresis (IsoBias18 in cells.tsx). The opto is a
+        Vishay VOW3120 (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG >= 10 mm). The QA01C-18 / TLP152 pair they
+        replace had no published working voltage for the 850 V link. */}
+    <IsoBias18 p="ASC" name="PSASC" vout="net.V18A" />
+    {/* VOW3120 SMD-8 by pin: 1 NC · 2 A · 3 C · 4 NC · 5 VEE · 6 NC · 7 VO · 8 VCC (DS p.1). Its UVLO
+        (11-13.5 V rising) holds the output low until the 18 V rail is up — default-OFF. */}
+    <chip name="UASC" footprint={SmdFP(8)} {...gp()} pinLabels={{ pin1: "NC1", pin2: "ANO", pin3: "CAT", pin4: "NC4", pin5: "VEE", pin6: "NC6", pin7: "VO", pin8: "VCC" }}
+      connections={{ ANO: "net.ASCA", CAT: "net.DGND", VEE: "net.DCN", VO: "net.ASCVO", VCC: "net.V18A" }} />
+    {/* VOW3120 LED 270 R 1 % from UASCG: 10.8-15.8 mA over V5A 4.9-5.1 V and -40...100 C, inside the
+        DS 10-16 mA recommended I_F (I_FLH 8 mA max, 25 mA abs). V_F is 1.0-1.6 V where the TLP152's was
+        1.4-1.8 V, so the round-8 261 R would have reached 16.4 mA at the hot/high corner. */}
+    <resistor name="RASCL" resistance="270" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CMD", pin2: "net.ASCA" }} />
     {/* NSI6611 ASC abs max = GND2+6 V (DS 1.2 §2) — series 2.2k + 5.1 V zener clamp the
         18 V opto swing to a legal ASC level (F28) */}
     <resistor name="RASCG" resistance="2.2k" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />
     <diode name="ZASC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DCN", cathode: "net.ASC_DRV" }} />
     <resistor name="RASCPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
     {/* ASC break-before-make, delay half (round 7, RR05): 12 nF on the 1.8 k Thevenin holds
-        ASC below its 2.7 V rising threshold for >= 3.5 us (fast corner: QA01C-18 at its 20.9 V
+        ASC below its 2.7 V rising threshold for >= 3.5 us (fast corner: the bias at its 18.6 V
         top, C -5 %), so with tASC_r (0.39 us min) the low sides start >= 3.9 us after the latch sets. The
         high sides are already turning off: FS0B dropped DRV_EN (FS1B path) or the eFlexPWM
-        fault forced PWM off (MCU path) before ASC_REQ. Entry completes <= 7.5 us (16.9 V low
-        end, round 9); release is
-        fast through DASCR into the opto output (<= 0.75 us). Each LS ASC pin has its own 1 k
+        fault forced PWM off (MCU path) before ASC_REQ. Entry completes <= 7.8 us (17.4 V low
+        end, VOW3120 tpLH 0.5 us max — design-verify §8); release is
+        fast through DASCR into the opto output (<= 1.06 us). Each LS ASC pin has its own 1 k
         (GateDrive cell). The ASC input has hysteresis (2.7-3.2 / 1.3-1.7 V). */}
     <capacitor name="CASCD" capacitance="12nF" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
     <diode name="DASCR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.ASC_DRV", cathode: "net.ASCVO" }} />
@@ -186,7 +191,7 @@ export default () => (
         when V12L rides above ~15.5 V (24 V jump start, clamped load dump) the LB15/DB15
         path feeds V15 directly. NCV4276C-ADJ (40 V in, 400 mA) sits in mild dropout in
         normal operation (V15 ≈ 15.0-15.2 V) and CLAMPS at 15.0 V during pass-through, so
-        the QA01C modules (13.5-16.5 V window) never see the raw rail. Vout = 2.5·(1+49.9/10). */}
+        the UCC14141-Q1 biases (8-18 V in) and the bias LDOs never see the raw rail. Vout = 2.5·(1+49.9/10). */}
     <chip name="ULDO15" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "VA", pin5: "OUT" }}
       connections={{ IN: "net.V15B", INH: "net.V15B", GND: "net.DGND", VA: "net.V15VA", OUT: "net.V15" }} />
     <resistor name="RLD1" resistance="49.9k" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.V15VA" }} />

@@ -4,7 +4,8 @@
 // Silicon data: marine/design-basis.md §4 (datasheet citations). Loss equations: the Road model's
 // sinusoidal-PWM averages (calculations/loss-model.mjs igbtLoss — re-checked below, not edited),
 // with two marine additions for continuous duty: switching energy ∝ V^1.3 instead of linear, and
-// the transistor/diode heat sharing one coldplate footprint.
+// the transistor/diode heat sharing one coldplate footprint. Road-mirrored protection numbers (FW-05/06/16, ASC entry,
+// DESAT corners, §6 release rule, barrier register) follow Road rev A.12 (marine/design-basis.md §9).
 // Run: node marine/calc/marine-verify.mjs
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -56,7 +57,7 @@ const MODS = {
 // can: per-can C / ripple rating / U_N at 85 °C; sensor: LEM range (A pk)
 const CELLS = {
   m8: { name: "M8 IGBT", mod: "hcg600_12", vMin: 500, vNom: 720, vMax: 850, ovTrip: 880, fsw: 5e3,
-    can: { n: 16, c: 20e-6, irms: 15.4, vr85: 1000, part: "C3D 20 µF/1100 V (Road bank)" }, sensor: 900, tscDer: 5 / 6, nDiode: 2, launch: true,
+    can: { n: 16, c: 20e-6, irms: 15.4, vr85: 1000, part: "Faratronic C3D1M206KFSA382 20 µF/1100 V (Road 8XX bank)" }, sensor: 900, tscDer: 5 / 6, nDiode: 2, launch: true,
     dis: { rpN: 6, rpPer: 22e3, raN: 4, raPer: 470, qdis: "1200 V / 42 A (Road part)" } },
   // new 1100 V power stage (design-basis §5): 1700 V IGBT, 1300 V-class cans, 3 DESAT diodes
   m10: { name: "M10 IGBT", mod: "hcg600_17", vMin: 650, vNom: 950, vMax: 1100, ovTrip: 1150, fsw: 3e3,
@@ -64,7 +65,7 @@ const CELLS = {
     dis: { rpN: 8, rpPer: 22e3, raN: 5, raPer: 470, qdis: "≥ 1700 V class switch" } },
   // small craft on request: the Road 8XX SiC build, frozen like M8; short motor cables only (§6c)
   m8sic: { name: "M8-SiC (small craft)", mod: "hcs600_12", vMin: 500, vNom: 720, vMax: 850, ovTrip: 880, fsw: 10e3,
-    can: { n: 16, c: 20e-6, irms: 15.4, vr85: 1000, part: "C3D 20 µF/1100 V (Road bank)" }, sensor: 900, nDiode: 2, launch: true, sicBuild: true,
+    can: { n: 16, c: 20e-6, irms: 15.4, vr85: 1000, part: "Faratronic C3D1M206KFSA382 20 µF/1100 V (Road 8XX bank)" }, sensor: 900, nDiode: 2, launch: true, sicBuild: true,
     dis: { rpN: 6, rpPer: 22e3, raN: 4, raPer: 470, qdis: "1200 V / 42 A (Road part)" } },
   // evaluation only — what the MW end could use; caps/sensor are sized to fit, the thermal limit is the answer
   m8hp: { name: "M8-HP (eval: 1200 V/900 A IGBT)", mod: "hcg900_12", vMin: 500, vNom: 720, vMax: 850, ovTrip: 880, fsw: 3e3, sensor: 1500, tscDer: 5 / 6, nDiode: 2 },
@@ -138,7 +139,7 @@ for (const [id, s] of Object.entries(CELLS)) {
   const lim = {
     thermal: solve((I) => tjMax(m, die(s, I), s.vMax, s.fsw) <= OPM.tjCont, 1, 3 * m.inom * (s.par ?? 1)),
     life: solve((I) => lesit(m, s, I).nf >= OPM.lifeSF * DUTY.ferry.mission / 0.8, 1, 3 * m.inom * (s.par ?? 1)),
-    ...(s.launch ? { caps: OPM.capCont * s.can.n * s.can.irms / kMax, sensor: 0.9 * s.sensor / (Math.SQRT2 * OPM.ovl * 1.1) } : {}),
+    ...(s.launch ? { caps: OPM.capCont * s.can.n * s.can.irms / kMax, sensor: 0.9 * s.sensor / (1.25 * Math.SQRT2 * OPM.ovl) } : {}),
     ...(m.itrms ? { terminal: 0.8 * m.itrms * (s.par ?? 1) } : {}),
   };
   const [bind, iCont] = Object.entries(lim).reduce((x, y) => (y[1] < x[1] ? y : x));
@@ -154,7 +155,7 @@ for (const [id, s] of Object.entries(CELLS)) {
   }
   add(sec, "Continuous current (S1) and its binding limit", `**${I} A rms** (bound by ${bind})`,
     Object.entries(lim).map(([k, v]) => `${k} ${f(v, 0)} A`).join(" · "), "INFO",
-    `thermal: Tj ≤ ${OPM.tjCont} °C at ${OPM.coolant} °C coolant, ${s.vMax} V, motoring and regeneration; life: LESIT ≥ ${OPM.lifeSF}× mission with 20 % margin; caps: Kolar worst ${f(kMax, 3)}·I at ${OPM.capCont * 100} % of the can rating; sensor: ${f(OPM.ovl * 100, 0)} % overload peak + 10 % ripple inside 90 % of range`);
+    `thermal: Tj ≤ ${OPM.tjCont} °C at ${OPM.coolant} °C coolant, ${s.vMax} V, motoring and regeneration; life: LESIT ≥ ${OPM.lifeSF}× mission with 20 % margin; caps: Kolar worst ${f(kMax, 3)}·I at ${OPM.capCont * 100} % of the can rating; sensor: the FW-05 trip ±${f(1.25 * Math.SQRT2 * OPM.ovl * I, 0)} A (1.25 × √2 × the ${f(OPM.ovl * 100, 0)} % current, instantaneous amperes — Road round 12) inside 90 % of range`);
   add(sec, "Continuous power (S1)", `**${f(RATING[id].p, 0)} kW @${s.vNom} V** · ${f(RATING[id].pMin, 0)} kW @${s.vMin} V · ${f(RATING[id].pMax, 0)} kW @${s.vMax} V`, "-", "INFO",
     `PF ${OPM.pf}, 5 % modulation reserve; P ∝ V_dc below the motor's base-speed voltage`);
   const t = tjAt(m, die(s, I), s.vMax, s.fsw), L = loss(m, die(s, I), s.vMax, s.fsw, mc);
@@ -197,7 +198,8 @@ for (const [id, s] of LAUNCH) {
 
 // ============ 3. GATE DRIVE AND SHORT CIRCUIT ============
 {
-  const drv = { vth: 10, ichg: 350e-6, leb: 0.2e-6, deg: 0.32e-6, isto: 0.4 };   // NSI6611 DS 1.2 worst corners (Road P.drv)
+  // NSI6611 DS 1.2 worst corners (Road P.drv); soft-off I_STO 400 mA typ / 100 mA DS min, from the 16.9 V VCC2 high corner (Road §5)
+  const drv = { vth: 10, ichg: 350e-6, leb: 0.2e-6, deg: 0.32e-6, isto: [0.4, 0.1], vcc2Hi: 16.9 };
   const cap = (fosc) => 0.5 * (8e-6 / 3) * (0.9 / 0.33) ** 2 * fosc * 0.92;     // Road worst-part flyback capacity
   for (const [id, s] of LAUNCH) {
     const m = MODS[s.mod], sec = `Gate drive — ${s.name}`;
@@ -207,11 +209,13 @@ for (const [id, s] of LAUNCH) {
       add(sec, "Short-circuit withstand", "SiC t_SC not published by hiitio", "3.1 µs Road DESAT reaction", "WARN", "Road VERIFY ③ — hiitio letter + contained SC test before any marine SiC delivery");
       continue;
     }
-    const cBlank = 82e-12, tDet = cBlank * 1.05 * drv.vth / drv.ichg + drv.leb + drv.deg, tSto = m.cies * 5.6 / drv.isto;
-    const tscDer = m.tsc * s.tscDer;
-    judge(sec, `DESAT worst detection + soft-off (${f(cBlank * 1e12, 0)} pF blank)`, `${f((tDet + tSto) * 1e6, 2)} µs`,
-      `${f(m.tsc * 1e6, 0)} µs @${m.tscV} V → ${f(tscDer * 1e6, 1)} µs at ${s.vMax} V`, (tDet + tSto) / tscDer, 0.95,
-      `detect ${f(tDet * 1e6, 2)} + STO ${f(tSto * 1e6, 2)} µs @400 mA (Cies ${f(m.cies * 1e9, 0)} nF × 5.6 V); contained SC test is the release gate`);
+    // Road round 7 (RR04) + round 12 (R1-F06/R2-F05): both soft-off corners; the 100 mA DS minimum does not close and the
+    // rating is a test condition (6 µs at 800/1000 V, 15 V), not a corner guarantee — an open release gate, as on the Road
+    const cBlank = 82e-12, tDet = cBlank * 1.05 * drv.vth / drv.ichg + drv.leb + drv.deg;
+    const [tTyp, tLo] = drv.isto.map((i) => tDet + m.cies * (drv.vcc2Hi - 10) / i), tscDer = m.tsc * s.tscDer;
+    add(sec, `DESAT worst detection + soft-off (${f(cBlank * 1e12, 0)} pF blank)`, `${f(tTyp * 1e6, 2)} µs @400 mA typ · ${f(tLo * 1e6, 2)} µs @100 mA DS min (detect ${f(tDet * 1e6, 2)} µs)`,
+      `${f(m.tsc * 1e6, 0)} µs @${m.tscV} V → ${f(tscDer * 1e6, 1)} µs at ${s.vMax} V`, "WARN",
+      `RELEASE GATE (Road RR04/③): typ is ${f(100 * tTyp / tscDer, 0)} % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at ${s.vMax} V and the ${drv.vcc2Hi} V gate-rail corner + contained SC test (Cies ${f(m.cies * 1e9, 0)} nF from ${drv.vcc2Hi} to 10 V)`);
     // DESAT trip at the collector (Road method: V_th − n·0.6 V − I_chg·4.7 k) vs VCEsat at the overload peak, hot
     const tripMin = 8.5 - s.nDiode * 0.6 - 650e-6 * 4.7e3, tripMax = 10 - s.nDiode * 0.6 - 350e-6 * 4.7e3;
     const vce = m.v0 + m.r * die(s, RATING[id].I * OPM.ovl) * Math.SQRT2;
@@ -238,9 +242,15 @@ for (const [id, s] of LAUNCH) {
   const eRes = 0.5 * cMax * s.vMax ** 2 / d.raN;
   judge(sec, "Energy per 10 W wirewound (C+10 %)", `${f(eRes)} J`, "100 J single-pulse", eRes / 100, 0.5, "firmware ≤ 3 discharges / 5 min");
   judge(sec, "V per wirewound", `${f(s.vMax / d.raN)} V`, "≥350 V axial class", (s.vMax / d.raN) / 350, 0.8);
-  add(sec, "QDIS switch", `${f(s.vMax / ra, 2)} A pk at ${s.vMax} V`, d.qdis, "PASS", "fully enhanced, no linear region");
+  add(sec, "QDIS switch", `${f(s.vMax / ra, 2)} A pk at ${s.vMax} V`, d.qdis, "PASS",
+    `fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V)${id === "m10" ? " — same bias module, already rated ≥ 1150 V DC" : ""}`);
   add(sec, "QDIS stuck ON with the battery connected", `${f(s.vMax ** 2 / ra, 0)} W continuous`, "not survivable by 10 W parts", "WARN",
-    "bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds");
+    `bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds — candidate TE SQP10 (700 V, ${f(s.vMax / d.raN, 0)} V here) through the stuck-ON test (Road gate ㉖)`);
+  // Road FW-16 (round 9, A8-N03/R9X-07): the boot self-test runs only at ≤ 0.1 J — both channels read < 3 V (≤ 12 V true),
+  // or QDIS for 2 τ from a < 60 V reading (≤ 69 V true); τ at R+5 % and C_max
+  const tau = ra * 1.05 * cMax, eRead = 0.5 * cMax * 12 ** 2, eTop = 0.5 * cMax * (69 * Math.exp(-2)) ** 2;
+  judge(sec, "FW-16 self-test residual energy (read < 3 V, or QDIS for 2 τ from < 60 V)", `≤ ${f(eRead * 1e3, 0)} mJ (read) · ≤ ${f(eTop * 1e3, 0)} mJ (QDIS 2 τ = ${f(2 * tau, 2)} s)`,
+    "0.1 J design limit", Math.max(eRead, eTop) / 0.1, 0.8, "Road round 9 (A8-N03, R9X-07); the 2 τ top-up time is a Marine parameter-set value");
 }
 
 // ============ 4. BATTERY / DC-GRID WINDOWS (pack series count per cell class) ============
@@ -355,15 +365,31 @@ for (const [id, s] of LAUNCH) {
     `LC ring of ${f(C * 1e6, 0)} µF with ≈10 µH of feeder loop — a repaired cell cannot rejoin a live bus at sea without precharge`);
   judge(sec, `Per-cell precharge ${Rpre} Ω (DC entry kit)`, `${f(s.vMax / Rpre, 1)} A pk · ${f(0.5 * C * s.vMax ** 2, 0)} J per charge · 5τ = ${f(5 * Rpre * C * 1e3, 0)} ms`,
     "≤ 10 A pk", s.vMax / Rpre / 10, 1.0, "resistor + small DC contactor, beside the cell's 2-pole DC fuses and disconnector");
-  // back-EMF rule that makes safe pulse-off valid at every speed (motor specification item)
-  add(sec, "Motor spec: back-EMF at 115 % overspeed (propeller racing, towing)", `E_LL,pk ≤ ${f(0.95 * s.ovTrip, 0)} V`, `0.95 × OV trip ${s.ovTrip} V`, "INFO",
-    `with this, safe pulse-off never over-charges an isolated link — ASC is reserved for switch faults; a typical SPM at ${s.vNom} V lands near ${f(0.9 * 0.95 * s.vNom * 1.15, 0)} V`);
+  // back-EMF rule (motor specification item): with no stored current the rectified link stays under the trip at every speed
+  const Cm = s.can.n * s.can.c * 0.9 + 2.7e-6, eLim = 0.95 * s.ovTrip, iO = R.I * OPM.ovl;   // C_min (−10 %), as the Road
+  add(sec, "Motor spec: back-EMF at 115 % overspeed (propeller racing, towing)", `E_LL,pk ≤ ${f(eLim, 0)} V`, `0.95 × OV trip ${s.ovTrip} V`, "INFO",
+    `the rectified link never reaches the trip in steady state; the stored winding energy is the next row (Road §6 rule (a), A.11; both matrix columns since round 13/A.12, F135) — a typical SPM at ${s.vNom} V lands near ${f(0.9 * 0.95 * s.vNom * 1.15, 0)} V`);
+  // Road §6 rule (a) since A.11 (R1-F01/R2-F08; both matrix columns since round 13/A.12, F135): pulse-off with the DC path lost rectifies the stored winding energy
+  // ¾·(L_d·î_d² + L_q·î_q²) = 1.5·L·I² into the isolated link, at any speed. Road screen V_pk ≤ E + √((V₀ − E)² + 2·W/C_min),
+  // V₀ = OV trip, shown at E = 0 (back-EMF only raises it). Screening motor = the Marine motor spec itself: I_ch = ψ_f/L_d ≈ 1 pu
+  // (§6), ψ_f from E at the limit above and 80 Hz at rated speed (top of the 40–80 Hz range). Commissioning inputs: L_d/L_q(i), ψ_f, n_max.
+  const lScr = eLim / 1.15 / (Math.sqrt(3) * 2 * Math.PI * 80) / (Math.SQRT2 * R.I), wMag = 1.5 * lScr * iO ** 2;
+  const head = 0.5 * Cm * (s.can.vr85 ** 2 - s.ovTrip ** 2);
+  add(sec, `Motor spec: winding energy at pulse-off with the DC path lost (${f(iO, 0)} A, screening L_d ${f(lScr * 1e3, 2)} mH)`,
+    `${f(wMag, 0)} J → ${f(Math.sqrt(s.ovTrip ** 2 + 2 * wMag / Cm), 0)} V at zero back-EMF`, `${f(head, 1)} J headroom, ${s.ovTrip} V trip → ${s.can.vr85} V U_N at C_min ${f(Cm * 1e6, 0)} µF`,
+    wMag > head ? "WARN" : "PASS",
+    `Road §6 rule (a): the cell's link alone covers this motor only to ${f(Math.sqrt(head / (1.5 * lScr)), 0)} A rms, so it is released under rule (b) — the DC grid stays connected through the cell's pulse-off intervals for every opening cause, the cell's own faults included (IEC 61660 selectivity study + FAT) — and FW-06 LS-ASC holds the energy in the winding if the DC path does open. L_d here = I_ch ≈ 1 pu at 80 Hz; the motor's L_d/L_q(i), ψ_f and n_max are commissioning inputs (motor partner, gate 5)`);
   add(sec, "Crash stop / hard deceleration", `regeneration up to ${f(R.p, 0)} kW per cell`, "BMS charge limit (CAN)", "INFO",
     "firmware caps regen at the BMS limit; a full battery or a genset-only bus needs the EMS headroom or a brake chopper (below)");
-  // battery breaker opens during full regen (Road FW-06/N9): V(t)² = V0² + 2·P·t/C from V_max to the trip, then the response
-  const Cm = s.can.n * s.can.c * 0.9 + 2.7e-6, Pr = R.pMax * 1e3 * OPM.ovl, vp = (t) => Math.sqrt(s.ovTrip ** 2 + 2 * Pr * t / Cm);
-  judge(sec, `Battery path lost at full regen (${f(Pr / 1e3, 0)} kW): link peak with FW-06 at 20 µs`, `${f(vp(20e-6), 0)} V`, `${s.can.vr85} V can U_N at 85 °C`,
-    vp(20e-6) / s.can.vr85, 0.92, `${f(Pr / (Cm * s.vMax) / 1e6, 2)} V/µs; 100 µs would end at ${f(vp(100e-6), 0)} V, a 1-per-PWM-period sample (${f(1e6 / s.fsw, 0)} µs) at ${f(vp(1 / s.fsw), 0)} V — N9 applies to marine too`);
+  // battery breaker opens during full regen (Road FW-06, round-7 chain, ASC timing re-derived A.12 for the UCC14141-Q1): regen
+  // power charges the link, V(t)² = V0² + 2·P·t/C from the trip, for ≤ 15.6 µs to the ASC request (Road OVP.tReq); then all six
+  // switches are off for the ASC entry (≤ 7.56 µs, UCC14141-Q1 17.4 V low end, Road ASC.tEntryMax; release ≤ 1.06 µs) and the
+  // phase current rectifies in at Î/C. M10 uses the same bias module and opto, already rated ≥ 1150 V DC.
+  const Pr = R.pMax * 1e3 * OPM.ovl, vp = (t) => Math.sqrt(s.ovTrip ** 2 + 2 * Pr * t / Cm), tReq = 15.6e-6, tAsc = 7.56e-6;
+  const vPk = vp(tReq) + Math.SQRT2 * iO * tAsc / Cm;
+  judge(sec, `Battery path lost at full regen (${f(Pr / 1e3, 0)} kW): link peak with the FW-06 chain (${f(tReq * 1e6, 1)} µs to the ASC request, then ${f(tAsc * 1e6, 2)} µs all-off at ${f(Math.SQRT2 * iO, 0)} A)`,
+    `${f(vPk, 0)} V`, `${s.can.vr85} V can U_N at 85 °C`, vPk / s.can.vr85, 0.92,
+    `${f(Pr / (Cm * s.vMax) / 1e6, 2)} V/µs; a 100 µs response would end at ${f(vp(100e-6), 0)} V, a 1-per-PWM-period sample (${f(1e6 / s.fsw, 0)} µs) at ${f(vp(1 / s.fsw), 0)} V — N9 applies to marine too (Road 8XX: 906 V)`);
   // brake-chopper mode (firmware option): each leg's LS IGBT switches R_leg from AC to DC+, HS diode freewheels.
   // Limit = the cell's DC entry current (sized for its own rating), not the silicon: I_leg = I_DC,cell / 3.
   if (m.sil !== "sic") {
@@ -376,17 +402,20 @@ for (const [id, s] of LAUNCH) {
 }
 
 // ============ 6. INSULATION — barrier components (datasheet ratings) ============
-// M8 runs the Road card at 850 V, so its verdicts are the Road ones; M10 (1150 V) is a new power
-// stage and each line below is a requirement on it. PCB creepage = the insulation-coordination study.
+// The Road barrier register (docs/design-basis.md §6a, A.12) with its gates. M8 runs the Road boards at 850 V, so its verdicts
+// are the Road ones; M10 (1150 V) is a new power stage and each line below is a requirement on it — the same statements at a
+// higher working voltage. PCB creepage = the insulation-coordination study.
 {
-  const sec = "Insulation — barrier components (M8 verdict at 850 V; M10 requirement at 1150 V)";
+  const sec = "Insulation — barrier components (Road register §6a; M8 verdict at 850 V; M10 requirement at 1150 V)";
   const B = [
     ["NSI6611A-Q1 gate driver", "reinforced IEC 60747-17, V_IOWM 2121 V DC, CPG 8.0 mm, CTI > 600", "reinforced ≥ V_max", "PASS", "keep (2121 V DC ≥ 1150 V)"],
     ["AMC1311B V_DC amplifier", "reinforced IEC 60747-17, V_IOWM 2120 V DC, CPG 8.5 mm, CTI ≥ 600", "reinforced ≥ V_max", "PASS", "keep"],
-    ["TLP152 opto (UQD, UASC)", "UL1577 3750 Vrms/1 min only, CPG 5.0 mm, no V_IORM", "reinforced ≥ V_max", "WARN", "SO6L/SOW-class reinforced opto (Road N8 gate)"],
-    ["QA01C isolated bias", "3.5 kVAC / 6 kVDC 1 min test, no class, no working rating", "reinforced ≥ V_max", "WARN", "bias module with a certified ≥ 1150 V DC working rating"],
-    ["VGT12EEM flyback transformer", "2.6 kVrms/1 min NP–NS, 1.3 kVrms coil–core, no working rating", "reinforced ≥ V_max", "WARN", "transformer certified for ≥ 1150 V DC working (Road VERIFY ⑤)"],
-    ["HC5FW 900-S/SP1 hall sensor", "reduced insulation (no sleeve): 2.5 kV/1 min, CPG 3.6 / CLR 2.7 mm", "insulation completed by the busbar", "WARN", "busbar sleeve rated for 1150 V + LEM sign-off (Road N7)"],
+    ["UCC12050 V_DC-channel bias ×2 (Road A.11; the earlier \"MGJ2D150505SC\" code never existed; production AVL part UCC12051QDVERQ1, AEC-Q100, A.12)", "reinforced VDE 0884-11, V_IOWM 1200 Vrms / 1697 V DC, CPG > 8 mm, CTI > 600", "reinforced ≥ V_max", "PASS", "keep (1697 V DC ≥ 1150 V)"],
+    ["VOW3120-X017T opto (UQD, UASC) — replaces TLP152 (Road gate ⑪, A.12)", "DIN EN 60747-5-5 (VDE 0884-5) opt.1 reinforced, V_IORM 1414 Vpk, V_ISO 5.3 kVrms, CPG/CLR ≥ 10 mm", "reinforced ≥ V_max", "PASS", "keep (1414 Vpk ≥ 1150 V; VDE/UL/CQC certificates listed \"planned\" in the DS — check at PO)"],
+    ["UCC14141-Q1 isolated bias (PSASC, PSQD) — replaces QA01C-18 (Road gate ㉔, A.12)", "DIN EN IEC 60747-17 reinforced, V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 V DC", "reinforced ≥ V_max", "PASS", "keep (1414 V DC ≥ 1150 V; VDE/UL/CQC certificates listed \"planned\" in the DS — check at PO)"],
+    ["VGT12EEM flyback transformer", "2.6 kVrms/1 min NP–NS, 1.3 kVrms coil–core, no working rating", "reinforced ≥ V_max", "WARN", "transformer certified for ≥ 1150 V DC working (Road gate ⑤)"],
+    ["HC5FW 900-S/SP1 hall sensor", "reduced insulation (no sleeve): 2.5 kV/1 min, CPG 3.6 / CLR 2.7 mm", "insulation completed by the busbar", "WARN", "busbar sleeve rated for 1150 V + LEM sign-off (Road gate ⑩ / N7)"],
+    ["Y-caps CY1/CY2 — Vishay VY1472M63Y5UQ6TV0 (Road gate ㉔, A.12)", "Y1 500 VAC / 1500 VDC (X1 760 VAC)", "DC working rating ≥ V_max (a first earth fault on the IT network leaves the whole link across one)", "PASS", "keep (1500 V DC ≥ 1150 V; the Y1 / 500 VAC class is sized for the 690 V AC grid case, not the DC bus)"],
     ["US1M DESAT diodes (series string)", "V_RRM 1000 V each; 2 in series on the Road card", "string ≥ V_max + turn-off overshoot", "PASS", "3 in series (≈1500 V peak, leakage sharing at 100 °C)"],
   ];
   for (const [part, rating, lim, m8, m10] of B) add(sec, part, rating, lim, m8, `M10: ${m10}`);

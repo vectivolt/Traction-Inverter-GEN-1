@@ -149,8 +149,9 @@ target at the R+5 %/C+10 % worst case — 2.19 s).
   resistor** (10 W ceramic wirewound single-pulse capability ≥ 100 J) ✓; 213 V per resistor ✓
 - Switch: hiitio **HCM75S12T4K3** (1200 V, 75 mΩ, TO-247-4L — vendor consolidation; any
   1200 V ≥ 5 A FET fits). Peak switch dissipation 0.38²·75 mΩ ≈ 11 mW — trivial.
-- Control: default-OFF — TLP152-class opto driver on a DCN-referenced isolated bias (QA01C),
-  gate pulldown to DCN so a floating control line means OFF.
+- Control: default-OFF — VOW3120 opto driver (V_IORM 1414 Vpk; its UVLO keeps the output low until the
+  rail is up) on a DCN-referenced UCC14141-Q1 isolated bias (A.12), gate pulldown to DCN so a floating
+  control line means OFF.
 - Verification: MCU commands discharge and witnesses V_DC fall on **both** isolated senses
   (§6): stuck-off is detected within 200 ms (no ΔV). **Stuck-on with the battery connected is
   NOT visible as a bus load** (rev A.6, R-F23 — the battery holds the bus; 384 W into four
@@ -206,9 +207,9 @@ working-voltage rating; the gates are in the README VERIFY list.
 | UCC12050 ×2 | V_DC bias (A.11) | reinforced | V_IOWM 1200 Vrms / 1697 VDC, V_IORM 1697 Vpk (TI §6.6) | ✓ — replaces the non-existent MGJ2 code |
 | NSI6611ASC-Q1 ×6 | gate drivers | reinforced | SOIC-16W reinforced grade (DS 1.2) | ✓ |
 | VGT12EEM-200S1A4 ×6 | gate-power transformers | reinforced (gate domains at DC± potential) | 2.6 kVrms test; working insulation unpublished | gate ⑤ |
-| TLP152 ×2 | ASC / discharge command | reinforced | base part UL 1577 only | gate ⑪ (V4 option, V_IORM ≥ 850 Vpk) |
-| QA01C-18 ×2 | ASC / discharge bias | reinforced | 6 kVDC test, EN 60950 Class III; no working-voltage figure | **gate ⑳** (new, round 12) |
-| CY1/CY2 | Y-caps to chassis | Y1 | Y1 class (500 VAC) | gate ⑳: DC working rating at 850 V |
+| VOW3120 ×2 (A.12; was TLP152) | ASC / discharge command | reinforced | V_IORM 1414 Vpk, V_IOTM 8 kVpk, DIN EN 60747-5-5 (VDE 0884-5) option 1, CPG/CLR ≥ 10 mm (Vishay 82442 p.5) | ✓ — gate ⑪ closed; not AEC-Q101 (UL/VDE/CQC) |
+| UCC14141-Q1 ×2 (A.12; was QA01C-18) | ASC / discharge bias | reinforced | V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 VDC, V_IOTM 7071 Vpk, DIN EN IEC 60747-17 (TI SLUSF10B §7.5) | ✓ on the datasheet; §7.6 lists the VDE/UL/CQC certificates as "planned" — PO-time check (gate ㉔ residual) |
+| CY1/CY2 (A.12: Vishay VY1472M63Y5UQ6TV0) | Y-caps to chassis | Y1 | Y1 500 VAC / X1 760 VAC / **1500 VDC** (Vishay 28537) | ✓ — 1500 VDC ≥ 850 V link |
 | HC5FW ×3 | phase busbar aperture | per the LEM/sleeve construction | reduced-insulation variant + ≥ 1 kV sleeve | gate ⑩ |
 | Busbar / HV connector spacing | mechanical | per IEC 60664-1 at the agreed pollution degree | layout rule | layout |
 
@@ -251,8 +252,8 @@ the hardware safety chain; **flyback enables are OR-gated (MCU ∨ FS26 GPIO1) s
 keeps gate power alive for ASC** — GEN3's exact 74LVC1G32 arrangement.
 
 ASC: the three **low-side** ASC pins (driver secondary side; all LS aux-sources share the
-DCN-referenced domain) are driven together from a DCN-referenced buffer on its own QA01C
-bias — commanded by the latched ASC_CMD line, through 1 k at each driver pin. Entry is
+DCN-referenced domain) are driven together from a DCN-referenced buffer on its own UCC14141-Q1
+bias (A.12; QA01C-18 before) — commanded by the latched ASC_CMD line, through 1 k at each driver pin. Entry is
 **break-before-make** (round 7, RR05): a 12 nF delay holds the low sides off ≥ 3.4 µs after the
 latch sets. By then the high sides are off: FS0B has dropped DRV_EN (MCU dead), or the eFlexPWM
 fault has forced PWM low (MCU alive). ASC deliberately does **not** drop EN. The NSI6611 honours
@@ -270,8 +271,11 @@ HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
 ## 8. Control card (ASIL D brain)
 
 - **S32K396** (lockstep M7, ASIL-D capable, on-chip resolver interface + SDADC — the
-  EV-INVERTERGEN3 architecture), 289-MAPBGA per the parts database; the package and ball map are
-  bound at the pin freeze (round 12 removed the stale "LQFP-176").
+  EV-INVERTERGEN3 architecture), 289-MAPBGA — **every ball bound in rev A.12** from NXP's SPF-91122 rev C
+  anchored on the DS supply balls (`docs/mcu-pin-manifest.md`): eFlexPWM1 A/B pairs with FAULT0/FAULT2,
+  three ADC instances for the currents, two for V_DC, SDADC1/2/3 pairs for the resolver, SWG1, LPSPI3 to
+  the FS26, FlexCAN0/1, FCCU, JTAG. The freeze corrected seven ports of the A.4 list that had no such
+  function on this package (round 12 had removed the stale "LQFP-176").
 - **FS26 SBC** (ASIL-D): VPRE/VCORE/VDDIO/VREF rails from KL30, challenge-response watchdog,
   FCCU error inputs, **FS0B** safe output.
 - Safety chain (hardware): DRV_EN = FS0B ∧ MCU_GATE_EN ∧ RDY_HS ∧ RDY_LS ∧ FLT_OK (two
@@ -327,7 +331,7 @@ guarantee it (review round 3/5 item):
 
 ## 9. LV power
 
-- Card: KL30 (9–16 V) → polyfuse + STPS5L60SY reverse Schottky + TPSMC24CA TVS (GEN3 exact) →
+- Card: KL30 (9–16 V) → polyfuse + STPS5L60SY reverse Schottky + TPSMC24CA-VR TVS (24 V stand-off; the GEN3 sheet reads "TPSMC24CA" but the -VR class is the one that is dark at a 24 V jump start — round 12) →
   **FS2633D**: VPRE 6.0 V buck (§8a) → VCORE 1.5 V (MCU V11), VREF 5 V, LDO1 3.3 V, LDO2 5 V
   (VDD_HV_A); VMONEXT/VMONCORE rail monitors wired per GEN3.
 - Power board: **two separately fused KL30 feeds** (HS / LS chains, GEN3 pattern — polyfuse +
@@ -340,9 +344,11 @@ guarantee it (review round 3/5 item):
   **TPS55340-Q1 boost → 15.4 V (V15B) → NCV4276C-ADJ post-regulator → V15 = 15.0 V**
   (F51 — a boost passes its input through above the setpoint; the LDO clamps jump-start/
   load-dump pass-through away from the bias modules) feeding the four isolated bias
-  modules (Murata MGJ2 ×2 for the V_DC senses + Mornsun **QA01C-18** ×2 for ASC/discharge —
-  13.5–16.5 V windows; QA01C-18 outputs **+18/−3 V**, 16.9–20.9 V at these light loads. Round 9,
-  A8-N01: F61 had read the base QA01C's +20/−4 V sheet).
+  supplies (TI UCC12050 ×2 for the V_DC senses since A.11, each behind its own 5 V LDO, and the
+  ASC/discharge biases — TI UCC14141-Q1 since A.12, 8–18 V in, regulated **18.0 V** out, 17.4–18.6 V over
+  reference, divider and hysteresis; see §6a. The Mornsun QA01C-18 they replace had no working-voltage
+  figure and a 16.9–20.9 V envelope at these light loads — round 9, A8-N01: F61 had read the base QA01C's
+  +20/−4 V sheet. The 13.5–16.5 V V15 design band is kept although the new parts accept 8–18 V).
 - Budget ≈ 20 W total LV on the power board at full gate load.
 
 ## 10. ASIL D concept (decomposition summary — printed on sheet 1)
@@ -385,19 +391,19 @@ so an unplugged `JDIS`/`JCTL` cable cannot float the command in either direction
 
 After a TOTAL 12 V loss the LS drivers' VCC2 reservoirs hold ASC for **0.5–3.1 ms** (two series
 reservoirs, DC-bias-derated MLCC, bleeder + gate loads — the old "≈15 ms" put the VEE cap in
-parallel with VCC2), and the ASC command path (boost → V15 → QA01C → TLP152) collapses within
+parallel with VCC2), and the ASC command path (boost → V15 → UCC14141-Q1 → VOW3120) collapses within
 ≈1 ms. Sustained ASC therefore **requires KL30 present** — the FS26 (GPIO1) holds the flybacks
 up through faults, but not through a dead 12 V system. A dead-LV coast-down is three-phase-
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.11)
+## 11. Verification status (current release: rev A.12)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **1883/1883 (100 %)**;
-- structural ERC **914 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **2027/2027 (100 %)** (21 pages; the 289-ball MCU and the 36-pin biases since A.12);
+- structural ERC **933 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
 - numeric worst-case verification **123 PASS / 19 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
@@ -415,6 +421,20 @@ reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
 
+## 11l. Rev A.12 — rechecks of A.11 and the production closure (summary)
+
+Both rechecks of `30ae0a2` were right (answered in [`review-A12-disposition.md`](review-A12-disposition.md)):
+the winding-energy rule is now applied in every §6 cell (F135); the resolver input holds the 3 mA injection
+limit with the MCU unpowered and the SDADC has its 220 pF C_AAF back (F136); the verifier counts distinct
+assemblies (F137); the boost's real -Q1 ratings replaced a wrong 34 V figure (F138); the LDO thermal row uses
+the datasheet pad (F139). The round then closed the gaps that are closable on paper: the **MCU ball map**
+(F140 — the fabrication blocker; seven ports of the old list had no such function on this package), the
+FS26 pin verification, the reinforced optocouplers and bias supplies with published working voltages
+(F141 — VOW3120 / UCC14141-Q1, §6a), the 40-way connector, the 4XX capacitor, the Y-caps and the
+discharge resistors, each bound to an orderable MPN (F142). Marine now forks at A.12 and a firmware
+implementation of the contract lives in `firmware/`. What remains is measurement and vendor evidence
+(§6a, README gates).
+
 ## 11k. Rev A.11 — system review round 12 (summary)
 
 Two independent whole-system reviews of `4544715` (28 + 35 findings) are answered line by line in
@@ -423,7 +443,7 @@ Two independent whole-system reviews of `4544715` (28 + 35 findings) are answere
 - **SPO energy rule (R1-F01/R2-F08).** Release rule (a) accepted SPO on back-EMF alone; the stored
   winding energy the diodes rectify into an isolated link (1.5·L·I²) was missing. The rule now
   requires the link headroom to cover it, and a screening row shows the 8XX bank covers the 0.35 mH
-  screening motor only to 277 A rms.
+  screening motor only to 277 A rms from 850 V (250 A from the 880 V trip the rule starts at, 32.8 J).
 - **Resolver exciter (R2-F04).** The drawn filter had its MFB feedback pair swapped: |H(10 kHz)| was
   0.18, and the S32K39 SWG (≤ 2.3 V pp) could never have reached 8 V pp. A textbook MFB
   (1.5 nF / 220 pF) gives 1.85 → 7.7 V pp.
@@ -503,8 +523,9 @@ Two rechecks of `2ac42ed` (R7-01…R7-07, A7-N01…N05) are answered in
 - **Interfaces.**
   - A second 74LVC3G17-Q100 buffers the FLT diode-OR and FS1B strap presets (no slow edge left on
     a flip-flop input). The FLT combining diodes are now BAT46, for the Schmitt threshold.
-  - The same buffer drives the discharge opto. Both TLP152 LEDs run through 261 Ω at
-    10.3–14.8 mA, inside the recommended 10–15 mA.
+  - The same buffer drives the discharge opto. Both LEDs ran through 261 Ω at 10.3–14.8 mA on the
+    TLP152; with the VOW3120's lower V_F (A.12) they run through 270 Ω at 10.8–15.8 mA, inside its
+    recommended 10–16 mA.
   - A FAULT_OUT battery short is clamped to ground (ZSET, BZT52-B5V6: ≤ 6.33 V at a 35 V load
     dump), not into V5A.
 - **Firmware / models / tooling.**
@@ -615,7 +636,7 @@ list. Every fix is locked into `erc-audit.mjs` so it cannot regress.
   pulled up through 10 k — it doubles as the open-drain OT flag, and grounded/floating
   means *shutdown*), QA01C SIP-7 (1/2/5/6/7), PESD parts as their real 2- or 3-terminal
   selves, FS26 as the full LQFP-48+EP with VDIG/VBOS decouplers, both buck bootstraps,
-  DEBUG strap, and DS-specified unused-pin terminations. The **S32K396 remains symbolic**
+  DEBUG strap, and DS-specified unused-pin terminations. The **S32K396 remained symbolic** (until the A.12 pin freeze, §8)
   (its datasheet carries no package pin table — the IO-signal spreadsheet binds it at
   layout) and the sheet says so explicitly.
 - **F46 global fault reaction** — FLT_HS/FLT_LS diode-OR into a second LVC1G74: any DESAT
@@ -717,9 +738,10 @@ negatively:** the order code does not exist and no MGJ2 is reinforced above 150 
 now use a TI UCC12050 (§6, §6a). One candidate was
 evaluated and **rejected during this binding**: RECOM R15P05S/R6.4 — its 6.4 kV rating is a
 1-second test voltage; the insulation grade per IEC 62368-1 is *basic* at 250 VACrms
-working, which fails the barrier rule for the 850 V bus. PSASC/PSQD stay Mornsun QA01C-18
-(6 kVDC, 60950-family approvals; CB-cert verification at PO stays in the BOM note).
-The S32K396 package binding remains the standing fabrication blocker.
+working, which fails the barrier rule for the 850 V bus. PSASC/PSQD stayed Mornsun QA01C-18
+(6 kVDC, 60950-family approvals) until rev A.12 re-bound them to the TI UCC14141-Q1, which carries the
+working-voltage figure (§6a). The S32K396 package binding, the standing fabrication blocker since
+this round, closed in rev A.12 (§8, `docs/mcu-pin-manifest.md`).
 
 ## 12. References
 

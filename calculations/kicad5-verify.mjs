@@ -45,9 +45,11 @@ const cache = new Map();
 let totLabels = 0, floating = 0, overlaps = 0, openFrames = 0;
 const problems = [];
 
+const seenPages = [];   // page ids — an assembly has many pages; a page id must appear once
 for (const f of readdirSync(SRC).filter((x) => x.endsWith(".json")).sort()) {
   const page = JSON.parse(readFileSync(join(SRC, f), "utf8"));
   const board = `traction-${page.page.split("-")[0]}`;
+  seenPages.push(page.page);
   if (!cache.has(board)) {
     const text = readFileSync(join(SCH, `${board}.sch`), "utf8");
     const lines = text.split("\n");
@@ -132,7 +134,11 @@ console.log(`\n== ${sheets} pages · ${totPins} connected pins · ${totLabels} l
 console.log(`correct ${totOk} · wrong ${totWrong} · unconnected ${totAbsent} → ${(100 * totOk / totPins).toFixed(2)}%`);
 console.log(`floating labels ${floating} · overlapping symbols ${overlaps} · unclosed frames ${openFrames}`);
 if (problems.length) { console.log("\nfirst problems:"); problems.slice(0, 20).forEach((p) => console.log("  " + p)); }
-// Round 12 (R2-F29): an empty expected-page set left every counter at zero and exited 0. The
-// four assemblies and their pins must actually have been compared.
-if (sheets < 4 || totPins < 1500) { console.log(`FAIL: only ${sheets} sheets / ${totPins} pins compared (need 4 / >= 1500)`); process.exit(1); }
+// Round 12 (R2-F29): an empty expected-page set left every counter at zero and exited 0. Round 13
+// (A11-R05): count DISTINCT assemblies, not JSON pages — the exact set must be present, each with pins.
+const WANT = ["traction-power", "traction-capbank", "traction-disch", "traction-card"];
+const seen = [...cache.keys()], missing = WANT.filter((b) => !seen.includes(b)), extra = seen.filter((b) => !WANT.includes(b));
+const dup = seenPages.filter((b, i) => seenPages.indexOf(b) !== i);
+if (missing.length || extra.length || dup.length || totPins < 1500)
+  { console.log(`FAIL: assemblies compared ${seen.join(",")} — missing [${missing}] extra [${extra}] duplicate pages [${dup}]; ${totPins} pins (need >= 1500)`); process.exit(1); }
 process.exit(totWrong + totAbsent + floating + overlaps + openFrames ? 1 : 0);

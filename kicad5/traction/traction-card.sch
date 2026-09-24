@@ -1,12 +1,12 @@
 EESchema Schematic File Version 4
 EELAYER 30 0
 EELAYER END
-$Descr User 40600 32050
+$Descr User 48600 26550
 encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-23"
-Rev "A.11"
+Rev "A.12"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -14,815 +14,326 @@ Comment3 "26 functional sections - 288 components - cross-section links are net 
 Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"
 $EndDescr
 Wire Notes Line
-	32850 12900 37300 12900
+	40750 10750 45200 10750
 Wire Notes Line
-	37300 12900 37300 17300
+	45200 10750 45200 15150
 Wire Notes Line
-	37300 17300 32850 17300
+	45200 15150 40750 15150
 Wire Notes Line
-	32850 17300 32850 12900
-Text Notes 32910 13060 0    79   ~ 16
+	40750 15150 40750 10750
+Text Notes 40810 10910 0    79   ~ 16
 SHEET INDEX
-Text Notes 32910 13320 0    60   ~ 0
+Text Notes 40810 11170 0    60   ~ 0
 220 kW pk Control card (LV) - 4 of 4
-Text Notes 32900 13750 0    60   ~ 0
+Text Notes 40800 11600 0    60   ~ 0
 PHASE-SENSE   -   4 sections
-Text Notes 32900 14050 0    60   ~ 0
+Text Notes 40800 11900 0    60   ~ 0
 RESOLVER   -   4 sections
-Text Notes 32900 14350 0    60   ~ 0
+Text Notes 40800 12200 0    60   ~ 0
 SAFETY   -   4 sections
-Text Notes 32900 14650 0    60   ~ 0
+Text Notes 40800 12500 0    60   ~ 0
 SBC   -   3 sections
-Text Notes 32900 14950 0    60   ~ 0
+Text Notes 40800 12800 0    60   ~ 0
 TEMP   -   3 sections
-Text Notes 32900 15250 0    60   ~ 0
+Text Notes 40800 13100 0    60   ~ 0
 COMMS   -   2 sections
-Text Notes 32900 15550 0    60   ~ 0
+Text Notes 40800 13400 0    60   ~ 0
 CONTROL   -   2 sections
-Text Notes 32900 15850 0    60   ~ 0
+Text Notes 40800 13700 0    60   ~ 0
 VDC-RECEIVE   -   2 sections
-Text Notes 32900 16150 0    60   ~ 0
+Text Notes 40800 14000 0    60   ~ 0
 CARD-IF   -   1 section
-Text Notes 32900 16450 0    60   ~ 0
+Text Notes 40800 14300 0    60   ~ 0
 VEHICLE-IF   -   1 section
-Text Notes 32910 17100 0    60   ~ 0
-rev A.11   -   26 sections   -   288 components
+Text Notes 40810 14950 0    60   ~ 0
+rev A.12   -   26 sections   -   288 components
 Wire Notes Line
-	32850 18050 37300 18050
+	40750 15900 45200 15900
 Wire Notes Line
-	37300 18050 37300 21250
+	45200 15900 45200 19100
 Wire Notes Line
-	37300 21250 32850 21250
+	45200 19100 40750 19100
 Wire Notes Line
-	32850 21250 32850 18050
-Text Notes 32910 18210 0    79   ~ 16
+	40750 19100 40750 15900
+Text Notes 40810 16060 0    79   ~ 16
 NET NAMING
-Text Notes 32910 18470 0    60   ~ 0
+Text Notes 40810 16320 0    60   ~ 0
 internal junctions are named for what they join
-Text Notes 32900 18900 0    60   ~ 0
+Text Notes 40800 16750 0    60   ~ 0
 U<ref>_<PIN>     node at that IC pin        e.g. UIVDC_VINP
-Text Notes 32900 19200 0    60   ~ 0
+Text Notes 40800 17050 0    60   ~ 0
 R<stem>_M        midpoint of a series pair  e.g. RBLA_M
-Text Notes 32900 19500 0    60   ~ 0
+Text Notes 40800 17350 0    60   ~ 0
 R<stem>_<nm>     tap between R<stem>n/m     e.g. RVDD_12
-Text Notes 32900 19800 0    60   ~ 0
+Text Notes 40800 17650 0    60   ~ 0
 all others are explicit design nets
-Text Notes 32900 20100 0    60   ~ 0
+Text Notes 40800 17950 0    60   ~ 0
 same name on another sheet = same net, joined ONLY at the
-Text Notes 32900 20400 0    60   ~ 0
+Text Notes 40800 18250 0    60   ~ 0
 named connector/stud/tab (see INTERBOARD LINKS, design basis)
 Wire Notes Line
 	500 500 8100 500
 Wire Notes Line
-	8100 500 8100 6000
+	8100 500 8100 8250
 Wire Notes Line
-	8100 6000 500 6000
+	8100 8250 500 8250
 Wire Notes Line
-	500 6000 500 500
+	500 8250 500 500
 Text Notes 560 660 0    79   ~ 16
 CONTROL / MCU
 $Comp
-L traction-r1:S32K396 UMCU
-U 1 1 5E00016E
-P 2850 3250
-F 0 "UMCU" H 2200 1000 50  0000 R CNN
-F 1 "S32K396" H 2200 5530 50  0000 R CNN
-F 2 "BGA289" H 2850 3250 50  0001 C CNN
-F 3 "~" H 2850 3250 50  0001 C CNN
-F 4 "CLASS" H 2850 3250 50  0001 C CNN "LCSC"
-F 5 "S32K396" H 2850 3250 50  0001 C CNN "MPN"
-	1    2850 3250
+L traction-r1:S32K396EHT1MJBST UMCU
+U 1 1 5E000180
+P 2800 4450
+F 0 "UMCU" H 2000 1000 50  0000 R CNN
+F 1 "S32K396EHT1MJBST" H 2000 7930 50  0000 R CNN
+F 2 "MAPBGA289" H 2800 4450 50  0001 C CNN
+F 3 "~" H 2800 4450 50  0001 C CNN
+F 4 "CLASS" H 2800 4450 50  0001 C CNN "LCSC"
+F 5 "S32K396EHT1MJBST" H 2800 4450 50  0001 C CNN "MPN"
+	1    2800 4450
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2150 1200 1950 1200
-Text Label 1950 1200 2    45   ~ 0
-SBC_AMUX
-Wire Wire Line
-	2150 1300 1950 1300
-Text Label 1950 1300 2    45   ~ 0
-BCTRL
-Wire Wire Line
-	2150 1400 1950 1400
-Text Label 1950 1400 2    45   ~ 0
-CAN0_RX
-Wire Wire Line
-	2150 1500 1950 1500
-Text Label 1950 1500 2    45   ~ 0
-CAN0_TX
-Wire Wire Line
-	2150 1600 1950 1600
-Text Label 1950 1600 2    45   ~ 0
-CAN1_RX
-Wire Wire Line
-	2150 1700 1950 1700
-Text Label 1950 1700 2    45   ~ 0
-CAN1_TX
-Wire Wire Line
-	2150 1800 1950 1800
-Text Label 1950 1800 2    45   ~ 0
-EXTAL
-Wire Wire Line
-	2150 1900 1950 1900
-Text Label 1950 1900 2    45   ~ 0
-VDC1_SE
-Wire Wire Line
-	2150 2000 1950 2000
-Text Label 1950 2000 2    45   ~ 0
-NTC_A
-Wire Wire Line
-	2150 2100 1950 2100
-Text Label 1950 2100 2    45   ~ 0
-NTC_H
-Wire Wire Line
-	2150 2200 1950 2200
-Text Label 1950 2200 2    45   ~ 0
+	1950 1200 1750 1200
+Text Label 1750 1200 2    45   ~ 0
 MT1_SIG
 Wire Wire Line
-	2150 2300 1950 2300
-Text Label 1950 2300 2    45   ~ 0
-MT2_SIG
-Wire Wire Line
-	2150 2400 1950 2400
-Text Label 1950 2400 2    45   ~ 0
-SBC_MOSI
-Wire Wire Line
-	2150 2500 1950 2500
-Text Label 1950 2500 2    45   ~ 0
-IGN_SNS
-Wire Wire Line
-	2150 2600 1950 2600
-Text Label 1950 2600 2    45   ~ 0
-PWM_VL
-Wire Wire Line
-	2150 2700 1950 2700
-Text Label 1950 2700 2    45   ~ 0
-PWM_WL
-Wire Wire Line
-	2150 2800 1950 2800
-Text Label 1950 2800 2    45   ~ 0
-ISNS_U
-Wire Wire Line
-	2150 2900 1950 2900
-Text Label 1950 2900 2    45   ~ 0
-TMOD_U
-Wire Wire Line
-	2150 3000 1950 3000
-Text Label 1950 3000 2    45   ~ 0
-VDC2_SE
-Wire Wire Line
-	2150 3100 1950 3100
-Text Label 1950 3100 2    45   ~ 0
-VOFS
-Wire Wire Line
-	2150 3200 1950 3200
-Text Label 1950 3200 2    45   ~ 0
-RDY_HS
-Wire Wire Line
-	2150 3300 1950 3300
-Text Label 1950 3300 2    45   ~ 0
-RDY_LS
-Wire Wire Line
-	2150 3400 1950 3400
-Text Label 1950 3400 2    45   ~ 0
-ISNS_W
-Wire Wire Line
-	2150 3500 1950 3500
-Text Label 1950 3500 2    45   ~ 0
-TMOD_V
-Wire Wire Line
-	2150 3600 1950 3600
-Text Label 1950 3600 2    45   ~ 0
-TMOD_W
-Wire Wire Line
-	2150 3700 1950 3700
-Text Label 1950 3700 2    45   ~ 0
-HW_ID
-Wire Wire Line
-	2150 3800 1950 3800
-Text Label 1950 3800 2    45   ~ 0
-V5GD_SNS
-Wire Wire Line
-	2150 3900 1950 3900
-Text Label 1950 3900 2    45   ~ 0
-ISNS_V
-Wire Wire Line
-	2150 4000 1950 4000
-Text Label 1950 4000 2    45   ~ 0
-FLT_LS_N
-Wire Wire Line
-	2150 4100 1950 4100
-Text Label 1950 4100 2    45   ~ 0
-FLT_HS_N
-Wire Wire Line
-	2150 4200 1950 4200
-Text Label 1950 4200 2    45   ~ 0
-PWM_WH
-Wire Wire Line
-	2150 4300 1950 4300
-Text Label 1950 4300 2    45   ~ 0
-PWM_VH
-Wire Wire Line
-	2150 4400 1950 4400
-Text Label 1950 4400 2    45   ~ 0
-PWM_UH
-Wire Wire Line
-	2150 4500 1950 4500
-Text Label 1950 4500 2    45   ~ 0
-SBC_INTB
-Wire Wire Line
-	2150 4600 1950 4600
-Text Label 1950 4600 2    45   ~ 0
-DRV_EN_RB
-Wire Wire Line
-	2150 4700 1950 4700
-Text Label 1950 4700 2    45   ~ 0
-ASC_CMD_RB
-Wire Wire Line
-	2150 4800 1950 4800
-Text Label 1950 4800 2    45   ~ 0
-MCU_GATE_EN
-Wire Wire Line
-	2150 4900 1950 4900
-Text Label 1950 4900 2    45   ~ 0
-SBC_MISO
-Wire Wire Line
-	2150 5000 1950 5000
-Text Label 1950 5000 2    45   ~ 0
-MCU_EN_FLYBK_HS
-Wire Wire Line
-	2150 5100 1950 5100
-Text Label 1950 5100 2    45   ~ 0
-MCU_EN_FLYBK_LS
-Wire Wire Line
-	2150 5200 1950 5200
-Text Label 1950 5200 2    45   ~ 0
-QDIS_M
-Wire Wire Line
-	3550 1200 3750 1200
-Text Label 3750 1200 0    45   ~ 0
-ASC_REQ
-Wire Wire Line
-	3550 1300 3750 1300
-Text Label 3750 1300 0    45   ~ 0
-ASC_CLR_M
-Wire Wire Line
-	3550 1400 3750 1400
-Text Label 3750 1400 0    45   ~ 0
-FLT_CLR_M
-Wire Wire Line
-	3550 1500 3750 1500
-Text Label 3750 1500 0    45   ~ 0
-FCCU_ERR0
-Wire Wire Line
-	3550 1600 3750 1600
-Text Label 3750 1600 0    45   ~ 0
-FCCU_ERR1
-Wire Wire Line
-	3550 1700 3750 1700
-Text Label 3750 1700 0    45   ~ 0
-INTRLOK_P
-Wire Wire Line
-	3550 1800 3750 1800
-Text Label 3750 1800 0    45   ~ 0
-SBC_SCK
-Wire Wire Line
-	3550 1900 3750 1900
-Text Label 3750 1900 0    45   ~ 0
-SBC_CS
-Wire Wire Line
-	3550 2000 3750 2000
-Text Label 3750 2000 0    45   ~ 0
-INTRLOK_N
-Wire Wire Line
-	3550 2100 3750 2100
-Text Label 3750 2100 0    45   ~ 0
-PWM_UL
-Wire Wire Line
-	3550 2200 3750 2200
-Text Label 3750 2200 0    45   ~ 0
-RESET_B
-Wire Wire Line
-	3550 2300 3750 2300
-Text Label 3750 2300 0    45   ~ 0
-SIN_N
-Wire Wire Line
-	3550 2400 3750 2400
-Text Label 3750 2400 0    45   ~ 0
-SIN_P
-Wire Wire Line
-	3550 2500 3750 2500
-Text Label 3750 2500 0    45   ~ 0
-COS_N
-Wire Wire Line
-	3550 2600 3750 2600
-Text Label 3750 2600 0    45   ~ 0
-COS_P
-Wire Wire Line
-	3550 2700 3750 2700
-Text Label 3750 2700 0    45   ~ 0
-VREXM_N
-Wire Wire Line
-	3550 2800 3750 2800
-Text Label 3750 2800 0    45   ~ 0
+	1950 1300 1750 1300
+Text Label 1750 1300 2    45   ~ 0
 VREXM_P
 Wire Wire Line
-	3550 2900 3750 2900
-Text Label 3750 2900 0    45   ~ 0
+	1950 1400 1750 1400
+Text Label 1750 1400 2    45   ~ 0
+VDC1_SE
+Wire Wire Line
+	1950 1500 1750 1500
+Text Label 1750 1500 2    45   ~ 0
+ISNS_V
+Wire Wire Line
+	1950 1600 1750 1600
+Text Label 1750 1600 2    45   ~ 0
+V5GD_SNS
+Wire Wire Line
+	1950 1700 1750 1700
+Text Label 1750 1700 2    45   ~ 0
+SIN_N
+Wire Wire Line
+	1950 1800 1750 1800
+Text Label 1750 1800 2    45   ~ 0
+ISNS_U
+Wire Wire Line
+	1950 1900 1750 1900
+Text Label 1750 1900 2    45   ~ 0
+RESET_B
+Wire Wire Line
+	1950 2000 1750 2000
+Text Label 1750 2000 2    45   ~ 0
+VDC2_SE
+Wire Wire Line
+	1950 2100 1750 2100
+Text Label 1750 2100 2    45   ~ 0
+V5A
+Wire Wire Line
+	1950 2200 1750 2200
+Text Label 1750 2200 2    45   ~ 0
 SWG1
 Wire Wire Line
-	3550 3000 3750 3000
-Text Label 3750 3000 0    45   ~ 0
-TCK
+	1950 2300 1750 2300
+Text Label 1750 2300 2    45   ~ 0
+VREF5
 Wire Wire Line
-	3550 3100 3750 3100
-Text Label 3750 3100 0    45   ~ 0
-TDI
+	1950 2400 1750 2400
+Text Label 1750 2400 2    45   ~ 0
+TMOD_V
 Wire Wire Line
-	3550 3200 3750 3200
-Text Label 3750 3200 0    45   ~ 0
-TDO
+	1950 2500 1750 2500
+Text Label 1750 2500 2    45   ~ 0
+NTC_H
 Wire Wire Line
-	3550 3300 3750 3300
-Text Label 3750 3300 0    45   ~ 0
+	1950 2600 1750 2600
+Text Label 1750 2600 2    45   ~ 0
+SBC_INTB
+Wire Wire Line
+	1950 2700 1750 2700
+Text Label 1750 2700 2    45   ~ 0
+COS_P
+Wire Wire Line
+	1950 2800 1750 2800
+Text Label 1750 2800 2    45   ~ 0
+COS_N
+Wire Wire Line
+	1950 2900 1750 2900
+Text Label 1750 2900 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 3000 1750 3000
+Text Label 1750 3000 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 3100 1750 3100
+Text Label 1750 3100 2    45   ~ 0
+TMOD_U
+Wire Wire Line
+	1950 3200 1750 3200
+Text Label 1750 3200 2    45   ~ 0
+INTRLOK_P
+Wire Wire Line
+	1950 3300 1750 3300
+Text Label 1750 3300 2    45   ~ 0
+AGND
+Wire Wire Line
+	1950 3400 1750 3400
+Text Label 1750 3400 2    45   ~ 0
+AGND
+Wire Wire Line
+	1950 3500 1750 3500
+Text Label 1750 3500 2    45   ~ 0
+HW_ID
+Wire Wire Line
+	1950 3600 1750 3600
+Text Label 1750 3600 2    45   ~ 0
+MCU_EN_FLYBK_LS
+Wire Wire Line
+	1950 3700 1750 3700
+Text Label 1750 3700 2    45   ~ 0
+NTC_A
+Wire Wire Line
+	1950 3800 1750 3800
+Text Label 1750 3800 2    45   ~ 0
+SIN_P
+Wire Wire Line
+	1950 3900 1750 3900
+Text Label 1750 3900 2    45   ~ 0
+SBC_AMUX
+Wire Wire Line
+	1950 4000 1750 4000
+Text Label 1750 4000 2    45   ~ 0
+FCCU_ERR1
+Wire Wire Line
+	1950 4100 1750 4100
+Text Label 1750 4100 2    45   ~ 0
+CAN1_RX
+Wire Wire Line
+	1950 4200 1750 4200
+Text Label 1750 4200 2    45   ~ 0
+MT2_SIG
+Wire Wire Line
+	1950 4300 1750 4300
+Text Label 1750 4300 2    45   ~ 0
+VREXM_N
+Wire Wire Line
+	1950 4400 1750 4400
+Text Label 1750 4400 2    45   ~ 0
+MCU_EN_FLYBK_HS
+Wire Wire Line
+	1950 4500 1750 4500
+Text Label 1750 4500 2    45   ~ 0
+V5A
+Wire Wire Line
+	1950 4600 1750 4600
+Text Label 1750 4600 2    45   ~ 0
+RDY_HS
+Wire Wire Line
+	1950 4700 1750 4700
+Text Label 1750 4700 2    45   ~ 0
+FCCU_ERR0
+Wire Wire Line
+	1950 4800 1750 4800
+Text Label 1750 4800 2    45   ~ 0
+CAN1_TX
+Wire Wire Line
+	1950 4900 1750 4900
+Text Label 1750 4900 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 5000 1750 5000
+Text Label 1750 5000 2    45   ~ 0
+INTRLOK_N
+Wire Wire Line
+	1950 5100 1750 5100
+Text Label 1750 5100 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 5200 1750 5200
+Text Label 1750 5200 2    45   ~ 0
+VREF5
+Wire Wire Line
+	1950 5300 1750 5300
+Text Label 1750 5300 2    45   ~ 0
+AGND
+Wire Wire Line
+	1950 5400 1750 5400
+Text Label 1750 5400 2    45   ~ 0
+V5A
+Wire Wire Line
+	1950 5500 1750 5500
+Text Label 1750 5500 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 5600 1750 5600
+Text Label 1750 5600 2    45   ~ 0
+V5A
+Wire Wire Line
+	1950 5700 1750 5700
+Text Label 1750 5700 2    45   ~ 0
+VREF5
+Wire Wire Line
+	1950 5800 1750 5800
+Text Label 1750 5800 2    45   ~ 0
+AGND
+Wire Wire Line
+	1950 5900 1750 5900
+Text Label 1750 5900 2    45   ~ 0
+V11
+Wire Wire Line
+	1950 6000 1750 6000
+Text Label 1750 6000 2    45   ~ 0
+AGND
+Wire Wire Line
+	1950 6100 1750 6100
+Text Label 1750 6100 2    45   ~ 0
+BCTRL
+Wire Wire Line
+	1950 6200 1750 6200
+Text Label 1750 6200 2    45   ~ 0
+VREF5
+Wire Wire Line
+	1950 6300 1750 6300
+Text Label 1750 6300 2    45   ~ 0
+TMOD_W
+Wire Wire Line
+	1950 6400 1750 6400
+Text Label 1750 6400 2    45   ~ 0
+DGND
+Wire Wire Line
+	1950 6500 1750 6500
+Text Label 1750 6500 2    45   ~ 0
 TMS
 Wire Wire Line
-	3550 3400 3750 3400
-Text Label 3750 3400 0    45   ~ 0
-V11
+	1950 6600 1750 6600
+Text Label 1750 6600 2    45   ~ 0
+TCK
 Wire Wire Line
-	3550 3500 3750 3500
-Text Label 3750 3500 0    45   ~ 0
-V11
+	1950 6700 1750 6700
+Text Label 1750 6700 2    45   ~ 0
+TDI
 Wire Wire Line
-	3550 3600 3750 3600
-Text Label 3750 3600 0    45   ~ 0
-V11
-Wire Wire Line
-	3550 3700 3750 3700
-Text Label 3750 3700 0    45   ~ 0
-V11
-Wire Wire Line
-	3550 3800 3750 3800
-Text Label 3750 3800 0    45   ~ 0
-V15S
-Wire Wire Line
-	3550 3900 3750 3900
-Text Label 3750 3900 0    45   ~ 0
-V3B
-Wire Wire Line
-	3550 4000 3750 4000
-Text Label 3750 4000 0    45   ~ 0
-V3B
-Wire Wire Line
-	3550 4100 3750 4100
-Text Label 3750 4100 0    45   ~ 0
+	1950 6800 1750 6800
+Text Label 1750 6800 2    45   ~ 0
 V5A
 Wire Wire Line
-	3550 4200 3750 4200
-Text Label 3750 4200 0    45   ~ 0
-V5A
+	1950 6900 1750 6900
+Text Label 1750 6900 2    45   ~ 0
+DGND
 Wire Wire Line
-	3550 4300 3750 4300
-Text Label 3750 4300 0    45   ~ 0
-V5A
-Wire Wire Line
-	3550 4400 3750 4400
-Text Label 3750 4400 0    45   ~ 0
-V5A
-Wire Wire Line
-	3550 4500 3750 4500
-Text Label 3750 4500 0    45   ~ 0
-V5A
-Wire Wire Line
-	3550 4600 3750 4600
-Text Label 3750 4600 0    45   ~ 0
-VREF5
-Wire Wire Line
-	3550 4700 3750 4700
-Text Label 3750 4700 0    45   ~ 0
-VREF5
-Wire Wire Line
-	3550 4800 3750 4800
-Text Label 3750 4800 0    45   ~ 0
+	1950 7000 1750 7000
+Text Label 1750 7000 2    45   ~ 0
 AGND
 Wire Wire Line
-	3550 4900 3750 4900
-Text Label 3750 4900 0    45   ~ 0
-DGND
-Wire Wire Line
-	3550 5000 3750 5000
-Text Label 3750 5000 0    45   ~ 0
-DGND
-Wire Wire Line
-	3550 5100 3750 5100
-Text Label 3750 5100 0    45   ~ 0
-DGND
-Wire Wire Line
-	3550 5200 3750 5200
-Text Label 3750 5200 0    45   ~ 0
-XTAL
-$Comp
-L traction-r1:C CMA1
-U 1 1 5E00016F
-P 4950 2750
-F 0 "CMA1" H 4950 2590 50  0000 C CNN
-F 1 "1uF" H 4950 2920 50  0000 C CNN
-F 2 "C0603" H 4950 2750 50  0001 C CNN
-F 3 "~" H 4950 2750 50  0001 C CNN
-F 4 "CLASS" H 4950 2750 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-16V" H 4950 2750 50  0001 C CNN "MPN"
-	1    4950 2750
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 2750 4500 2750
-Text Label 4500 2750 2    45   ~ 0
-VREF5
-Wire Wire Line
-	5200 2750 5400 2750
-Text Label 5400 2750 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CMA2
-U 1 1 5E000170
-P 4950 3150
-F 0 "CMA2" H 4950 2990 50  0000 C CNN
-F 1 "100nF" H 4950 3320 50  0000 C CNN
-F 2 "C0603" H 4950 3150 50  0001 C CNN
-F 3 "~" H 4950 3150 50  0001 C CNN
-F 4 "CLASS" H 4950 3150 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 4950 3150 50  0001 C CNN "MPN"
-	1    4950 3150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 3150 4500 3150
-Text Label 4500 3150 2    45   ~ 0
-VREF5
-Wire Wire Line
-	5200 3150 5400 3150
-Text Label 5400 3150 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CMD1
-U 1 1 5E000171
-P 6500 1150
-F 0 "CMD1" H 6500 990 50  0000 C CNN
-F 1 "100nF" H 6500 1320 50  0000 C CNN
-F 2 "C0402" H 6500 1150 50  0001 C CNN
-F 3 "~" H 6500 1150 50  0001 C CNN
-F 4 "CLASS" H 6500 1150 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 1150 50  0001 C CNN "MPN"
-	1    6500 1150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 1150 6050 1150
-Text Label 6050 1150 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 1150 6950 1150
-Text Label 6950 1150 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD10
-U 1 1 5E000172
-P 6500 4750
-F 0 "CMD10" H 6500 4590 50  0000 C CNN
-F 1 "100nF" H 6500 4920 50  0000 C CNN
-F 2 "C0402" H 6500 4750 50  0001 C CNN
-F 3 "~" H 6500 4750 50  0001 C CNN
-F 4 "CLASS" H 6500 4750 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 4750 50  0001 C CNN "MPN"
-	1    6500 4750
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 4750 6050 4750
-Text Label 6050 4750 2    45   ~ 0
-V11
-Wire Wire Line
-	6750 4750 6950 4750
-Text Label 6950 4750 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD11
-U 1 1 5E000173
-P 6500 5150
-F 0 "CMD11" H 6500 4990 50  0000 C CNN
-F 1 "100nF" H 6500 5320 50  0000 C CNN
-F 2 "C0402" H 6500 5150 50  0001 C CNN
-F 3 "~" H 6500 5150 50  0001 C CNN
-F 4 "CLASS" H 6500 5150 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 5150 50  0001 C CNN "MPN"
-	1    6500 5150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 5150 6050 5150
-Text Label 6050 5150 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 5150 6950 5150
-Text Label 6950 5150 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD12
-U 1 1 5E000174
-P 6500 5550
-F 0 "CMD12" H 6500 5390 50  0000 C CNN
-F 1 "100nF" H 6500 5720 50  0000 C CNN
-F 2 "C0402" H 6500 5550 50  0001 C CNN
-F 3 "~" H 6500 5550 50  0001 C CNN
-F 4 "CLASS" H 6500 5550 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 5550 50  0001 C CNN "MPN"
-	1    6500 5550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 5550 6050 5550
-Text Label 6050 5550 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 5550 6950 5550
-Text Label 6950 5550 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD2
-U 1 1 5E000175
-P 6500 1550
-F 0 "CMD2" H 6500 1390 50  0000 C CNN
-F 1 "100nF" H 6500 1720 50  0000 C CNN
-F 2 "C0402" H 6500 1550 50  0001 C CNN
-F 3 "~" H 6500 1550 50  0001 C CNN
-F 4 "CLASS" H 6500 1550 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 1550 50  0001 C CNN "MPN"
-	1    6500 1550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 1550 6050 1550
-Text Label 6050 1550 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 1550 6950 1550
-Text Label 6950 1550 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD3
-U 1 1 5E000176
-P 6500 1950
-F 0 "CMD3" H 6500 1790 50  0000 C CNN
-F 1 "100nF" H 6500 2120 50  0000 C CNN
-F 2 "C0402" H 6500 1950 50  0001 C CNN
-F 3 "~" H 6500 1950 50  0001 C CNN
-F 4 "CLASS" H 6500 1950 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 1950 50  0001 C CNN "MPN"
-	1    6500 1950
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 1950 6050 1950
-Text Label 6050 1950 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 1950 6950 1950
-Text Label 6950 1950 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD4
-U 1 1 5E000177
-P 6500 2350
-F 0 "CMD4" H 6500 2190 50  0000 C CNN
-F 1 "100nF" H 6500 2520 50  0000 C CNN
-F 2 "C0402" H 6500 2350 50  0001 C CNN
-F 3 "~" H 6500 2350 50  0001 C CNN
-F 4 "CLASS" H 6500 2350 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 2350 50  0001 C CNN "MPN"
-	1    6500 2350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 2350 6050 2350
-Text Label 6050 2350 2    45   ~ 0
-V5A
-Wire Wire Line
-	6750 2350 6950 2350
-Text Label 6950 2350 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD5
-U 1 1 5E000178
-P 6500 2750
-F 0 "CMD5" H 6500 2590 50  0000 C CNN
-F 1 "100nF" H 6500 2920 50  0000 C CNN
-F 2 "C0402" H 6500 2750 50  0001 C CNN
-F 3 "~" H 6500 2750 50  0001 C CNN
-F 4 "CLASS" H 6500 2750 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 2750 50  0001 C CNN "MPN"
-	1    6500 2750
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 2750 6050 2750
-Text Label 6050 2750 2    45   ~ 0
-V3B
-Wire Wire Line
-	6750 2750 6950 2750
-Text Label 6950 2750 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD6
-U 1 1 5E000179
-P 6500 3150
-F 0 "CMD6" H 6500 2990 50  0000 C CNN
-F 1 "100nF" H 6500 3320 50  0000 C CNN
-F 2 "C0402" H 6500 3150 50  0001 C CNN
-F 3 "~" H 6500 3150 50  0001 C CNN
-F 4 "CLASS" H 6500 3150 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 3150 50  0001 C CNN "MPN"
-	1    6500 3150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 3150 6050 3150
-Text Label 6050 3150 2    45   ~ 0
-V3B
-Wire Wire Line
-	6750 3150 6950 3150
-Text Label 6950 3150 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD7
-U 1 1 5E00017A
-P 6500 3550
-F 0 "CMD7" H 6500 3390 50  0000 C CNN
-F 1 "100nF" H 6500 3720 50  0000 C CNN
-F 2 "C0402" H 6500 3550 50  0001 C CNN
-F 3 "~" H 6500 3550 50  0001 C CNN
-F 4 "CLASS" H 6500 3550 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 3550 50  0001 C CNN "MPN"
-	1    6500 3550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 3550 6050 3550
-Text Label 6050 3550 2    45   ~ 0
-V11
-Wire Wire Line
-	6750 3550 6950 3550
-Text Label 6950 3550 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD8
-U 1 1 5E00017B
-P 6500 3950
-F 0 "CMD8" H 6500 3790 50  0000 C CNN
-F 1 "100nF" H 6500 4120 50  0000 C CNN
-F 2 "C0402" H 6500 3950 50  0001 C CNN
-F 3 "~" H 6500 3950 50  0001 C CNN
-F 4 "CLASS" H 6500 3950 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 3950 50  0001 C CNN "MPN"
-	1    6500 3950
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 3950 6050 3950
-Text Label 6050 3950 2    45   ~ 0
-V11
-Wire Wire Line
-	6750 3950 6950 3950
-Text Label 6950 3950 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CMD9
-U 1 1 5E00017C
-P 6500 4350
-F 0 "CMD9" H 6500 4190 50  0000 C CNN
-F 1 "100nF" H 6500 4520 50  0000 C CNN
-F 2 "C0402" H 6500 4350 50  0001 C CNN
-F 3 "~" H 6500 4350 50  0001 C CNN
-F 4 "CLASS" H 6500 4350 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 6500 4350 50  0001 C CNN "MPN"
-	1    6500 4350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	6250 4350 6050 4350
-Text Label 6050 4350 2    45   ~ 0
-V11
-Wire Wire Line
-	6750 4350 6950 4350
-Text Label 6950 4350 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CYA
-U 1 1 5E00017D
-P 4950 1550
-F 0 "CYA" H 4950 1390 50  0000 C CNN
-F 1 "12pF" H 4950 1720 50  0000 C CNN
-F 2 "C0603" H 4950 1550 50  0001 C CNN
-F 3 "~" H 4950 1550 50  0001 C CNN
-F 4 "CLASS" H 4950 1550 50  0001 C CNN "LCSC"
-F 5 "MLCC-12pF-50V" H 4950 1550 50  0001 C CNN "MPN"
-	1    4950 1550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 1550 4500 1550
-Text Label 4500 1550 2    45   ~ 0
-XTAL
-Wire Wire Line
-	5200 1550 5400 1550
-Text Label 5400 1550 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:C CYB
-U 1 1 5E00017E
-P 4950 1950
-F 0 "CYB" H 4950 1790 50  0000 C CNN
-F 1 "12pF" H 4950 2120 50  0000 C CNN
-F 2 "C0603" H 4950 1950 50  0001 C CNN
-F 3 "~" H 4950 1950 50  0001 C CNN
-F 4 "CLASS" H 4950 1950 50  0001 C CNN "LCSC"
-F 5 "MLCC-12pF-50V" H 4950 1950 50  0001 C CNN "MPN"
-	1    4950 1950
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 1950 4500 1950
-Text Label 4500 1950 2    45   ~ 0
-EXTAL
-Wire Wire Line
-	5200 1950 5400 1950
-Text Label 5400 1950 0    45   ~ 0
-DGND
-$Comp
-L traction-r1:R RMRST
-U 1 1 5E00017F
-P 4950 2350
-F 0 "RMRST" H 4950 2190 50  0000 C CNN
-F 1 "10k" H 4950 2520 50  0000 C CNN
-F 2 "R0603" H 4950 2350 50  0001 C CNN
-F 3 "~" H 4950 2350 50  0001 C CNN
-F 4 "CLASS" H 4950 2350 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 4950 2350 50  0001 C CNN "MPN"
-	1    4950 2350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 2350 4500 2350
-Text Label 4500 2350 2    45   ~ 0
-V5A
-Wire Wire Line
-	5200 2350 5400 2350
-Text Label 5400 2350 0    45   ~ 0
-RESET_B
-$Comp
-L traction-r1:Y Y1
-U 1 1 5E000180
-P 4950 1150
-F 0 "Y1" H 4950 990 50  0000 C CNN
-F 1 "CX3225GA40000D0PTVCC" H 4950 1320 50  0000 C CNN
-F 2 "X3225" H 4950 1150 50  0001 C CNN
-F 3 "~" H 4950 1150 50  0001 C CNN
-F 4 "C6009848" H 4950 1150 50  0001 C CNN "LCSC"
-F 5 "CX3225GA40000D0PTVCC" H 4950 1150 50  0001 C CNN "MPN"
-	1    4950 1150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 1150 4500 1150
-Text Label 4500 1150 2    45   ~ 0
-XTAL
-Wire Wire Line
-	5200 1150 5400 1150
-Text Label 5400 1150 0    45   ~ 0
-EXTAL
-Wire Notes Line
-	500 6500 4100 6500
-Wire Notes Line
-	4100 6500 4100 9750
-Wire Notes Line
-	4100 9750 500 9750
-Wire Notes Line
-	500 9750 500 6500
-Text Notes 560 6660 0    79   ~ 16
-CONTROL / SWD-BOOT
-$Comp
-L traction-r1:FTSH-105-01-L-DV-K JSWD
-U 1 1 5E000181
-P 2400 7550
-F 0 "JSWD" H 2000 7000 50  0000 R CNN
-F 1 "FTSH-105-01-L-DV-K" H 2000 8130 50  0000 R CNN
-F 2 "HDR2x5-1.27" H 2400 7550 50  0001 C CNN
-F 3 "~" H 2400 7550 50  0001 C CNN
-F 4 "CLASS" H 2400 7550 50  0001 C CNN "LCSC"
-F 5 "FTSH-105-01-L-DV-K" H 2400 7550 50  0001 C CNN "MPN"
-	1    2400 7550
-	1    0    0    -1  
-$EndComp
+	1950 7100 1750 7100
+Text Label 1750 7100 2    45   ~ 0
+SBC_CS
 Wire Wire Line
 	1950 7200 1750 7200
 Text Label 1750 7200 2    45   ~ 0
@@ -830,2119 +341,2800 @@ DGND
 Wire Wire Line
 	1950 7300 1750 7300
 Text Label 1750 7300 2    45   ~ 0
-RESET_B
+DGND
 Wire Wire Line
 	1950 7400 1750 7400
 Text Label 1750 7400 2    45   ~ 0
-TCK
+TDO
 Wire Wire Line
 	1950 7500 1750 7500
 Text Label 1750 7500 2    45   ~ 0
-TDI
+IGN_SNS
 Wire Wire Line
 	1950 7600 1750 7600
 Text Label 1750 7600 2    45   ~ 0
-TDO
+V11
 Wire Wire Line
-	1950 7700 1750 7700
-Text Label 1750 7700 2    45   ~ 0
-TMS
-Wire Wire Line
-	1950 7800 1750 7800
-Text Label 1750 7800 2    45   ~ 0
+	3650 1200 3850 1200
+Text Label 3850 1200 0    45   ~ 0
 V5A
 Wire Wire Line
-	2200 8150 2200 8350
-Text Label 2200 8350 3    45   ~ 0
+	3650 1300 3850 1300
+Text Label 3850 1300 0    45   ~ 0
+ISNS_W
+Wire Wire Line
+	3650 1400 3850 1400
+Text Label 3850 1400 0    45   ~ 0
+VREF5
+Wire Wire Line
+	3650 1500 3850 1500
+Text Label 3850 1500 0    45   ~ 0
+VREF5
+Wire Wire Line
+	3650 1600 3850 1600
+Text Label 3850 1600 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 1700 3850 1700
+Text Label 3850 1700 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 1800 3850 1800
+Text Label 3850 1800 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 1900 3850 1900
+Text Label 3850 1900 0    45   ~ 0
 DGND
 Wire Wire Line
-	2300 8150 2300 8350
-Text Label 2300 8350 3    45   ~ 0
+	3650 2000 3850 2000
+Text Label 3850 2000 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 2100 3850 2100
+Text Label 3850 2100 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 2200 3850 2200
+Text Label 3850 2200 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 2300 3850 2300
+Text Label 3850 2300 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 2400 3850 2400
+Text Label 3850 2400 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 2500 3850 2500
+Text Label 3850 2500 0    45   ~ 0
+AGND
+Wire Wire Line
+	3650 2600 3850 2600
+Text Label 3850 2600 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 2700 3850 2700
+Text Label 3850 2700 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 2800 3850 2800
+Text Label 3850 2800 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 2900 3850 2900
+Text Label 3850 2900 0    45   ~ 0
+EXTAL
+Wire Wire Line
+	3650 3000 3850 3000
+Text Label 3850 3000 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 3100 3850 3100
+Text Label 3850 3100 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 3200 3850 3200
+Text Label 3850 3200 0    45   ~ 0
+SBC_MISO
+Wire Wire Line
+	3650 3300 3850 3300
+Text Label 3850 3300 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 3400 3850 3400
+Text Label 3850 3400 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 3500 3850 3500
+Text Label 3850 3500 0    45   ~ 0
+XTAL
+Wire Wire Line
+	3650 3600 3850 3600
+Text Label 3850 3600 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 3700 3850 3700
+Text Label 3850 3700 0    45   ~ 0
+PWM_UH
+Wire Wire Line
+	3650 3800 3850 3800
+Text Label 3850 3800 0    45   ~ 0
+SBC_MOSI
+Wire Wire Line
+	3650 3900 3850 3900
+Text Label 3850 3900 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 4000 3850 4000
+Text Label 3850 4000 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 4100 3850 4100
+Text Label 3850 4100 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 4200 3850 4200
+Text Label 3850 4200 0    45   ~ 0
+PWM_UL
+Wire Wire Line
+	3650 4300 3850 4300
+Text Label 3850 4300 0    45   ~ 0
+PWM_VL
+Wire Wire Line
+	3650 4400 3850 4400
+Text Label 3850 4400 0    45   ~ 0
+SBC_SCK
+Wire Wire Line
+	3650 4500 3850 4500
+Text Label 3850 4500 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 4600 3850 4600
+Text Label 3850 4600 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 4700 3850 4700
+Text Label 3850 4700 0    45   ~ 0
+PWM_WL
+Wire Wire Line
+	3650 4800 3850 4800
+Text Label 3850 4800 0    45   ~ 0
+PWM_WH
+Wire Wire Line
+	3650 4900 3850 4900
+Text Label 3850 4900 0    45   ~ 0
+PWM_VH
+Wire Wire Line
+	3650 5000 3850 5000
+Text Label 3850 5000 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 5100 3850 5100
+Text Label 3850 5100 0    45   ~ 0
+V3B
+Wire Wire Line
+	3650 5200 3850 5200
+Text Label 3850 5200 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 5300 3850 5300
+Text Label 3850 5300 0    45   ~ 0
+V11
+Wire Wire Line
+	3650 5400 3850 5400
+Text Label 3850 5400 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 5500 3850 5500
+Text Label 3850 5500 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 5600 3850 5600
+Text Label 3850 5600 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 5700 3850 5700
+Text Label 3850 5700 0    45   ~ 0
+FLT_HS_N
+Wire Wire Line
+	3650 5800 3850 5800
+Text Label 3850 5800 0    45   ~ 0
+MCU_GATE_EN
+Wire Wire Line
+	3650 5900 3850 5900
+Text Label 3850 5900 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 6000 3850 6000
+Text Label 3850 6000 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 6100 3850 6100
+Text Label 3850 6100 0    45   ~ 0
+CAN0_TX
+Wire Wire Line
+	3650 6200 3850 6200
+Text Label 3850 6200 0    45   ~ 0
+FLT_LS_N
+Wire Wire Line
+	3650 6300 3850 6300
+Text Label 3850 6300 0    45   ~ 0
+VOFS
+Wire Wire Line
+	3650 6400 3850 6400
+Text Label 3850 6400 0    45   ~ 0
+V5A
+Wire Wire Line
+	3650 6500 3850 6500
+Text Label 3850 6500 0    45   ~ 0
+ASC_CLR_M
+Wire Wire Line
+	3650 6600 3850 6600
+Text Label 3850 6600 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 6700 3850 6700
+Text Label 3850 6700 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 6800 3850 6800
+Text Label 3850 6800 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 6900 3850 6900
+Text Label 3850 6900 0    45   ~ 0
+ASC_REQ
+Wire Wire Line
+	3650 7000 3850 7000
+Text Label 3850 7000 0    45   ~ 0
+DRV_EN_RB
+Wire Wire Line
+	3650 7100 3850 7100
+Text Label 3850 7100 0    45   ~ 0
+DGND
+Wire Wire Line
+	3650 7200 3850 7200
+Text Label 3850 7200 0    45   ~ 0
+CAN0_RX
+Wire Wire Line
+	3650 7300 3850 7300
+Text Label 3850 7300 0    45   ~ 0
+RDY_LS
+Wire Wire Line
+	3650 7400 3850 7400
+Text Label 3850 7400 0    45   ~ 0
+QDIS_M
+Wire Wire Line
+	3650 7500 3850 7500
+Text Label 3850 7500 0    45   ~ 0
+ASC_CMD_RB
+Wire Wire Line
+	3650 7600 3850 7600
+Text Label 3850 7600 0    45   ~ 0
+FLT_CLR_M
+$Comp
+L traction-r1:C CMA1
+U 1 1 5E000181
+P 5150 2750
+F 0 "CMA1" H 5150 2590 50  0000 C CNN
+F 1 "1uF" H 5150 2920 50  0000 C CNN
+F 2 "C0603" H 5150 2750 50  0001 C CNN
+F 3 "~" H 5150 2750 50  0001 C CNN
+F 4 "CLASS" H 5150 2750 50  0001 C CNN "LCSC"
+F 5 "MLCC-1uF-16V" H 5150 2750 50  0001 C CNN "MPN"
+	1    5150 2750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 2750 4700 2750
+Text Label 4700 2750 2    45   ~ 0
+VREF5
+Wire Wire Line
+	5400 2750 5600 2750
+Text Label 5600 2750 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CMA2
+U 1 1 5E000182
+P 5150 3150
+F 0 "CMA2" H 5150 2990 50  0000 C CNN
+F 1 "100nF" H 5150 3320 50  0000 C CNN
+F 2 "C0603" H 5150 3150 50  0001 C CNN
+F 3 "~" H 5150 3150 50  0001 C CNN
+F 4 "CLASS" H 5150 3150 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 5150 3150 50  0001 C CNN "MPN"
+	1    5150 3150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 3150 4700 3150
+Text Label 4700 3150 2    45   ~ 0
+VREF5
+Wire Wire Line
+	5400 3150 5600 3150
+Text Label 5600 3150 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CMD1
+U 1 1 5E000183
+P 6700 1150
+F 0 "CMD1" H 6700 990 50  0000 C CNN
+F 1 "100nF" H 6700 1320 50  0000 C CNN
+F 2 "C0402" H 6700 1150 50  0001 C CNN
+F 3 "~" H 6700 1150 50  0001 C CNN
+F 4 "CLASS" H 6700 1150 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 1150 50  0001 C CNN "MPN"
+	1    6700 1150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 1150 6250 1150
+Text Label 6250 1150 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 1150 7150 1150
+Text Label 7150 1150 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD10
+U 1 1 5E000184
+P 6700 4750
+F 0 "CMD10" H 6700 4590 50  0000 C CNN
+F 1 "100nF" H 6700 4920 50  0000 C CNN
+F 2 "C0402" H 6700 4750 50  0001 C CNN
+F 3 "~" H 6700 4750 50  0001 C CNN
+F 4 "CLASS" H 6700 4750 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 4750 50  0001 C CNN "MPN"
+	1    6700 4750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 4750 6250 4750
+Text Label 6250 4750 2    45   ~ 0
+V11
+Wire Wire Line
+	6950 4750 7150 4750
+Text Label 7150 4750 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD11
+U 1 1 5E000185
+P 6700 5150
+F 0 "CMD11" H 6700 4990 50  0000 C CNN
+F 1 "100nF" H 6700 5320 50  0000 C CNN
+F 2 "C0402" H 6700 5150 50  0001 C CNN
+F 3 "~" H 6700 5150 50  0001 C CNN
+F 4 "CLASS" H 6700 5150 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 5150 50  0001 C CNN "MPN"
+	1    6700 5150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 5150 6250 5150
+Text Label 6250 5150 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 5150 7150 5150
+Text Label 7150 5150 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD12
+U 1 1 5E000186
+P 6700 5550
+F 0 "CMD12" H 6700 5390 50  0000 C CNN
+F 1 "100nF" H 6700 5720 50  0000 C CNN
+F 2 "C0402" H 6700 5550 50  0001 C CNN
+F 3 "~" H 6700 5550 50  0001 C CNN
+F 4 "CLASS" H 6700 5550 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 5550 50  0001 C CNN "MPN"
+	1    6700 5550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 5550 6250 5550
+Text Label 6250 5550 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 5550 7150 5550
+Text Label 7150 5550 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD2
+U 1 1 5E000187
+P 6700 1550
+F 0 "CMD2" H 6700 1390 50  0000 C CNN
+F 1 "100nF" H 6700 1720 50  0000 C CNN
+F 2 "C0402" H 6700 1550 50  0001 C CNN
+F 3 "~" H 6700 1550 50  0001 C CNN
+F 4 "CLASS" H 6700 1550 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 1550 50  0001 C CNN "MPN"
+	1    6700 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 1550 6250 1550
+Text Label 6250 1550 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 1550 7150 1550
+Text Label 7150 1550 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD3
+U 1 1 5E000188
+P 6700 1950
+F 0 "CMD3" H 6700 1790 50  0000 C CNN
+F 1 "100nF" H 6700 2120 50  0000 C CNN
+F 2 "C0402" H 6700 1950 50  0001 C CNN
+F 3 "~" H 6700 1950 50  0001 C CNN
+F 4 "CLASS" H 6700 1950 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 1950 50  0001 C CNN "MPN"
+	1    6700 1950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 1950 6250 1950
+Text Label 6250 1950 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 1950 7150 1950
+Text Label 7150 1950 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD4
+U 1 1 5E000189
+P 6700 2350
+F 0 "CMD4" H 6700 2190 50  0000 C CNN
+F 1 "100nF" H 6700 2520 50  0000 C CNN
+F 2 "C0402" H 6700 2350 50  0001 C CNN
+F 3 "~" H 6700 2350 50  0001 C CNN
+F 4 "CLASS" H 6700 2350 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 2350 50  0001 C CNN "MPN"
+	1    6700 2350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 2350 6250 2350
+Text Label 6250 2350 2    45   ~ 0
+V5A
+Wire Wire Line
+	6950 2350 7150 2350
+Text Label 7150 2350 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD5
+U 1 1 5E00018A
+P 6700 2750
+F 0 "CMD5" H 6700 2590 50  0000 C CNN
+F 1 "100nF" H 6700 2920 50  0000 C CNN
+F 2 "C0402" H 6700 2750 50  0001 C CNN
+F 3 "~" H 6700 2750 50  0001 C CNN
+F 4 "CLASS" H 6700 2750 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 2750 50  0001 C CNN "MPN"
+	1    6700 2750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 2750 6250 2750
+Text Label 6250 2750 2    45   ~ 0
+V3B
+Wire Wire Line
+	6950 2750 7150 2750
+Text Label 7150 2750 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD6
+U 1 1 5E00018B
+P 6700 3150
+F 0 "CMD6" H 6700 2990 50  0000 C CNN
+F 1 "100nF" H 6700 3320 50  0000 C CNN
+F 2 "C0402" H 6700 3150 50  0001 C CNN
+F 3 "~" H 6700 3150 50  0001 C CNN
+F 4 "CLASS" H 6700 3150 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 3150 50  0001 C CNN "MPN"
+	1    6700 3150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 3150 6250 3150
+Text Label 6250 3150 2    45   ~ 0
+V3B
+Wire Wire Line
+	6950 3150 7150 3150
+Text Label 7150 3150 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD7
+U 1 1 5E00018C
+P 6700 3550
+F 0 "CMD7" H 6700 3390 50  0000 C CNN
+F 1 "100nF" H 6700 3720 50  0000 C CNN
+F 2 "C0402" H 6700 3550 50  0001 C CNN
+F 3 "~" H 6700 3550 50  0001 C CNN
+F 4 "CLASS" H 6700 3550 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 3550 50  0001 C CNN "MPN"
+	1    6700 3550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 3550 6250 3550
+Text Label 6250 3550 2    45   ~ 0
+V11
+Wire Wire Line
+	6950 3550 7150 3550
+Text Label 7150 3550 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD8
+U 1 1 5E00018D
+P 6700 3950
+F 0 "CMD8" H 6700 3790 50  0000 C CNN
+F 1 "100nF" H 6700 4120 50  0000 C CNN
+F 2 "C0402" H 6700 3950 50  0001 C CNN
+F 3 "~" H 6700 3950 50  0001 C CNN
+F 4 "CLASS" H 6700 3950 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 3950 50  0001 C CNN "MPN"
+	1    6700 3950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 3950 6250 3950
+Text Label 6250 3950 2    45   ~ 0
+V11
+Wire Wire Line
+	6950 3950 7150 3950
+Text Label 7150 3950 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CMD9
+U 1 1 5E00018E
+P 6700 4350
+F 0 "CMD9" H 6700 4190 50  0000 C CNN
+F 1 "100nF" H 6700 4520 50  0000 C CNN
+F 2 "C0402" H 6700 4350 50  0001 C CNN
+F 3 "~" H 6700 4350 50  0001 C CNN
+F 4 "CLASS" H 6700 4350 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 6700 4350 50  0001 C CNN "MPN"
+	1    6700 4350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6450 4350 6250 4350
+Text Label 6250 4350 2    45   ~ 0
+V11
+Wire Wire Line
+	6950 4350 7150 4350
+Text Label 7150 4350 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CYA
+U 1 1 5E00018F
+P 5150 1550
+F 0 "CYA" H 5150 1390 50  0000 C CNN
+F 1 "12pF" H 5150 1720 50  0000 C CNN
+F 2 "C0603" H 5150 1550 50  0001 C CNN
+F 3 "~" H 5150 1550 50  0001 C CNN
+F 4 "CLASS" H 5150 1550 50  0001 C CNN "LCSC"
+F 5 "MLCC-12pF-50V" H 5150 1550 50  0001 C CNN "MPN"
+	1    5150 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 1550 4700 1550
+Text Label 4700 1550 2    45   ~ 0
+XTAL
+Wire Wire Line
+	5400 1550 5600 1550
+Text Label 5600 1550 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:C CYB
+U 1 1 5E000190
+P 5150 1950
+F 0 "CYB" H 5150 1790 50  0000 C CNN
+F 1 "12pF" H 5150 2120 50  0000 C CNN
+F 2 "C0603" H 5150 1950 50  0001 C CNN
+F 3 "~" H 5150 1950 50  0001 C CNN
+F 4 "CLASS" H 5150 1950 50  0001 C CNN "LCSC"
+F 5 "MLCC-12pF-50V" H 5150 1950 50  0001 C CNN "MPN"
+	1    5150 1950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 1950 4700 1950
+Text Label 4700 1950 2    45   ~ 0
+EXTAL
+Wire Wire Line
+	5400 1950 5600 1950
+Text Label 5600 1950 0    45   ~ 0
+DGND
+$Comp
+L traction-r1:R RMRST
+U 1 1 5E000191
+P 5150 2350
+F 0 "RMRST" H 5150 2190 50  0000 C CNN
+F 1 "10k" H 5150 2520 50  0000 C CNN
+F 2 "R0603" H 5150 2350 50  0001 C CNN
+F 3 "~" H 5150 2350 50  0001 C CNN
+F 4 "CLASS" H 5150 2350 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 5150 2350 50  0001 C CNN "MPN"
+	1    5150 2350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 2350 4700 2350
+Text Label 4700 2350 2    45   ~ 0
+V5A
+Wire Wire Line
+	5400 2350 5600 2350
+Text Label 5600 2350 0    45   ~ 0
+RESET_B
+$Comp
+L traction-r1:Y Y1
+U 1 1 5E000192
+P 5150 1150
+F 0 "Y1" H 5150 990 50  0000 C CNN
+F 1 "CX3225GA40000D0PTVCC" H 5150 1320 50  0000 C CNN
+F 2 "X3225" H 5150 1150 50  0001 C CNN
+F 3 "~" H 5150 1150 50  0001 C CNN
+F 4 "C6009848" H 5150 1150 50  0001 C CNN "LCSC"
+F 5 "CX3225GA40000D0PTVCC" H 5150 1150 50  0001 C CNN "MPN"
+	1    5150 1150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4900 1150 4700 1150
+Text Label 4700 1150 2    45   ~ 0
+XTAL
+Wire Wire Line
+	5400 1150 5600 1150
+Text Label 5600 1150 0    45   ~ 0
+EXTAL
+Wire Notes Line
+	8500 500 12100 500
+Wire Notes Line
+	12100 500 12100 3750
+Wire Notes Line
+	12100 3750 8500 3750
+Wire Notes Line
+	8500 3750 8500 500
+Text Notes 8560 660 0    79   ~ 16
+CONTROL / SWD-BOOT
+$Comp
+L traction-r1:FTSH-105-01-L-DV-K JSWD
+U 1 1 5E000193
+P 10400 1550
+F 0 "JSWD" H 10000 1000 50  0000 R CNN
+F 1 "FTSH-105-01-L-DV-K" H 10000 2130 50  0000 R CNN
+F 2 "HDR2x5-1.27" H 10400 1550 50  0001 C CNN
+F 3 "~" H 10400 1550 50  0001 C CNN
+F 4 "CLASS" H 10400 1550 50  0001 C CNN "LCSC"
+F 5 "FTSH-105-01-L-DV-K" H 10400 1550 50  0001 C CNN "MPN"
+	1    10400 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	9950 1200 9750 1200
+Text Label 9750 1200 2    45   ~ 0
+DGND
+Wire Wire Line
+	9950 1300 9750 1300
+Text Label 9750 1300 2    45   ~ 0
+RESET_B
+Wire Wire Line
+	9950 1400 9750 1400
+Text Label 9750 1400 2    45   ~ 0
+TCK
+Wire Wire Line
+	9950 1500 9750 1500
+Text Label 9750 1500 2    45   ~ 0
+TDI
+Wire Wire Line
+	9950 1600 9750 1600
+Text Label 9750 1600 2    45   ~ 0
+TDO
+Wire Wire Line
+	9950 1700 9750 1700
+Text Label 9750 1700 2    45   ~ 0
+TMS
+Wire Wire Line
+	9950 1800 9750 1800
+Text Label 9750 1800 2    45   ~ 0
+V5A
+Wire Wire Line
+	10200 2150 10200 2350
+Text Label 10200 2350 3    45   ~ 0
+DGND
+Wire Wire Line
+	10300 2150 10300 2350
+Text Label 10300 2350 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CRST
-U 1 1 5E000182
-P 2200 8900
-F 0 "CRST" H 2200 8740 50  0000 C CNN
-F 1 "100pF" H 2200 9070 50  0000 C CNN
-F 2 "C0603" H 2200 8900 50  0001 C CNN
-F 3 "~" H 2200 8900 50  0001 C CNN
-F 4 "CLASS" H 2200 8900 50  0001 C CNN "LCSC"
-F 5 "MLCC-100pF-16V" H 2200 8900 50  0001 C CNN "MPN"
-	1    2200 8900
+U 1 1 5E000194
+P 10200 2900
+F 0 "CRST" H 10200 2740 50  0000 C CNN
+F 1 "100pF" H 10200 3070 50  0000 C CNN
+F 2 "C0603" H 10200 2900 50  0001 C CNN
+F 3 "~" H 10200 2900 50  0001 C CNN
+F 4 "CLASS" H 10200 2900 50  0001 C CNN "LCSC"
+F 5 "MLCC-100pF-16V" H 10200 2900 50  0001 C CNN "MPN"
+	1    10200 2900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1950 8900 1750 8900
-Text Label 1750 8900 2    45   ~ 0
+	9950 2900 9750 2900
+Text Label 9750 2900 2    45   ~ 0
 RESET_B
 Wire Wire Line
-	2450 8900 2650 8900
-Text Label 2650 8900 0    45   ~ 0
+	10450 2900 10650 2900
+Text Label 10650 2900 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RBOOT
-U 1 1 5E000183
-P 2200 9300
-F 0 "RBOOT" H 2200 9140 50  0000 C CNN
-F 1 "10k" H 2200 9470 50  0000 C CNN
-F 2 "R0603" H 2200 9300 50  0001 C CNN
-F 3 "~" H 2200 9300 50  0001 C CNN
-F 4 "CLASS" H 2200 9300 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 2200 9300 50  0001 C CNN "MPN"
-	1    2200 9300
+U 1 1 5E000195
+P 10200 3300
+F 0 "RBOOT" H 10200 3140 50  0000 C CNN
+F 1 "10k" H 10200 3470 50  0000 C CNN
+F 2 "R0603" H 10200 3300 50  0001 C CNN
+F 3 "~" H 10200 3300 50  0001 C CNN
+F 4 "CLASS" H 10200 3300 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 10200 3300 50  0001 C CNN "MPN"
+	1    10200 3300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1950 9300 1750 9300
-Text Label 1750 9300 2    45   ~ 0
+	9950 3300 9750 3300
+Text Label 9750 3300 2    45   ~ 0
 TMS
 Wire Wire Line
-	2450 9300 2650 9300
-Text Label 2650 9300 0    45   ~ 0
+	10450 3300 10650 3300
+Text Label 10650 3300 0    45   ~ 0
 V5A
 Wire Notes Line
-	500 10250 4100 10250
+	500 8750 4100 8750
 Wire Notes Line
-	4100 10250 4100 15500
+	4100 8750 4100 14000
 Wire Notes Line
-	4100 15500 500 15500
+	4100 14000 500 14000
 Wire Notes Line
-	500 15500 500 10250
-Text Notes 560 10410 0    79   ~ 16
+	500 14000 500 8750
+Text Notes 560 8910 0    79   ~ 16
 SBC / LV-INPUT
 $Comp
 L traction-r1:2N7002 QLVN
-U 1 1 5E000184
-P 3100 13900
-F 0 "QLVN" H 2700 13600 50  0000 R CNN
-F 1 "2N7002" H 2700 14230 50  0000 R CNN
-F 2 "SOT23" H 3100 13900 50  0001 C CNN
-F 3 "~" H 3100 13900 50  0001 C CNN
-F 4 "C8545" H 3100 13900 50  0001 C CNN "LCSC"
-F 5 "2N7002" H 3100 13900 50  0001 C CNN "MPN"
-	1    3100 13900
+U 1 1 5E000196
+P 3100 12400
+F 0 "QLVN" H 2700 12100 50  0000 R CNN
+F 1 "2N7002" H 2700 12730 50  0000 R CNN
+F 2 "SOT23" H 3100 12400 50  0001 C CNN
+F 3 "~" H 3100 12400 50  0001 C CNN
+F 4 "C8545" H 3100 12400 50  0001 C CNN "LCSC"
+F 5 "2N7002" H 3100 12400 50  0001 C CNN "MPN"
+	1    3100 12400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 13800 2450 13800
-Text Label 2450 13800 2    45   ~ 0
+	2650 12300 2450 12300
+Text Label 2450 12300 2    45   ~ 0
 V5A
 Wire Wire Line
-	2650 13900 2450 13900
-Text Label 2450 13900 2    45   ~ 0
+	2650 12400 2450 12400
+Text Label 2450 12400 2    45   ~ 0
 DGND
 Wire Wire Line
-	3550 13800 3750 13800
-Text Label 3750 13800 0    45   ~ 0
+	3550 12300 3750 12300
+Text Label 3750 12300 0    45   ~ 0
 LVS_D
 $Comp
 L traction-r1:DMP6023LEQ-13 QLVS
-U 1 1 5E000185
-P 3100 11100
-F 0 "QLVS" H 2700 10750 50  0000 R CNN
-F 1 "DMP6023LEQ-13" H 2700 11480 50  0000 R CNN
-F 2 "SOT223" H 3100 11100 50  0001 C CNN
-F 3 "~" H 3100 11100 50  0001 C CNN
-F 4 "CLASS" H 3100 11100 50  0001 C CNN "LCSC"
-F 5 "DMP6023LEQ-13" H 3100 11100 50  0001 C CNN "MPN"
-	1    3100 11100
+U 1 1 5E000197
+P 3100 9600
+F 0 "QLVS" H 2700 9250 50  0000 R CNN
+F 1 "DMP6023LEQ-13" H 2700 9980 50  0000 R CNN
+F 2 "SOT223" H 3100 9600 50  0001 C CNN
+F 3 "~" H 3100 9600 50  0001 C CNN
+F 4 "CLASS" H 3100 9600 50  0001 C CNN "LCSC"
+F 5 "DMP6023LEQ-13" H 3100 9600 50  0001 C CNN "MPN"
+	1    3100 9600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 10950 2450 10950
-Text Label 2450 10950 2    45   ~ 0
+	2650 9450 2450 9450
+Text Label 2450 9450 2    45   ~ 0
 LVS_G
 Wire Wire Line
-	2650 11050 2450 11050
-Text Label 2450 11050 2    45   ~ 0
+	2650 9550 2450 9550
+Text Label 2450 9550 2    45   ~ 0
 NRC
 Wire Wire Line
-	2650 11150 2450 11150
-Text Label 2450 11150 2    45   ~ 0
+	2650 9650 2450 9650
+Text Label 2450 9650 2    45   ~ 0
 VBSW
 Wire Wire Line
-	3550 10950 3750 10950
-Text Label 3750 10950 0    45   ~ 0
+	3550 9450 3750 9450
+Text Label 3750 9450 0    45   ~ 0
 VBSW
 $Comp
 L traction-r1:C CLVC1
-U 1 1 5E000186
-P 1300 12500
-F 0 "CLVC1" H 1300 12340 50  0000 C CNN
-F 1 "4.7uF" H 1300 12670 50  0000 C CNN
-F 2 "C1206" H 1300 12500 50  0001 C CNN
-F 3 "~" H 1300 12500 50  0001 C CNN
-F 4 "CLASS" H 1300 12500 50  0001 C CNN "LCSC"
-F 5 "MLCC-4.7uF-50V" H 1300 12500 50  0001 C CNN "MPN"
-	1    1300 12500
+U 1 1 5E000198
+P 1300 11000
+F 0 "CLVC1" H 1300 10840 50  0000 C CNN
+F 1 "4.7uF" H 1300 11170 50  0000 C CNN
+F 2 "C1206" H 1300 11000 50  0001 C CNN
+F 3 "~" H 1300 11000 50  0001 C CNN
+F 4 "CLASS" H 1300 11000 50  0001 C CNN "LCSC"
+F 5 "MLCC-4.7uF-50V" H 1300 11000 50  0001 C CNN "MPN"
+	1    1300 11000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 12500 850 12500
-Text Label 850 12500 2    45   ~ 0
+	1050 11000 850 11000
+Text Label 850 11000 2    45   ~ 0
 NRC
 Wire Wire Line
-	1550 12500 1750 12500
-Text Label 1750 12500 0    45   ~ 0
+	1550 11000 1750 11000
+Text Label 1750 11000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CLVC2
-U 1 1 5E000187
-P 1300 12900
-F 0 "CLVC2" H 1300 12740 50  0000 C CNN
-F 1 "22uF" H 1300 13070 50  0000 C CNN
-F 2 "C1210" H 1300 12900 50  0001 C CNN
-F 3 "~" H 1300 12900 50  0001 C CNN
-F 4 "CLASS" H 1300 12900 50  0001 C CNN "LCSC"
-F 5 "MLCC-22uF-50V" H 1300 12900 50  0001 C CNN "MPN"
-	1    1300 12900
+U 1 1 5E000199
+P 1300 11400
+F 0 "CLVC2" H 1300 11240 50  0000 C CNN
+F 1 "22uF" H 1300 11570 50  0000 C CNN
+F 2 "C1210" H 1300 11400 50  0001 C CNN
+F 3 "~" H 1300 11400 50  0001 C CNN
+F 4 "CLASS" H 1300 11400 50  0001 C CNN "LCSC"
+F 5 "MLCC-22uF-50V" H 1300 11400 50  0001 C CNN "MPN"
+	1    1300 11400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 12900 850 12900
-Text Label 850 12900 2    45   ~ 0
+	1050 11400 850 11400
+Text Label 850 11400 2    45   ~ 0
 VBATC
 Wire Wire Line
-	1550 12900 1750 12900
-Text Label 1750 12900 0    45   ~ 0
+	1550 11400 1750 11400
+Text Label 1750 11400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CLVSM
-U 1 1 5E000188
-P 2900 13350
-F 0 "CLVSM" H 2900 13190 50  0000 C CNN
-F 1 "100nF" H 2900 13520 50  0000 C CNN
-F 2 "C0603" H 2900 13350 50  0001 C CNN
-F 3 "~" H 2900 13350 50  0001 C CNN
-F 4 "CLASS" H 2900 13350 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-50V" H 2900 13350 50  0001 C CNN "MPN"
-	1    2900 13350
+U 1 1 5E00019A
+P 2900 11850
+F 0 "CLVSM" H 2900 11690 50  0000 C CNN
+F 1 "100nF" H 2900 12020 50  0000 C CNN
+F 2 "C0603" H 2900 11850 50  0001 C CNN
+F 3 "~" H 2900 11850 50  0001 C CNN
+F 4 "CLASS" H 2900 11850 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-50V" H 2900 11850 50  0001 C CNN "MPN"
+	1    2900 11850
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 13350 2450 13350
-Text Label 2450 13350 2    45   ~ 0
+	2650 11850 2450 11850
+Text Label 2450 11850 2    45   ~ 0
 LVS_M
 Wire Wire Line
-	3150 13350 3350 13350
-Text Label 3350 13350 0    45   ~ 0
+	3150 11850 3350 11850
+Text Label 3350 11850 0    45   ~ 0
 VBSW
 $Comp
 L traction-r1:D DREVC
-U 1 1 5E000189
-P 1300 11300
-F 0 "DREVC" H 1300 11140 50  0000 C CNN
-F 1 "STPS5L60S" H 1300 11470 50  0000 C CNN
-F 2 "SMC" H 1300 11300 50  0001 C CNN
-F 3 "~" H 1300 11300 50  0001 C CNN
-F 4 "C140620" H 1300 11300 50  0001 C CNN "LCSC"
-F 5 "STPS5L60S" H 1300 11300 50  0001 C CNN "MPN"
-	1    1300 11300
+U 1 1 5E00019B
+P 1300 9800
+F 0 "DREVC" H 1300 9640 50  0000 C CNN
+F 1 "STPS5L60S" H 1300 9970 50  0000 C CNN
+F 2 "SMC" H 1300 9800 50  0001 C CNN
+F 3 "~" H 1300 9800 50  0001 C CNN
+F 4 "C140620" H 1300 9800 50  0001 C CNN "LCSC"
+F 5 "STPS5L60S" H 1300 9800 50  0001 C CNN "MPN"
+	1    1300 9800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 11300 850 11300
-Text Label 850 11300 2    45   ~ 0
+	1050 9800 850 9800
+Text Label 850 9800 2    45   ~ 0
 FCO
 Wire Wire Line
-	1550 11300 1750 11300
-Text Label 1750 11300 0    45   ~ 0
+	1550 9800 1750 9800
+Text Label 1750 9800 0    45   ~ 0
 NRC
 $Comp
 L traction-r1:D DTVSC
-U 1 1 5E00018A
-P 1300 11700
-F 0 "DTVSC" H 1300 11540 50  0000 C CNN
-F 1 "TPSMC24CA-VR" H 1300 11870 50  0000 C CNN
-F 2 "SMC" H 1300 11700 50  0001 C CNN
-F 3 "~" H 1300 11700 50  0001 C CNN
-F 4 "C1975284" H 1300 11700 50  0001 C CNN "LCSC"
-F 5 "TPSMC24CA-VR" H 1300 11700 50  0001 C CNN "MPN"
-	1    1300 11700
+U 1 1 5E00019C
+P 1300 10200
+F 0 "DTVSC" H 1300 10040 50  0000 C CNN
+F 1 "TPSMC24CA-VR" H 1300 10370 50  0000 C CNN
+F 2 "SMC" H 1300 10200 50  0001 C CNN
+F 3 "~" H 1300 10200 50  0001 C CNN
+F 4 "C1975284" H 1300 10200 50  0001 C CNN "LCSC"
+F 5 "TPSMC24CA-VR" H 1300 10200 50  0001 C CNN "MPN"
+	1    1300 10200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 11700 850 11700
-Text Label 850 11700 2    45   ~ 0
+	1050 10200 850 10200
+Text Label 850 10200 2    45   ~ 0
 DGND
 Wire Wire Line
-	1550 11700 1750 11700
-Text Label 1750 11700 0    45   ~ 0
+	1550 10200 1750 10200
+Text Label 1750 10200 0    45   ~ 0
 NRC
 $Comp
 L traction-r1:F FLVC
-U 1 1 5E00018B
-P 1300 10900
-F 0 "FLVC" H 1300 10740 50  0000 C CNN
-F 1 "MF-LSMF300/24X-2" H 1300 11070 50  0000 C CNN
-F 2 "PTC2920" H 1300 10900 50  0001 C CNN
-F 3 "~" H 1300 10900 50  0001 C CNN
-F 4 "C719172" H 1300 10900 50  0001 C CNN "LCSC"
-F 5 "MF-LSMF300/24X-2" H 1300 10900 50  0001 C CNN "MPN"
-	1    1300 10900
+U 1 1 5E00019D
+P 1300 9400
+F 0 "FLVC" H 1300 9240 50  0000 C CNN
+F 1 "MF-LSMF300/24X-2" H 1300 9570 50  0000 C CNN
+F 2 "PTC2920" H 1300 9400 50  0001 C CNN
+F 3 "~" H 1300 9400 50  0001 C CNN
+F 4 "C719172" H 1300 9400 50  0001 C CNN "LCSC"
+F 5 "MF-LSMF300/24X-2" H 1300 9400 50  0001 C CNN "MPN"
+	1    1300 9400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 10900 850 10900
-Text Label 850 10900 2    45   ~ 0
+	1050 9400 850 9400
+Text Label 850 9400 2    45   ~ 0
 KL30
 Wire Wire Line
-	1550 10900 1750 10900
-Text Label 1750 10900 0    45   ~ 0
+	1550 9400 1750 9400
+Text Label 1750 9400 0    45   ~ 0
 FCO
 $Comp
 L traction-r1:F FVBH
-U 1 1 5E00018C
-P 2900 14500
-F 0 "FVBH" H 2900 14340 50  0000 C CNN
-F 1 "MF-LSMF300/24X-2" H 2900 14670 50  0000 C CNN
-F 2 "PTC2920" H 2900 14500 50  0001 C CNN
-F 3 "~" H 2900 14500 50  0001 C CNN
-F 4 "C719172" H 2900 14500 50  0001 C CNN "LCSC"
-F 5 "MF-LSMF300/24X-2" H 2900 14500 50  0001 C CNN "MPN"
-	1    2900 14500
+U 1 1 5E00019E
+P 2900 13000
+F 0 "FVBH" H 2900 12840 50  0000 C CNN
+F 1 "MF-LSMF300/24X-2" H 2900 13170 50  0000 C CNN
+F 2 "PTC2920" H 2900 13000 50  0001 C CNN
+F 3 "~" H 2900 13000 50  0001 C CNN
+F 4 "C719172" H 2900 13000 50  0001 C CNN "LCSC"
+F 5 "MF-LSMF300/24X-2" H 2900 13000 50  0001 C CNN "MPN"
+	1    2900 13000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 14500 2450 14500
-Text Label 2450 14500 2    45   ~ 0
+	2650 13000 2450 13000
+Text Label 2450 13000 2    45   ~ 0
 VBSW
 Wire Wire Line
-	3150 14500 3350 14500
-Text Label 3350 14500 0    45   ~ 0
+	3150 13000 3350 13000
+Text Label 3350 13000 0    45   ~ 0
 VBAT_H
 $Comp
 L traction-r1:F FVBL
-U 1 1 5E00018D
-P 2900 14900
-F 0 "FVBL" H 2900 14740 50  0000 C CNN
-F 1 "MF-LSMF300/24X-2" H 2900 15070 50  0000 C CNN
-F 2 "PTC2920" H 2900 14900 50  0001 C CNN
-F 3 "~" H 2900 14900 50  0001 C CNN
-F 4 "C719172" H 2900 14900 50  0001 C CNN "LCSC"
-F 5 "MF-LSMF300/24X-2" H 2900 14900 50  0001 C CNN "MPN"
-	1    2900 14900
+U 1 1 5E00019F
+P 2900 13400
+F 0 "FVBL" H 2900 13240 50  0000 C CNN
+F 1 "MF-LSMF300/24X-2" H 2900 13570 50  0000 C CNN
+F 2 "PTC2920" H 2900 13400 50  0001 C CNN
+F 3 "~" H 2900 13400 50  0001 C CNN
+F 4 "C719172" H 2900 13400 50  0001 C CNN "LCSC"
+F 5 "MF-LSMF300/24X-2" H 2900 13400 50  0001 C CNN "MPN"
+	1    2900 13400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 14900 2450 14900
-Text Label 2450 14900 2    45   ~ 0
+	2650 13400 2450 13400
+Text Label 2450 13400 2    45   ~ 0
 VBSW
 Wire Wire Line
-	3150 14900 3350 14900
-Text Label 3350 14900 0    45   ~ 0
+	3150 13400 3350 13400
+Text Label 3350 13400 0    45   ~ 0
 VBAT_L
 $Comp
 L traction-r1:L LFC
-U 1 1 5E00018E
-P 1300 12100
-F 0 "LFC" H 1300 11940 50  0000 C CNN
-F 1 "FB-120R-3A" H 1300 12270 50  0000 C CNN
-F 2 "FB1206" H 1300 12100 50  0001 C CNN
-F 3 "~" H 1300 12100 50  0001 C CNN
-F 4 "CLASS" H 1300 12100 50  0001 C CNN "LCSC"
-F 5 "FB-120R-3A" H 1300 12100 50  0001 C CNN "MPN"
-	1    1300 12100
+U 1 1 5E0001A0
+P 1300 10600
+F 0 "LFC" H 1300 10440 50  0000 C CNN
+F 1 "FB-120R-3A" H 1300 10770 50  0000 C CNN
+F 2 "FB1206" H 1300 10600 50  0001 C CNN
+F 3 "~" H 1300 10600 50  0001 C CNN
+F 4 "CLASS" H 1300 10600 50  0001 C CNN "LCSC"
+F 5 "FB-120R-3A" H 1300 10600 50  0001 C CNN "MPN"
+	1    1300 10600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	1050 12100 850 12100
-Text Label 850 12100 2    45   ~ 0
+	1050 10600 850 10600
+Text Label 850 10600 2    45   ~ 0
 NRC
 Wire Wire Line
-	1550 12100 1750 12100
-Text Label 1750 12100 0    45   ~ 0
+	1550 10600 1750 10600
+Text Label 1750 10600 0    45   ~ 0
 VBATC
 $Comp
 L traction-r1:R RLVSD
-U 1 1 5E00018F
-P 2900 12550
-F 0 "RLVSD" H 2900 12390 50  0000 C CNN
-F 1 "4.7k" H 2900 12720 50  0000 C CNN
-F 2 "R0603" H 2900 12550 50  0001 C CNN
-F 3 "~" H 2900 12550 50  0001 C CNN
-F 4 "CLASS" H 2900 12550 50  0001 C CNN "LCSC"
-F 5 "R0603-4k7" H 2900 12550 50  0001 C CNN "MPN"
-	1    2900 12550
+U 1 1 5E0001A1
+P 2900 11050
+F 0 "RLVSD" H 2900 10890 50  0000 C CNN
+F 1 "4.7k" H 2900 11220 50  0000 C CNN
+F 2 "R0603" H 2900 11050 50  0001 C CNN
+F 3 "~" H 2900 11050 50  0001 C CNN
+F 4 "CLASS" H 2900 11050 50  0001 C CNN "LCSC"
+F 5 "R0603-4k7" H 2900 11050 50  0001 C CNN "MPN"
+	1    2900 11050
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 12550 2450 12550
-Text Label 2450 12550 2    45   ~ 0
+	2650 11050 2450 11050
+Text Label 2450 11050 2    45   ~ 0
 LVS_G
 Wire Wire Line
-	3150 12550 3350 12550
-Text Label 3350 12550 0    45   ~ 0
+	3150 11050 3350 11050
+Text Label 3350 11050 0    45   ~ 0
 LVS_D
 $Comp
 L traction-r1:R RLVSG
-U 1 1 5E000190
-P 2900 11750
-F 0 "RLVSG" H 2900 11590 50  0000 C CNN
-F 1 "10k" H 2900 11920 50  0000 C CNN
-F 2 "R0603" H 2900 11750 50  0001 C CNN
-F 3 "~" H 2900 11750 50  0001 C CNN
-F 4 "CLASS" H 2900 11750 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 2900 11750 50  0001 C CNN "MPN"
-	1    2900 11750
+U 1 1 5E0001A2
+P 2900 10250
+F 0 "RLVSG" H 2900 10090 50  0000 C CNN
+F 1 "10k" H 2900 10420 50  0000 C CNN
+F 2 "R0603" H 2900 10250 50  0001 C CNN
+F 3 "~" H 2900 10250 50  0001 C CNN
+F 4 "CLASS" H 2900 10250 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 2900 10250 50  0001 C CNN "MPN"
+	1    2900 10250
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 11750 2450 11750
-Text Label 2450 11750 2    45   ~ 0
+	2650 10250 2450 10250
+Text Label 2450 10250 2    45   ~ 0
 NRC
 Wire Wire Line
-	3150 11750 3350 11750
-Text Label 3350 11750 0    45   ~ 0
+	3150 10250 3350 10250
+Text Label 3350 10250 0    45   ~ 0
 LVS_G
 $Comp
 L traction-r1:R RLVSM
-U 1 1 5E000191
-P 2900 12950
-F 0 "RLVSM" H 2900 12790 50  0000 C CNN
-F 1 "1k" H 2900 13120 50  0000 C CNN
-F 2 "R0603" H 2900 12950 50  0001 C CNN
-F 3 "~" H 2900 12950 50  0001 C CNN
-F 4 "CLASS" H 2900 12950 50  0001 C CNN "LCSC"
-F 5 "R0603-1k" H 2900 12950 50  0001 C CNN "MPN"
-	1    2900 12950
+U 1 1 5E0001A3
+P 2900 11450
+F 0 "RLVSM" H 2900 11290 50  0000 C CNN
+F 1 "1k" H 2900 11620 50  0000 C CNN
+F 2 "R0603" H 2900 11450 50  0001 C CNN
+F 3 "~" H 2900 11450 50  0001 C CNN
+F 4 "CLASS" H 2900 11450 50  0001 C CNN "LCSC"
+F 5 "R0603-1k" H 2900 11450 50  0001 C CNN "MPN"
+	1    2900 11450
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 12950 2450 12950
-Text Label 2450 12950 2    45   ~ 0
+	2650 11450 2450 11450
+Text Label 2450 11450 2    45   ~ 0
 LVS_G
 Wire Wire Line
-	3150 12950 3350 12950
-Text Label 3350 12950 0    45   ~ 0
+	3150 11450 3350 11450
+Text Label 3350 11450 0    45   ~ 0
 LVS_M
 $Comp
 L traction-r1:D ZLVS
-U 1 1 5E000192
-P 2900 12150
-F 0 "ZLVS" H 2900 11990 50  0000 C CNN
-F 1 "BZT52-C15" H 2900 12320 50  0000 C CNN
-F 2 "SOD123" H 2900 12150 50  0001 C CNN
-F 3 "~" H 2900 12150 50  0001 C CNN
-F 4 "CLASS" H 2900 12150 50  0001 C CNN "LCSC"
-F 5 "BZT52-C15" H 2900 12150 50  0001 C CNN "MPN"
-	1    2900 12150
+U 1 1 5E0001A4
+P 2900 10650
+F 0 "ZLVS" H 2900 10490 50  0000 C CNN
+F 1 "BZT52-C15" H 2900 10820 50  0000 C CNN
+F 2 "SOD123" H 2900 10650 50  0001 C CNN
+F 3 "~" H 2900 10650 50  0001 C CNN
+F 4 "CLASS" H 2900 10650 50  0001 C CNN "LCSC"
+F 5 "BZT52-C15" H 2900 10650 50  0001 C CNN "MPN"
+	1    2900 10650
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	2650 12150 2450 12150
-Text Label 2450 12150 2    45   ~ 0
+	2650 10650 2450 10650
+Text Label 2450 10650 2    45   ~ 0
 LVS_G
 Wire Wire Line
-	3150 12150 3350 12150
-Text Label 3350 12150 0    45   ~ 0
+	3150 10650 3350 10650
+Text Label 3350 10650 0    45   ~ 0
 NRC
 Wire Notes Line
-	4500 6500 12100 6500
+	4500 8750 12100 8750
 Wire Notes Line
-	12100 6500 12100 10750
+	12100 8750 12100 13000
 Wire Notes Line
-	12100 10750 4500 10750
+	12100 13000 4500 13000
 Wire Notes Line
-	4500 10750 4500 6500
-Text Notes 4560 6660 0    79   ~ 16
+	4500 13000 4500 8750
+Text Notes 4560 8910 0    79   ~ 16
 SBC / FS26
 $Comp
 L traction-r1:SQ2310ES QBAL
-U 1 1 5E000193
-P 7850 8500
-F 0 "QBAL" H 7450 8200 50  0000 R CNN
-F 1 "SQ2310ES" H 7450 8830 50  0000 R CNN
-F 2 "SOT23" H 7850 8500 50  0001 C CNN
-F 3 "~" H 7850 8500 50  0001 C CNN
-F 4 "CLASS" H 7850 8500 50  0001 C CNN "LCSC"
-F 5 "SQ2310ES" H 7850 8500 50  0001 C CNN "MPN"
-	1    7850 8500
+U 1 1 5E0001A5
+P 7850 10750
+F 0 "QBAL" H 7450 10450 50  0000 R CNN
+F 1 "SQ2310ES" H 7450 11080 50  0000 R CNN
+F 2 "SOT23" H 7850 10750 50  0001 C CNN
+F 3 "~" H 7850 10750 50  0001 C CNN
+F 4 "CLASS" H 7850 10750 50  0001 C CNN "LCSC"
+F 5 "SQ2310ES" H 7850 10750 50  0001 C CNN "MPN"
+	1    7850 10750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 8400 7200 8400
-Text Label 7200 8400 2    45   ~ 0
+	7400 10650 7200 10650
+Text Label 7200 10650 2    45   ~ 0
 BCTRL
 Wire Wire Line
-	7400 8500 7200 8500
-Text Label 7200 8500 2    45   ~ 0
+	7400 10750 7200 10750
+Text Label 7200 10750 2    45   ~ 0
 V11
 Wire Wire Line
-	8300 8400 8500 8400
-Text Label 8500 8400 0    45   ~ 0
+	8300 10650 8500 10650
+Text Label 8500 10650 0    45   ~ 0
 V15S
 $Comp
 L traction-r1:FS2633D USBC
-U 1 1 5E000194
-P 5750 8250
-F 0 "USBC" H 5250 7000 50  0000 R CNN
-F 1 "FS2633D" H 5250 9530 50  0000 R CNN
-F 2 "HLQFP48" H 5750 8250 50  0001 C CNN
-F 3 "~" H 5750 8250 50  0001 C CNN
-F 4 "CLASS" H 5750 8250 50  0001 C CNN "LCSC"
-F 5 "FS2633D" H 5750 8250 50  0001 C CNN "MPN"
-	1    5750 8250
+U 1 1 5E0001A6
+P 5750 10500
+F 0 "USBC" H 5250 9250 50  0000 R CNN
+F 1 "FS2633D" H 5250 11780 50  0000 R CNN
+F 2 "HLQFP48" H 5750 10500 50  0001 C CNN
+F 3 "~" H 5750 10500 50  0001 C CNN
+F 4 "CLASS" H 5750 10500 50  0001 C CNN "LCSC"
+F 5 "FS2633D" H 5750 10500 50  0001 C CNN "MPN"
+	1    5750 10500
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5200 7200 5000 7200
-Text Label 5000 7200 2    45   ~ 0
+	5200 9450 5000 9450
+Text Label 5000 9450 2    45   ~ 0
 AMUXO
 Wire Wire Line
-	5200 7300 5000 7300
-Text Label 5000 7300 2    45   ~ 0
+	5200 9550 5000 9550
+Text Label 5000 9550 2    45   ~ 0
 BATSNS
 Wire Wire Line
-	5200 7400 5000 7400
-Text Label 5000 7400 2    45   ~ 0
+	5200 9650 5000 9650
+Text Label 5000 9650 2    45   ~ 0
 CORBT
 Wire Wire Line
-	5200 7500 5000 7500
-Text Label 5000 7500 2    45   ~ 0
+	5200 9750 5000 9750
+Text Label 5000 9750 2    45   ~ 0
 VPRE
 Wire Wire Line
-	5200 7600 5000 7600
-Text Label 5000 7600 2    45   ~ 0
+	5200 9850 5000 9850
+Text Label 5000 9850 2    45   ~ 0
 SBC_CS
 Wire Wire Line
-	5200 7700 5000 7700
-Text Label 5000 7700 2    45   ~ 0
+	5200 9950 5000 9950
+Text Label 5000 9950 2    45   ~ 0
 SBC_DBG
 Wire Wire Line
-	5200 7800 5000 7800
-Text Label 5000 7800 2    45   ~ 0
+	5200 10050 5000 10050
+Text Label 5000 10050 2    45   ~ 0
 FCCU_ERR0
 Wire Wire Line
-	5200 7900 5000 7900
-Text Label 5000 7900 2    45   ~ 0
+	5200 10150 5000 10150
+Text Label 5000 10150 2    45   ~ 0
 FCCU_ERR1
 Wire Wire Line
-	5200 8000 5000 8000
-Text Label 5000 8000 2    45   ~ 0
+	5200 10250 5000 10250
+Text Label 5000 10250 2    45   ~ 0
 FS0B_N
 Wire Wire Line
-	5200 8100 5000 8100
-Text Label 5000 8100 2    45   ~ 0
+	5200 10350 5000 10350
+Text Label 5000 10350 2    45   ~ 0
 FS1B_N
 Wire Wire Line
-	5200 8200 5000 8200
-Text Label 5000 8200 2    45   ~ 0
+	5200 10450 5000 10450
+Text Label 5000 10450 2    45   ~ 0
 DGND
 Wire Wire Line
-	5200 8300 5000 8300
-Text Label 5000 8300 2    45   ~ 0
+	5200 10550 5000 10550
+Text Label 5000 10550 2    45   ~ 0
 DGND
 Wire Wire Line
-	5200 8400 5000 8400
-Text Label 5000 8400 2    45   ~ 0
+	5200 10650 5000 10650
+Text Label 5000 10650 2    45   ~ 0
 FS_GPIO1
 Wire Wire Line
-	5200 8500 5000 8500
-Text Label 5000 8500 2    45   ~ 0
+	5200 10750 5000 10750
+Text Label 5000 10750 2    45   ~ 0
 SBC_INTB
 Wire Wire Line
-	5200 8600 5000 8600
-Text Label 5000 8600 2    45   ~ 0
+	5200 10850 5000 10850
+Text Label 5000 10850 2    45   ~ 0
 V3B
 Wire Wire Line
-	5200 8700 5000 8700
-Text Label 5000 8700 2    45   ~ 0
+	5200 10950 5000 10950
+Text Label 5000 10950 2    45   ~ 0
 V5A
 Wire Wire Line
-	5200 8800 5000 8800
-Text Label 5000 8800 2    45   ~ 0
+	5200 11050 5000 11050
+Text Label 5000 11050 2    45   ~ 0
 VPRE
 Wire Wire Line
-	5200 8900 5000 8900
-Text Label 5000 8900 2    45   ~ 0
+	5200 11150 5000 11150
+Text Label 5000 11150 2    45   ~ 0
 SBC_MISO
 Wire Wire Line
-	5200 9000 5000 9000
-Text Label 5000 9000 2    45   ~ 0
+	5200 11250 5000 11250
+Text Label 5000 11250 2    45   ~ 0
 SBC_MOSI
 Wire Wire Line
-	5200 9100 5000 9100
-Text Label 5000 9100 2    45   ~ 0
+	5200 11350 5000 11350
+Text Label 5000 11350 2    45   ~ 0
 RESET_B
 Wire Wire Line
-	5200 9200 5000 9200
-Text Label 5000 9200 2    45   ~ 0
+	5200 11450 5000 11450
+Text Label 5000 11450 2    45   ~ 0
 SBC_SCK
 Wire Wire Line
-	6300 7200 6500 7200
-Text Label 6500 7200 0    45   ~ 0
+	6300 9450 6500 9450
+Text Label 6500 9450 0    45   ~ 0
 SWCORE
 Wire Wire Line
-	6300 7300 6500 7300
-Text Label 6500 7300 0    45   ~ 0
+	6300 9550 6500 9550
+Text Label 6500 9550 0    45   ~ 0
 SWPRE
 Wire Wire Line
-	6300 7400 6500 7400
-Text Label 6500 7400 0    45   ~ 0
+	6300 9650 6500 9650
+Text Label 6500 9650 0    45   ~ 0
 VPRE
 Wire Wire Line
-	6300 7500 6500 7500
-Text Label 6500 7500 0    45   ~ 0
+	6300 9750 6500 9750
+Text Label 6500 9750 0    45   ~ 0
 VBOS
 Wire Wire Line
-	6300 7600 6500 7600
-Text Label 6500 7600 0    45   ~ 0
+	6300 9850 6500 9850
+Text Label 6500 9850 0    45   ~ 0
 DGND
 Wire Wire Line
-	6300 7700 6500 7700
-Text Label 6500 7700 0    45   ~ 0
+	6300 9950 6500 9950
+Text Label 6500 9950 0    45   ~ 0
 DGND
 Wire Wire Line
-	6300 7800 6500 7800
-Text Label 6500 7800 0    45   ~ 0
+	6300 10050 6500 10050
+Text Label 6500 10050 0    45   ~ 0
 DGND
 Wire Wire Line
-	6300 7900 6500 7900
-Text Label 6500 7900 0    45   ~ 0
+	6300 10150 6500 10150
+Text Label 6500 10150 0    45   ~ 0
 DGND
 Wire Wire Line
-	6300 8000 6500 8000
-Text Label 6500 8000 0    45   ~ 0
+	6300 10250 6500 10250
+Text Label 6500 10250 0    45   ~ 0
 V15S
 Wire Wire Line
-	6300 8100 6500 8100
-Text Label 6500 8100 0    45   ~ 0
+	6300 10350 6500 10350
+Text Label 6500 10350 0    45   ~ 0
 V5A
 Wire Wire Line
-	6300 8200 6500 8200
-Text Label 6500 8200 0    45   ~ 0
+	6300 10450 6500 10450
+Text Label 6500 10450 0    45   ~ 0
 VDIG
 Wire Wire Line
-	6300 8300 6500 8300
-Text Label 6500 8300 0    45   ~ 0
+	6300 10550 6500 10550
+Text Label 6500 10550 0    45   ~ 0
 V15S
 Wire Wire Line
-	6300 8400 6500 8400
-Text Label 6500 8400 0    45   ~ 0
+	6300 10650 6500 10650
+Text Label 6500 10650 0    45   ~ 0
 VMONX
 Wire Wire Line
-	6300 8500 6500 8500
-Text Label 6500 8500 0    45   ~ 0
+	6300 10750 6500 10750
+Text Label 6500 10750 0    45   ~ 0
 VPRE
 Wire Wire Line
-	6300 8600 6500 8600
-Text Label 6500 8600 0    45   ~ 0
+	6300 10850 6500 10850
+Text Label 6500 10850 0    45   ~ 0
 PREBT
 Wire Wire Line
-	6300 8700 6500 8700
-Text Label 6500 8700 0    45   ~ 0
+	6300 10950 6500 10950
+Text Label 6500 10950 0    45   ~ 0
 VPRE
 Wire Wire Line
-	6300 8800 6500 8800
-Text Label 6500 8800 0    45   ~ 0
+	6300 11050 6500 11050
+Text Label 6500 11050 0    45   ~ 0
 VREF5
 Wire Wire Line
-	6300 8900 6500 8900
-Text Label 6500 8900 0    45   ~ 0
+	6300 11150 6500 11150
+Text Label 6500 11150 0    45   ~ 0
 VBATC
 Wire Wire Line
-	6300 9000 6500 9000
-Text Label 6500 9000 0    45   ~ 0
+	6300 11250 6500 11250
+Text Label 6500 11250 0    45   ~ 0
 VBATC
 Wire Wire Line
-	6300 9100 6500 9100
-Text Label 6500 9100 0    45   ~ 0
+	6300 11350 6500 11350
+Text Label 6500 11350 0    45   ~ 0
 WAKE1
 Wire Wire Line
-	5450 9550 5450 9750
-Text Label 5450 9750 3    45   ~ 0
+	5450 11800 5450 12000
+Text Label 5450 12000 3    45   ~ 0
 DGND
 Wire Wire Line
-	5550 9550 5550 9750
-Text Label 5550 9750 3    45   ~ 0
+	5550 11800 5550 12000
+Text Label 5550 12000 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CBTC
-U 1 1 5E000195
-P 7650 9500
-F 0 "CBTC" H 7650 9340 50  0000 C CNN
-F 1 "47nF" H 7650 9670 50  0000 C CNN
-F 2 "C0603" H 7650 9500 50  0001 C CNN
-F 3 "~" H 7650 9500 50  0001 C CNN
-F 4 "CLASS" H 7650 9500 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 7650 9500 50  0001 C CNN "MPN"
-	1    7650 9500
+U 1 1 5E0001A7
+P 7650 11750
+F 0 "CBTC" H 7650 11590 50  0000 C CNN
+F 1 "47nF" H 7650 11920 50  0000 C CNN
+F 2 "C0603" H 7650 11750 50  0001 C CNN
+F 3 "~" H 7650 11750 50  0001 C CNN
+F 4 "CLASS" H 7650 11750 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 7650 11750 50  0001 C CNN "MPN"
+	1    7650 11750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 9500 7200 9500
-Text Label 7200 9500 2    45   ~ 0
+	7400 11750 7200 11750
+Text Label 7200 11750 2    45   ~ 0
 CORBT
 Wire Wire Line
-	7900 9500 8100 9500
-Text Label 8100 9500 0    45   ~ 0
+	7900 11750 8100 11750
+Text Label 8100 11750 0    45   ~ 0
 SWCORE
 $Comp
 L traction-r1:C CBTP
-U 1 1 5E000196
-P 7650 9100
-F 0 "CBTP" H 7650 8940 50  0000 C CNN
-F 1 "22nF" H 7650 9270 50  0000 C CNN
-F 2 "C0603" H 7650 9100 50  0001 C CNN
-F 3 "~" H 7650 9100 50  0001 C CNN
-F 4 "CLASS" H 7650 9100 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 7650 9100 50  0001 C CNN "MPN"
-	1    7650 9100
+U 1 1 5E0001A8
+P 7650 11350
+F 0 "CBTP" H 7650 11190 50  0000 C CNN
+F 1 "22nF" H 7650 11520 50  0000 C CNN
+F 2 "C0603" H 7650 11350 50  0001 C CNN
+F 3 "~" H 7650 11350 50  0001 C CNN
+F 4 "CLASS" H 7650 11350 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 7650 11350 50  0001 C CNN "MPN"
+	1    7650 11350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 9100 7200 9100
-Text Label 7200 9100 2    45   ~ 0
+	7400 11350 7200 11350
+Text Label 7200 11350 2    45   ~ 0
 PREBT
 Wire Wire Line
-	7900 9100 8100 9100
-Text Label 8100 9100 0    45   ~ 0
+	7900 11350 8100 11350
+Text Label 8100 11350 0    45   ~ 0
 SWPRE
 $Comp
 L traction-r1:C CSB1
-U 1 1 5E000197
-P 11300 7150
-F 0 "CSB1" H 11300 6990 50  0000 C CNN
-F 1 "22uF" H 11300 7320 50  0000 C CNN
-F 2 "C0805" H 11300 7150 50  0001 C CNN
-F 3 "~" H 11300 7150 50  0001 C CNN
-F 4 "CLASS" H 11300 7150 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 7150 50  0001 C CNN "MPN"
-	1    11300 7150
+U 1 1 5E0001A9
+P 11300 9400
+F 0 "CSB1" H 11300 9240 50  0000 C CNN
+F 1 "22uF" H 11300 9570 50  0000 C CNN
+F 2 "C0805" H 11300 9400 50  0001 C CNN
+F 3 "~" H 11300 9400 50  0001 C CNN
+F 4 "CLASS" H 11300 9400 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 9400 50  0001 C CNN "MPN"
+	1    11300 9400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 7150 10850 7150
-Text Label 10850 7150 2    45   ~ 0
+	11050 9400 10850 9400
+Text Label 10850 9400 2    45   ~ 0
 VPRE
 Wire Wire Line
-	11550 7150 11750 7150
-Text Label 11750 7150 0    45   ~ 0
+	11550 9400 11750 9400
+Text Label 11750 9400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB2
-U 1 1 5E000198
-P 11300 7550
-F 0 "CSB2" H 11300 7390 50  0000 C CNN
-F 1 "22uF" H 11300 7720 50  0000 C CNN
-F 2 "C0805" H 11300 7550 50  0001 C CNN
-F 3 "~" H 11300 7550 50  0001 C CNN
-F 4 "CLASS" H 11300 7550 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 7550 50  0001 C CNN "MPN"
-	1    11300 7550
+U 1 1 5E0001AA
+P 11300 9800
+F 0 "CSB2" H 11300 9640 50  0000 C CNN
+F 1 "22uF" H 11300 9970 50  0000 C CNN
+F 2 "C0805" H 11300 9800 50  0001 C CNN
+F 3 "~" H 11300 9800 50  0001 C CNN
+F 4 "CLASS" H 11300 9800 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 9800 50  0001 C CNN "MPN"
+	1    11300 9800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 7550 10850 7550
-Text Label 10850 7550 2    45   ~ 0
+	11050 9800 10850 9800
+Text Label 10850 9800 2    45   ~ 0
 VPRE
 Wire Wire Line
-	11550 7550 11750 7550
-Text Label 11750 7550 0    45   ~ 0
+	11550 9800 11750 9800
+Text Label 11750 9800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB3
-U 1 1 5E000199
-P 11300 7950
-F 0 "CSB3" H 11300 7790 50  0000 C CNN
-F 1 "22uF" H 11300 8120 50  0000 C CNN
-F 2 "C0805" H 11300 7950 50  0001 C CNN
-F 3 "~" H 11300 7950 50  0001 C CNN
-F 4 "CLASS" H 11300 7950 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 7950 50  0001 C CNN "MPN"
-	1    11300 7950
+U 1 1 5E0001AB
+P 11300 10200
+F 0 "CSB3" H 11300 10040 50  0000 C CNN
+F 1 "22uF" H 11300 10370 50  0000 C CNN
+F 2 "C0805" H 11300 10200 50  0001 C CNN
+F 3 "~" H 11300 10200 50  0001 C CNN
+F 4 "CLASS" H 11300 10200 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 10200 50  0001 C CNN "MPN"
+	1    11300 10200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 7950 10850 7950
-Text Label 10850 7950 2    45   ~ 0
+	11050 10200 10850 10200
+Text Label 10850 10200 2    45   ~ 0
 V15S
 Wire Wire Line
-	11550 7950 11750 7950
-Text Label 11750 7950 0    45   ~ 0
+	11550 10200 11750 10200
+Text Label 11750 10200 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB3B
-U 1 1 5E00019A
-P 11300 8350
-F 0 "CSB3B" H 11300 8190 50  0000 C CNN
-F 1 "22uF" H 11300 8520 50  0000 C CNN
-F 2 "C0603" H 11300 8350 50  0001 C CNN
-F 3 "~" H 11300 8350 50  0001 C CNN
-F 4 "CLASS" H 11300 8350 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 8350 50  0001 C CNN "MPN"
-	1    11300 8350
+U 1 1 5E0001AC
+P 11300 10600
+F 0 "CSB3B" H 11300 10440 50  0000 C CNN
+F 1 "22uF" H 11300 10770 50  0000 C CNN
+F 2 "C0603" H 11300 10600 50  0001 C CNN
+F 3 "~" H 11300 10600 50  0001 C CNN
+F 4 "CLASS" H 11300 10600 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 10600 50  0001 C CNN "MPN"
+	1    11300 10600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 8350 10850 8350
-Text Label 10850 8350 2    45   ~ 0
+	11050 10600 10850 10600
+Text Label 10850 10600 2    45   ~ 0
 V15S
 Wire Wire Line
-	11550 8350 11750 8350
-Text Label 11750 8350 0    45   ~ 0
+	11550 10600 11750 10600
+Text Label 11750 10600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB4
-U 1 1 5E00019B
-P 11300 8750
-F 0 "CSB4" H 11300 8590 50  0000 C CNN
-F 1 "10uF" H 11300 8920 50  0000 C CNN
-F 2 "C0805" H 11300 8750 50  0001 C CNN
-F 3 "~" H 11300 8750 50  0001 C CNN
-F 4 "CLASS" H 11300 8750 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 8750 50  0001 C CNN "MPN"
-	1    11300 8750
+U 1 1 5E0001AD
+P 11300 11000
+F 0 "CSB4" H 11300 10840 50  0000 C CNN
+F 1 "10uF" H 11300 11170 50  0000 C CNN
+F 2 "C0805" H 11300 11000 50  0001 C CNN
+F 3 "~" H 11300 11000 50  0001 C CNN
+F 4 "CLASS" H 11300 11000 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 11000 50  0001 C CNN "MPN"
+	1    11300 11000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 8750 10850 8750
-Text Label 10850 8750 2    45   ~ 0
+	11050 11000 10850 11000
+Text Label 10850 11000 2    45   ~ 0
 V11
 Wire Wire Line
-	11550 8750 11750 8750
-Text Label 11750 8750 0    45   ~ 0
+	11550 11000 11750 11000
+Text Label 11750 11000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB5
-U 1 1 5E00019C
-P 11300 9150
-F 0 "CSB5" H 11300 8990 50  0000 C CNN
-F 1 "1uF" H 11300 9320 50  0000 C CNN
-F 2 "C0805" H 11300 9150 50  0001 C CNN
-F 3 "~" H 11300 9150 50  0001 C CNN
-F 4 "CLASS" H 11300 9150 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-16V-X7R-0805" H 11300 9150 50  0001 C CNN "MPN"
-	1    11300 9150
+U 1 1 5E0001AE
+P 11300 11400
+F 0 "CSB5" H 11300 11240 50  0000 C CNN
+F 1 "1uF" H 11300 11570 50  0000 C CNN
+F 2 "C0805" H 11300 11400 50  0001 C CNN
+F 3 "~" H 11300 11400 50  0001 C CNN
+F 4 "CLASS" H 11300 11400 50  0001 C CNN "LCSC"
+F 5 "MLCC-1uF-16V-X7R-0805" H 11300 11400 50  0001 C CNN "MPN"
+	1    11300 11400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 9150 10850 9150
-Text Label 10850 9150 2    45   ~ 0
+	11050 11400 10850 11400
+Text Label 10850 11400 2    45   ~ 0
 VREF5
 Wire Wire Line
-	11550 9150 11750 9150
-Text Label 11750 9150 0    45   ~ 0
+	11550 11400 11750 11400
+Text Label 11750 11400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB6
-U 1 1 5E00019D
-P 11300 9550
-F 0 "CSB6" H 11300 9390 50  0000 C CNN
-F 1 "4.7uF" H 11300 9720 50  0000 C CNN
-F 2 "C0805" H 11300 9550 50  0001 C CNN
-F 3 "~" H 11300 9550 50  0001 C CNN
-F 4 "CLASS" H 11300 9550 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 9550 50  0001 C CNN "MPN"
-	1    11300 9550
+U 1 1 5E0001AF
+P 11300 11800
+F 0 "CSB6" H 11300 11640 50  0000 C CNN
+F 1 "4.7uF" H 11300 11970 50  0000 C CNN
+F 2 "C0805" H 11300 11800 50  0001 C CNN
+F 3 "~" H 11300 11800 50  0001 C CNN
+F 4 "CLASS" H 11300 11800 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 11800 50  0001 C CNN "MPN"
+	1    11300 11800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 9550 10850 9550
-Text Label 10850 9550 2    45   ~ 0
+	11050 11800 10850 11800
+Text Label 10850 11800 2    45   ~ 0
 V3B
 Wire Wire Line
-	11550 9550 11750 9550
-Text Label 11750 9550 0    45   ~ 0
+	11550 11800 11750 11800
+Text Label 11750 11800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB7
-U 1 1 5E00019E
-P 11300 9950
-F 0 "CSB7" H 11300 9790 50  0000 C CNN
-F 1 "10uF" H 11300 10120 50  0000 C CNN
-F 2 "C0805" H 11300 9950 50  0001 C CNN
-F 3 "~" H 11300 9950 50  0001 C CNN
-F 4 "CLASS" H 11300 9950 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 9950 50  0001 C CNN "MPN"
-	1    11300 9950
+U 1 1 5E0001B0
+P 11300 12200
+F 0 "CSB7" H 11300 12040 50  0000 C CNN
+F 1 "10uF" H 11300 12370 50  0000 C CNN
+F 2 "C0805" H 11300 12200 50  0001 C CNN
+F 3 "~" H 11300 12200 50  0001 C CNN
+F 4 "CLASS" H 11300 12200 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 12200 50  0001 C CNN "MPN"
+	1    11300 12200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 9950 10850 9950
-Text Label 10850 9950 2    45   ~ 0
+	11050 12200 10850 12200
+Text Label 10850 12200 2    45   ~ 0
 V5A
 Wire Wire Line
-	11550 9950 11750 9950
-Text Label 11750 9950 0    45   ~ 0
+	11550 12200 11750 12200
+Text Label 11750 12200 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSB8
-U 1 1 5E00019F
-P 11300 10350
-F 0 "CSB8" H 11300 10190 50  0000 C CNN
-F 1 "10uF" H 11300 10520 50  0000 C CNN
-F 2 "C0805" H 11300 10350 50  0001 C CNN
-F 3 "~" H 11300 10350 50  0001 C CNN
-F 4 "CLASS" H 11300 10350 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 11300 10350 50  0001 C CNN "MPN"
-	1    11300 10350
+U 1 1 5E0001B1
+P 11300 12600
+F 0 "CSB8" H 11300 12440 50  0000 C CNN
+F 1 "10uF" H 11300 12770 50  0000 C CNN
+F 2 "C0805" H 11300 12600 50  0001 C CNN
+F 3 "~" H 11300 12600 50  0001 C CNN
+F 4 "CLASS" H 11300 12600 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 11300 12600 50  0001 C CNN "MPN"
+	1    11300 12600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11050 10350 10850 10350
-Text Label 10850 10350 2    45   ~ 0
+	11050 12600 10850 12600
+Text Label 10850 12600 2    45   ~ 0
 V5A
 Wire Wire Line
-	11550 10350 11750 10350
-Text Label 11750 10350 0    45   ~ 0
+	11550 12600 11750 12600
+Text Label 11750 12600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CVBOS
-U 1 1 5E0001A0
-P 7650 10300
-F 0 "CVBOS" H 7650 10140 50  0000 C CNN
-F 1 "4.7uF" H 7650 10470 50  0000 C CNN
-F 2 "C0603" H 7650 10300 50  0001 C CNN
-F 3 "~" H 7650 10300 50  0001 C CNN
-F 4 "CLASS" H 7650 10300 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 7650 10300 50  0001 C CNN "MPN"
-	1    7650 10300
+U 1 1 5E0001B2
+P 7650 12550
+F 0 "CVBOS" H 7650 12390 50  0000 C CNN
+F 1 "4.7uF" H 7650 12720 50  0000 C CNN
+F 2 "C0603" H 7650 12550 50  0001 C CNN
+F 3 "~" H 7650 12550 50  0001 C CNN
+F 4 "CLASS" H 7650 12550 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 7650 12550 50  0001 C CNN "MPN"
+	1    7650 12550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 10300 7200 10300
-Text Label 7200 10300 2    45   ~ 0
+	7400 12550 7200 12550
+Text Label 7200 12550 2    45   ~ 0
 VBOS
 Wire Wire Line
-	7900 10300 8100 10300
-Text Label 8100 10300 0    45   ~ 0
+	7900 12550 8100 12550
+Text Label 8100 12550 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CVDIG
-U 1 1 5E0001A1
-P 7650 9900
-F 0 "CVDIG" H 7650 9740 50  0000 C CNN
-F 1 "1uF" H 7650 10070 50  0000 C CNN
-F 2 "C0603" H 7650 9900 50  0001 C CNN
-F 3 "~" H 7650 9900 50  0001 C CNN
-F 4 "CLASS" H 7650 9900 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 7650 9900 50  0001 C CNN "MPN"
-	1    7650 9900
+U 1 1 5E0001B3
+P 7650 12150
+F 0 "CVDIG" H 7650 11990 50  0000 C CNN
+F 1 "1uF" H 7650 12320 50  0000 C CNN
+F 2 "C0603" H 7650 12150 50  0001 C CNN
+F 3 "~" H 7650 12150 50  0001 C CNN
+F 4 "CLASS" H 7650 12150 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 7650 12150 50  0001 C CNN "MPN"
+	1    7650 12150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 9900 7200 9900
-Text Label 7200 9900 2    45   ~ 0
+	7400 12150 7200 12150
+Text Label 7200 12150 2    45   ~ 0
 VDIG
 Wire Wire Line
-	7900 9900 8100 9900
-Text Label 8100 9900 0    45   ~ 0
+	7900 12150 8100 12150
+Text Label 8100 12150 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:D DBAT
-U 1 1 5E0001A2
-P 7650 7150
-F 0 "DBAT" H 7650 6990 50  0000 C CNN
-F 1 "BAT46ZFILM" H 7650 7320 50  0000 C CNN
-F 2 "SOD123" H 7650 7150 50  0001 C CNN
-F 3 "~" H 7650 7150 50  0001 C CNN
-F 4 "C283255" H 7650 7150 50  0001 C CNN "LCSC"
-F 5 "BAT46ZFILM" H 7650 7150 50  0001 C CNN "MPN"
-	1    7650 7150
+U 1 1 5E0001B4
+P 7650 9400
+F 0 "DBAT" H 7650 9240 50  0000 C CNN
+F 1 "BAT46ZFILM" H 7650 9570 50  0000 C CNN
+F 2 "SOD123" H 7650 9400 50  0001 C CNN
+F 3 "~" H 7650 9400 50  0001 C CNN
+F 4 "C283255" H 7650 9400 50  0001 C CNN "LCSC"
+F 5 "BAT46ZFILM" H 7650 9400 50  0001 C CNN "MPN"
+	1    7650 9400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 7150 7200 7150
-Text Label 7200 7150 2    45   ~ 0
+	7400 9400 7200 9400
+Text Label 7200 9400 2    45   ~ 0
 VBATC
 Wire Wire Line
-	7900 7150 8100 7150
-Text Label 8100 7150 0    45   ~ 0
+	7900 9400 8100 9400
+Text Label 8100 9400 0    45   ~ 0
 BATSNS
 $Comp
 L traction-r1:L LCOR
-U 1 1 5E0001A3
-P 7650 7950
-F 0 "LCOR" H 7650 7790 50  0000 C CNN
-F 1 "XAL4020-222MEC" H 7650 8120 50  0000 C CNN
-F 2 "XAL4020" H 7650 7950 50  0001 C CNN
-F 3 "~" H 7650 7950 50  0001 C CNN
-F 4 "CLASS" H 7650 7950 50  0001 C CNN "LCSC"
-F 5 "XAL4020-222MEC" H 7650 7950 50  0001 C CNN "MPN"
-	1    7650 7950
+U 1 1 5E0001B5
+P 7650 10200
+F 0 "LCOR" H 7650 10040 50  0000 C CNN
+F 1 "XAL4020-222MEC" H 7650 10370 50  0000 C CNN
+F 2 "XAL4020" H 7650 10200 50  0001 C CNN
+F 3 "~" H 7650 10200 50  0001 C CNN
+F 4 "CLASS" H 7650 10200 50  0001 C CNN "LCSC"
+F 5 "XAL4020-222MEC" H 7650 10200 50  0001 C CNN "MPN"
+	1    7650 10200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 7950 7200 7950
-Text Label 7200 7950 2    45   ~ 0
+	7400 10200 7200 10200
+Text Label 7200 10200 2    45   ~ 0
 SWCORE
 Wire Wire Line
-	7900 7950 8100 7950
-Text Label 8100 7950 0    45   ~ 0
+	7900 10200 8100 10200
+Text Label 8100 10200 0    45   ~ 0
 V15S
 $Comp
 L traction-r1:L LSBC
-U 1 1 5E0001A4
-P 7650 7550
-F 0 "LSBC" H 7650 7390 50  0000 C CNN
-F 1 "XAL4040-103MEC" H 7650 7720 50  0000 C CNN
-F 2 "XAL4040" H 7650 7550 50  0001 C CNN
-F 3 "~" H 7650 7550 50  0001 C CNN
-F 4 "CLASS" H 7650 7550 50  0001 C CNN "LCSC"
-F 5 "XAL4040-103MEC" H 7650 7550 50  0001 C CNN "MPN"
-	1    7650 7550
+U 1 1 5E0001B6
+P 7650 9800
+F 0 "LSBC" H 7650 9640 50  0000 C CNN
+F 1 "XAL4040-103MEC" H 7650 9970 50  0000 C CNN
+F 2 "XAL4040" H 7650 9800 50  0001 C CNN
+F 3 "~" H 7650 9800 50  0001 C CNN
+F 4 "CLASS" H 7650 9800 50  0001 C CNN "LCSC"
+F 5 "XAL4040-103MEC" H 7650 9800 50  0001 C CNN "MPN"
+	1    7650 9800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7400 7550 7200 7550
-Text Label 7200 7550 2    45   ~ 0
+	7400 9800 7200 9800
+Text Label 7200 9800 2    45   ~ 0
 SWPRE
 Wire Wire Line
-	7900 7550 8100 7550
-Text Label 8100 7550 0    45   ~ 0
+	7900 9800 8100 9800
+Text Label 8100 9800 0    45   ~ 0
 VPRE
 $Comp
 L traction-r1:R RAGT
-U 1 1 5E0001A5
-P 9650 8750
-F 0 "RAGT" H 9650 8590 50  0000 C CNN
-F 1 "0R" H 9650 8920 50  0000 C CNN
-F 2 "R0603" H 9650 8750 50  0001 C CNN
-F 3 "~" H 9650 8750 50  0001 C CNN
-F 4 "CLASS" H 9650 8750 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 8750 50  0001 C CNN "MPN"
-	1    9650 8750
+U 1 1 5E0001B7
+P 9650 11000
+F 0 "RAGT" H 9650 10840 50  0000 C CNN
+F 1 "0R" H 9650 11170 50  0000 C CNN
+F 2 "R0603" H 9650 11000 50  0001 C CNN
+F 3 "~" H 9650 11000 50  0001 C CNN
+F 4 "CLASS" H 9650 11000 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 11000 50  0001 C CNN "MPN"
+	1    9650 11000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 8750 9200 8750
-Text Label 9200 8750 2    45   ~ 0
+	9400 11000 9200 11000
+Text Label 9200 11000 2    45   ~ 0
 AGND
 Wire Wire Line
-	9900 8750 10100 8750
-Text Label 10100 8750 0    45   ~ 0
+	9900 11000 10100 11000
+Text Label 10100 11000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RDBG
-U 1 1 5E0001A6
-P 9650 9150
-F 0 "RDBG" H 9650 8990 50  0000 C CNN
-F 1 "10k" H 9650 9320 50  0000 C CNN
-F 2 "R0603" H 9650 9150 50  0001 C CNN
-F 3 "~" H 9650 9150 50  0001 C CNN
-F 4 "CLASS" H 9650 9150 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 9150 50  0001 C CNN "MPN"
-	1    9650 9150
+U 1 1 5E0001B8
+P 9650 11400
+F 0 "RDBG" H 9650 11240 50  0000 C CNN
+F 1 "10k" H 9650 11570 50  0000 C CNN
+F 2 "R0603" H 9650 11400 50  0001 C CNN
+F 3 "~" H 9650 11400 50  0001 C CNN
+F 4 "CLASS" H 9650 11400 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 11400 50  0001 C CNN "MPN"
+	1    9650 11400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 9150 9200 9150
-Text Label 9200 9150 2    45   ~ 0
+	9400 11400 9200 11400
+Text Label 9200 11400 2    45   ~ 0
 SBC_DBG
 Wire Wire Line
-	9900 9150 10100 9150
-Text Label 10100 9150 0    45   ~ 0
+	9900 11400 10100 11400
+Text Label 10100 11400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RSB1
-U 1 1 5E0001A7
-P 9650 7150
-F 0 "RSB1" H 9650 6990 50  0000 C CNN
-F 1 "52.3k" H 9650 7320 50  0000 C CNN
-F 2 "R0603" H 9650 7150 50  0001 C CNN
-F 3 "~" H 9650 7150 50  0001 C CNN
-F 4 "CLASS" H 9650 7150 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 7150 50  0001 C CNN "MPN"
-	1    9650 7150
+U 1 1 5E0001B9
+P 9650 9400
+F 0 "RSB1" H 9650 9240 50  0000 C CNN
+F 1 "52.3k" H 9650 9570 50  0000 C CNN
+F 2 "R0603" H 9650 9400 50  0001 C CNN
+F 3 "~" H 9650 9400 50  0001 C CNN
+F 4 "CLASS" H 9650 9400 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 9400 50  0001 C CNN "MPN"
+	1    9650 9400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 7150 9200 7150
-Text Label 9200 7150 2    45   ~ 0
+	9400 9400 9200 9400
+Text Label 9200 9400 2    45   ~ 0
 V5A
 Wire Wire Line
-	9900 7150 10100 7150
-Text Label 10100 7150 0    45   ~ 0
+	9900 9400 10100 9400
+Text Label 10100 9400 0    45   ~ 0
 VMONX
 $Comp
 L traction-r1:R RSB2
-U 1 1 5E0001A8
-P 9650 7550
-F 0 "RSB2" H 9650 7390 50  0000 C CNN
-F 1 "10k" H 9650 7720 50  0000 C CNN
-F 2 "R0603" H 9650 7550 50  0001 C CNN
-F 3 "~" H 9650 7550 50  0001 C CNN
-F 4 "CLASS" H 9650 7550 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 7550 50  0001 C CNN "MPN"
-	1    9650 7550
+U 1 1 5E0001BA
+P 9650 9800
+F 0 "RSB2" H 9650 9640 50  0000 C CNN
+F 1 "10k" H 9650 9970 50  0000 C CNN
+F 2 "R0603" H 9650 9800 50  0001 C CNN
+F 3 "~" H 9650 9800 50  0001 C CNN
+F 4 "CLASS" H 9650 9800 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 9800 50  0001 C CNN "MPN"
+	1    9650 9800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 7550 9200 7550
-Text Label 9200 7550 2    45   ~ 0
+	9400 9800 9200 9800
+Text Label 9200 9800 2    45   ~ 0
 VMONX
 Wire Wire Line
-	9900 7550 10100 7550
-Text Label 10100 7550 0    45   ~ 0
+	9900 9800 10100 9800
+Text Label 10100 9800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RSB3
-U 1 1 5E0001A9
-P 9650 7950
-F 0 "RSB3" H 9650 7790 50  0000 C CNN
-F 1 "220R" H 9650 8120 50  0000 C CNN
-F 2 "R0603" H 9650 7950 50  0001 C CNN
-F 3 "~" H 9650 7950 50  0001 C CNN
-F 4 "CLASS" H 9650 7950 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 7950 50  0001 C CNN "MPN"
-	1    9650 7950
+U 1 1 5E0001BB
+P 9650 10200
+F 0 "RSB3" H 9650 10040 50  0000 C CNN
+F 1 "220R" H 9650 10370 50  0000 C CNN
+F 2 "R0603" H 9650 10200 50  0001 C CNN
+F 3 "~" H 9650 10200 50  0001 C CNN
+F 4 "CLASS" H 9650 10200 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 10200 50  0001 C CNN "MPN"
+	1    9650 10200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 7950 9200 7950
-Text Label 9200 7950 2    45   ~ 0
+	9400 10200 9200 10200
+Text Label 9200 10200 2    45   ~ 0
 AMUXO
 Wire Wire Line
-	9900 7950 10100 7950
-Text Label 10100 7950 0    45   ~ 0
+	9900 10200 10100 10200
+Text Label 10100 10200 0    45   ~ 0
 SBC_AMUX
 $Comp
 L traction-r1:R RSB4
-U 1 1 5E0001AA
-P 9650 8350
-F 0 "RSB4" H 9650 8190 50  0000 C CNN
-F 1 "5.1k" H 9650 8520 50  0000 C CNN
-F 2 "R0603" H 9650 8350 50  0001 C CNN
-F 3 "~" H 9650 8350 50  0001 C CNN
-F 4 "CLASS" H 9650 8350 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 9650 8350 50  0001 C CNN "MPN"
-	1    9650 8350
+U 1 1 5E0001BC
+P 9650 10600
+F 0 "RSB4" H 9650 10440 50  0000 C CNN
+F 1 "5.1k" H 9650 10770 50  0000 C CNN
+F 2 "R0603" H 9650 10600 50  0001 C CNN
+F 3 "~" H 9650 10600 50  0001 C CNN
+F 4 "CLASS" H 9650 10600 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 9650 10600 50  0001 C CNN "MPN"
+	1    9650 10600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	9400 8350 9200 8350
-Text Label 9200 8350 2    45   ~ 0
+	9400 10600 9200 10600
+Text Label 9200 10600 2    45   ~ 0
 V5A
 Wire Wire Line
-	9900 8350 10100 8350
-Text Label 10100 8350 0    45   ~ 0
+	9900 10600 10100 10600
+Text Label 10100 10600 0    45   ~ 0
 SBC_INTB
 Wire Notes Line
-	4500 11250 8100 11250
+	4500 13500 8100 13500
 Wire Notes Line
-	8100 11250 8100 13500
+	8100 13500 8100 15750
 Wire Notes Line
-	8100 13500 4500 13500
+	8100 15750 4500 15750
 Wire Notes Line
-	4500 13500 4500 11250
-Text Notes 4560 11410 0    79   ~ 16
+	4500 15750 4500 13500
+Text Notes 4560 13660 0    79   ~ 16
 SBC / WAKE
 $Comp
 L traction-r1:C CIGN
-U 1 1 5E0001AB
-P 5450 13100
-F 0 "CIGN" H 5450 12940 50  0000 C CNN
-F 1 "100nF" H 5450 13270 50  0000 C CNN
-F 2 "C0603" H 5450 13100 50  0001 C CNN
-F 3 "~" H 5450 13100 50  0001 C CNN
-F 4 "CLASS" H 5450 13100 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-50V" H 5450 13100 50  0001 C CNN "MPN"
-	1    5450 13100
+U 1 1 5E0001BD
+P 5450 15350
+F 0 "CIGN" H 5450 15190 50  0000 C CNN
+F 1 "100nF" H 5450 15520 50  0000 C CNN
+F 2 "C0603" H 5450 15350 50  0001 C CNN
+F 3 "~" H 5450 15350 50  0001 C CNN
+F 4 "CLASS" H 5450 15350 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-50V" H 5450 15350 50  0001 C CNN "MPN"
+	1    5450 15350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5200 13100 5000 13100
-Text Label 5000 13100 2    45   ~ 0
+	5200 15350 5000 15350
+Text Label 5000 15350 2    45   ~ 0
 WAKE1
 Wire Wire Line
-	5700 13100 5900 13100
-Text Label 5900 13100 0    45   ~ 0
+	5700 15350 5900 15350
+Text Label 5900 15350 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CIGNS
-U 1 1 5E0001AC
-P 7100 12700
-F 0 "CIGNS" H 7100 12540 50  0000 C CNN
-F 1 "100nF" H 7100 12870 50  0000 C CNN
-F 2 "C0603" H 7100 12700 50  0001 C CNN
-F 3 "~" H 7100 12700 50  0001 C CNN
-F 4 "CLASS" H 7100 12700 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 7100 12700 50  0001 C CNN "MPN"
-	1    7100 12700
+U 1 1 5E0001BE
+P 7100 14950
+F 0 "CIGNS" H 7100 14790 50  0000 C CNN
+F 1 "100nF" H 7100 15120 50  0000 C CNN
+F 2 "C0603" H 7100 14950 50  0001 C CNN
+F 3 "~" H 7100 14950 50  0001 C CNN
+F 4 "CLASS" H 7100 14950 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 7100 14950 50  0001 C CNN "MPN"
+	1    7100 14950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	6850 12700 6650 12700
-Text Label 6650 12700 2    45   ~ 0
+	6850 14950 6650 14950
+Text Label 6650 14950 2    45   ~ 0
 IGN_SNS
 Wire Wire Line
-	7350 12700 7550 12700
-Text Label 7550 12700 0    45   ~ 0
+	7350 14950 7550 14950
+Text Label 7550 14950 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:D DIGN
-U 1 1 5E0001AD
-P 5450 11900
-F 0 "DIGN" H 5450 11740 50  0000 C CNN
-F 1 "1N4148WS" H 5450 12070 50  0000 C CNN
-F 2 "SOD323" H 5450 11900 50  0001 C CNN
-F 3 "~" H 5450 11900 50  0001 C CNN
-F 4 "C2128" H 5450 11900 50  0001 C CNN "LCSC"
-F 5 "1N4148WS" H 5450 11900 50  0001 C CNN "MPN"
-	1    5450 11900
+U 1 1 5E0001BF
+P 5450 14150
+F 0 "DIGN" H 5450 13990 50  0000 C CNN
+F 1 "1N4148WS" H 5450 14320 50  0000 C CNN
+F 2 "SOD323" H 5450 14150 50  0001 C CNN
+F 3 "~" H 5450 14150 50  0001 C CNN
+F 4 "C2128" H 5450 14150 50  0001 C CNN "LCSC"
+F 5 "1N4148WS" H 5450 14150 50  0001 C CNN "MPN"
+	1    5450 14150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5200 11900 5000 11900
-Text Label 5000 11900 2    45   ~ 0
+	5200 14150 5000 14150
+Text Label 5000 14150 2    45   ~ 0
 KL15
 Wire Wire Line
-	5700 11900 5900 11900
-Text Label 5900 11900 0    45   ~ 0
+	5700 14150 5900 14150
+Text Label 5900 14150 0    45   ~ 0
 IGN_D
 $Comp
 L traction-r1:R RIGN1
-U 1 1 5E0001AE
-P 5450 12300
-F 0 "RIGN1" H 5450 12140 50  0000 C CNN
-F 1 "5.1k" H 5450 12470 50  0000 C CNN
-F 2 "R0603" H 5450 12300 50  0001 C CNN
-F 3 "~" H 5450 12300 50  0001 C CNN
-F 4 "CLASS" H 5450 12300 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 5450 12300 50  0001 C CNN "MPN"
-	1    5450 12300
+U 1 1 5E0001C0
+P 5450 14550
+F 0 "RIGN1" H 5450 14390 50  0000 C CNN
+F 1 "5.1k" H 5450 14720 50  0000 C CNN
+F 2 "R0603" H 5450 14550 50  0001 C CNN
+F 3 "~" H 5450 14550 50  0001 C CNN
+F 4 "CLASS" H 5450 14550 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 5450 14550 50  0001 C CNN "MPN"
+	1    5450 14550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5200 12300 5000 12300
-Text Label 5000 12300 2    45   ~ 0
+	5200 14550 5000 14550
+Text Label 5000 14550 2    45   ~ 0
 KL15
 Wire Wire Line
-	5700 12300 5900 12300
-Text Label 5900 12300 0    45   ~ 0
+	5700 14550 5900 14550
+Text Label 5900 14550 0    45   ~ 0
 WAKE1
 $Comp
 L traction-r1:R RIGN2
-U 1 1 5E0001AF
-P 5450 12700
-F 0 "RIGN2" H 5450 12540 50  0000 C CNN
-F 1 "10k" H 5450 12870 50  0000 C CNN
-F 2 "R0603" H 5450 12700 50  0001 C CNN
-F 3 "~" H 5450 12700 50  0001 C CNN
-F 4 "CLASS" H 5450 12700 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 5450 12700 50  0001 C CNN "MPN"
-	1    5450 12700
+U 1 1 5E0001C1
+P 5450 14950
+F 0 "RIGN2" H 5450 14790 50  0000 C CNN
+F 1 "10k" H 5450 15120 50  0000 C CNN
+F 2 "R0603" H 5450 14950 50  0001 C CNN
+F 3 "~" H 5450 14950 50  0001 C CNN
+F 4 "CLASS" H 5450 14950 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 5450 14950 50  0001 C CNN "MPN"
+	1    5450 14950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5200 12700 5000 12700
-Text Label 5000 12700 2    45   ~ 0
+	5200 14950 5000 14950
+Text Label 5000 14950 2    45   ~ 0
 WAKE1
 Wire Wire Line
-	5700 12700 5900 12700
-Text Label 5900 12700 0    45   ~ 0
+	5700 14950 5900 14950
+Text Label 5900 14950 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RIGNS1
-U 1 1 5E0001B0
-P 7100 11900
-F 0 "RIGNS1" H 7100 11740 50  0000 C CNN
-F 1 "47k" H 7100 12070 50  0000 C CNN
-F 2 "R0603" H 7100 11900 50  0001 C CNN
-F 3 "~" H 7100 11900 50  0001 C CNN
-F 4 "CLASS" H 7100 11900 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 7100 11900 50  0001 C CNN "MPN"
-	1    7100 11900
+U 1 1 5E0001C2
+P 7100 14150
+F 0 "RIGNS1" H 7100 13990 50  0000 C CNN
+F 1 "47k" H 7100 14320 50  0000 C CNN
+F 2 "R0603" H 7100 14150 50  0001 C CNN
+F 3 "~" H 7100 14150 50  0001 C CNN
+F 4 "CLASS" H 7100 14150 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 7100 14150 50  0001 C CNN "MPN"
+	1    7100 14150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	6850 11900 6650 11900
-Text Label 6650 11900 2    45   ~ 0
+	6850 14150 6650 14150
+Text Label 6650 14150 2    45   ~ 0
 IGN_D
 Wire Wire Line
-	7350 11900 7550 11900
-Text Label 7550 11900 0    45   ~ 0
+	7350 14150 7550 14150
+Text Label 7550 14150 0    45   ~ 0
 IGN_SNS
 $Comp
 L traction-r1:R RIGNS2
-U 1 1 5E0001B1
-P 7100 12300
-F 0 "RIGNS2" H 7100 12140 50  0000 C CNN
-F 1 "10k" H 7100 12470 50  0000 C CNN
-F 2 "R0603" H 7100 12300 50  0001 C CNN
-F 3 "~" H 7100 12300 50  0001 C CNN
-F 4 "CLASS" H 7100 12300 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 7100 12300 50  0001 C CNN "MPN"
-	1    7100 12300
+U 1 1 5E0001C3
+P 7100 14550
+F 0 "RIGNS2" H 7100 14390 50  0000 C CNN
+F 1 "10k" H 7100 14720 50  0000 C CNN
+F 2 "R0603" H 7100 14550 50  0001 C CNN
+F 3 "~" H 7100 14550 50  0001 C CNN
+F 4 "CLASS" H 7100 14550 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 7100 14550 50  0001 C CNN "MPN"
+	1    7100 14550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	6850 12300 6650 12300
-Text Label 6650 12300 2    45   ~ 0
+	6850 14550 6650 14550
+Text Label 6650 14550 2    45   ~ 0
 IGN_SNS
 Wire Wire Line
-	7350 12300 7550 12300
-Text Label 7550 12300 0    45   ~ 0
+	7350 14550 7550 14550
+Text Label 7550 14550 0    45   ~ 0
 AGND
 Wire Notes Line
-	500 16000 16100 16000
+	500 16250 16100 16250
 Wire Notes Line
-	16100 16000 16100 22750
+	16100 16250 16100 23000
 Wire Notes Line
-	16100 22750 500 22750
+	16100 23000 500 23000
 Wire Notes Line
-	500 22750 500 16000
-Text Notes 560 16160 0    79   ~ 16
+	500 23000 500 16250
+Text Notes 560 16410 0    79   ~ 16
 SAFETY / GATE-EN
 $Comp
 L traction-r1:74LVC1G11GW-Q100 UAND1
-U 1 1 5E0001B2
-P 3450 17750
-F 0 "UAND1" H 3050 17400 50  0000 R CNN
-F 1 "74LVC1G11GW-Q100" H 3050 18130 50  0000 R CNN
-F 2 "SOT363" H 3450 17750 50  0001 C CNN
-F 3 "~" H 3450 17750 50  0001 C CNN
-F 4 "C548242" H 3450 17750 50  0001 C CNN "LCSC"
-F 5 "74LVC1G11GW-Q100" H 3450 17750 50  0001 C CNN "MPN"
-	1    3450 17750
+U 1 1 5E0001C4
+P 3450 18000
+F 0 "UAND1" H 3050 17650 50  0000 R CNN
+F 1 "74LVC1G11GW-Q100" H 3050 18380 50  0000 R CNN
+F 2 "SOT363" H 3450 18000 50  0001 C CNN
+F 3 "~" H 3450 18000 50  0001 C CNN
+F 4 "C548242" H 3450 18000 50  0001 C CNN "LCSC"
+F 5 "74LVC1G11GW-Q100" H 3450 18000 50  0001 C CNN "MPN"
+	1    3450 18000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 17600 2800 17600
-Text Label 2800 17600 2    45   ~ 0
+	3000 17850 2800 17850
+Text Label 2800 17850 2    45   ~ 0
 FS0B_B
 Wire Wire Line
-	3000 17700 2800 17700
-Text Label 2800 17700 2    45   ~ 0
+	3000 17950 2800 17950
+Text Label 2800 17950 2    45   ~ 0
 MCU_GATE_EN
 Wire Wire Line
-	3000 17800 2800 17800
-Text Label 2800 17800 2    45   ~ 0
+	3000 18050 2800 18050
+Text Label 2800 18050 2    45   ~ 0
 RDY_HS_B
 Wire Wire Line
-	3900 17600 4100 17600
-Text Label 4100 17600 0    45   ~ 0
+	3900 17850 4100 17850
+Text Label 4100 17850 0    45   ~ 0
 ENX1
 Wire Wire Line
-	3250 17350 3250 17150
-Text Label 3250 17150 1    45   ~ 0
+	3250 17600 3250 17400
+Text Label 3250 17400 1    45   ~ 0
 V5A
 Wire Wire Line
-	3250 18150 3250 18350
-Text Label 3250 18350 3    45   ~ 0
+	3250 18400 3250 18600
+Text Label 3250 18600 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC1G11GW-Q100 UAND2
-U 1 1 5E0001B3
-P 3450 19600
-F 0 "UAND2" H 3050 19250 50  0000 R CNN
-F 1 "74LVC1G11GW-Q100" H 3050 19980 50  0000 R CNN
-F 2 "SOT363" H 3450 19600 50  0001 C CNN
-F 3 "~" H 3450 19600 50  0001 C CNN
-F 4 "C548242" H 3450 19600 50  0001 C CNN "LCSC"
-F 5 "74LVC1G11GW-Q100" H 3450 19600 50  0001 C CNN "MPN"
-	1    3450 19600
+U 1 1 5E0001C5
+P 3450 19850
+F 0 "UAND2" H 3050 19500 50  0000 R CNN
+F 1 "74LVC1G11GW-Q100" H 3050 20230 50  0000 R CNN
+F 2 "SOT363" H 3450 19850 50  0001 C CNN
+F 3 "~" H 3450 19850 50  0001 C CNN
+F 4 "C548242" H 3450 19850 50  0001 C CNN "LCSC"
+F 5 "74LVC1G11GW-Q100" H 3450 19850 50  0001 C CNN "MPN"
+	1    3450 19850
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 19450 2800 19450
-Text Label 2800 19450 2    45   ~ 0
+	3000 19700 2800 19700
+Text Label 2800 19700 2    45   ~ 0
 ENX1
 Wire Wire Line
-	3000 19550 2800 19550
-Text Label 2800 19550 2    45   ~ 0
+	3000 19800 2800 19800
+Text Label 2800 19800 2    45   ~ 0
 RDY_LS_B
 Wire Wire Line
-	3000 19650 2800 19650
-Text Label 2800 19650 2    45   ~ 0
+	3000 19900 2800 19900
+Text Label 2800 19900 2    45   ~ 0
 FLT_OKB
 Wire Wire Line
-	3900 19450 4100 19450
-Text Label 4100 19450 0    45   ~ 0
+	3900 19700 4100 19700
+Text Label 4100 19700 0    45   ~ 0
 DRV_EN
 Wire Wire Line
-	3250 19200 3250 19000
-Text Label 3250 19000 1    45   ~ 0
+	3250 19450 3250 19250
+Text Label 3250 19250 1    45   ~ 0
 V5A
 Wire Wire Line
-	3250 20000 3250 20200
-Text Label 3250 20200 3    45   ~ 0
+	3250 20250 3250 20450
+Text Label 3250 20450 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC1G74DC-Q100 ULAT2
-U 1 1 5E0001B4
-P 9400 17450
-F 0 "ULAT2" H 9000 17000 50  0000 R CNN
-F 1 "74LVC1G74DC-Q100" H 9000 17930 50  0000 R CNN
-F 2 "VSSOP8" H 9400 17450 50  0001 C CNN
-F 3 "~" H 9400 17450 50  0001 C CNN
-F 4 "CLASS" H 9400 17450 50  0001 C CNN "LCSC"
-F 5 "74LVC1G74DC-Q100" H 9400 17450 50  0001 C CNN "MPN"
-	1    9400 17450
+U 1 1 5E0001C6
+P 9400 17700
+F 0 "ULAT2" H 9000 17250 50  0000 R CNN
+F 1 "74LVC1G74DC-Q100" H 9000 18180 50  0000 R CNN
+F 2 "VSSOP8" H 9400 17700 50  0001 C CNN
+F 3 "~" H 9400 17700 50  0001 C CNN
+F 4 "CLASS" H 9400 17700 50  0001 C CNN "LCSC"
+F 5 "74LVC1G74DC-Q100" H 9400 17700 50  0001 C CNN "MPN"
+	1    9400 17700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 17200 8750 17200
-Text Label 8750 17200 2    45   ~ 0
+	8950 17450 8750 17450
+Text Label 8750 17450 2    45   ~ 0
 DGND
 Wire Wire Line
-	8950 17300 8750 17300
-Text Label 8750 17300 2    45   ~ 0
+	8950 17550 8750 17550
+Text Label 8750 17550 2    45   ~ 0
 FLT_CLR_B
 Wire Wire Line
-	8950 17400 8750 17400
-Text Label 8750 17400 2    45   ~ 0
+	8950 17650 8750 17650
+Text Label 8750 17650 2    45   ~ 0
 FLT_CMB_B
-NoConn ~ 8950 17500
+NoConn ~ 8950 17750
 Wire Wire Line
-	8950 17600 8750 17600
-Text Label 8750 17600 2    45   ~ 0
+	8950 17850 8750 17850
+Text Label 8750 17850 2    45   ~ 0
 FLT_OK
 Wire Wire Line
-	9850 17200 10050 17200
-Text Label 10050 17200 0    45   ~ 0
+	9850 17450 10050 17450
+Text Label 10050 17450 0    45   ~ 0
 DGND
 Wire Wire Line
-	9200 16950 9200 16750
-Text Label 9200 16750 1    45   ~ 0
+	9200 17200 9200 17000
+Text Label 9200 17000 1    45   ~ 0
 V5A
 Wire Wire Line
-	9200 17950 9200 18150
-Text Label 9200 18150 3    45   ~ 0
+	9200 18200 9200 18400
+Text Label 9200 18400 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC3G17DC-Q100 USCH
-U 1 1 5E0001B5
-P 13200 17350
-F 0 "USCH" H 12800 17000 50  0000 R CNN
-F 1 "74LVC3G17DC-Q100" H 12800 17730 50  0000 R CNN
-F 2 "VSSOP8" H 13200 17350 50  0001 C CNN
-F 3 "~" H 13200 17350 50  0001 C CNN
-F 4 "CLASS" H 13200 17350 50  0001 C CNN "LCSC"
-F 5 "74LVC3G17DC-Q100" H 13200 17350 50  0001 C CNN "MPN"
-	1    13200 17350
+U 1 1 5E0001C7
+P 13200 17600
+F 0 "USCH" H 12800 17250 50  0000 R CNN
+F 1 "74LVC3G17DC-Q100" H 12800 17980 50  0000 R CNN
+F 2 "VSSOP8" H 13200 17600 50  0001 C CNN
+F 3 "~" H 13200 17600 50  0001 C CNN
+F 4 "CLASS" H 13200 17600 50  0001 C CNN "LCSC"
+F 5 "74LVC3G17DC-Q100" H 13200 17600 50  0001 C CNN "MPN"
+	1    13200 17600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 17200 12550 17200
-Text Label 12550 17200 2    45   ~ 0
+	12750 17450 12550 17450
+Text Label 12550 17450 2    45   ~ 0
 FLT_CLR_N
 Wire Wire Line
-	12750 17300 12550 17300
-Text Label 12550 17300 2    45   ~ 0
+	12750 17550 12550 17550
+Text Label 12550 17550 2    45   ~ 0
 FLT_OKD
 Wire Wire Line
-	12750 17400 12550 17400
-Text Label 12550 17400 2    45   ~ 0
+	12750 17650 12550 17650
+Text Label 12550 17650 2    45   ~ 0
 FS0B_N
 Wire Wire Line
-	13650 17200 13850 17200
-Text Label 13850 17200 0    45   ~ 0
+	13650 17450 13850 17450
+Text Label 13850 17450 0    45   ~ 0
 FLT_CLR_B
 Wire Wire Line
-	13650 17300 13850 17300
-Text Label 13850 17300 0    45   ~ 0
+	13650 17550 13850 17550
+Text Label 13850 17550 0    45   ~ 0
 FLT_OKB
 Wire Wire Line
-	13650 17400 13850 17400
-Text Label 13850 17400 0    45   ~ 0
+	13650 17650 13850 17650
+Text Label 13850 17650 0    45   ~ 0
 FS0B_B
 Wire Wire Line
-	13000 16950 13000 16750
-Text Label 13000 16750 1    45   ~ 0
+	13000 17200 13000 17000
+Text Label 13000 17000 1    45   ~ 0
 V5A
 Wire Wire Line
-	13000 17750 13000 17950
-Text Label 13000 17950 3    45   ~ 0
+	13000 18000 13000 18200
+Text Label 13000 18200 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC3G17DC-Q100 USCH2
-U 1 1 5E0001B6
-P 13200 19200
-F 0 "USCH2" H 12800 18850 50  0000 R CNN
-F 1 "74LVC3G17DC-Q100" H 12800 19580 50  0000 R CNN
-F 2 "VSSOP8" H 13200 19200 50  0001 C CNN
-F 3 "~" H 13200 19200 50  0001 C CNN
-F 4 "CLASS" H 13200 19200 50  0001 C CNN "LCSC"
-F 5 "74LVC3G17DC-Q100" H 13200 19200 50  0001 C CNN "MPN"
-	1    13200 19200
+U 1 1 5E0001C8
+P 13200 19450
+F 0 "USCH2" H 12800 19100 50  0000 R CNN
+F 1 "74LVC3G17DC-Q100" H 12800 19830 50  0000 R CNN
+F 2 "VSSOP8" H 13200 19450 50  0001 C CNN
+F 3 "~" H 13200 19450 50  0001 C CNN
+F 4 "CLASS" H 13200 19450 50  0001 C CNN "LCSC"
+F 5 "74LVC3G17DC-Q100" H 13200 19450 50  0001 C CNN "MPN"
+	1    13200 19450
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 19050 12550 19050
-Text Label 12550 19050 2    45   ~ 0
+	12750 19300 12550 19300
+Text Label 12550 19300 2    45   ~ 0
 FLT_CMB_N
 Wire Wire Line
-	12750 19150 12550 19150
-Text Label 12550 19150 2    45   ~ 0
+	12750 19400 12550 19400
+Text Label 12550 19400 2    45   ~ 0
 ASC_SET_N
 Wire Wire Line
-	12750 19250 12550 19250
-Text Label 12550 19250 2    45   ~ 0
+	12750 19500 12550 19500
+Text Label 12550 19500 2    45   ~ 0
 QDIS_M
 Wire Wire Line
-	13650 19050 13850 19050
-Text Label 13850 19050 0    45   ~ 0
+	13650 19300 13850 19300
+Text Label 13850 19300 0    45   ~ 0
 FLT_CMB_B
 Wire Wire Line
-	13650 19150 13850 19150
-Text Label 13850 19150 0    45   ~ 0
+	13650 19400 13850 19400
+Text Label 13850 19400 0    45   ~ 0
 ASC_SET_B
 Wire Wire Line
-	13650 19250 13850 19250
-Text Label 13850 19250 0    45   ~ 0
+	13650 19500 13850 19500
+Text Label 13850 19500 0    45   ~ 0
 QDIS_CMD
 Wire Wire Line
-	13000 18800 13000 18600
-Text Label 13000 18600 1    45   ~ 0
+	13000 19050 13000 18850
+Text Label 13000 18850 1    45   ~ 0
 V5A
 Wire Wire Line
-	13000 19600 13000 19800
-Text Label 13000 19800 3    45   ~ 0
+	13000 19850 13000 20050
+Text Label 13000 20050 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC3G17DC-Q100 USCH3
-U 1 1 5E0001B7
-P 5500 17350
-F 0 "USCH3" H 5100 17000 50  0000 R CNN
-F 1 "74LVC3G17DC-Q100" H 5100 17730 50  0000 R CNN
-F 2 "VSSOP8" H 5500 17350 50  0001 C CNN
-F 3 "~" H 5500 17350 50  0001 C CNN
-F 4 "CLASS" H 5500 17350 50  0001 C CNN "LCSC"
-F 5 "74LVC3G17DC-Q100" H 5500 17350 50  0001 C CNN "MPN"
-	1    5500 17350
+U 1 1 5E0001C9
+P 5500 17600
+F 0 "USCH3" H 5100 17250 50  0000 R CNN
+F 1 "74LVC3G17DC-Q100" H 5100 17980 50  0000 R CNN
+F 2 "VSSOP8" H 5500 17600 50  0001 C CNN
+F 3 "~" H 5500 17600 50  0001 C CNN
+F 4 "CLASS" H 5500 17600 50  0001 C CNN "LCSC"
+F 5 "74LVC3G17DC-Q100" H 5500 17600 50  0001 C CNN "MPN"
+	1    5500 17600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5050 17200 4850 17200
-Text Label 4850 17200 2    45   ~ 0
+	5050 17450 4850 17450
+Text Label 4850 17450 2    45   ~ 0
 RDY_HS
 Wire Wire Line
-	5050 17300 4850 17300
-Text Label 4850 17300 2    45   ~ 0
+	5050 17550 4850 17550
+Text Label 4850 17550 2    45   ~ 0
 RDY_LS
 Wire Wire Line
-	5050 17400 4850 17400
-Text Label 4850 17400 2    45   ~ 0
+	5050 17650 4850 17650
+Text Label 4850 17650 2    45   ~ 0
 DGND
 Wire Wire Line
-	5950 17200 6150 17200
-Text Label 6150 17200 0    45   ~ 0
+	5950 17450 6150 17450
+Text Label 6150 17450 0    45   ~ 0
 RDY_HS_B
 Wire Wire Line
-	5950 17300 6150 17300
-Text Label 6150 17300 0    45   ~ 0
+	5950 17550 6150 17550
+Text Label 6150 17550 0    45   ~ 0
 RDY_LS_B
-NoConn ~ 5950 17400
+NoConn ~ 5950 17650
 Wire Wire Line
-	5300 16950 5300 16750
-Text Label 5300 16750 1    45   ~ 0
+	5300 17200 5300 17000
+Text Label 5300 17000 1    45   ~ 0
 V5A
 Wire Wire Line
-	5300 17750 5300 17950
-Text Label 5300 17950 3    45   ~ 0
+	5300 18000 5300 18200
+Text Label 5300 18200 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CAND1
-U 1 1 5E0001B8
-P 3250 21150
-F 0 "CAND1" H 3250 20990 50  0000 C CNN
-F 1 "100nF" H 3250 21320 50  0000 C CNN
-F 2 "C0603" H 3250 21150 50  0001 C CNN
-F 3 "~" H 3250 21150 50  0001 C CNN
-F 4 "CLASS" H 3250 21150 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 3250 21150 50  0001 C CNN "MPN"
-	1    3250 21150
+U 1 1 5E0001CA
+P 3250 21400
+F 0 "CAND1" H 3250 21240 50  0000 C CNN
+F 1 "100nF" H 3250 21570 50  0000 C CNN
+F 2 "C0603" H 3250 21400 50  0001 C CNN
+F 3 "~" H 3250 21400 50  0001 C CNN
+F 4 "CLASS" H 3250 21400 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 3250 21400 50  0001 C CNN "MPN"
+	1    3250 21400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 21150 2800 21150
-Text Label 2800 21150 2    45   ~ 0
+	3000 21400 2800 21400
+Text Label 2800 21400 2    45   ~ 0
 V5A
 Wire Wire Line
-	3500 21150 3700 21150
-Text Label 3700 21150 0    45   ~ 0
+	3500 21400 3700 21400
+Text Label 3700 21400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CAND2
-U 1 1 5E0001B9
-P 3250 21550
-F 0 "CAND2" H 3250 21390 50  0000 C CNN
-F 1 "100nF" H 3250 21720 50  0000 C CNN
-F 2 "C0603" H 3250 21550 50  0001 C CNN
-F 3 "~" H 3250 21550 50  0001 C CNN
-F 4 "CLASS" H 3250 21550 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 3250 21550 50  0001 C CNN "MPN"
-	1    3250 21550
+U 1 1 5E0001CB
+P 3250 21800
+F 0 "CAND2" H 3250 21640 50  0000 C CNN
+F 1 "100nF" H 3250 21970 50  0000 C CNN
+F 2 "C0603" H 3250 21800 50  0001 C CNN
+F 3 "~" H 3250 21800 50  0001 C CNN
+F 4 "CLASS" H 3250 21800 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 3250 21800 50  0001 C CNN "MPN"
+	1    3250 21800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 21550 2800 21550
-Text Label 2800 21550 2    45   ~ 0
+	3000 21800 2800 21800
+Text Label 2800 21800 2    45   ~ 0
 V5A
 Wire Wire Line
-	3500 21550 3700 21550
-Text Label 3700 21550 0    45   ~ 0
+	3500 21800 3700 21800
+Text Label 3700 21800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CCLR
-U 1 1 5E0001BA
-P 11250 17450
-F 0 "CCLR" H 11250 17290 50  0000 C CNN
-F 1 "15nF" H 11250 17620 50  0000 C CNN
-F 2 "C0603" H 11250 17450 50  0001 C CNN
-F 3 "~" H 11250 17450 50  0001 C CNN
-F 4 "CLASS" H 11250 17450 50  0001 C CNN "LCSC"
-F 5 "MLCC-15nF-50V-C0G" H 11250 17450 50  0001 C CNN "MPN"
-	1    11250 17450
+U 1 1 5E0001CC
+P 11250 17700
+F 0 "CCLR" H 11250 17540 50  0000 C CNN
+F 1 "15nF" H 11250 17870 50  0000 C CNN
+F 2 "C0603" H 11250 17700 50  0001 C CNN
+F 3 "~" H 11250 17700 50  0001 C CNN
+F 4 "CLASS" H 11250 17700 50  0001 C CNN "LCSC"
+F 5 "MLCC-15nF-50V-C0G" H 11250 17700 50  0001 C CNN "MPN"
+	1    11250 17700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11000 17450 10800 17450
-Text Label 10800 17450 2    45   ~ 0
+	11000 17700 10800 17700
+Text Label 10800 17700 2    45   ~ 0
 FLT_CLR_M
 Wire Wire Line
-	11500 17450 11700 17450
-Text Label 11700 17450 0    45   ~ 0
+	11500 17700 11700 17700
+Text Label 11700 17700 0    45   ~ 0
 FLT_CLR_N
 $Comp
 L traction-r1:C CFLTD
-U 1 1 5E0001BB
-P 11250 17050
-F 0 "CFLTD" H 11250 16890 50  0000 C CNN
-F 1 "3.3nF" H 11250 17220 50  0000 C CNN
-F 2 "C0603" H 11250 17050 50  0001 C CNN
-F 3 "~" H 11250 17050 50  0001 C CNN
-F 4 "CLASS" H 11250 17050 50  0001 C CNN "LCSC"
-F 5 "MLCC-3.3nF-50V-C0G" H 11250 17050 50  0001 C CNN "MPN"
-	1    11250 17050
+U 1 1 5E0001CD
+P 11250 17300
+F 0 "CFLTD" H 11250 17140 50  0000 C CNN
+F 1 "3.3nF" H 11250 17470 50  0000 C CNN
+F 2 "C0603" H 11250 17300 50  0001 C CNN
+F 3 "~" H 11250 17300 50  0001 C CNN
+F 4 "CLASS" H 11250 17300 50  0001 C CNN "LCSC"
+F 5 "MLCC-3.3nF-50V-C0G" H 11250 17300 50  0001 C CNN "MPN"
+	1    11250 17300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11000 17050 10800 17050
-Text Label 10800 17050 2    45   ~ 0
+	11000 17300 10800 17300
+Text Label 10800 17300 2    45   ~ 0
 FLT_OKD
 Wire Wire Line
-	11500 17050 11700 17050
-Text Label 11700 17050 0    45   ~ 0
+	11500 17300 11700 17300
+Text Label 11700 17300 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CFLTF
-U 1 1 5E0001BC
-P 7400 19050
-F 0 "CFLTF" H 7400 18890 50  0000 C CNN
-F 1 "100pF" H 7400 19220 50  0000 C CNN
-F 2 "C0603" H 7400 19050 50  0001 C CNN
-F 3 "~" H 7400 19050 50  0001 C CNN
-F 4 "CLASS" H 7400 19050 50  0001 C CNN "LCSC"
-F 5 "MLCC-100pF-16V" H 7400 19050 50  0001 C CNN "MPN"
-	1    7400 19050
+U 1 1 5E0001CE
+P 7400 19300
+F 0 "CFLTF" H 7400 19140 50  0000 C CNN
+F 1 "100pF" H 7400 19470 50  0000 C CNN
+F 2 "C0603" H 7400 19300 50  0001 C CNN
+F 3 "~" H 7400 19300 50  0001 C CNN
+F 4 "CLASS" H 7400 19300 50  0001 C CNN "LCSC"
+F 5 "MLCC-100pF-16V" H 7400 19300 50  0001 C CNN "MPN"
+	1    7400 19300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 19050 6950 19050
-Text Label 6950 19050 2    45   ~ 0
+	7150 19300 6950 19300
+Text Label 6950 19300 2    45   ~ 0
 FLT_HS_N
 Wire Wire Line
-	7650 19050 7850 19050
-Text Label 7850 19050 0    45   ~ 0
+	7650 19300 7850 19300
+Text Label 7850 19300 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CFLTF2
-U 1 1 5E0001BD
-P 7400 19450
-F 0 "CFLTF2" H 7400 19290 50  0000 C CNN
-F 1 "100pF" H 7400 19620 50  0000 C CNN
-F 2 "C0603" H 7400 19450 50  0001 C CNN
-F 3 "~" H 7400 19450 50  0001 C CNN
-F 4 "CLASS" H 7400 19450 50  0001 C CNN "LCSC"
-F 5 "MLCC-100pF-16V" H 7400 19450 50  0001 C CNN "MPN"
-	1    7400 19450
+U 1 1 5E0001CF
+P 7400 19700
+F 0 "CFLTF2" H 7400 19540 50  0000 C CNN
+F 1 "100pF" H 7400 19870 50  0000 C CNN
+F 2 "C0603" H 7400 19700 50  0001 C CNN
+F 3 "~" H 7400 19700 50  0001 C CNN
+F 4 "CLASS" H 7400 19700 50  0001 C CNN "LCSC"
+F 5 "MLCC-100pF-16V" H 7400 19700 50  0001 C CNN "MPN"
+	1    7400 19700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 19450 6950 19450
-Text Label 6950 19450 2    45   ~ 0
+	7150 19700 6950 19700
+Text Label 6950 19700 2    45   ~ 0
 FLT_LS_N
 Wire Wire Line
-	7650 19450 7850 19450
-Text Label 7850 19450 0    45   ~ 0
+	7650 19700 7850 19700
+Text Label 7850 19700 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CLAT2
-U 1 1 5E0001BE
-P 9200 20300
-F 0 "CLAT2" H 9200 20140 50  0000 C CNN
-F 1 "100nF" H 9200 20470 50  0000 C CNN
-F 2 "C0603" H 9200 20300 50  0001 C CNN
-F 3 "~" H 9200 20300 50  0001 C CNN
-F 4 "CLASS" H 9200 20300 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 9200 20300 50  0001 C CNN "MPN"
-	1    9200 20300
+U 1 1 5E0001D0
+P 9200 20550
+F 0 "CLAT2" H 9200 20390 50  0000 C CNN
+F 1 "100nF" H 9200 20720 50  0000 C CNN
+F 2 "C0603" H 9200 20550 50  0001 C CNN
+F 3 "~" H 9200 20550 50  0001 C CNN
+F 4 "CLASS" H 9200 20550 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 9200 20550 50  0001 C CNN "MPN"
+	1    9200 20550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 20300 8750 20300
-Text Label 8750 20300 2    45   ~ 0
+	8950 20550 8750 20550
+Text Label 8750 20550 2    45   ~ 0
 V5A
 Wire Wire Line
-	9450 20300 9650 20300
-Text Label 9650 20300 0    45   ~ 0
+	9450 20550 9650 20550
+Text Label 9650 20550 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSCH
-U 1 1 5E0001BF
-P 13000 20350
-F 0 "CSCH" H 13000 20190 50  0000 C CNN
-F 1 "100nF" H 13000 20520 50  0000 C CNN
-F 2 "C0603" H 13000 20350 50  0001 C CNN
-F 3 "~" H 13000 20350 50  0001 C CNN
-F 4 "CLASS" H 13000 20350 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 13000 20350 50  0001 C CNN "MPN"
-	1    13000 20350
+U 1 1 5E0001D1
+P 13000 20600
+F 0 "CSCH" H 13000 20440 50  0000 C CNN
+F 1 "100nF" H 13000 20770 50  0000 C CNN
+F 2 "C0603" H 13000 20600 50  0001 C CNN
+F 3 "~" H 13000 20600 50  0001 C CNN
+F 4 "CLASS" H 13000 20600 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 13000 20600 50  0001 C CNN "MPN"
+	1    13000 20600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 20350 12550 20350
-Text Label 12550 20350 2    45   ~ 0
+	12750 20600 12550 20600
+Text Label 12550 20600 2    45   ~ 0
 V5A
 Wire Wire Line
-	13250 20350 13450 20350
-Text Label 13450 20350 0    45   ~ 0
+	13250 20600 13450 20600
+Text Label 13450 20600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSCH2
-U 1 1 5E0001C0
-P 13000 20750
-F 0 "CSCH2" H 13000 20590 50  0000 C CNN
-F 1 "100nF" H 13000 20920 50  0000 C CNN
-F 2 "C0603" H 13000 20750 50  0001 C CNN
-F 3 "~" H 13000 20750 50  0001 C CNN
-F 4 "CLASS" H 13000 20750 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 13000 20750 50  0001 C CNN "MPN"
-	1    13000 20750
+U 1 1 5E0001D2
+P 13000 21000
+F 0 "CSCH2" H 13000 20840 50  0000 C CNN
+F 1 "100nF" H 13000 21170 50  0000 C CNN
+F 2 "C0603" H 13000 21000 50  0001 C CNN
+F 3 "~" H 13000 21000 50  0001 C CNN
+F 4 "CLASS" H 13000 21000 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 13000 21000 50  0001 C CNN "MPN"
+	1    13000 21000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 20750 12550 20750
-Text Label 12550 20750 2    45   ~ 0
+	12750 21000 12550 21000
+Text Label 12550 21000 2    45   ~ 0
 V5A
 Wire Wire Line
-	13250 20750 13450 20750
-Text Label 13450 20750 0    45   ~ 0
+	13250 21000 13450 21000
+Text Label 13450 21000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CSCH3
-U 1 1 5E0001C1
-P 5300 18500
-F 0 "CSCH3" H 5300 18340 50  0000 C CNN
-F 1 "100nF" H 5300 18670 50  0000 C CNN
-F 2 "C0603" H 5300 18500 50  0001 C CNN
-F 3 "~" H 5300 18500 50  0001 C CNN
-F 4 "CLASS" H 5300 18500 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-16V" H 5300 18500 50  0001 C CNN "MPN"
-	1    5300 18500
+U 1 1 5E0001D3
+P 5300 18750
+F 0 "CSCH3" H 5300 18590 50  0000 C CNN
+F 1 "100nF" H 5300 18920 50  0000 C CNN
+F 2 "C0603" H 5300 18750 50  0001 C CNN
+F 3 "~" H 5300 18750 50  0001 C CNN
+F 4 "CLASS" H 5300 18750 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-16V" H 5300 18750 50  0001 C CNN "MPN"
+	1    5300 18750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5050 18500 4850 18500
-Text Label 4850 18500 2    45   ~ 0
+	5050 18750 4850 18750
+Text Label 4850 18750 2    45   ~ 0
 V5A
 Wire Wire Line
-	5550 18500 5750 18500
-Text Label 5750 18500 0    45   ~ 0
+	5550 18750 5750 18750
+Text Label 5750 18750 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:D DCLR
-U 1 1 5E0001C2
-P 11250 17850
-F 0 "DCLR" H 11250 17690 50  0000 C CNN
-F 1 "BAT46ZFILM" H 11250 18020 50  0000 C CNN
-F 2 "SOD123" H 11250 17850 50  0001 C CNN
-F 3 "~" H 11250 17850 50  0001 C CNN
-F 4 "C283255" H 11250 17850 50  0001 C CNN "LCSC"
-F 5 "BAT46ZFILM" H 11250 17850 50  0001 C CNN "MPN"
-	1    11250 17850
+U 1 1 5E0001D4
+P 11250 18100
+F 0 "DCLR" H 11250 17940 50  0000 C CNN
+F 1 "BAT46ZFILM" H 11250 18270 50  0000 C CNN
+F 2 "SOD123" H 11250 18100 50  0001 C CNN
+F 3 "~" H 11250 18100 50  0001 C CNN
+F 4 "C283255" H 11250 18100 50  0001 C CNN "LCSC"
+F 5 "BAT46ZFILM" H 11250 18100 50  0001 C CNN "MPN"
+	1    11250 18100
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11000 17850 10800 17850
-Text Label 10800 17850 2    45   ~ 0
+	11000 18100 10800 18100
+Text Label 10800 18100 2    45   ~ 0
 FLT_CLR_N
 Wire Wire Line
-	11500 17850 11700 17850
-Text Label 11700 17850 0    45   ~ 0
+	11500 18100 11700 18100
+Text Label 11700 18100 0    45   ~ 0
 V5A
 $Comp
 L traction-r1:D DFLT1
-U 1 1 5E0001C3
-P 9200 18700
-F 0 "DFLT1" H 9200 18540 50  0000 C CNN
-F 1 "BAT46ZFILM" H 9200 18870 50  0000 C CNN
-F 2 "SOD123" H 9200 18700 50  0001 C CNN
-F 3 "~" H 9200 18700 50  0001 C CNN
-F 4 "C283255" H 9200 18700 50  0001 C CNN "LCSC"
-F 5 "BAT46ZFILM" H 9200 18700 50  0001 C CNN "MPN"
-	1    9200 18700
+U 1 1 5E0001D5
+P 9200 18950
+F 0 "DFLT1" H 9200 18790 50  0000 C CNN
+F 1 "BAT46ZFILM" H 9200 19120 50  0000 C CNN
+F 2 "SOD123" H 9200 18950 50  0001 C CNN
+F 3 "~" H 9200 18950 50  0001 C CNN
+F 4 "C283255" H 9200 18950 50  0001 C CNN "LCSC"
+F 5 "BAT46ZFILM" H 9200 18950 50  0001 C CNN "MPN"
+	1    9200 18950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 18700 8750 18700
-Text Label 8750 18700 2    45   ~ 0
+	8950 18950 8750 18950
+Text Label 8750 18950 2    45   ~ 0
 FLT_CMB_N
 Wire Wire Line
-	9450 18700 9650 18700
-Text Label 9650 18700 0    45   ~ 0
+	9450 18950 9650 18950
+Text Label 9650 18950 0    45   ~ 0
 FLT_HS_N
 $Comp
 L traction-r1:D DFLT2
-U 1 1 5E0001C4
-P 9200 19100
-F 0 "DFLT2" H 9200 18940 50  0000 C CNN
-F 1 "BAT46ZFILM" H 9200 19270 50  0000 C CNN
-F 2 "SOD123" H 9200 19100 50  0001 C CNN
-F 3 "~" H 9200 19100 50  0001 C CNN
-F 4 "C283255" H 9200 19100 50  0001 C CNN "LCSC"
-F 5 "BAT46ZFILM" H 9200 19100 50  0001 C CNN "MPN"
-	1    9200 19100
+U 1 1 5E0001D6
+P 9200 19350
+F 0 "DFLT2" H 9200 19190 50  0000 C CNN
+F 1 "BAT46ZFILM" H 9200 19520 50  0000 C CNN
+F 2 "SOD123" H 9200 19350 50  0001 C CNN
+F 3 "~" H 9200 19350 50  0001 C CNN
+F 4 "C283255" H 9200 19350 50  0001 C CNN "LCSC"
+F 5 "BAT46ZFILM" H 9200 19350 50  0001 C CNN "MPN"
+	1    9200 19350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 19100 8750 19100
-Text Label 8750 19100 2    45   ~ 0
+	8950 19350 8750 19350
+Text Label 8750 19350 2    45   ~ 0
 FLT_CMB_N
 Wire Wire Line
-	9450 19100 9650 19100
-Text Label 9650 19100 0    45   ~ 0
+	9450 19350 9650 19350
+Text Label 9650 19350 0    45   ~ 0
 FLT_LS_N
 $Comp
 L traction-r1:R RDRB
-U 1 1 5E0001C5
-P 13000 21150
-F 0 "RDRB" H 13000 20990 50  0000 C CNN
-F 1 "10k" H 13000 21320 50  0000 C CNN
-F 2 "R0603" H 13000 21150 50  0001 C CNN
-F 3 "~" H 13000 21150 50  0001 C CNN
-F 4 "CLASS" H 13000 21150 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 13000 21150 50  0001 C CNN "MPN"
-	1    13000 21150
+U 1 1 5E0001D7
+P 13000 21400
+F 0 "RDRB" H 13000 21240 50  0000 C CNN
+F 1 "10k" H 13000 21570 50  0000 C CNN
+F 2 "R0603" H 13000 21400 50  0001 C CNN
+F 3 "~" H 13000 21400 50  0001 C CNN
+F 4 "CLASS" H 13000 21400 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 13000 21400 50  0001 C CNN "MPN"
+	1    13000 21400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 21150 12550 21150
-Text Label 12550 21150 2    45   ~ 0
+	12750 21400 12550 21400
+Text Label 12550 21400 2    45   ~ 0
 DRV_EN
 Wire Wire Line
-	13250 21150 13450 21150
-Text Label 13450 21150 0    45   ~ 0
+	13250 21400 13450 21400
+Text Label 13450 21400 0    45   ~ 0
 DRV_EN_RB
 $Comp
 L traction-r1:R RENP1
-U 1 1 5E0001C6
-P 3250 16650
-F 0 "RENP1" H 3250 16490 50  0000 C CNN
-F 1 "5.1k" H 3250 16820 50  0000 C CNN
-F 2 "R0603" H 3250 16650 50  0001 C CNN
-F 3 "~" H 3250 16650 50  0001 C CNN
-F 4 "CLASS" H 3250 16650 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 3250 16650 50  0001 C CNN "MPN"
-	1    3250 16650
+U 1 1 5E0001D8
+P 3250 16900
+F 0 "RENP1" H 3250 16740 50  0000 C CNN
+F 1 "5.1k" H 3250 17070 50  0000 C CNN
+F 2 "R0603" H 3250 16900 50  0001 C CNN
+F 3 "~" H 3250 16900 50  0001 C CNN
+F 4 "CLASS" H 3250 16900 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 3250 16900 50  0001 C CNN "MPN"
+	1    3250 16900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 16650 2800 16650
-Text Label 2800 16650 2    45   ~ 0
+	3000 16900 2800 16900
+Text Label 2800 16900 2    45   ~ 0
 V5A
 Wire Wire Line
-	3500 16650 3700 16650
-Text Label 3700 16650 0    45   ~ 0
+	3500 16900 3700 16900
+Text Label 3700 16900 0    45   ~ 0
 FS0B_N
 $Comp
 L traction-r1:R RFCB
-U 1 1 5E0001C7
-P 13000 21550
-F 0 "RFCB" H 13000 21390 50  0000 C CNN
-F 1 "100k" H 13000 21720 50  0000 C CNN
-F 2 "R0603" H 13000 21550 50  0001 C CNN
-F 3 "~" H 13000 21550 50  0001 C CNN
-F 4 "CLASS" H 13000 21550 50  0001 C CNN "LCSC"
-F 5 "R0603-100k" H 13000 21550 50  0001 C CNN "MPN"
-	1    13000 21550
+U 1 1 5E0001D9
+P 13000 21800
+F 0 "RFCB" H 13000 21640 50  0000 C CNN
+F 1 "100k" H 13000 21970 50  0000 C CNN
+F 2 "R0603" H 13000 21800 50  0001 C CNN
+F 3 "~" H 13000 21800 50  0001 C CNN
+F 4 "CLASS" H 13000 21800 50  0001 C CNN "LCSC"
+F 5 "R0603-100k" H 13000 21800 50  0001 C CNN "MPN"
+	1    13000 21800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 21550 12550 21550
-Text Label 12550 21550 2    45   ~ 0
+	12750 21800 12550 21800
+Text Label 12550 21800 2    45   ~ 0
 FLT_CMB_B
 Wire Wire Line
-	13250 21550 13450 21550
-Text Label 13450 21550 0    45   ~ 0
+	13250 21800 13450 21800
+Text Label 13450 21800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RFLTC
-U 1 1 5E0001C8
-P 9200 19500
-F 0 "RFLTC" H 9200 19340 50  0000 C CNN
-F 1 "10k" H 9200 19670 50  0000 C CNN
-F 2 "R0603" H 9200 19500 50  0001 C CNN
-F 3 "~" H 9200 19500 50  0001 C CNN
-F 4 "CLASS" H 9200 19500 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 9200 19500 50  0001 C CNN "MPN"
-	1    9200 19500
+U 1 1 5E0001DA
+P 9200 19750
+F 0 "RFLTC" H 9200 19590 50  0000 C CNN
+F 1 "10k" H 9200 19920 50  0000 C CNN
+F 2 "R0603" H 9200 19750 50  0001 C CNN
+F 3 "~" H 9200 19750 50  0001 C CNN
+F 4 "CLASS" H 9200 19750 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 9200 19750 50  0001 C CNN "MPN"
+	1    9200 19750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 19500 8750 19500
-Text Label 8750 19500 2    45   ~ 0
+	8950 19750 8750 19750
+Text Label 8750 19750 2    45   ~ 0
 V5GD
 Wire Wire Line
-	9450 19500 9650 19500
-Text Label 9650 19500 0    45   ~ 0
+	9450 19750 9650 19750
+Text Label 9650 19750 0    45   ~ 0
 FLT_CMB_N
 $Comp
 L traction-r1:R RFLTD
-U 1 1 5E0001C9
-P 11250 16650
-F 0 "RFLTD" H 11250 16490 50  0000 C CNN
-F 1 "10k" H 11250 16820 50  0000 C CNN
-F 2 "R0603" H 11250 16650 50  0001 C CNN
-F 3 "~" H 11250 16650 50  0001 C CNN
-F 4 "CLASS" H 11250 16650 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 11250 16650 50  0001 C CNN "MPN"
-	1    11250 16650
+U 1 1 5E0001DB
+P 11250 16900
+F 0 "RFLTD" H 11250 16740 50  0000 C CNN
+F 1 "10k" H 11250 17070 50  0000 C CNN
+F 2 "R0603" H 11250 16900 50  0001 C CNN
+F 3 "~" H 11250 16900 50  0001 C CNN
+F 4 "CLASS" H 11250 16900 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 11250 16900 50  0001 C CNN "MPN"
+	1    11250 16900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	11000 16650 10800 16650
-Text Label 10800 16650 2    45   ~ 0
+	11000 16900 10800 16900
+Text Label 10800 16900 2    45   ~ 0
 FLT_OK
 Wire Wire Line
-	11500 16650 11700 16650
-Text Label 11700 16650 0    45   ~ 0
+	11500 16900 11700 16900
+Text Label 11700 16900 0    45   ~ 0
 FLT_OKD
 $Comp
 L traction-r1:R RFLTP1
-U 1 1 5E0001CA
-P 7400 16650
-F 0 "RFLTP1" H 7400 16490 50  0000 C CNN
-F 1 "5.1k" H 7400 16820 50  0000 C CNN
-F 2 "R0603" H 7400 16650 50  0001 C CNN
-F 3 "~" H 7400 16650 50  0001 C CNN
-F 4 "CLASS" H 7400 16650 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 7400 16650 50  0001 C CNN "MPN"
-	1    7400 16650
+U 1 1 5E0001DC
+P 7400 16900
+F 0 "RFLTP1" H 7400 16740 50  0000 C CNN
+F 1 "5.1k" H 7400 17070 50  0000 C CNN
+F 2 "R0603" H 7400 16900 50  0001 C CNN
+F 3 "~" H 7400 16900 50  0001 C CNN
+F 4 "CLASS" H 7400 16900 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 7400 16900 50  0001 C CNN "MPN"
+	1    7400 16900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 16650 6950 16650
-Text Label 6950 16650 2    45   ~ 0
+	7150 16900 6950 16900
+Text Label 6950 16900 2    45   ~ 0
 V5GD
 Wire Wire Line
-	7650 16650 7850 16650
-Text Label 7850 16650 0    45   ~ 0
+	7650 16900 7850 16900
+Text Label 7850 16900 0    45   ~ 0
 FLT_HS_N
 $Comp
 L traction-r1:R RFLTP2
-U 1 1 5E0001CB
-P 7400 17050
-F 0 "RFLTP2" H 7400 16890 50  0000 C CNN
-F 1 "5.1k" H 7400 17220 50  0000 C CNN
-F 2 "R0603" H 7400 17050 50  0001 C CNN
-F 3 "~" H 7400 17050 50  0001 C CNN
-F 4 "CLASS" H 7400 17050 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 7400 17050 50  0001 C CNN "MPN"
-	1    7400 17050
+U 1 1 5E0001DD
+P 7400 17300
+F 0 "RFLTP2" H 7400 17140 50  0000 C CNN
+F 1 "5.1k" H 7400 17470 50  0000 C CNN
+F 2 "R0603" H 7400 17300 50  0001 C CNN
+F 3 "~" H 7400 17300 50  0001 C CNN
+F 4 "CLASS" H 7400 17300 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 7400 17300 50  0001 C CNN "MPN"
+	1    7400 17300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 17050 6950 17050
-Text Label 6950 17050 2    45   ~ 0
+	7150 17300 6950 17300
+Text Label 6950 17300 2    45   ~ 0
 V5GD
 Wire Wire Line
-	7650 17050 7850 17050
-Text Label 7850 17050 0    45   ~ 0
+	7650 17300 7850 17300
+Text Label 7850 17300 0    45   ~ 0
 FLT_LS_N
 $Comp
 L traction-r1:R RGPD
-U 1 1 5E0001CC
-P 3250 20750
-F 0 "RGPD" H 3250 20590 50  0000 C CNN
-F 1 "10k" H 3250 20920 50  0000 C CNN
-F 2 "R0603" H 3250 20750 50  0001 C CNN
-F 3 "~" H 3250 20750 50  0001 C CNN
-F 4 "CLASS" H 3250 20750 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 3250 20750 50  0001 C CNN "MPN"
-	1    3250 20750
+U 1 1 5E0001DE
+P 3250 21000
+F 0 "RGPD" H 3250 20840 50  0000 C CNN
+F 1 "10k" H 3250 21170 50  0000 C CNN
+F 2 "R0603" H 3250 21000 50  0001 C CNN
+F 3 "~" H 3250 21000 50  0001 C CNN
+F 4 "CLASS" H 3250 21000 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 3250 21000 50  0001 C CNN "MPN"
+	1    3250 21000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3000 20750 2800 20750
-Text Label 2800 20750 2    45   ~ 0
+	3000 21000 2800 21000
+Text Label 2800 21000 2    45   ~ 0
 DRV_EN
 Wire Wire Line
-	3500 20750 3700 20750
-Text Label 3700 20750 0    45   ~ 0
+	3500 21000 3700 21000
+Text Label 3700 21000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RLAT2
-U 1 1 5E0001CD
-P 9200 19900
-F 0 "RLAT2" H 9200 19740 50  0000 C CNN
-F 1 "10k" H 9200 20070 50  0000 C CNN
-F 2 "R0603" H 9200 19900 50  0001 C CNN
-F 3 "~" H 9200 19900 50  0001 C CNN
-F 4 "CLASS" H 9200 19900 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 9200 19900 50  0001 C CNN "MPN"
-	1    9200 19900
+U 1 1 5E0001DF
+P 9200 20150
+F 0 "RLAT2" H 9200 19990 50  0000 C CNN
+F 1 "10k" H 9200 20320 50  0000 C CNN
+F 2 "R0603" H 9200 20150 50  0001 C CNN
+F 3 "~" H 9200 20150 50  0001 C CNN
+F 4 "CLASS" H 9200 20150 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 9200 20150 50  0001 C CNN "MPN"
+	1    9200 20150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	8950 19900 8750 19900
-Text Label 8750 19900 2    45   ~ 0
+	8950 20150 8750 20150
+Text Label 8750 20150 2    45   ~ 0
 V5A
 Wire Wire Line
-	9450 19900 9650 19900
-Text Label 9650 19900 0    45   ~ 0
+	9450 20150 9650 20150
+Text Label 9650 20150 0    45   ~ 0
 FLT_CLR_N
 $Comp
 L traction-r1:R RQDM
-U 1 1 5E0001CE
-P 13000 21950
-F 0 "RQDM" H 13000 21790 50  0000 C CNN
-F 1 "10k" H 13000 22120 50  0000 C CNN
-F 2 "R0603" H 13000 21950 50  0001 C CNN
-F 3 "~" H 13000 21950 50  0001 C CNN
-F 4 "CLASS" H 13000 21950 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 13000 21950 50  0001 C CNN "MPN"
-	1    13000 21950
+U 1 1 5E0001E0
+P 13000 22200
+F 0 "RQDM" H 13000 22040 50  0000 C CNN
+F 1 "10k" H 13000 22370 50  0000 C CNN
+F 2 "R0603" H 13000 22200 50  0001 C CNN
+F 3 "~" H 13000 22200 50  0001 C CNN
+F 4 "CLASS" H 13000 22200 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 13000 22200 50  0001 C CNN "MPN"
+	1    13000 22200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 21950 12550 21950
-Text Label 12550 21950 2    45   ~ 0
+	12750 22200 12550 22200
+Text Label 12550 22200 2    45   ~ 0
 QDIS_M
 Wire Wire Line
-	13250 21950 13450 21950
-Text Label 13450 21950 0    45   ~ 0
+	13250 22200 13450 22200
+Text Label 13450 22200 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RRDB
-U 1 1 5E0001CF
-P 5300 18900
-F 0 "RRDB" H 5300 18740 50  0000 C CNN
-F 1 "100k" H 5300 19070 50  0000 C CNN
-F 2 "R0603" H 5300 18900 50  0001 C CNN
-F 3 "~" H 5300 18900 50  0001 C CNN
-F 4 "CLASS" H 5300 18900 50  0001 C CNN "LCSC"
-F 5 "R0603-100k" H 5300 18900 50  0001 C CNN "MPN"
-	1    5300 18900
+U 1 1 5E0001E1
+P 5300 19150
+F 0 "RRDB" H 5300 18990 50  0000 C CNN
+F 1 "100k" H 5300 19320 50  0000 C CNN
+F 2 "R0603" H 5300 19150 50  0001 C CNN
+F 3 "~" H 5300 19150 50  0001 C CNN
+F 4 "CLASS" H 5300 19150 50  0001 C CNN "LCSC"
+F 5 "R0603-100k" H 5300 19150 50  0001 C CNN "MPN"
+	1    5300 19150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5050 18900 4850 18900
-Text Label 4850 18900 2    45   ~ 0
+	5050 19150 4850 19150
+Text Label 4850 19150 2    45   ~ 0
 RDY_HS_B
 Wire Wire Line
-	5550 18900 5750 18900
-Text Label 5750 18900 0    45   ~ 0
+	5550 19150 5750 19150
+Text Label 5750 19150 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RRDYP1
-U 1 1 5E0001D0
-P 7400 17450
-F 0 "RRDYP1" H 7400 17290 50  0000 C CNN
-F 1 "5.1k" H 7400 17620 50  0000 C CNN
-F 2 "R0603" H 7400 17450 50  0001 C CNN
-F 3 "~" H 7400 17450 50  0001 C CNN
-F 4 "CLASS" H 7400 17450 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 7400 17450 50  0001 C CNN "MPN"
-	1    7400 17450
+U 1 1 5E0001E2
+P 7400 17700
+F 0 "RRDYP1" H 7400 17540 50  0000 C CNN
+F 1 "5.1k" H 7400 17870 50  0000 C CNN
+F 2 "R0603" H 7400 17700 50  0001 C CNN
+F 3 "~" H 7400 17700 50  0001 C CNN
+F 4 "CLASS" H 7400 17700 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 7400 17700 50  0001 C CNN "MPN"
+	1    7400 17700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 17450 6950 17450
-Text Label 6950 17450 2    45   ~ 0
+	7150 17700 6950 17700
+Text Label 6950 17700 2    45   ~ 0
 V5GD
 Wire Wire Line
-	7650 17450 7850 17450
-Text Label 7850 17450 0    45   ~ 0
+	7650 17700 7850 17700
+Text Label 7850 17700 0    45   ~ 0
 RDY_HS
 $Comp
 L traction-r1:R RRDYP2
-U 1 1 5E0001D1
-P 7400 17850
-F 0 "RRDYP2" H 7400 17690 50  0000 C CNN
-F 1 "5.1k" H 7400 18020 50  0000 C CNN
-F 2 "R0603" H 7400 17850 50  0001 C CNN
-F 3 "~" H 7400 17850 50  0001 C CNN
-F 4 "CLASS" H 7400 17850 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1" H 7400 17850 50  0001 C CNN "MPN"
-	1    7400 17850
+U 1 1 5E0001E3
+P 7400 18100
+F 0 "RRDYP2" H 7400 17940 50  0000 C CNN
+F 1 "5.1k" H 7400 18270 50  0000 C CNN
+F 2 "R0603" H 7400 18100 50  0001 C CNN
+F 3 "~" H 7400 18100 50  0001 C CNN
+F 4 "CLASS" H 7400 18100 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1" H 7400 18100 50  0001 C CNN "MPN"
+	1    7400 18100
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 17850 6950 17850
-Text Label 6950 17850 2    45   ~ 0
+	7150 18100 6950 18100
+Text Label 6950 18100 2    45   ~ 0
 V5GD
 Wire Wire Line
-	7650 17850 7850 17850
-Text Label 7850 17850 0    45   ~ 0
+	7650 18100 7850 18100
+Text Label 7850 18100 0    45   ~ 0
 RDY_LS
 $Comp
 L traction-r1:R RSCH
-U 1 1 5E0001D2
-P 13000 22350
-F 0 "RSCH" H 13000 22190 50  0000 C CNN
-F 1 "100k" H 13000 22520 50  0000 C CNN
-F 2 "R0603" H 13000 22350 50  0001 C CNN
-F 3 "~" H 13000 22350 50  0001 C CNN
-F 4 "CLASS" H 13000 22350 50  0001 C CNN "LCSC"
-F 5 "R0603-100k" H 13000 22350 50  0001 C CNN "MPN"
-	1    13000 22350
+U 1 1 5E0001E4
+P 13000 22600
+F 0 "RSCH" H 13000 22440 50  0000 C CNN
+F 1 "100k" H 13000 22770 50  0000 C CNN
+F 2 "R0603" H 13000 22600 50  0001 C CNN
+F 3 "~" H 13000 22600 50  0001 C CNN
+F 4 "CLASS" H 13000 22600 50  0001 C CNN "LCSC"
+F 5 "R0603-100k" H 13000 22600 50  0001 C CNN "MPN"
+	1    13000 22600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12750 22350 12550 22350
-Text Label 12550 22350 2    45   ~ 0
+	12750 22600 12550 22600
+Text Label 12550 22600 2    45   ~ 0
 FS0B_B
 Wire Wire Line
-	13250 22350 13450 22350
-Text Label 13450 22350 0    45   ~ 0
+	13250 22600 13450 22600
+Text Label 13450 22600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RV5GP
-U 1 1 5E0001D3
-P 7400 18250
-F 0 "RV5GP" H 7400 18090 50  0000 C CNN
-F 1 "47k" H 7400 18420 50  0000 C CNN
-F 2 "R0603" H 7400 18250 50  0001 C CNN
-F 3 "~" H 7400 18250 50  0001 C CNN
-F 4 "CLASS" H 7400 18250 50  0001 C CNN "LCSC"
-F 5 "R0603-47k" H 7400 18250 50  0001 C CNN "MPN"
-	1    7400 18250
+U 1 1 5E0001E5
+P 7400 18500
+F 0 "RV5GP" H 7400 18340 50  0000 C CNN
+F 1 "47k" H 7400 18670 50  0000 C CNN
+F 2 "R0603" H 7400 18500 50  0001 C CNN
+F 3 "~" H 7400 18500 50  0001 C CNN
+F 4 "CLASS" H 7400 18500 50  0001 C CNN "LCSC"
+F 5 "R0603-47k" H 7400 18500 50  0001 C CNN "MPN"
+	1    7400 18500
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 18250 6950 18250
-Text Label 6950 18250 2    45   ~ 0
+	7150 18500 6950 18500
+Text Label 6950 18500 2    45   ~ 0
 V5GD
 Wire Wire Line
-	7650 18250 7850 18250
-Text Label 7850 18250 0    45   ~ 0
+	7650 18500 7850 18500
+Text Label 7850 18500 0    45   ~ 0
 V5GD_SNS
 $Comp
 L traction-r1:R RV5GS
-U 1 1 5E0001D4
-P 7400 18650
-F 0 "RV5GS" H 7400 18490 50  0000 C CNN
-F 1 "47k" H 7400 18820 50  0000 C CNN
-F 2 "R0603" H 7400 18650 50  0001 C CNN
-F 3 "~" H 7400 18650 50  0001 C CNN
-F 4 "CLASS" H 7400 18650 50  0001 C CNN "LCSC"
-F 5 "R0603-47k" H 7400 18650 50  0001 C CNN "MPN"
-	1    7400 18650
+U 1 1 5E0001E6
+P 7400 18900
+F 0 "RV5GS" H 7400 18740 50  0000 C CNN
+F 1 "47k" H 7400 19070 50  0000 C CNN
+F 2 "R0603" H 7400 18900 50  0001 C CNN
+F 3 "~" H 7400 18900 50  0001 C CNN
+F 4 "CLASS" H 7400 18900 50  0001 C CNN "LCSC"
+F 5 "R0603-47k" H 7400 18900 50  0001 C CNN "MPN"
+	1    7400 18900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	7150 18650 6950 18650
-Text Label 6950 18650 2    45   ~ 0
+	7150 18900 6950 18900
+Text Label 6950 18900 2    45   ~ 0
 V5GD_SNS
 Wire Wire Line
-	7650 18650 7850 18650
-Text Label 7850 18650 0    45   ~ 0
+	7650 18900 7850 18900
+Text Label 7850 18900 0    45   ~ 0
 DGND
 Wire Notes Line
 	16500 500 24100 500
@@ -2956,7 +3148,7 @@ Text Notes 16560 660 0    79   ~ 16
 SAFETY / ASC-LATCH
 $Comp
 L traction-r1:74LVC1G08GW-Q100 UASCG
-U 1 1 5E0001D5
+U 1 1 5E0001E7
 P 22250 1800
 F 0 "UASCG" H 21850 1500 50  0000 R CNN
 F 1 "74LVC1G08GW-Q100" H 21850 2130 50  0000 R CNN
@@ -2989,7 +3181,7 @@ Text Label 22050 2350 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC1G74DC-Q100 ULAT
-U 1 1 5E0001D6
+U 1 1 5E0001E8
 P 18400 1950
 F 0 "ULAT" H 18000 1500 50  0000 R CNN
 F 1 "74LVC1G74DC-Q100" H 18000 2430 50  0000 R CNN
@@ -3031,7 +3223,7 @@ Text Label 18200 2650 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CASCG
-U 1 1 5E0001D7
+U 1 1 5E0001E9
 P 22050 2900
 F 0 "CASCG" H 22050 2740 50  0000 C CNN
 F 1 "100nF" H 22050 3070 50  0000 C CNN
@@ -3052,7 +3244,7 @@ Text Label 22500 2900 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CLAT
-U 1 1 5E0001D8
+U 1 1 5E0001EA
 P 18200 3600
 F 0 "CLAT" H 18200 3440 50  0000 C CNN
 F 1 "100nF" H 18200 3770 50  0000 C CNN
@@ -3073,7 +3265,7 @@ Text Label 18650 3600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:D DFO
-U 1 1 5E0001D9
+U 1 1 5E0001EB
 P 22050 3300
 F 0 "DFO" H 22050 3140 50  0000 C CNN
 F 1 "BAT46ZFILM" H 22050 3470 50  0000 C CNN
@@ -3094,7 +3286,7 @@ Text Label 22500 3300 0    45   ~ 0
 FOUT_K
 $Comp
 L traction-r1:R RARB
-U 1 1 5E0001DA
+U 1 1 5E0001EC
 P 22050 3700
 F 0 "RARB" H 22050 3540 50  0000 C CNN
 F 1 "10k" H 22050 3870 50  0000 C CNN
@@ -3115,7 +3307,7 @@ Text Label 22500 3700 0    45   ~ 0
 ASC_CMD_RB
 $Comp
 L traction-r1:R RASCP
-U 1 1 5E0001DB
+U 1 1 5E0001ED
 P 18200 4000
 F 0 "RASCP" H 18200 3840 50  0000 C CNN
 F 1 "10k" H 18200 4170 50  0000 C CNN
@@ -3136,7 +3328,7 @@ Text Label 18650 4000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RFS1
-U 1 1 5E0001DC
+U 1 1 5E0001EE
 P 20250 1150
 F 0 "RFS1" H 20250 990 50  0000 C CNN
 F 1 "1k" H 20250 1320 50  0000 C CNN
@@ -3157,7 +3349,7 @@ Text Label 20700 1150 0    45   ~ 0
 ASC_SET_N
 $Comp
 L traction-r1:R RFS2
-U 1 1 5E0001DD
+U 1 1 5E0001EF
 P 20250 1550
 F 0 "RFS2" H 20250 1390 50  0000 C CNN
 F 1 "10k" H 20250 1720 50  0000 C CNN
@@ -3178,7 +3370,7 @@ Text Label 20700 1550 0    45   ~ 0
 ASC_SET_N
 $Comp
 L traction-r1:R RFS3
-U 1 1 5E0001DE
+U 1 1 5E0001F0
 P 20250 1950
 F 0 "RFS3" H 20250 1790 50  0000 C CNN
 F 1 "1k" H 20250 2120 50  0000 C CNN
@@ -3199,7 +3391,7 @@ Text Label 20700 1950 0    45   ~ 0
 ASC_CLR_N
 $Comp
 L traction-r1:R RFS4
-U 1 1 5E0001DF
+U 1 1 5E0001F1
 P 20250 2350
 F 0 "RFS4" H 20250 2190 50  0000 C CNN
 F 1 "1k" H 20250 2520 50  0000 C CNN
@@ -3220,7 +3412,7 @@ Text Label 20700 2350 0    45   ~ 0
 FOUT_K
 $Comp
 L traction-r1:R RLAT1
-U 1 1 5E0001E0
+U 1 1 5E0001F2
 P 18200 3200
 F 0 "RLAT1" H 18200 3040 50  0000 C CNN
 F 1 "10k" H 18200 3370 50  0000 C CNN
@@ -3241,7 +3433,7 @@ Text Label 18650 3200 0    45   ~ 0
 ASC_CLR_N
 $Comp
 L traction-r1:D ZSET
-U 1 1 5E0001E1
+U 1 1 5E0001F3
 P 22050 4100
 F 0 "ZSET" H 22050 3940 50  0000 C CNN
 F 1 "BZT52-B5V6" H 22050 4270 50  0000 C CNN
@@ -3272,7 +3464,7 @@ Text Notes 16560 5160 0    79   ~ 16
 SAFETY / FLYBK-EN
 $Comp
 L traction-r1:74LVC1G32GW-Q100 UOR1
-U 1 1 5E0001E2
+U 1 1 5E0001F4
 P 18350 6300
 F 0 "UOR1" H 17950 6000 50  0000 R CNN
 F 1 "74LVC1G32GW-Q100" H 17950 6630 50  0000 R CNN
@@ -3305,7 +3497,7 @@ Text Label 18150 6850 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:74LVC1G32GW-Q100 UOR2
-U 1 1 5E0001E3
+U 1 1 5E0001F5
 P 18350 8050
 F 0 "UOR2" H 17950 7750 50  0000 R CNN
 F 1 "74LVC1G32GW-Q100" H 17950 8380 50  0000 R CNN
@@ -3338,7 +3530,7 @@ Text Label 18150 8600 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C COR1
-U 1 1 5E0001E4
+U 1 1 5E0001F6
 P 18150 9150
 F 0 "COR1" H 18150 8990 50  0000 C CNN
 F 1 "100nF" H 18150 9320 50  0000 C CNN
@@ -3359,7 +3551,7 @@ Text Label 18600 9150 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C COR2
-U 1 1 5E0001E5
+U 1 1 5E0001F7
 P 18150 9550
 F 0 "COR2" H 18150 9390 50  0000 C CNN
 F 1 "100nF" H 18150 9720 50  0000 C CNN
@@ -3390,7 +3582,7 @@ Text Notes 16560 10660 0    79   ~ 16
 SAFETY / INTERLOCK
 $Comp
 L traction-r1:C CILK
-U 1 1 5E0001E6
+U 1 1 5E0001F8
 P 18300 12750
 F 0 "CILK" H 18300 12590 50  0000 C CNN
 F 1 "2.2nF" H 18300 12920 50  0000 C CNN
@@ -3411,7 +3603,7 @@ Text Label 18750 12750 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RILK1
-U 1 1 5E0001E7
+U 1 1 5E0001F9
 P 18300 11150
 F 0 "RILK1" H 18300 10990 50  0000 C CNN
 F 1 "10k" H 18300 11320 50  0000 C CNN
@@ -3432,7 +3624,7 @@ Text Label 18750 11150 0    45   ~ 0
 HVIL_A
 $Comp
 L traction-r1:R RILK2
-U 1 1 5E0001E8
+U 1 1 5E0001FA
 P 18300 11550
 F 0 "RILK2" H 18300 11390 50  0000 C CNN
 F 1 "10k" H 18300 11720 50  0000 C CNN
@@ -3453,7 +3645,7 @@ Text Label 18750 11550 0    45   ~ 0
 INTRLOK_N
 $Comp
 L traction-r1:R RILK3
-U 1 1 5E0001E9
+U 1 1 5E0001FB
 P 18300 11950
 F 0 "RILK3" H 18300 11790 50  0000 C CNN
 F 1 "10k" H 18300 12120 50  0000 C CNN
@@ -3474,7 +3666,7 @@ Text Label 18750 11950 0    45   ~ 0
 INTRLOK_N
 $Comp
 L traction-r1:R RILK4
-U 1 1 5E0001EA
+U 1 1 5E0001FC
 P 18300 12350
 F 0 "RILK4" H 18300 12190 50  0000 C CNN
 F 1 "10k" H 18300 12520 50  0000 C CNN
@@ -3505,7 +3697,7 @@ Text Notes 16560 13910 0    79   ~ 16
 RESOLVER / VMID
 $Comp
 L traction-r1:OPA348AQDBVRQ1 UVMB1
-U 1 1 5E0001EB
+U 1 1 5E0001FD
 P 19250 16250
 F 0 "UVMB1" H 18850 15950 50  0000 R CNN
 F 1 "OPA348AQDBVRQ1" H 18850 16580 50  0000 R CNN
@@ -3538,7 +3730,7 @@ Text Label 19050 16800 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:OPA348AQDBVRQ1 UVMB2
-U 1 1 5E0001EC
+U 1 1 5E0001FE
 P 21350 16250
 F 0 "UVMB2" H 20950 15950 50  0000 R CNN
 F 1 "OPA348AQDBVRQ1" H 20950 16580 50  0000 R CNN
@@ -3571,7 +3763,7 @@ Text Label 21150 16800 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CVM1
-U 1 1 5E0001ED
+U 1 1 5E0001FF
 P 19050 15200
 F 0 "CVM1" H 19050 15040 50  0000 C CNN
 F 1 "220nF" H 19050 15370 50  0000 C CNN
@@ -3592,7 +3784,7 @@ Text Label 19500 15200 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CVM2
-U 1 1 5E0001EE
+U 1 1 5E000200
 P 21150 15200
 F 0 "CVM2" H 21150 15040 50  0000 C CNN
 F 1 "220nF" H 21150 15370 50  0000 C CNN
@@ -3613,7 +3805,7 @@ Text Label 21600 15200 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RVM1
-U 1 1 5E0001EF
+U 1 1 5E000201
 P 19050 14400
 F 0 "RVM1" H 19050 14240 50  0000 C CNN
 F 1 "24k" H 19050 14570 50  0000 C CNN
@@ -3634,7 +3826,7 @@ Text Label 19500 14400 0    45   ~ 0
 VMDIV1
 $Comp
 L traction-r1:R RVM2
-U 1 1 5E0001F0
+U 1 1 5E000202
 P 19050 14800
 F 0 "RVM2" H 19050 14640 50  0000 C CNN
 F 1 "24k" H 19050 14970 50  0000 C CNN
@@ -3655,7 +3847,7 @@ Text Label 19500 14800 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RVM3
-U 1 1 5E0001F1
+U 1 1 5E000203
 P 21150 14400
 F 0 "RVM3" H 21150 14240 50  0000 C CNN
 F 1 "24k" H 21150 14570 50  0000 C CNN
@@ -3676,7 +3868,7 @@ Text Label 21600 14400 0    45   ~ 0
 VMDIV2
 $Comp
 L traction-r1:R RVM4
-U 1 1 5E0001F2
+U 1 1 5E000204
 P 21150 14800
 F 0 "RVM4" H 21150 14640 50  0000 C CNN
 F 1 "24k" H 21150 14970 50  0000 C CNN
@@ -3707,7 +3899,7 @@ Text Notes 24560 660 0    79   ~ 16
 RESOLVER / EXCITER
 $Comp
 L traction-r1:ALM2402QPWPRQ1 UEXD
-U 1 1 5E0001F3
+U 1 1 5E000205
 P 29600 2050
 F 0 "UEXD" H 29200 1500 50  0000 R CNN
 F 1 "ALM2402QPWPRQ1" H 29200 2630 50  0000 R CNN
@@ -3768,7 +3960,7 @@ Text Label 29500 2850 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:OPA348AQDBVRQ1 UEXF
-U 1 1 5E0001F4
+U 1 1 5E000206
 P 27450 5000
 F 0 "UEXF" H 27050 4700 50  0000 R CNN
 F 1 "OPA348AQDBVRQ1" H 27050 5330 50  0000 R CNN
@@ -3801,7 +3993,7 @@ Text Label 27250 5550 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:NCV4276CDTADJRKG ULDOEX
-U 1 1 5E0001F5
+U 1 1 5E000207
 P 31600 1350
 F 0 "ULDOEX" H 31200 1000 50  0000 R CNN
 F 1 "NCV4276CDTADJRKG" H 31200 1730 50  0000 R CNN
@@ -3834,7 +4026,7 @@ Text Label 31400 1950 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CEXA1
-U 1 1 5E0001F6
+U 1 1 5E000208
 P 27250 3550
 F 0 "CEXA1" H 27250 3390 50  0000 C CNN
 F 1 "220pF" H 27250 3720 50  0000 C CNN
@@ -3855,7 +4047,7 @@ Text Label 27700 3550 0    45   ~ 0
 NEX4
 $Comp
 L traction-r1:C CEXA2
-U 1 1 5E0001F7
+U 1 1 5E000209
 P 27250 2750
 F 0 "CEXA2" H 27250 2590 50  0000 C CNN
 F 1 "1.5nF" H 27250 2920 50  0000 C CNN
@@ -3876,7 +4068,7 @@ Text Label 27700 2750 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CEXA3
-U 1 1 5E0001F8
+U 1 1 5E00020A
 P 27250 1950
 F 0 "CEXA3" H 27250 1790 50  0000 C CNN
 F 1 "100nF" H 27250 2120 50  0000 C CNN
@@ -3897,7 +4089,7 @@ Text Label 27700 1950 0    45   ~ 0
 NEX2
 $Comp
 L traction-r1:C CEXA4
-U 1 1 5E0001F9
+U 1 1 5E00020B
 P 27250 1150
 F 0 "CEXA4" H 27250 990 50  0000 C CNN
 F 1 "47pF" H 27250 1320 50  0000 C CNN
@@ -3918,7 +4110,7 @@ Text Label 27700 1150 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CEXD
-U 1 1 5E0001FA
+U 1 1 5E00020C
 P 29400 5000
 F 0 "CEXD" H 29400 4840 50  0000 C CNN
 F 1 "4.7uF" H 29400 5170 50  0000 C CNN
@@ -3939,7 +4131,7 @@ Text Label 29850 5000 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CLDE
-U 1 1 5E0001FB
+U 1 1 5E00020D
 P 31400 3700
 F 0 "CLDE" H 31400 3540 50  0000 C CNN
 F 1 "22uF" H 31400 3870 50  0000 C CNN
@@ -3960,7 +4152,7 @@ Text Label 31850 3700 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CLDEC
-U 1 1 5E0001FC
+U 1 1 5E00020E
 P 31400 3300
 F 0 "CLDEC" H 31400 3140 50  0000 C CNN
 F 1 "270pF" H 31400 3470 50  0000 C CNN
@@ -3981,7 +4173,7 @@ Text Label 31850 3300 0    45   ~ 0
 VEXVA
 $Comp
 L traction-r1:R REXA1
-U 1 1 5E0001FD
+U 1 1 5E00020F
 P 27250 1550
 F 0 "REXA1" H 27250 1390 50  0000 C CNN
 F 1 "3k" H 27250 1720 50  0000 C CNN
@@ -4002,7 +4194,7 @@ Text Label 27700 1550 0    45   ~ 0
 NEX1
 $Comp
 L traction-r1:R REXA2
-U 1 1 5E0001FE
+U 1 1 5E000210
 P 27250 2350
 F 0 "REXA2" H 27250 2190 50  0000 C CNN
 F 1 "10k" H 27250 2520 50  0000 C CNN
@@ -4023,7 +4215,7 @@ Text Label 27700 2350 0    45   ~ 0
 NEX3
 $Comp
 L traction-r1:R REXA3
-U 1 1 5E0001FF
+U 1 1 5E000211
 P 27250 3150
 F 0 "REXA3" H 27250 2990 50  0000 C CNN
 F 1 "10k" H 27250 3320 50  0000 C CNN
@@ -4044,7 +4236,7 @@ Text Label 27700 3150 0    45   ~ 0
 NEX4
 $Comp
 L traction-r1:R REXA4
-U 1 1 5E000200
+U 1 1 5E000212
 P 27250 3950
 F 0 "REXA4" H 27250 3790 50  0000 C CNN
 F 1 "24k" H 27250 4120 50  0000 C CNN
@@ -4065,7 +4257,7 @@ Text Label 27700 3950 0    45   ~ 0
 NEX3
 $Comp
 L traction-r1:R REXB1
-U 1 1 5E000201
+U 1 1 5E000213
 P 29400 3400
 F 0 "REXB1" H 29400 3240 50  0000 C CNN
 F 1 "24k" H 29400 3570 50  0000 C CNN
@@ -4086,7 +4278,7 @@ Text Label 29850 3400 0    45   ~ 0
 EXN1
 $Comp
 L traction-r1:R REXB2
-U 1 1 5E000202
+U 1 1 5E000214
 P 29400 3800
 F 0 "REXB2" H 29400 3640 50  0000 C CNN
 F 1 "24k" H 29400 3970 50  0000 C CNN
@@ -4107,7 +4299,7 @@ Text Label 29850 3800 0    45   ~ 0
 EXN1
 $Comp
 L traction-r1:R REXB3
-U 1 1 5E000203
+U 1 1 5E000215
 P 29400 4200
 F 0 "REXB3" H 29400 4040 50  0000 C CNN
 F 1 "24k" H 29400 4370 50  0000 C CNN
@@ -4128,7 +4320,7 @@ Text Label 29850 4200 0    45   ~ 0
 EXN2
 $Comp
 L traction-r1:R REXB4
-U 1 1 5E000204
+U 1 1 5E000216
 P 29400 4600
 F 0 "REXB4" H 29400 4440 50  0000 C CNN
 F 1 "24k" H 29400 4770 50  0000 C CNN
@@ -4149,7 +4341,7 @@ Text Label 29850 4600 0    45   ~ 0
 EXN2
 $Comp
 L traction-r1:R REXM1
-U 1 1 5E000205
+U 1 1 5E000217
 P 33400 1150
 F 0 "REXM1" H 33400 990 50  0000 C CNN
 F 1 "5.1k" H 33400 1320 50  0000 C CNN
@@ -4170,7 +4362,7 @@ Text Label 33850 1150 0    45   ~ 0
 VREXM_P
 $Comp
 L traction-r1:R REXM2
-U 1 1 5E000206
+U 1 1 5E000218
 P 33400 1550
 F 0 "REXM2" H 33400 1390 50  0000 C CNN
 F 1 "12k" H 33400 1720 50  0000 C CNN
@@ -4191,7 +4383,7 @@ Text Label 33850 1550 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R REXM3
-U 1 1 5E000207
+U 1 1 5E000219
 P 33400 1950
 F 0 "REXM3" H 33400 1790 50  0000 C CNN
 F 1 "5.1k" H 33400 2120 50  0000 C CNN
@@ -4212,7 +4404,7 @@ Text Label 33850 1950 0    45   ~ 0
 VREXM_N
 $Comp
 L traction-r1:R REXM4
-U 1 1 5E000208
+U 1 1 5E00021A
 P 33400 2350
 F 0 "REXM4" H 33400 2190 50  0000 C CNN
 F 1 "24k" H 33400 2520 50  0000 C CNN
@@ -4233,7 +4425,7 @@ Text Label 33850 2350 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RLDE1
-U 1 1 5E000209
+U 1 1 5E00021B
 P 31400 2500
 F 0 "RLDE1" H 31400 2340 50  0000 C CNN
 F 1 "38.3k" H 31400 2670 50  0000 C CNN
@@ -4254,7 +4446,7 @@ Text Label 31850 2500 0    45   ~ 0
 VEXVA
 $Comp
 L traction-r1:R RLDE2
-U 1 1 5E00020A
+U 1 1 5E00021C
 P 31400 2900
 F 0 "RLDE2" H 31400 2740 50  0000 C CNN
 F 1 "10k" H 31400 3070 50  0000 C CNN
@@ -4275,7 +4467,7 @@ Text Label 31850 2900 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RSDN
-U 1 1 5E00020B
+U 1 1 5E00021D
 P 29400 5400
 F 0 "RSDN" H 29400 5240 50  0000 C CNN
 F 1 "10k" H 29400 5570 50  0000 C CNN
@@ -4306,7 +4498,7 @@ Text Notes 24560 6910 0    79   ~ 16
 RESOLVER / SIN
 $Comp
 L traction-r1:PESD2IVN24-T DSINP
-U 1 1 5E00020C
+U 1 1 5E00021E
 P 25600 9200
 F 0 "DSINP" H 25200 8850 50  0000 R CNN
 F 1 "PESD2IVN24-T" H 25200 9580 50  0000 R CNN
@@ -4331,7 +4523,7 @@ Text Label 24950 9250 2    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CSINA1
-U 1 1 5E00020D
+U 1 1 5E00021F
 P 27250 8200
 F 0 "CSINA1" H 27250 8040 50  0000 C CNN
 F 1 "22pF" H 27250 8370 50  0000 C CNN
@@ -4352,10 +4544,10 @@ Text Label 27700 8200 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CSINA2
-U 1 1 5E00020E
+U 1 1 5E000220
 P 27250 9000
 F 0 "CSINA2" H 27250 8840 50  0000 C CNN
-F 1 "100pF" H 27250 9170 50  0000 C CNN
+F 1 "220pF" H 27250 9170 50  0000 C CNN
 F 2 "C0603" H 27250 9000 50  0001 C CNN
 F 3 "~" H 27250 9000 50  0001 C CNN
 F 4 "CLASS" H 27250 9000 50  0001 C CNN "LCSC"
@@ -4373,7 +4565,7 @@ Text Label 27700 9000 0    45   ~ 0
 SIN_N
 $Comp
 L traction-r1:C CSINA3
-U 1 1 5E00020F
+U 1 1 5E000221
 P 27250 8600
 F 0 "CSINA3" H 27250 8440 50  0000 C CNN
 F 1 "22pF" H 27250 8770 50  0000 C CNN
@@ -4394,7 +4586,7 @@ Text Label 27700 8600 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CSIND
-U 1 1 5E000210
+U 1 1 5E000222
 P 25400 9850
 F 0 "CSIND" H 25400 9690 50  0000 C CNN
 F 1 "47pF" H 25400 10020 50  0000 C CNN
@@ -4415,7 +4607,7 @@ Text Label 25850 9850 0    45   ~ 0
 SINF_N
 $Comp
 L traction-r1:C CSINF1
-U 1 1 5E000211
+U 1 1 5E000223
 P 25400 10250
 F 0 "CSINF1" H 25400 10090 50  0000 C CNN
 F 1 "22pF" H 25400 10420 50  0000 C CNN
@@ -4436,7 +4628,7 @@ Text Label 25850 10250 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:C CSINF2
-U 1 1 5E000212
+U 1 1 5E000224
 P 25400 10650
 F 0 "CSINF2" H 25400 10490 50  0000 C CNN
 F 1 "22pF" H 25400 10820 50  0000 C CNN
@@ -4457,10 +4649,10 @@ Text Label 25850 10650 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RSIN1
-U 1 1 5E000213
+U 1 1 5E000225
 P 25400 7400
 F 0 "RSIN1" H 25400 7240 50  0000 C CNN
-F 1 "10k" H 25400 7570 50  0000 C CNN
+F 1 "12k" H 25400 7570 50  0000 C CNN
 F 2 "R0603" H 25400 7400 50  0001 C CNN
 F 3 "~" H 25400 7400 50  0001 C CNN
 F 4 "CLASS" H 25400 7400 50  0001 C CNN "LCSC"
@@ -4478,10 +4670,10 @@ Text Label 25850 7400 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RSIN2
-U 1 1 5E000214
+U 1 1 5E000226
 P 25400 7800
 F 0 "RSIN2" H 25400 7640 50  0000 C CNN
-F 1 "10k" H 25400 7970 50  0000 C CNN
+F 1 "12k" H 25400 7970 50  0000 C CNN
 F 2 "R0603" H 25400 7800 50  0001 C CNN
 F 3 "~" H 25400 7800 50  0001 C CNN
 F 4 "CLASS" H 25400 7800 50  0001 C CNN "LCSC"
@@ -4499,10 +4691,10 @@ Text Label 25850 7800 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RSINF1
-U 1 1 5E000215
+U 1 1 5E000227
 P 25400 8200
 F 0 "RSINF1" H 25400 8040 50  0000 C CNN
-F 1 "10k" H 25400 8370 50  0000 C CNN
+F 1 "12k" H 25400 8370 50  0000 C CNN
 F 2 "R0603" H 25400 8200 50  0001 C CNN
 F 3 "~" H 25400 8200 50  0001 C CNN
 F 4 "CLASS" H 25400 8200 50  0001 C CNN "LCSC"
@@ -4520,10 +4712,10 @@ Text Label 25850 8200 0    45   ~ 0
 SINF_P
 $Comp
 L traction-r1:R RSINF2
-U 1 1 5E000216
+U 1 1 5E000228
 P 25400 8600
 F 0 "RSINF2" H 25400 8440 50  0000 C CNN
-F 1 "10k" H 25400 8770 50  0000 C CNN
+F 1 "12k" H 25400 8770 50  0000 C CNN
 F 2 "R0603" H 25400 8600 50  0001 C CNN
 F 3 "~" H 25400 8600 50  0001 C CNN
 F 4 "CLASS" H 25400 8600 50  0001 C CNN "LCSC"
@@ -4541,7 +4733,7 @@ Text Label 25850 8600 0    45   ~ 0
 SINF_N
 $Comp
 L traction-r1:R RSINR1
-U 1 1 5E000217
+U 1 1 5E000229
 P 27250 7400
 F 0 "RSINR1" H 27250 7240 50  0000 C CNN
 F 1 "120R" H 27250 7570 50  0000 C CNN
@@ -4562,7 +4754,7 @@ Text Label 27700 7400 0    45   ~ 0
 SIN_P
 $Comp
 L traction-r1:R RSINR2
-U 1 1 5E000218
+U 1 1 5E00022A
 P 27250 7800
 F 0 "RSINR2" H 27250 7640 50  0000 C CNN
 F 1 "120R" H 27250 7970 50  0000 C CNN
@@ -4593,7 +4785,7 @@ Text Notes 24560 11910 0    79   ~ 16
 RESOLVER / COS
 $Comp
 L traction-r1:PESD2IVN24-T DCOSP
-U 1 1 5E000219
+U 1 1 5E00022B
 P 25600 14200
 F 0 "DCOSP" H 25200 13850 50  0000 R CNN
 F 1 "PESD2IVN24-T" H 25200 14580 50  0000 R CNN
@@ -4618,7 +4810,7 @@ Text Label 24950 14250 2    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CCOSA1
-U 1 1 5E00021A
+U 1 1 5E00022C
 P 27250 13200
 F 0 "CCOSA1" H 27250 13040 50  0000 C CNN
 F 1 "22pF" H 27250 13370 50  0000 C CNN
@@ -4639,10 +4831,10 @@ Text Label 27700 13200 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CCOSA2
-U 1 1 5E00021B
+U 1 1 5E00022D
 P 27250 14000
 F 0 "CCOSA2" H 27250 13840 50  0000 C CNN
-F 1 "100pF" H 27250 14170 50  0000 C CNN
+F 1 "220pF" H 27250 14170 50  0000 C CNN
 F 2 "C0603" H 27250 14000 50  0001 C CNN
 F 3 "~" H 27250 14000 50  0001 C CNN
 F 4 "CLASS" H 27250 14000 50  0001 C CNN "LCSC"
@@ -4660,7 +4852,7 @@ Text Label 27700 14000 0    45   ~ 0
 COS_N
 $Comp
 L traction-r1:C CCOSA3
-U 1 1 5E00021C
+U 1 1 5E00022E
 P 27250 13600
 F 0 "CCOSA3" H 27250 13440 50  0000 C CNN
 F 1 "22pF" H 27250 13770 50  0000 C CNN
@@ -4681,7 +4873,7 @@ Text Label 27700 13600 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CCOSD
-U 1 1 5E00021D
+U 1 1 5E00022F
 P 25400 14850
 F 0 "CCOSD" H 25400 14690 50  0000 C CNN
 F 1 "47pF" H 25400 15020 50  0000 C CNN
@@ -4702,7 +4894,7 @@ Text Label 25850 14850 0    45   ~ 0
 COSF_N
 $Comp
 L traction-r1:C CCOSF1
-U 1 1 5E00021E
+U 1 1 5E000230
 P 25400 15250
 F 0 "CCOSF1" H 25400 15090 50  0000 C CNN
 F 1 "22pF" H 25400 15420 50  0000 C CNN
@@ -4723,7 +4915,7 @@ Text Label 25850 15250 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:C CCOSF2
-U 1 1 5E00021F
+U 1 1 5E000231
 P 25400 15650
 F 0 "CCOSF2" H 25400 15490 50  0000 C CNN
 F 1 "22pF" H 25400 15820 50  0000 C CNN
@@ -4744,10 +4936,10 @@ Text Label 25850 15650 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RCOS1
-U 1 1 5E000220
+U 1 1 5E000232
 P 25400 12400
 F 0 "RCOS1" H 25400 12240 50  0000 C CNN
-F 1 "10k" H 25400 12570 50  0000 C CNN
+F 1 "12k" H 25400 12570 50  0000 C CNN
 F 2 "R0603" H 25400 12400 50  0001 C CNN
 F 3 "~" H 25400 12400 50  0001 C CNN
 F 4 "CLASS" H 25400 12400 50  0001 C CNN "LCSC"
@@ -4765,10 +4957,10 @@ Text Label 25850 12400 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RCOS2
-U 1 1 5E000221
+U 1 1 5E000233
 P 25400 12800
 F 0 "RCOS2" H 25400 12640 50  0000 C CNN
-F 1 "10k" H 25400 12970 50  0000 C CNN
+F 1 "12k" H 25400 12970 50  0000 C CNN
 F 2 "R0603" H 25400 12800 50  0001 C CNN
 F 3 "~" H 25400 12800 50  0001 C CNN
 F 4 "CLASS" H 25400 12800 50  0001 C CNN "LCSC"
@@ -4786,10 +4978,10 @@ Text Label 25850 12800 0    45   ~ 0
 VMID_RSV
 $Comp
 L traction-r1:R RCOSF1
-U 1 1 5E000222
+U 1 1 5E000234
 P 25400 13200
 F 0 "RCOSF1" H 25400 13040 50  0000 C CNN
-F 1 "10k" H 25400 13370 50  0000 C CNN
+F 1 "12k" H 25400 13370 50  0000 C CNN
 F 2 "R0603" H 25400 13200 50  0001 C CNN
 F 3 "~" H 25400 13200 50  0001 C CNN
 F 4 "CLASS" H 25400 13200 50  0001 C CNN "LCSC"
@@ -4807,10 +4999,10 @@ Text Label 25850 13200 0    45   ~ 0
 COSF_P
 $Comp
 L traction-r1:R RCOSF2
-U 1 1 5E000223
+U 1 1 5E000235
 P 25400 13600
 F 0 "RCOSF2" H 25400 13440 50  0000 C CNN
-F 1 "10k" H 25400 13770 50  0000 C CNN
+F 1 "12k" H 25400 13770 50  0000 C CNN
 F 2 "R0603" H 25400 13600 50  0001 C CNN
 F 3 "~" H 25400 13600 50  0001 C CNN
 F 4 "CLASS" H 25400 13600 50  0001 C CNN "LCSC"
@@ -4828,7 +5020,7 @@ Text Label 25850 13600 0    45   ~ 0
 COSF_N
 $Comp
 L traction-r1:R RCOSR1
-U 1 1 5E000224
+U 1 1 5E000236
 P 27250 12400
 F 0 "RCOSR1" H 27250 12240 50  0000 C CNN
 F 1 "120R" H 27250 12570 50  0000 C CNN
@@ -4849,7 +5041,7 @@ Text Label 27700 12400 0    45   ~ 0
 COS_P
 $Comp
 L traction-r1:R RCOSR2
-U 1 1 5E000225
+U 1 1 5E000237
 P 27250 12800
 F 0 "RCOSR2" H 27250 12640 50  0000 C CNN
 F 1 "120R" H 27250 12970 50  0000 C CNN
@@ -4880,7 +5072,7 @@ Text Notes 28560 6910 0    79   ~ 16
 PHASE-SENSE / HALL-CONN
 $Comp
 L traction-r1:T2M-105-01-L-D-TH-WT JLEM
-U 1 1 5E000226
+U 1 1 5E000238
 P 30300 7950
 F 0 "JLEM" H 29900 7250 50  0000 R CNN
 F 1 "T2M-105-01-L-D-TH-WT" H 29900 8680 50  0000 R CNN
@@ -4933,7 +5125,7 @@ Text Label 29650 8350 2    45   ~ 0
 AGND
 $Comp
 L traction-r1:HC5FW900-S USNSU
-U 1 1 5E000227
+U 1 1 5E000239
 P 30300 9700
 F 0 "USNSU" H 29900 9300 50  0000 R CNN
 F 1 "HC5FW900-S" H 29900 10130 50  0000 R CNN
@@ -4974,7 +5166,7 @@ Text Label 30100 10350 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:HC5FW900-S USNSV
-U 1 1 5E000228
+U 1 1 5E00023A
 P 30300 11650
 F 0 "USNSV" H 29900 11250 50  0000 R CNN
 F 1 "HC5FW900-S" H 29900 12080 50  0000 R CNN
@@ -5015,7 +5207,7 @@ Text Label 30100 12300 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:HC5FW900-S USNSW
-U 1 1 5E000229
+U 1 1 5E00023B
 P 30300 13600
 F 0 "USNSW" H 29900 13200 50  0000 R CNN
 F 1 "HC5FW900-S" H 29900 14030 50  0000 R CNN
@@ -5066,7 +5258,7 @@ Text Notes 36560 660 0    79   ~ 16
 PHASE-SENSE / SENSE-IU
 $Comp
 L traction-r1:OPA376AQDBVRQ1 UUB1
-U 1 1 5E00022A
+U 1 1 5E00023C
 P 39100 1800
 F 0 "UUB1" H 38700 1500 50  0000 R CNN
 F 1 "OPA376AQDBVRQ1" H 38700 2130 50  0000 R CNN
@@ -5099,7 +5291,7 @@ Text Label 38900 2350 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:OPA376AQDBVRQ1 UUB2
-U 1 1 5E00022B
+U 1 1 5E00023D
 P 39100 4350
 F 0 "UUB2" H 38700 4050 50  0000 R CNN
 F 1 "OPA376AQDBVRQ1" H 38700 4680 50  0000 R CNN
@@ -5132,7 +5324,7 @@ Text Label 38900 4900 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CUB1
-U 1 1 5E00022C
+U 1 1 5E00023E
 P 37350 3150
 F 0 "CUB1" H 37350 2990 50  0000 C CNN
 F 1 "3.3nF" H 37350 3320 50  0000 C CNN
@@ -5153,7 +5345,7 @@ Text Label 37800 3150 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CUB2
-U 1 1 5E00022D
+U 1 1 5E00023F
 P 38900 3300
 F 0 "CUB2" H 38900 3140 50  0000 C CNN
 F 1 "100nF" H 38900 3470 50  0000 C CNN
@@ -5174,7 +5366,7 @@ Text Label 39350 3300 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CUS1
-U 1 1 5E00022E
+U 1 1 5E000240
 P 37350 1550
 F 0 "CUS1" H 37350 1390 50  0000 C CNN
 F 1 "47nF" H 37350 1720 50  0000 C CNN
@@ -5195,7 +5387,7 @@ Text Label 37800 1550 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CUS2
-U 1 1 5E00022F
+U 1 1 5E000241
 P 37350 1950
 F 0 "CUS2" H 37350 1790 50  0000 C CNN
 F 1 "4.7nF" H 37350 2120 50  0000 C CNN
@@ -5216,7 +5408,7 @@ Text Label 37800 1950 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:L LUB
-U 1 1 5E000230
+U 1 1 5E000242
 P 37350 1150
 F 0 "LUB" H 37350 990 50  0000 C CNN
 F 1 "FB-220R-1A" H 37350 1320 50  0000 C CNN
@@ -5237,7 +5429,7 @@ Text Label 37800 1150 0    45   ~ 0
 V5S_U
 $Comp
 L traction-r1:R RUB0
-U 1 1 5E000231
+U 1 1 5E000243
 P 37350 2350
 F 0 "RUB0" H 37350 2190 50  0000 C CNN
 F 1 "100k" H 37350 2520 50  0000 C CNN
@@ -5258,7 +5450,7 @@ Text Label 37800 2350 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RUB1
-U 1 1 5E000232
+U 1 1 5E000244
 P 37350 2750
 F 0 "RUB1" H 37350 2590 50  0000 C CNN
 F 1 "100R" H 37350 2920 50  0000 C CNN
@@ -5279,7 +5471,7 @@ Text Label 37800 2750 0    45   ~ 0
 IS1_U
 $Comp
 L traction-r1:R RUB2
-U 1 1 5E000233
+U 1 1 5E000245
 P 38900 2900
 F 0 "RUB2" H 38900 2740 50  0000 C CNN
 F 1 "100R" H 38900 3070 50  0000 C CNN
@@ -5300,7 +5492,7 @@ Text Label 39350 2900 0    45   ~ 0
 IS3_U
 $Comp
 L traction-r1:R RUB3
-U 1 1 5E000234
+U 1 1 5E000246
 P 38900 5450
 F 0 "RUB3" H 38900 5290 50  0000 C CNN
 F 1 "100R" H 38900 5620 50  0000 C CNN
@@ -5320,6 +5512,271 @@ Wire Wire Line
 Text Label 39350 5450 0    45   ~ 0
 ISNS_U
 Wire Notes Line
+	40500 500 44100 500
+Wire Notes Line
+	44100 500 44100 6000
+Wire Notes Line
+	44100 6000 40500 6000
+Wire Notes Line
+	40500 6000 40500 500
+Text Notes 40560 660 0    79   ~ 16
+PHASE-SENSE / SENSE-IV
+$Comp
+L traction-r1:OPA376AQDBVRQ1 UVB1
+U 1 1 5E000247
+P 43100 1800
+F 0 "UVB1" H 42700 1500 50  0000 R CNN
+F 1 "OPA376AQDBVRQ1" H 42700 2130 50  0000 R CNN
+F 2 "SOT23-5" H 43100 1800 50  0001 C CNN
+F 3 "~" H 43100 1800 50  0001 C CNN
+F 4 "CLASS" H 43100 1800 50  0001 C CNN "LCSC"
+F 5 "OPA376AQDBVRQ1" H 43100 1800 50  0001 C CNN "MPN"
+	1    43100 1800
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	42650 1700 42450 1700
+Text Label 42450 1700 2    45   ~ 0
+IS2_V
+Wire Wire Line
+	42650 1800 42450 1800
+Text Label 42450 1800 2    45   ~ 0
+IS1_V
+Wire Wire Line
+	43550 1700 43750 1700
+Text Label 43750 1700 0    45   ~ 0
+IS2_V
+Wire Wire Line
+	42900 1450 42900 1250
+Text Label 42900 1250 1    45   ~ 0
+V5A
+Wire Wire Line
+	42900 2150 42900 2350
+Text Label 42900 2350 3    45   ~ 0
+AGND
+$Comp
+L traction-r1:OPA376AQDBVRQ1 UVB2
+U 1 1 5E000248
+P 43100 4350
+F 0 "UVB2" H 42700 4050 50  0000 R CNN
+F 1 "OPA376AQDBVRQ1" H 42700 4680 50  0000 R CNN
+F 2 "SOT23-5" H 43100 4350 50  0001 C CNN
+F 3 "~" H 43100 4350 50  0001 C CNN
+F 4 "CLASS" H 43100 4350 50  0001 C CNN "LCSC"
+F 5 "OPA376AQDBVRQ1" H 43100 4350 50  0001 C CNN "MPN"
+	1    43100 4350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	42650 4250 42450 4250
+Text Label 42450 4250 2    45   ~ 0
+IS4_V
+Wire Wire Line
+	42650 4350 42450 4350
+Text Label 42450 4350 2    45   ~ 0
+IS3_V
+Wire Wire Line
+	43550 4250 43750 4250
+Text Label 43750 4250 0    45   ~ 0
+IS4_V
+Wire Wire Line
+	42900 4000 42900 3800
+Text Label 42900 3800 1    45   ~ 0
+V5A
+Wire Wire Line
+	42900 4700 42900 4900
+Text Label 42900 4900 3    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CVB1
+U 1 1 5E000249
+P 41350 3150
+F 0 "CVB1" H 41350 2990 50  0000 C CNN
+F 1 "3.3nF" H 41350 3320 50  0000 C CNN
+F 2 "C0603" H 41350 3150 50  0001 C CNN
+F 3 "~" H 41350 3150 50  0001 C CNN
+F 4 "CLASS" H 41350 3150 50  0001 C CNN "LCSC"
+F 5 "MLCC-3.3nF-50V" H 41350 3150 50  0001 C CNN "MPN"
+	1    41350 3150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 3150 40900 3150
+Text Label 40900 3150 2    45   ~ 0
+IS1_V
+Wire Wire Line
+	41600 3150 41800 3150
+Text Label 41800 3150 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CVB2
+U 1 1 5E00024A
+P 42900 3300
+F 0 "CVB2" H 42900 3140 50  0000 C CNN
+F 1 "100nF" H 42900 3470 50  0000 C CNN
+F 2 "C0603" H 42900 3300 50  0001 C CNN
+F 3 "~" H 42900 3300 50  0001 C CNN
+F 4 "CLASS" H 42900 3300 50  0001 C CNN "LCSC"
+F 5 "MLCC-100nF-25V" H 42900 3300 50  0001 C CNN "MPN"
+	1    42900 3300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	42650 3300 42450 3300
+Text Label 42450 3300 2    45   ~ 0
+IS3_V
+Wire Wire Line
+	43150 3300 43350 3300
+Text Label 43350 3300 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CVS1
+U 1 1 5E00024B
+P 41350 1550
+F 0 "CVS1" H 41350 1390 50  0000 C CNN
+F 1 "47nF" H 41350 1720 50  0000 C CNN
+F 2 "C0603" H 41350 1550 50  0001 C CNN
+F 3 "~" H 41350 1550 50  0001 C CNN
+F 4 "CLASS" H 41350 1550 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 41350 1550 50  0001 C CNN "MPN"
+	1    41350 1550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 1550 40900 1550
+Text Label 40900 1550 2    45   ~ 0
+V5S_V
+Wire Wire Line
+	41600 1550 41800 1550
+Text Label 41800 1550 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CVS2
+U 1 1 5E00024C
+P 41350 1950
+F 0 "CVS2" H 41350 1790 50  0000 C CNN
+F 1 "4.7nF" H 41350 2120 50  0000 C CNN
+F 2 "C0603" H 41350 1950 50  0001 C CNN
+F 3 "~" H 41350 1950 50  0001 C CNN
+F 4 "CLASS" H 41350 1950 50  0001 C CNN "LCSC"
+F 5 "MLCC-4.7nF-50V" H 41350 1950 50  0001 C CNN "MPN"
+	1    41350 1950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 1950 40900 1950
+Text Label 40900 1950 2    45   ~ 0
+V5S_V
+Wire Wire Line
+	41600 1950 41800 1950
+Text Label 41800 1950 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:L LVB
+U 1 1 5E00024D
+P 41350 1150
+F 0 "LVB" H 41350 990 50  0000 C CNN
+F 1 "FB-220R-1A" H 41350 1320 50  0000 C CNN
+F 2 "FB0805" H 41350 1150 50  0001 C CNN
+F 3 "~" H 41350 1150 50  0001 C CNN
+F 4 "CLASS" H 41350 1150 50  0001 C CNN "LCSC"
+F 5 "FB-220R-1A" H 41350 1150 50  0001 C CNN "MPN"
+	1    41350 1150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 1150 40900 1150
+Text Label 40900 1150 2    45   ~ 0
+V5A
+Wire Wire Line
+	41600 1150 41800 1150
+Text Label 41800 1150 0    45   ~ 0
+V5S_V
+$Comp
+L traction-r1:R RVB0
+U 1 1 5E00024E
+P 41350 2350
+F 0 "RVB0" H 41350 2190 50  0000 C CNN
+F 1 "100k" H 41350 2520 50  0000 C CNN
+F 2 "R0603" H 41350 2350 50  0001 C CNN
+F 3 "~" H 41350 2350 50  0001 C CNN
+F 4 "CLASS" H 41350 2350 50  0001 C CNN "LCSC"
+F 5 "R0603-100k" H 41350 2350 50  0001 C CNN "MPN"
+	1    41350 2350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 2350 40900 2350
+Text Label 40900 2350 2    45   ~ 0
+HALL_V
+Wire Wire Line
+	41600 2350 41800 2350
+Text Label 41800 2350 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:R RVB1
+U 1 1 5E00024F
+P 41350 2750
+F 0 "RVB1" H 41350 2590 50  0000 C CNN
+F 1 "100R" H 41350 2920 50  0000 C CNN
+F 2 "R0603" H 41350 2750 50  0001 C CNN
+F 3 "~" H 41350 2750 50  0001 C CNN
+F 4 "CLASS" H 41350 2750 50  0001 C CNN "LCSC"
+F 5 "R0603-100R" H 41350 2750 50  0001 C CNN "MPN"
+	1    41350 2750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	41100 2750 40900 2750
+Text Label 40900 2750 2    45   ~ 0
+HALL_V
+Wire Wire Line
+	41600 2750 41800 2750
+Text Label 41800 2750 0    45   ~ 0
+IS1_V
+$Comp
+L traction-r1:R RVB2
+U 1 1 5E000250
+P 42900 2900
+F 0 "RVB2" H 42900 2740 50  0000 C CNN
+F 1 "100R" H 42900 3070 50  0000 C CNN
+F 2 "R0603" H 42900 2900 50  0001 C CNN
+F 3 "~" H 42900 2900 50  0001 C CNN
+F 4 "CLASS" H 42900 2900 50  0001 C CNN "LCSC"
+F 5 "R0603-100R" H 42900 2900 50  0001 C CNN "MPN"
+	1    42900 2900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	42650 2900 42450 2900
+Text Label 42450 2900 2    45   ~ 0
+IS2_V
+Wire Wire Line
+	43150 2900 43350 2900
+Text Label 43350 2900 0    45   ~ 0
+IS3_V
+$Comp
+L traction-r1:R RVB3
+U 1 1 5E000251
+P 42900 5450
+F 0 "RVB3" H 42900 5290 50  0000 C CNN
+F 1 "100R" H 42900 5620 50  0000 C CNN
+F 2 "R0603" H 42900 5450 50  0001 C CNN
+F 3 "~" H 42900 5450 50  0001 C CNN
+F 4 "CLASS" H 42900 5450 50  0001 C CNN "LCSC"
+F 5 "R0603-100R" H 42900 5450 50  0001 C CNN "MPN"
+	1    42900 5450
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	42650 5450 42450 5450
+Text Label 42450 5450 2    45   ~ 0
+IS4_V
+Wire Wire Line
+	43150 5450 43350 5450
+Text Label 43350 5450 0    45   ~ 0
+ISNS_V
+Wire Notes Line
 	36500 6500 40100 6500
 Wire Notes Line
 	40100 6500 40100 12000
@@ -5328,12 +5785,12 @@ Wire Notes Line
 Wire Notes Line
 	36500 12000 36500 6500
 Text Notes 36560 6660 0    79   ~ 16
-PHASE-SENSE / SENSE-IV
+PHASE-SENSE / SENSE-IW
 $Comp
-L traction-r1:OPA376AQDBVRQ1 UVB1
-U 1 1 5E000235
+L traction-r1:OPA376AQDBVRQ1 UWB1
+U 1 1 5E000252
 P 39100 7800
-F 0 "UVB1" H 38700 7500 50  0000 R CNN
+F 0 "UWB1" H 38700 7500 50  0000 R CNN
 F 1 "OPA376AQDBVRQ1" H 38700 8130 50  0000 R CNN
 F 2 "SOT23-5" H 39100 7800 50  0001 C CNN
 F 3 "~" H 39100 7800 50  0001 C CNN
@@ -5345,15 +5802,15 @@ $EndComp
 Wire Wire Line
 	38650 7700 38450 7700
 Text Label 38450 7700 2    45   ~ 0
-IS2_V
+IS2_W
 Wire Wire Line
 	38650 7800 38450 7800
 Text Label 38450 7800 2    45   ~ 0
-IS1_V
+IS1_W
 Wire Wire Line
 	39550 7700 39750 7700
 Text Label 39750 7700 0    45   ~ 0
-IS2_V
+IS2_W
 Wire Wire Line
 	38900 7450 38900 7250
 Text Label 38900 7250 1    45   ~ 0
@@ -5363,10 +5820,10 @@ Wire Wire Line
 Text Label 38900 8350 3    45   ~ 0
 AGND
 $Comp
-L traction-r1:OPA376AQDBVRQ1 UVB2
-U 1 1 5E000236
+L traction-r1:OPA376AQDBVRQ1 UWB2
+U 1 1 5E000253
 P 39100 10350
-F 0 "UVB2" H 38700 10050 50  0000 R CNN
+F 0 "UWB2" H 38700 10050 50  0000 R CNN
 F 1 "OPA376AQDBVRQ1" H 38700 10680 50  0000 R CNN
 F 2 "SOT23-5" H 39100 10350 50  0001 C CNN
 F 3 "~" H 39100 10350 50  0001 C CNN
@@ -5378,15 +5835,15 @@ $EndComp
 Wire Wire Line
 	38650 10250 38450 10250
 Text Label 38450 10250 2    45   ~ 0
-IS4_V
+IS4_W
 Wire Wire Line
 	38650 10350 38450 10350
 Text Label 38450 10350 2    45   ~ 0
-IS3_V
+IS3_W
 Wire Wire Line
 	39550 10250 39750 10250
 Text Label 39750 10250 0    45   ~ 0
-IS4_V
+IS4_W
 Wire Wire Line
 	38900 10000 38900 9800
 Text Label 38900 9800 1    45   ~ 0
@@ -5396,10 +5853,10 @@ Wire Wire Line
 Text Label 38900 10900 3    45   ~ 0
 AGND
 $Comp
-L traction-r1:C CVB1
-U 1 1 5E000237
+L traction-r1:C CWB1
+U 1 1 5E000254
 P 37350 9150
-F 0 "CVB1" H 37350 8990 50  0000 C CNN
+F 0 "CWB1" H 37350 8990 50  0000 C CNN
 F 1 "3.3nF" H 37350 9320 50  0000 C CNN
 F 2 "C0603" H 37350 9150 50  0001 C CNN
 F 3 "~" H 37350 9150 50  0001 C CNN
@@ -5411,16 +5868,16 @@ $EndComp
 Wire Wire Line
 	37100 9150 36900 9150
 Text Label 36900 9150 2    45   ~ 0
-IS1_V
+IS1_W
 Wire Wire Line
 	37600 9150 37800 9150
 Text Label 37800 9150 0    45   ~ 0
 AGND
 $Comp
-L traction-r1:C CVB2
-U 1 1 5E000238
+L traction-r1:C CWB2
+U 1 1 5E000255
 P 38900 9300
-F 0 "CVB2" H 38900 9140 50  0000 C CNN
+F 0 "CWB2" H 38900 9140 50  0000 C CNN
 F 1 "100nF" H 38900 9470 50  0000 C CNN
 F 2 "C0603" H 38900 9300 50  0001 C CNN
 F 3 "~" H 38900 9300 50  0001 C CNN
@@ -5432,16 +5889,16 @@ $EndComp
 Wire Wire Line
 	38650 9300 38450 9300
 Text Label 38450 9300 2    45   ~ 0
-IS3_V
+IS3_W
 Wire Wire Line
 	39150 9300 39350 9300
 Text Label 39350 9300 0    45   ~ 0
 AGND
 $Comp
-L traction-r1:C CVS1
-U 1 1 5E000239
+L traction-r1:C CWS1
+U 1 1 5E000256
 P 37350 7550
-F 0 "CVS1" H 37350 7390 50  0000 C CNN
+F 0 "CWS1" H 37350 7390 50  0000 C CNN
 F 1 "47nF" H 37350 7720 50  0000 C CNN
 F 2 "C0603" H 37350 7550 50  0001 C CNN
 F 3 "~" H 37350 7550 50  0001 C CNN
@@ -5453,16 +5910,16 @@ $EndComp
 Wire Wire Line
 	37100 7550 36900 7550
 Text Label 36900 7550 2    45   ~ 0
-V5S_V
+V5S_W
 Wire Wire Line
 	37600 7550 37800 7550
 Text Label 37800 7550 0    45   ~ 0
 AGND
 $Comp
-L traction-r1:C CVS2
-U 1 1 5E00023A
+L traction-r1:C CWS2
+U 1 1 5E000257
 P 37350 7950
-F 0 "CVS2" H 37350 7790 50  0000 C CNN
+F 0 "CWS2" H 37350 7790 50  0000 C CNN
 F 1 "4.7nF" H 37350 8120 50  0000 C CNN
 F 2 "C0603" H 37350 7950 50  0001 C CNN
 F 3 "~" H 37350 7950 50  0001 C CNN
@@ -5474,16 +5931,16 @@ $EndComp
 Wire Wire Line
 	37100 7950 36900 7950
 Text Label 36900 7950 2    45   ~ 0
-V5S_V
+V5S_W
 Wire Wire Line
 	37600 7950 37800 7950
 Text Label 37800 7950 0    45   ~ 0
 AGND
 $Comp
-L traction-r1:L LVB
-U 1 1 5E00023B
+L traction-r1:L LWB
+U 1 1 5E000258
 P 37350 7150
-F 0 "LVB" H 37350 6990 50  0000 C CNN
+F 0 "LWB" H 37350 6990 50  0000 C CNN
 F 1 "FB-220R-1A" H 37350 7320 50  0000 C CNN
 F 2 "FB0805" H 37350 7150 50  0001 C CNN
 F 3 "~" H 37350 7150 50  0001 C CNN
@@ -5499,12 +5956,12 @@ V5A
 Wire Wire Line
 	37600 7150 37800 7150
 Text Label 37800 7150 0    45   ~ 0
-V5S_V
+V5S_W
 $Comp
-L traction-r1:R RVB0
-U 1 1 5E00023C
+L traction-r1:R RWB0
+U 1 1 5E000259
 P 37350 8350
-F 0 "RVB0" H 37350 8190 50  0000 C CNN
+F 0 "RWB0" H 37350 8190 50  0000 C CNN
 F 1 "100k" H 37350 8520 50  0000 C CNN
 F 2 "R0603" H 37350 8350 50  0001 C CNN
 F 3 "~" H 37350 8350 50  0001 C CNN
@@ -5516,16 +5973,16 @@ $EndComp
 Wire Wire Line
 	37100 8350 36900 8350
 Text Label 36900 8350 2    45   ~ 0
-HALL_V
+HALL_W
 Wire Wire Line
 	37600 8350 37800 8350
 Text Label 37800 8350 0    45   ~ 0
 AGND
 $Comp
-L traction-r1:R RVB1
-U 1 1 5E00023D
+L traction-r1:R RWB1
+U 1 1 5E00025A
 P 37350 8750
-F 0 "RVB1" H 37350 8590 50  0000 C CNN
+F 0 "RWB1" H 37350 8590 50  0000 C CNN
 F 1 "100R" H 37350 8920 50  0000 C CNN
 F 2 "R0603" H 37350 8750 50  0001 C CNN
 F 3 "~" H 37350 8750 50  0001 C CNN
@@ -5537,16 +5994,16 @@ $EndComp
 Wire Wire Line
 	37100 8750 36900 8750
 Text Label 36900 8750 2    45   ~ 0
-HALL_V
+HALL_W
 Wire Wire Line
 	37600 8750 37800 8750
 Text Label 37800 8750 0    45   ~ 0
-IS1_V
+IS1_W
 $Comp
-L traction-r1:R RVB2
-U 1 1 5E00023E
+L traction-r1:R RWB2
+U 1 1 5E00025B
 P 38900 8900
-F 0 "RVB2" H 38900 8740 50  0000 C CNN
+F 0 "RWB2" H 38900 8740 50  0000 C CNN
 F 1 "100R" H 38900 9070 50  0000 C CNN
 F 2 "R0603" H 38900 8900 50  0001 C CNN
 F 3 "~" H 38900 8900 50  0001 C CNN
@@ -5558,16 +6015,16 @@ $EndComp
 Wire Wire Line
 	38650 8900 38450 8900
 Text Label 38450 8900 2    45   ~ 0
-IS2_V
+IS2_W
 Wire Wire Line
 	39150 8900 39350 8900
 Text Label 39350 8900 0    45   ~ 0
-IS3_V
+IS3_W
 $Comp
-L traction-r1:R RVB3
-U 1 1 5E00023F
+L traction-r1:R RWB3
+U 1 1 5E00025C
 P 38900 11450
-F 0 "RVB3" H 38900 11290 50  0000 C CNN
+F 0 "RWB3" H 38900 11290 50  0000 C CNN
 F 1 "100R" H 38900 11620 50  0000 C CNN
 F 2 "R0603" H 38900 11450 50  0001 C CNN
 F 3 "~" H 38900 11450 50  0001 C CNN
@@ -5579,2131 +6036,1866 @@ $EndComp
 Wire Wire Line
 	38650 11450 38450 11450
 Text Label 38450 11450 2    45   ~ 0
-IS4_V
+IS4_W
 Wire Wire Line
 	39150 11450 39350 11450
 Text Label 39350 11450 0    45   ~ 0
-ISNS_V
-Wire Notes Line
-	32500 6750 36100 6750
-Wire Notes Line
-	36100 6750 36100 12250
-Wire Notes Line
-	36100 12250 32500 12250
-Wire Notes Line
-	32500 12250 32500 6750
-Text Notes 32560 6910 0    79   ~ 16
-PHASE-SENSE / SENSE-IW
-$Comp
-L traction-r1:OPA376AQDBVRQ1 UWB1
-U 1 1 5E000240
-P 35100 8050
-F 0 "UWB1" H 34700 7750 50  0000 R CNN
-F 1 "OPA376AQDBVRQ1" H 34700 8380 50  0000 R CNN
-F 2 "SOT23-5" H 35100 8050 50  0001 C CNN
-F 3 "~" H 35100 8050 50  0001 C CNN
-F 4 "CLASS" H 35100 8050 50  0001 C CNN "LCSC"
-F 5 "OPA376AQDBVRQ1" H 35100 8050 50  0001 C CNN "MPN"
-	1    35100 8050
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	34650 7950 34450 7950
-Text Label 34450 7950 2    45   ~ 0
-IS2_W
-Wire Wire Line
-	34650 8050 34450 8050
-Text Label 34450 8050 2    45   ~ 0
-IS1_W
-Wire Wire Line
-	35550 7950 35750 7950
-Text Label 35750 7950 0    45   ~ 0
-IS2_W
-Wire Wire Line
-	34900 7700 34900 7500
-Text Label 34900 7500 1    45   ~ 0
-V5A
-Wire Wire Line
-	34900 8400 34900 8600
-Text Label 34900 8600 3    45   ~ 0
-AGND
-$Comp
-L traction-r1:OPA376AQDBVRQ1 UWB2
-U 1 1 5E000241
-P 35100 10600
-F 0 "UWB2" H 34700 10300 50  0000 R CNN
-F 1 "OPA376AQDBVRQ1" H 34700 10930 50  0000 R CNN
-F 2 "SOT23-5" H 35100 10600 50  0001 C CNN
-F 3 "~" H 35100 10600 50  0001 C CNN
-F 4 "CLASS" H 35100 10600 50  0001 C CNN "LCSC"
-F 5 "OPA376AQDBVRQ1" H 35100 10600 50  0001 C CNN "MPN"
-	1    35100 10600
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	34650 10500 34450 10500
-Text Label 34450 10500 2    45   ~ 0
-IS4_W
-Wire Wire Line
-	34650 10600 34450 10600
-Text Label 34450 10600 2    45   ~ 0
-IS3_W
-Wire Wire Line
-	35550 10500 35750 10500
-Text Label 35750 10500 0    45   ~ 0
-IS4_W
-Wire Wire Line
-	34900 10250 34900 10050
-Text Label 34900 10050 1    45   ~ 0
-V5A
-Wire Wire Line
-	34900 10950 34900 11150
-Text Label 34900 11150 3    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CWB1
-U 1 1 5E000242
-P 33350 9400
-F 0 "CWB1" H 33350 9240 50  0000 C CNN
-F 1 "3.3nF" H 33350 9570 50  0000 C CNN
-F 2 "C0603" H 33350 9400 50  0001 C CNN
-F 3 "~" H 33350 9400 50  0001 C CNN
-F 4 "CLASS" H 33350 9400 50  0001 C CNN "LCSC"
-F 5 "MLCC-3.3nF-50V" H 33350 9400 50  0001 C CNN "MPN"
-	1    33350 9400
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 9400 32900 9400
-Text Label 32900 9400 2    45   ~ 0
-IS1_W
-Wire Wire Line
-	33600 9400 33800 9400
-Text Label 33800 9400 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CWB2
-U 1 1 5E000243
-P 34900 9550
-F 0 "CWB2" H 34900 9390 50  0000 C CNN
-F 1 "100nF" H 34900 9720 50  0000 C CNN
-F 2 "C0603" H 34900 9550 50  0001 C CNN
-F 3 "~" H 34900 9550 50  0001 C CNN
-F 4 "CLASS" H 34900 9550 50  0001 C CNN "LCSC"
-F 5 "MLCC-100nF-25V" H 34900 9550 50  0001 C CNN "MPN"
-	1    34900 9550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	34650 9550 34450 9550
-Text Label 34450 9550 2    45   ~ 0
-IS3_W
-Wire Wire Line
-	35150 9550 35350 9550
-Text Label 35350 9550 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CWS1
-U 1 1 5E000244
-P 33350 7800
-F 0 "CWS1" H 33350 7640 50  0000 C CNN
-F 1 "47nF" H 33350 7970 50  0000 C CNN
-F 2 "C0603" H 33350 7800 50  0001 C CNN
-F 3 "~" H 33350 7800 50  0001 C CNN
-F 4 "CLASS" H 33350 7800 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 33350 7800 50  0001 C CNN "MPN"
-	1    33350 7800
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 7800 32900 7800
-Text Label 32900 7800 2    45   ~ 0
-V5S_W
-Wire Wire Line
-	33600 7800 33800 7800
-Text Label 33800 7800 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CWS2
-U 1 1 5E000245
-P 33350 8200
-F 0 "CWS2" H 33350 8040 50  0000 C CNN
-F 1 "4.7nF" H 33350 8370 50  0000 C CNN
-F 2 "C0603" H 33350 8200 50  0001 C CNN
-F 3 "~" H 33350 8200 50  0001 C CNN
-F 4 "CLASS" H 33350 8200 50  0001 C CNN "LCSC"
-F 5 "MLCC-4.7nF-50V" H 33350 8200 50  0001 C CNN "MPN"
-	1    33350 8200
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 8200 32900 8200
-Text Label 32900 8200 2    45   ~ 0
-V5S_W
-Wire Wire Line
-	33600 8200 33800 8200
-Text Label 33800 8200 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:L LWB
-U 1 1 5E000246
-P 33350 7400
-F 0 "LWB" H 33350 7240 50  0000 C CNN
-F 1 "FB-220R-1A" H 33350 7570 50  0000 C CNN
-F 2 "FB0805" H 33350 7400 50  0001 C CNN
-F 3 "~" H 33350 7400 50  0001 C CNN
-F 4 "CLASS" H 33350 7400 50  0001 C CNN "LCSC"
-F 5 "FB-220R-1A" H 33350 7400 50  0001 C CNN "MPN"
-	1    33350 7400
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 7400 32900 7400
-Text Label 32900 7400 2    45   ~ 0
-V5A
-Wire Wire Line
-	33600 7400 33800 7400
-Text Label 33800 7400 0    45   ~ 0
-V5S_W
-$Comp
-L traction-r1:R RWB0
-U 1 1 5E000247
-P 33350 8600
-F 0 "RWB0" H 33350 8440 50  0000 C CNN
-F 1 "100k" H 33350 8770 50  0000 C CNN
-F 2 "R0603" H 33350 8600 50  0001 C CNN
-F 3 "~" H 33350 8600 50  0001 C CNN
-F 4 "CLASS" H 33350 8600 50  0001 C CNN "LCSC"
-F 5 "R0603-100k" H 33350 8600 50  0001 C CNN "MPN"
-	1    33350 8600
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 8600 32900 8600
-Text Label 32900 8600 2    45   ~ 0
-HALL_W
-Wire Wire Line
-	33600 8600 33800 8600
-Text Label 33800 8600 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:R RWB1
-U 1 1 5E000248
-P 33350 9000
-F 0 "RWB1" H 33350 8840 50  0000 C CNN
-F 1 "100R" H 33350 9170 50  0000 C CNN
-F 2 "R0603" H 33350 9000 50  0001 C CNN
-F 3 "~" H 33350 9000 50  0001 C CNN
-F 4 "CLASS" H 33350 9000 50  0001 C CNN "LCSC"
-F 5 "R0603-100R" H 33350 9000 50  0001 C CNN "MPN"
-	1    33350 9000
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	33100 9000 32900 9000
-Text Label 32900 9000 2    45   ~ 0
-HALL_W
-Wire Wire Line
-	33600 9000 33800 9000
-Text Label 33800 9000 0    45   ~ 0
-IS1_W
-$Comp
-L traction-r1:R RWB2
-U 1 1 5E000249
-P 34900 9150
-F 0 "RWB2" H 34900 8990 50  0000 C CNN
-F 1 "100R" H 34900 9320 50  0000 C CNN
-F 2 "R0603" H 34900 9150 50  0001 C CNN
-F 3 "~" H 34900 9150 50  0001 C CNN
-F 4 "CLASS" H 34900 9150 50  0001 C CNN "LCSC"
-F 5 "R0603-100R" H 34900 9150 50  0001 C CNN "MPN"
-	1    34900 9150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	34650 9150 34450 9150
-Text Label 34450 9150 2    45   ~ 0
-IS2_W
-Wire Wire Line
-	35150 9150 35350 9150
-Text Label 35350 9150 0    45   ~ 0
-IS3_W
-$Comp
-L traction-r1:R RWB3
-U 1 1 5E00024A
-P 34900 11700
-F 0 "RWB3" H 34900 11540 50  0000 C CNN
-F 1 "100R" H 34900 11870 50  0000 C CNN
-F 2 "R0603" H 34900 11700 50  0001 C CNN
-F 3 "~" H 34900 11700 50  0001 C CNN
-F 4 "CLASS" H 34900 11700 50  0001 C CNN "LCSC"
-F 5 "R0603-100R" H 34900 11700 50  0001 C CNN "MPN"
-	1    34900 11700
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	34650 11700 34450 11700
-Text Label 34450 11700 2    45   ~ 0
-IS4_W
-Wire Wire Line
-	35150 11700 35350 11700
-Text Label 35350 11700 0    45   ~ 0
 ISNS_W
 Wire Notes Line
-	500 23250 8100 23250
+	16500 18000 24100 18000
 Wire Notes Line
-	8100 23250 8100 27000
+	24100 18000 24100 21750
 Wire Notes Line
-	8100 27000 500 27000
+	24100 21750 16500 21750
 Wire Notes Line
-	500 27000 500 23250
-Text Notes 560 23410 0    79   ~ 16
+	16500 21750 16500 18000
+Text Notes 16560 18160 0    79   ~ 16
 VDC-RECEIVE / CH-1
 $Comp
 L traction-r1:OPA376AQDBVRQ1 UVD1
-U 1 1 5E00024B
-P 4150 24550
-F 0 "UVD1" H 3750 24250 50  0000 R CNN
-F 1 "OPA376AQDBVRQ1" H 3750 24880 50  0000 R CNN
-F 2 "SOT23-5" H 4150 24550 50  0001 C CNN
-F 3 "~" H 4150 24550 50  0001 C CNN
-F 4 "CLASS" H 4150 24550 50  0001 C CNN "LCSC"
-F 5 "OPA376AQDBVRQ1" H 4150 24550 50  0001 C CNN "MPN"
-	1    4150 24550
+U 1 1 5E00025D
+P 20150 19300
+F 0 "UVD1" H 19750 19000 50  0000 R CNN
+F 1 "OPA376AQDBVRQ1" H 19750 19630 50  0000 R CNN
+F 2 "SOT23-5" H 20150 19300 50  0001 C CNN
+F 3 "~" H 20150 19300 50  0001 C CNN
+F 4 "CLASS" H 20150 19300 50  0001 C CNN "LCSC"
+F 5 "OPA376AQDBVRQ1" H 20150 19300 50  0001 C CNN "MPN"
+	1    20150 19300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3700 24450 3500 24450
-Text Label 3500 24450 2    45   ~ 0
+	19700 19200 19500 19200
+Text Label 19500 19200 2    45   ~ 0
 VDN1
 Wire Wire Line
-	3700 24550 3500 24550
-Text Label 3500 24550 2    45   ~ 0
+	19700 19300 19500 19300
+Text Label 19500 19300 2    45   ~ 0
 VDP1
 Wire Wire Line
-	4600 24450 4800 24450
-Text Label 4800 24450 0    45   ~ 0
+	20600 19200 20800 19200
+Text Label 20800 19200 0    45   ~ 0
 VDC1_SE
 Wire Wire Line
-	3950 24200 3950 24000
-Text Label 3950 24000 1    45   ~ 0
+	19950 18950 19950 18750
+Text Label 19950 18750 1    45   ~ 0
 V5A
 Wire Wire Line
-	3950 24900 3950 25100
-Text Label 3950 25100 3    45   ~ 0
+	19950 19650 19950 19850
+Text Label 19950 19850 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:OPA376AQDBVRQ1 UVOF
-U 1 1 5E00024C
-P 6150 24550
-F 0 "UVOF" H 5750 24250 50  0000 R CNN
-F 1 "OPA376AQDBVRQ1" H 5750 24880 50  0000 R CNN
-F 2 "SOT23-5" H 6150 24550 50  0001 C CNN
-F 3 "~" H 6150 24550 50  0001 C CNN
-F 4 "CLASS" H 6150 24550 50  0001 C CNN "LCSC"
-F 5 "OPA376AQDBVRQ1" H 6150 24550 50  0001 C CNN "MPN"
-	1    6150 24550
+U 1 1 5E00025E
+P 22150 19300
+F 0 "UVOF" H 21750 19000 50  0000 R CNN
+F 1 "OPA376AQDBVRQ1" H 21750 19630 50  0000 R CNN
+F 2 "SOT23-5" H 22150 19300 50  0001 C CNN
+F 3 "~" H 22150 19300 50  0001 C CNN
+F 4 "CLASS" H 22150 19300 50  0001 C CNN "LCSC"
+F 5 "OPA376AQDBVRQ1" H 22150 19300 50  0001 C CNN "MPN"
+	1    22150 19300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5700 24450 5500 24450
-Text Label 5500 24450 2    45   ~ 0
+	21700 19200 21500 19200
+Text Label 21500 19200 2    45   ~ 0
 VOFS
 Wire Wire Line
-	5700 24550 5500 24550
-Text Label 5500 24550 2    45   ~ 0
+	21700 19300 21500 19300
+Text Label 21500 19300 2    45   ~ 0
 VOFD
 Wire Wire Line
-	6600 24450 6800 24450
-Text Label 6800 24450 0    45   ~ 0
+	22600 19200 22800 19200
+Text Label 22800 19200 0    45   ~ 0
 VOFS
 Wire Wire Line
-	5950 24200 5950 24000
-Text Label 5950 24000 1    45   ~ 0
+	21950 18950 21950 18750
+Text Label 21950 18750 1    45   ~ 0
 V5A
 Wire Wire Line
-	5950 24900 5950 25100
-Text Label 5950 25100 3    45   ~ 0
+	21950 19650 21950 19850
+Text Label 21950 19850 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:C COF1
-U 1 1 5E00024D
-P 5950 26450
-F 0 "COF1" H 5950 26290 50  0000 C CNN
-F 1 "100nF" H 5950 26620 50  0000 C CNN
-F 2 "C0603" H 5950 26450 50  0001 C CNN
-F 3 "~" H 5950 26450 50  0001 C CNN
-F 4 "CLASS" H 5950 26450 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 5950 26450 50  0001 C CNN "MPN"
-	1    5950 26450
+U 1 1 5E00025F
+P 21950 21200
+F 0 "COF1" H 21950 21040 50  0000 C CNN
+F 1 "100nF" H 21950 21370 50  0000 C CNN
+F 2 "C0603" H 21950 21200 50  0001 C CNN
+F 3 "~" H 21950 21200 50  0001 C CNN
+F 4 "CLASS" H 21950 21200 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 21950 21200 50  0001 C CNN "MPN"
+	1    21950 21200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5700 26450 5500 26450
-Text Label 5500 26450 2    45   ~ 0
+	21700 21200 21500 21200
+Text Label 21500 21200 2    45   ~ 0
 VOFD
 Wire Wire Line
-	6200 26450 6400 26450
-Text Label 6400 26450 0    45   ~ 0
+	22200 21200 22400 21200
+Text Label 22400 21200 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CVD1
-U 1 1 5E00024E
-P 3950 25650
-F 0 "CVD1" H 3950 25490 50  0000 C CNN
-F 1 "100pF" H 3950 25820 50  0000 C CNN
-F 2 "C0603" H 3950 25650 50  0001 C CNN
-F 3 "~" H 3950 25650 50  0001 C CNN
-F 4 "CLASS" H 3950 25650 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 3950 25650 50  0001 C CNN "MPN"
-	1    3950 25650
+U 1 1 5E000260
+P 19950 20400
+F 0 "CVD1" H 19950 20240 50  0000 C CNN
+F 1 "100pF" H 19950 20570 50  0000 C CNN
+F 2 "C0603" H 19950 20400 50  0001 C CNN
+F 3 "~" H 19950 20400 50  0001 C CNN
+F 4 "CLASS" H 19950 20400 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 19950 20400 50  0001 C CNN "MPN"
+	1    19950 20400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	3700 25650 3500 25650
-Text Label 3500 25650 2    45   ~ 0
+	19700 20400 19500 20400
+Text Label 19500 20400 2    45   ~ 0
 VDC1_SE
 Wire Wire Line
-	4200 25650 4400 25650
-Text Label 4400 25650 0    45   ~ 0
+	20200 20400 20400 20400
+Text Label 20400 20400 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R ROF1
-U 1 1 5E00024F
-P 5950 25650
-F 0 "ROF1" H 5950 25490 50  0000 C CNN
-F 1 "9.1k" H 5950 25820 50  0000 C CNN
-F 2 "R0603" H 5950 25650 50  0001 C CNN
-F 3 "~" H 5950 25650 50  0001 C CNN
-F 4 "CLASS" H 5950 25650 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 5950 25650 50  0001 C CNN "MPN"
-	1    5950 25650
+U 1 1 5E000261
+P 21950 20400
+F 0 "ROF1" H 21950 20240 50  0000 C CNN
+F 1 "9.1k" H 21950 20570 50  0000 C CNN
+F 2 "R0603" H 21950 20400 50  0001 C CNN
+F 3 "~" H 21950 20400 50  0001 C CNN
+F 4 "CLASS" H 21950 20400 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 21950 20400 50  0001 C CNN "MPN"
+	1    21950 20400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5700 25650 5500 25650
-Text Label 5500 25650 2    45   ~ 0
+	21700 20400 21500 20400
+Text Label 21500 20400 2    45   ~ 0
 VREF5
 Wire Wire Line
-	6200 25650 6400 25650
-Text Label 6400 25650 0    45   ~ 0
+	22200 20400 22400 20400
+Text Label 22400 20400 0    45   ~ 0
 VOFD
 $Comp
 L traction-r1:R ROF2
-U 1 1 5E000250
-P 5950 26050
-F 0 "ROF2" H 5950 25890 50  0000 C CNN
-F 1 "1k" H 5950 26220 50  0000 C CNN
-F 2 "R0603" H 5950 26050 50  0001 C CNN
-F 3 "~" H 5950 26050 50  0001 C CNN
-F 4 "CLASS" H 5950 26050 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 5950 26050 50  0001 C CNN "MPN"
-	1    5950 26050
+U 1 1 5E000262
+P 21950 20800
+F 0 "ROF2" H 21950 20640 50  0000 C CNN
+F 1 "1k" H 21950 20970 50  0000 C CNN
+F 2 "R0603" H 21950 20800 50  0001 C CNN
+F 3 "~" H 21950 20800 50  0001 C CNN
+F 4 "CLASS" H 21950 20800 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 21950 20800 50  0001 C CNN "MPN"
+	1    21950 20800
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	5700 26050 5500 26050
-Text Label 5500 26050 2    45   ~ 0
+	21700 20800 21500 20800
+Text Label 21500 20800 2    45   ~ 0
 VOFD
 Wire Wire Line
-	6200 26050 6400 26050
-Text Label 6400 26050 0    45   ~ 0
+	22200 20800 22400 20800
+Text Label 22400 20800 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RVD1A
-U 1 1 5E000251
-P 2300 23900
-F 0 "RVD1A" H 2300 23740 50  0000 C CNN
-F 1 "10k" H 2300 24070 50  0000 C CNN
-F 2 "R0603" H 2300 23900 50  0001 C CNN
-F 3 "~" H 2300 23900 50  0001 C CNN
-F 4 "CLASS" H 2300 23900 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 2300 23900 50  0001 C CNN "MPN"
-	1    2300 23900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2050 23900 1850 23900
-Text Label 1850 23900 2    45   ~ 0
-VDC1_P
-Wire Wire Line
-	2550 23900 2750 23900
-Text Label 2750 23900 0    45   ~ 0
-VDP1
-$Comp
-L traction-r1:R RVD1B
-U 1 1 5E000252
-P 2300 24300
-F 0 "RVD1B" H 2300 24140 50  0000 C CNN
-F 1 "10k" H 2300 24470 50  0000 C CNN
-F 2 "R0603" H 2300 24300 50  0001 C CNN
-F 3 "~" H 2300 24300 50  0001 C CNN
-F 4 "CLASS" H 2300 24300 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 2300 24300 50  0001 C CNN "MPN"
-	1    2300 24300
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2050 24300 1850 24300
-Text Label 1850 24300 2    45   ~ 0
-VDP1
-Wire Wire Line
-	2550 24300 2750 24300
-Text Label 2750 24300 0    45   ~ 0
-VOFS
-$Comp
-L traction-r1:R RVD1C
-U 1 1 5E000253
-P 2300 24700
-F 0 "RVD1C" H 2300 24540 50  0000 C CNN
-F 1 "10k" H 2300 24870 50  0000 C CNN
-F 2 "R0603" H 2300 24700 50  0001 C CNN
-F 3 "~" H 2300 24700 50  0001 C CNN
-F 4 "CLASS" H 2300 24700 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 2300 24700 50  0001 C CNN "MPN"
-	1    2300 24700
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2050 24700 1850 24700
-Text Label 1850 24700 2    45   ~ 0
-VDC1_N
-Wire Wire Line
-	2550 24700 2750 24700
-Text Label 2750 24700 0    45   ~ 0
-VDN1
-$Comp
-L traction-r1:R RVD1D
-U 1 1 5E000254
-P 2300 25100
-F 0 "RVD1D" H 2300 24940 50  0000 C CNN
-F 1 "10k" H 2300 25270 50  0000 C CNN
-F 2 "R0603" H 2300 25100 50  0001 C CNN
-F 3 "~" H 2300 25100 50  0001 C CNN
-F 4 "CLASS" H 2300 25100 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 2300 25100 50  0001 C CNN "MPN"
-	1    2300 25100
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	2050 25100 1850 25100
-Text Label 1850 25100 2    45   ~ 0
-VDN1
-Wire Wire Line
-	2550 25100 2750 25100
-Text Label 2750 25100 0    45   ~ 0
-VDC1_SE
-Wire Notes Line
-	500 27500 8100 27500
-Wire Notes Line
-	8100 27500 8100 30500
-Wire Notes Line
-	8100 30500 500 30500
-Wire Notes Line
-	500 30500 500 27500
-Text Notes 560 27660 0    79   ~ 16
-VDC-RECEIVE / CH-2
-$Comp
-L traction-r1:OPA376AQDBVRQ1 UVD2
-U 1 1 5E000255
-P 5150 28800
-F 0 "UVD2" H 4750 28500 50  0000 R CNN
-F 1 "OPA376AQDBVRQ1" H 4750 29130 50  0000 R CNN
-F 2 "SOT23-5" H 5150 28800 50  0001 C CNN
-F 3 "~" H 5150 28800 50  0001 C CNN
-F 4 "CLASS" H 5150 28800 50  0001 C CNN "LCSC"
-F 5 "OPA376AQDBVRQ1" H 5150 28800 50  0001 C CNN "MPN"
-	1    5150 28800
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 28700 4500 28700
-Text Label 4500 28700 2    45   ~ 0
-VDN2
-Wire Wire Line
-	4700 28800 4500 28800
-Text Label 4500 28800 2    45   ~ 0
-VDP2
-Wire Wire Line
-	5600 28700 5800 28700
-Text Label 5800 28700 0    45   ~ 0
-VDC2_SE
-Wire Wire Line
-	4950 28450 4950 28250
-Text Label 4950 28250 1    45   ~ 0
-V5A
-Wire Wire Line
-	4950 29150 4950 29350
-Text Label 4950 29350 3    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CVD2
-U 1 1 5E000256
-P 4950 29900
-F 0 "CVD2" H 4950 29740 50  0000 C CNN
-F 1 "100pF" H 4950 30070 50  0000 C CNN
-F 2 "C0603" H 4950 29900 50  0001 C CNN
-F 3 "~" H 4950 29900 50  0001 C CNN
-F 4 "CLASS" H 4950 29900 50  0001 C CNN "LCSC"
-F 5 "MLCC-CLASS" H 4950 29900 50  0001 C CNN "MPN"
-	1    4950 29900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	4700 29900 4500 29900
-Text Label 4500 29900 2    45   ~ 0
-VDC2_SE
-Wire Wire Line
-	5200 29900 5400 29900
-Text Label 5400 29900 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:R RVD2A
-U 1 1 5E000257
-P 3300 28150
-F 0 "RVD2A" H 3300 27990 50  0000 C CNN
-F 1 "10k" H 3300 28320 50  0000 C CNN
-F 2 "R0603" H 3300 28150 50  0001 C CNN
-F 3 "~" H 3300 28150 50  0001 C CNN
-F 4 "CLASS" H 3300 28150 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 3300 28150 50  0001 C CNN "MPN"
-	1    3300 28150
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	3050 28150 2850 28150
-Text Label 2850 28150 2    45   ~ 0
-VDC2_P
-Wire Wire Line
-	3550 28150 3750 28150
-Text Label 3750 28150 0    45   ~ 0
-VDP2
-$Comp
-L traction-r1:R RVD2B
-U 1 1 5E000258
-P 3300 28550
-F 0 "RVD2B" H 3300 28390 50  0000 C CNN
-F 1 "10k" H 3300 28720 50  0000 C CNN
-F 2 "R0603" H 3300 28550 50  0001 C CNN
-F 3 "~" H 3300 28550 50  0001 C CNN
-F 4 "CLASS" H 3300 28550 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 3300 28550 50  0001 C CNN "MPN"
-	1    3300 28550
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	3050 28550 2850 28550
-Text Label 2850 28550 2    45   ~ 0
-VDP2
-Wire Wire Line
-	3550 28550 3750 28550
-Text Label 3750 28550 0    45   ~ 0
-VOFS
-$Comp
-L traction-r1:R RVD2C
-U 1 1 5E000259
-P 3300 28950
-F 0 "RVD2C" H 3300 28790 50  0000 C CNN
-F 1 "10k" H 3300 29120 50  0000 C CNN
-F 2 "R0603" H 3300 28950 50  0001 C CNN
-F 3 "~" H 3300 28950 50  0001 C CNN
-F 4 "CLASS" H 3300 28950 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 3300 28950 50  0001 C CNN "MPN"
-	1    3300 28950
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	3050 28950 2850 28950
-Text Label 2850 28950 2    45   ~ 0
-VDC2_N
-Wire Wire Line
-	3550 28950 3750 28950
-Text Label 3750 28950 0    45   ~ 0
-VDN2
-$Comp
-L traction-r1:R RVD2D
-U 1 1 5E00025A
-P 3300 29350
-F 0 "RVD2D" H 3300 29190 50  0000 C CNN
-F 1 "10k" H 3300 29520 50  0000 C CNN
-F 2 "R0603" H 3300 29350 50  0001 C CNN
-F 3 "~" H 3300 29350 50  0001 C CNN
-F 4 "CLASS" H 3300 29350 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-0.1%" H 3300 29350 50  0001 C CNN "MPN"
-	1    3300 29350
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	3050 29350 2850 29350
-Text Label 2850 29350 2    45   ~ 0
-VDN2
-Wire Wire Line
-	3550 29350 3750 29350
-Text Label 3750 29350 0    45   ~ 0
-VDC2_SE
-Wire Notes Line
-	8500 23250 12100 23250
-Wire Notes Line
-	12100 23250 12100 26500
-Wire Notes Line
-	12100 26500 8500 26500
-Wire Notes Line
-	8500 26500 8500 23250
-Text Notes 8560 23410 0    79   ~ 16
-TEMP / MOD-NTC
-$Comp
-L traction-r1:C CSNUF
-U 1 1 5E00025B
-P 9500 24300
-F 0 "CSNUF" H 9500 24140 50  0000 C CNN
-F 1 "47nF" H 9500 24470 50  0000 C CNN
-F 2 "C0603" H 9500 24300 50  0001 C CNN
-F 3 "~" H 9500 24300 50  0001 C CNN
-F 4 "CLASS" H 9500 24300 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 9500 24300 50  0001 C CNN "MPN"
-	1    9500 24300
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 24300 9050 24300
-Text Label 9050 24300 2    45   ~ 0
-TMOD_U
-Wire Wire Line
-	9750 24300 9950 24300
-Text Label 9950 24300 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CSNVF
-U 1 1 5E00025C
-P 9500 25100
-F 0 "CSNVF" H 9500 24940 50  0000 C CNN
-F 1 "47nF" H 9500 25270 50  0000 C CNN
-F 2 "C0603" H 9500 25100 50  0001 C CNN
-F 3 "~" H 9500 25100 50  0001 C CNN
-F 4 "CLASS" H 9500 25100 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 9500 25100 50  0001 C CNN "MPN"
-	1    9500 25100
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 25100 9050 25100
-Text Label 9050 25100 2    45   ~ 0
-TMOD_V
-Wire Wire Line
-	9750 25100 9950 25100
-Text Label 9950 25100 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:C CSNWF
-U 1 1 5E00025D
-P 9500 25900
-F 0 "CSNWF" H 9500 25740 50  0000 C CNN
-F 1 "47nF" H 9500 26070 50  0000 C CNN
-F 2 "C0603" H 9500 25900 50  0001 C CNN
-F 3 "~" H 9500 25900 50  0001 C CNN
-F 4 "CLASS" H 9500 25900 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 9500 25900 50  0001 C CNN "MPN"
-	1    9500 25900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 25900 9050 25900
-Text Label 9050 25900 2    45   ~ 0
-TMOD_W
-Wire Wire Line
-	9750 25900 9950 25900
-Text Label 9950 25900 0    45   ~ 0
-AGND
-$Comp
-L traction-r1:R RSNUP
-U 1 1 5E00025E
-P 9500 23900
-F 0 "RSNUP" H 9500 23740 50  0000 C CNN
-F 1 "5.1k" H 9500 24070 50  0000 C CNN
-F 2 "R0603" H 9500 23900 50  0001 C CNN
-F 3 "~" H 9500 23900 50  0001 C CNN
-F 4 "CLASS" H 9500 23900 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1-1%" H 9500 23900 50  0001 C CNN "MPN"
-	1    9500 23900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 23900 9050 23900
-Text Label 9050 23900 2    45   ~ 0
-VREF5
-Wire Wire Line
-	9750 23900 9950 23900
-Text Label 9950 23900 0    45   ~ 0
-TMOD_U
-$Comp
-L traction-r1:R RSNVP
-U 1 1 5E00025F
-P 9500 24700
-F 0 "RSNVP" H 9500 24540 50  0000 C CNN
-F 1 "5.1k" H 9500 24870 50  0000 C CNN
-F 2 "R0603" H 9500 24700 50  0001 C CNN
-F 3 "~" H 9500 24700 50  0001 C CNN
-F 4 "CLASS" H 9500 24700 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1-1%" H 9500 24700 50  0001 C CNN "MPN"
-	1    9500 24700
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 24700 9050 24700
-Text Label 9050 24700 2    45   ~ 0
-VREF5
-Wire Wire Line
-	9750 24700 9950 24700
-Text Label 9950 24700 0    45   ~ 0
-TMOD_V
-$Comp
-L traction-r1:R RSNWP
-U 1 1 5E000260
-P 9500 25500
-F 0 "RSNWP" H 9500 25340 50  0000 C CNN
-F 1 "5.1k" H 9500 25670 50  0000 C CNN
-F 2 "R0603" H 9500 25500 50  0001 C CNN
-F 3 "~" H 9500 25500 50  0001 C CNN
-F 4 "CLASS" H 9500 25500 50  0001 C CNN "LCSC"
-F 5 "R0603-5k1-1%" H 9500 25500 50  0001 C CNN "MPN"
-	1    9500 25500
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	9250 25500 9050 25500
-Text Label 9050 25500 2    45   ~ 0
-VREF5
-Wire Wire Line
-	9750 25500 9950 25500
-Text Label 9950 25500 0    45   ~ 0
-TMOD_W
-$Comp
-L traction-r1:R RTMR
-U 1 1 5E000261
-P 11150 23900
-F 0 "RTMR" H 11150 23740 50  0000 C CNN
-F 1 "0R" H 11150 24070 50  0000 C CNN
-F 2 "R0603" H 11150 23900 50  0001 C CNN
-F 3 "~" H 11150 23900 50  0001 C CNN
-F 4 "CLASS" H 11150 23900 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 11150 23900 50  0001 C CNN "MPN"
-	1    11150 23900
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	10900 23900 10700 23900
-Text Label 10700 23900 2    45   ~ 0
-TMOD_RTN
-Wire Wire Line
-	11400 23900 11600 23900
-Text Label 11600 23900 0    45   ~ 0
-AGND
-Wire Notes Line
-	16500 18000 20100 18000
-Wire Notes Line
-	20100 18000 20100 21250
-Wire Notes Line
-	20100 21250 16500 21250
-Wire Notes Line
-	16500 21250 16500 18000
-Text Notes 16560 18160 0    79   ~ 16
-TEMP / BOARD-NTC
-$Comp
-L traction-r1:C CTAMBF
-U 1 1 5E000262
+U 1 1 5E000263
 P 18300 18650
-F 0 "CTAMBF" H 18300 18490 50  0000 C CNN
-F 1 "47nF" H 18300 18820 50  0000 C CNN
-F 2 "C0603" H 18300 18650 50  0001 C CNN
+F 0 "RVD1A" H 18300 18490 50  0000 C CNN
+F 1 "10k" H 18300 18820 50  0000 C CNN
+F 2 "R0603" H 18300 18650 50  0001 C CNN
 F 3 "~" H 18300 18650 50  0001 C CNN
 F 4 "CLASS" H 18300 18650 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 18300 18650 50  0001 C CNN "MPN"
+F 5 "R0603-10k-0.1%" H 18300 18650 50  0001 C CNN "MPN"
 	1    18300 18650
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
 	18050 18650 17850 18650
 Text Label 17850 18650 2    45   ~ 0
-NTC_A
+VDC1_P
 Wire Wire Line
 	18550 18650 18750 18650
 Text Label 18750 18650 0    45   ~ 0
-AGND
+VDP1
 $Comp
-L traction-r1:C CTHSF
-U 1 1 5E000263
+L traction-r1:R RVD1B
+U 1 1 5E000264
 P 18300 19050
-F 0 "CTHSF" H 18300 18890 50  0000 C CNN
-F 1 "47nF" H 18300 19220 50  0000 C CNN
-F 2 "C0603" H 18300 19050 50  0001 C CNN
+F 0 "RVD1B" H 18300 18890 50  0000 C CNN
+F 1 "10k" H 18300 19220 50  0000 C CNN
+F 2 "R0603" H 18300 19050 50  0001 C CNN
 F 3 "~" H 18300 19050 50  0001 C CNN
 F 4 "CLASS" H 18300 19050 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 18300 19050 50  0001 C CNN "MPN"
+F 5 "R0603-10k-0.1%" H 18300 19050 50  0001 C CNN "MPN"
 	1    18300 19050
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
 	18050 19050 17850 19050
 Text Label 17850 19050 2    45   ~ 0
-NTC_H
+VDP1
 Wire Wire Line
 	18550 19050 18750 19050
 Text Label 18750 19050 0    45   ~ 0
-AGND
+VOFS
 $Comp
-L traction-r1:R RTAMB
-U 1 1 5E000264
+L traction-r1:R RVD1C
+U 1 1 5E000265
 P 18300 19450
-F 0 "RTAMB" H 18300 19290 50  0000 C CNN
+F 0 "RVD1C" H 18300 19290 50  0000 C CNN
 F 1 "10k" H 18300 19620 50  0000 C CNN
 F 2 "R0603" H 18300 19450 50  0001 C CNN
 F 3 "~" H 18300 19450 50  0001 C CNN
 F 4 "CLASS" H 18300 19450 50  0001 C CNN "LCSC"
-F 5 "NTC-10k-0603" H 18300 19450 50  0001 C CNN "MPN"
+F 5 "R0603-10k-0.1%" H 18300 19450 50  0001 C CNN "MPN"
 	1    18300 19450
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
 	18050 19450 17850 19450
 Text Label 17850 19450 2    45   ~ 0
-NTC_A
+VDC1_N
 Wire Wire Line
 	18550 19450 18750 19450
 Text Label 18750 19450 0    45   ~ 0
-AGND
+VDN1
 $Comp
-L traction-r1:R RTAMBP
-U 1 1 5E000265
+L traction-r1:R RVD1D
+U 1 1 5E000266
 P 18300 19850
-F 0 "RTAMBP" H 18300 19690 50  0000 C CNN
+F 0 "RVD1D" H 18300 19690 50  0000 C CNN
 F 1 "10k" H 18300 20020 50  0000 C CNN
 F 2 "R0603" H 18300 19850 50  0001 C CNN
 F 3 "~" H 18300 19850 50  0001 C CNN
 F 4 "CLASS" H 18300 19850 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-1%" H 18300 19850 50  0001 C CNN "MPN"
+F 5 "R0603-10k-0.1%" H 18300 19850 50  0001 C CNN "MPN"
 	1    18300 19850
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
 	18050 19850 17850 19850
 Text Label 17850 19850 2    45   ~ 0
-VREF5
+VDN1
 Wire Wire Line
 	18550 19850 18750 19850
 Text Label 18750 19850 0    45   ~ 0
+VDC1_SE
+Wire Notes Line
+	16500 22250 24100 22250
+Wire Notes Line
+	24100 22250 24100 25250
+Wire Notes Line
+	24100 25250 16500 25250
+Wire Notes Line
+	16500 25250 16500 22250
+Text Notes 16560 22410 0    79   ~ 16
+VDC-RECEIVE / CH-2
+$Comp
+L traction-r1:OPA376AQDBVRQ1 UVD2
+U 1 1 5E000267
+P 21150 23550
+F 0 "UVD2" H 20750 23250 50  0000 R CNN
+F 1 "OPA376AQDBVRQ1" H 20750 23880 50  0000 R CNN
+F 2 "SOT23-5" H 21150 23550 50  0001 C CNN
+F 3 "~" H 21150 23550 50  0001 C CNN
+F 4 "CLASS" H 21150 23550 50  0001 C CNN "LCSC"
+F 5 "OPA376AQDBVRQ1" H 21150 23550 50  0001 C CNN "MPN"
+	1    21150 23550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	20700 23450 20500 23450
+Text Label 20500 23450 2    45   ~ 0
+VDN2
+Wire Wire Line
+	20700 23550 20500 23550
+Text Label 20500 23550 2    45   ~ 0
+VDP2
+Wire Wire Line
+	21600 23450 21800 23450
+Text Label 21800 23450 0    45   ~ 0
+VDC2_SE
+Wire Wire Line
+	20950 23200 20950 23000
+Text Label 20950 23000 1    45   ~ 0
+V5A
+Wire Wire Line
+	20950 23900 20950 24100
+Text Label 20950 24100 3    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CVD2
+U 1 1 5E000268
+P 20950 24650
+F 0 "CVD2" H 20950 24490 50  0000 C CNN
+F 1 "100pF" H 20950 24820 50  0000 C CNN
+F 2 "C0603" H 20950 24650 50  0001 C CNN
+F 3 "~" H 20950 24650 50  0001 C CNN
+F 4 "CLASS" H 20950 24650 50  0001 C CNN "LCSC"
+F 5 "MLCC-CLASS" H 20950 24650 50  0001 C CNN "MPN"
+	1    20950 24650
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	20700 24650 20500 24650
+Text Label 20500 24650 2    45   ~ 0
+VDC2_SE
+Wire Wire Line
+	21200 24650 21400 24650
+Text Label 21400 24650 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:R RVD2A
+U 1 1 5E000269
+P 19300 22900
+F 0 "RVD2A" H 19300 22740 50  0000 C CNN
+F 1 "10k" H 19300 23070 50  0000 C CNN
+F 2 "R0603" H 19300 22900 50  0001 C CNN
+F 3 "~" H 19300 22900 50  0001 C CNN
+F 4 "CLASS" H 19300 22900 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-0.1%" H 19300 22900 50  0001 C CNN "MPN"
+	1    19300 22900
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	19050 22900 18850 22900
+Text Label 18850 22900 2    45   ~ 0
+VDC2_P
+Wire Wire Line
+	19550 22900 19750 22900
+Text Label 19750 22900 0    45   ~ 0
+VDP2
+$Comp
+L traction-r1:R RVD2B
+U 1 1 5E00026A
+P 19300 23300
+F 0 "RVD2B" H 19300 23140 50  0000 C CNN
+F 1 "10k" H 19300 23470 50  0000 C CNN
+F 2 "R0603" H 19300 23300 50  0001 C CNN
+F 3 "~" H 19300 23300 50  0001 C CNN
+F 4 "CLASS" H 19300 23300 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-0.1%" H 19300 23300 50  0001 C CNN "MPN"
+	1    19300 23300
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	19050 23300 18850 23300
+Text Label 18850 23300 2    45   ~ 0
+VDP2
+Wire Wire Line
+	19550 23300 19750 23300
+Text Label 19750 23300 0    45   ~ 0
+VOFS
+$Comp
+L traction-r1:R RVD2C
+U 1 1 5E00026B
+P 19300 23700
+F 0 "RVD2C" H 19300 23540 50  0000 C CNN
+F 1 "10k" H 19300 23870 50  0000 C CNN
+F 2 "R0603" H 19300 23700 50  0001 C CNN
+F 3 "~" H 19300 23700 50  0001 C CNN
+F 4 "CLASS" H 19300 23700 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-0.1%" H 19300 23700 50  0001 C CNN "MPN"
+	1    19300 23700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	19050 23700 18850 23700
+Text Label 18850 23700 2    45   ~ 0
+VDC2_N
+Wire Wire Line
+	19550 23700 19750 23700
+Text Label 19750 23700 0    45   ~ 0
+VDN2
+$Comp
+L traction-r1:R RVD2D
+U 1 1 5E00026C
+P 19300 24100
+F 0 "RVD2D" H 19300 23940 50  0000 C CNN
+F 1 "10k" H 19300 24270 50  0000 C CNN
+F 2 "R0603" H 19300 24100 50  0001 C CNN
+F 3 "~" H 19300 24100 50  0001 C CNN
+F 4 "CLASS" H 19300 24100 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-0.1%" H 19300 24100 50  0001 C CNN "MPN"
+	1    19300 24100
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	19050 24100 18850 24100
+Text Label 18850 24100 2    45   ~ 0
+VDN2
+Wire Wire Line
+	19550 24100 19750 24100
+Text Label 19750 24100 0    45   ~ 0
+VDC2_SE
+Wire Notes Line
+	28500 15500 32100 15500
+Wire Notes Line
+	32100 15500 32100 18750
+Wire Notes Line
+	32100 18750 28500 18750
+Wire Notes Line
+	28500 18750 28500 15500
+Text Notes 28560 15660 0    79   ~ 16
+TEMP / MOD-NTC
+$Comp
+L traction-r1:C CSNUF
+U 1 1 5E00026D
+P 29500 16550
+F 0 "CSNUF" H 29500 16390 50  0000 C CNN
+F 1 "47nF" H 29500 16720 50  0000 C CNN
+F 2 "C0603" H 29500 16550 50  0001 C CNN
+F 3 "~" H 29500 16550 50  0001 C CNN
+F 4 "CLASS" H 29500 16550 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 29500 16550 50  0001 C CNN "MPN"
+	1    29500 16550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 16550 29050 16550
+Text Label 29050 16550 2    45   ~ 0
+TMOD_U
+Wire Wire Line
+	29750 16550 29950 16550
+Text Label 29950 16550 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CSNVF
+U 1 1 5E00026E
+P 29500 17350
+F 0 "CSNVF" H 29500 17190 50  0000 C CNN
+F 1 "47nF" H 29500 17520 50  0000 C CNN
+F 2 "C0603" H 29500 17350 50  0001 C CNN
+F 3 "~" H 29500 17350 50  0001 C CNN
+F 4 "CLASS" H 29500 17350 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 29500 17350 50  0001 C CNN "MPN"
+	1    29500 17350
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 17350 29050 17350
+Text Label 29050 17350 2    45   ~ 0
+TMOD_V
+Wire Wire Line
+	29750 17350 29950 17350
+Text Label 29950 17350 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CSNWF
+U 1 1 5E00026F
+P 29500 18150
+F 0 "CSNWF" H 29500 17990 50  0000 C CNN
+F 1 "47nF" H 29500 18320 50  0000 C CNN
+F 2 "C0603" H 29500 18150 50  0001 C CNN
+F 3 "~" H 29500 18150 50  0001 C CNN
+F 4 "CLASS" H 29500 18150 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 29500 18150 50  0001 C CNN "MPN"
+	1    29500 18150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 18150 29050 18150
+Text Label 29050 18150 2    45   ~ 0
+TMOD_W
+Wire Wire Line
+	29750 18150 29950 18150
+Text Label 29950 18150 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:R RSNUP
+U 1 1 5E000270
+P 29500 16150
+F 0 "RSNUP" H 29500 15990 50  0000 C CNN
+F 1 "5.1k" H 29500 16320 50  0000 C CNN
+F 2 "R0603" H 29500 16150 50  0001 C CNN
+F 3 "~" H 29500 16150 50  0001 C CNN
+F 4 "CLASS" H 29500 16150 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1-1%" H 29500 16150 50  0001 C CNN "MPN"
+	1    29500 16150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 16150 29050 16150
+Text Label 29050 16150 2    45   ~ 0
+VREF5
+Wire Wire Line
+	29750 16150 29950 16150
+Text Label 29950 16150 0    45   ~ 0
+TMOD_U
+$Comp
+L traction-r1:R RSNVP
+U 1 1 5E000271
+P 29500 16950
+F 0 "RSNVP" H 29500 16790 50  0000 C CNN
+F 1 "5.1k" H 29500 17120 50  0000 C CNN
+F 2 "R0603" H 29500 16950 50  0001 C CNN
+F 3 "~" H 29500 16950 50  0001 C CNN
+F 4 "CLASS" H 29500 16950 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1-1%" H 29500 16950 50  0001 C CNN "MPN"
+	1    29500 16950
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 16950 29050 16950
+Text Label 29050 16950 2    45   ~ 0
+VREF5
+Wire Wire Line
+	29750 16950 29950 16950
+Text Label 29950 16950 0    45   ~ 0
+TMOD_V
+$Comp
+L traction-r1:R RSNWP
+U 1 1 5E000272
+P 29500 17750
+F 0 "RSNWP" H 29500 17590 50  0000 C CNN
+F 1 "5.1k" H 29500 17920 50  0000 C CNN
+F 2 "R0603" H 29500 17750 50  0001 C CNN
+F 3 "~" H 29500 17750 50  0001 C CNN
+F 4 "CLASS" H 29500 17750 50  0001 C CNN "LCSC"
+F 5 "R0603-5k1-1%" H 29500 17750 50  0001 C CNN "MPN"
+	1    29500 17750
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	29250 17750 29050 17750
+Text Label 29050 17750 2    45   ~ 0
+VREF5
+Wire Wire Line
+	29750 17750 29950 17750
+Text Label 29950 17750 0    45   ~ 0
+TMOD_W
+$Comp
+L traction-r1:R RTMR
+U 1 1 5E000273
+P 31150 16150
+F 0 "RTMR" H 31150 15990 50  0000 C CNN
+F 1 "0R" H 31150 16320 50  0000 C CNN
+F 2 "R0603" H 31150 16150 50  0001 C CNN
+F 3 "~" H 31150 16150 50  0001 C CNN
+F 4 "CLASS" H 31150 16150 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 31150 16150 50  0001 C CNN "MPN"
+	1    31150 16150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	30900 16150 30700 16150
+Text Label 30700 16150 2    45   ~ 0
+TMOD_RTN
+Wire Wire Line
+	31400 16150 31600 16150
+Text Label 31600 16150 0    45   ~ 0
+AGND
+Wire Notes Line
+	32500 6750 36100 6750
+Wire Notes Line
+	36100 6750 36100 10000
+Wire Notes Line
+	36100 10000 32500 10000
+Wire Notes Line
+	32500 10000 32500 6750
+Text Notes 32560 6910 0    79   ~ 16
+TEMP / BOARD-NTC
+$Comp
+L traction-r1:C CTAMBF
+U 1 1 5E000274
+P 34300 7400
+F 0 "CTAMBF" H 34300 7240 50  0000 C CNN
+F 1 "47nF" H 34300 7570 50  0000 C CNN
+F 2 "C0603" H 34300 7400 50  0001 C CNN
+F 3 "~" H 34300 7400 50  0001 C CNN
+F 4 "CLASS" H 34300 7400 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 34300 7400 50  0001 C CNN "MPN"
+	1    34300 7400
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	34050 7400 33850 7400
+Text Label 33850 7400 2    45   ~ 0
+NTC_A
+Wire Wire Line
+	34550 7400 34750 7400
+Text Label 34750 7400 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:C CTHSF
+U 1 1 5E000275
+P 34300 7800
+F 0 "CTHSF" H 34300 7640 50  0000 C CNN
+F 1 "47nF" H 34300 7970 50  0000 C CNN
+F 2 "C0603" H 34300 7800 50  0001 C CNN
+F 3 "~" H 34300 7800 50  0001 C CNN
+F 4 "CLASS" H 34300 7800 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 34300 7800 50  0001 C CNN "MPN"
+	1    34300 7800
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	34050 7800 33850 7800
+Text Label 33850 7800 2    45   ~ 0
+NTC_H
+Wire Wire Line
+	34550 7800 34750 7800
+Text Label 34750 7800 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:R RTAMB
+U 1 1 5E000276
+P 34300 8200
+F 0 "RTAMB" H 34300 8040 50  0000 C CNN
+F 1 "10k" H 34300 8370 50  0000 C CNN
+F 2 "R0603" H 34300 8200 50  0001 C CNN
+F 3 "~" H 34300 8200 50  0001 C CNN
+F 4 "CLASS" H 34300 8200 50  0001 C CNN "LCSC"
+F 5 "NTC-10k-0603" H 34300 8200 50  0001 C CNN "MPN"
+	1    34300 8200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	34050 8200 33850 8200
+Text Label 33850 8200 2    45   ~ 0
+NTC_A
+Wire Wire Line
+	34550 8200 34750 8200
+Text Label 34750 8200 0    45   ~ 0
+AGND
+$Comp
+L traction-r1:R RTAMBP
+U 1 1 5E000277
+P 34300 8600
+F 0 "RTAMBP" H 34300 8440 50  0000 C CNN
+F 1 "10k" H 34300 8770 50  0000 C CNN
+F 2 "R0603" H 34300 8600 50  0001 C CNN
+F 3 "~" H 34300 8600 50  0001 C CNN
+F 4 "CLASS" H 34300 8600 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-1%" H 34300 8600 50  0001 C CNN "MPN"
+	1    34300 8600
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	34050 8600 33850 8600
+Text Label 33850 8600 2    45   ~ 0
+VREF5
+Wire Wire Line
+	34550 8600 34750 8600
+Text Label 34750 8600 0    45   ~ 0
 NTC_A
 $Comp
 L traction-r1:R RTHS
-U 1 1 5E000266
-P 18300 20250
-F 0 "RTHS" H 18300 20090 50  0000 C CNN
-F 1 "10k" H 18300 20420 50  0000 C CNN
-F 2 "R0603" H 18300 20250 50  0001 C CNN
-F 3 "~" H 18300 20250 50  0001 C CNN
-F 4 "CLASS" H 18300 20250 50  0001 C CNN "LCSC"
-F 5 "NTC-10k-0603" H 18300 20250 50  0001 C CNN "MPN"
-	1    18300 20250
+U 1 1 5E000278
+P 34300 9000
+F 0 "RTHS" H 34300 8840 50  0000 C CNN
+F 1 "10k" H 34300 9170 50  0000 C CNN
+F 2 "R0603" H 34300 9000 50  0001 C CNN
+F 3 "~" H 34300 9000 50  0001 C CNN
+F 4 "CLASS" H 34300 9000 50  0001 C CNN "LCSC"
+F 5 "NTC-10k-0603" H 34300 9000 50  0001 C CNN "MPN"
+	1    34300 9000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 20250 17850 20250
-Text Label 17850 20250 2    45   ~ 0
+	34050 9000 33850 9000
+Text Label 33850 9000 2    45   ~ 0
 NTC_H
 Wire Wire Line
-	18550 20250 18750 20250
-Text Label 18750 20250 0    45   ~ 0
+	34550 9000 34750 9000
+Text Label 34750 9000 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R RTHSP
-U 1 1 5E000267
-P 18300 20650
-F 0 "RTHSP" H 18300 20490 50  0000 C CNN
-F 1 "10k" H 18300 20820 50  0000 C CNN
-F 2 "R0603" H 18300 20650 50  0001 C CNN
-F 3 "~" H 18300 20650 50  0001 C CNN
-F 4 "CLASS" H 18300 20650 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-1%" H 18300 20650 50  0001 C CNN "MPN"
-	1    18300 20650
+U 1 1 5E000279
+P 34300 9400
+F 0 "RTHSP" H 34300 9240 50  0000 C CNN
+F 1 "10k" H 34300 9570 50  0000 C CNN
+F 2 "R0603" H 34300 9400 50  0001 C CNN
+F 3 "~" H 34300 9400 50  0001 C CNN
+F 4 "CLASS" H 34300 9400 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-1%" H 34300 9400 50  0001 C CNN "MPN"
+	1    34300 9400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 20650 17850 20650
-Text Label 17850 20650 2    45   ~ 0
+	34050 9400 33850 9400
+Text Label 33850 9400 2    45   ~ 0
 VREF5
 Wire Wire Line
-	18550 20650 18750 20650
-Text Label 18750 20650 0    45   ~ 0
+	34550 9400 34750 9400
+Text Label 34750 9400 0    45   ~ 0
 NTC_H
 Wire Notes Line
-	16500 21750 24100 21750
+	32500 12500 40100 12500
 Wire Notes Line
-	24100 21750 24100 25750
+	40100 12500 40100 16500
 Wire Notes Line
-	24100 25750 16500 25750
+	40100 16500 32500 16500
 Wire Notes Line
-	16500 25750 16500 21750
-Text Notes 16560 21910 0    79   ~ 16
+	32500 16500 32500 12500
+Text Notes 32560 12660 0    79   ~ 16
 TEMP / MOTOR-TEMP
 $Comp
 L traction-r1:OPA333AQDBVRQ1 UMT1
-U 1 1 5E000268
-P 18500 24650
-F 0 "UMT1" H 18100 24350 50  0000 R CNN
-F 1 "OPA333AQDBVRQ1" H 18100 24980 50  0000 R CNN
-F 2 "SOT23-5" H 18500 24650 50  0001 C CNN
-F 3 "~" H 18500 24650 50  0001 C CNN
-F 4 "C2058544" H 18500 24650 50  0001 C CNN "LCSC"
-F 5 "OPA333AQDBVRQ1" H 18500 24650 50  0001 C CNN "MPN"
-	1    18500 24650
+U 1 1 5E00027A
+P 34500 15400
+F 0 "UMT1" H 34100 15100 50  0000 R CNN
+F 1 "OPA333AQDBVRQ1" H 34100 15730 50  0000 R CNN
+F 2 "SOT23-5" H 34500 15400 50  0001 C CNN
+F 3 "~" H 34500 15400 50  0001 C CNN
+F 4 "C2058544" H 34500 15400 50  0001 C CNN "LCSC"
+F 5 "OPA333AQDBVRQ1" H 34500 15400 50  0001 C CNN "MPN"
+	1    34500 15400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 24550 17850 24550
-Text Label 17850 24550 2    45   ~ 0
+	34050 15300 33850 15300
+Text Label 33850 15300 2    45   ~ 0
 MT1_SIG
 Wire Wire Line
-	18050 24650 17850 24650
-Text Label 17850 24650 2    45   ~ 0
+	34050 15400 33850 15400
+Text Label 33850 15400 2    45   ~ 0
 MT1_B
 Wire Wire Line
-	18950 24550 19150 24550
-Text Label 19150 24550 0    45   ~ 0
+	34950 15300 35150 15300
+Text Label 35150 15300 0    45   ~ 0
 MT1_SIG
 Wire Wire Line
-	18300 24300 18300 24100
-Text Label 18300 24100 1    45   ~ 0
+	34300 15050 34300 14850
+Text Label 34300 14850 1    45   ~ 0
 V5A
 Wire Wire Line
-	18300 25000 18300 25200
-Text Label 18300 25200 3    45   ~ 0
+	34300 15750 34300 15950
+Text Label 34300 15950 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:OPA333AQDBVRQ1 UMT2
-U 1 1 5E000269
-P 20550 24650
-F 0 "UMT2" H 20150 24350 50  0000 R CNN
-F 1 "OPA333AQDBVRQ1" H 20150 24980 50  0000 R CNN
-F 2 "SOT23-5" H 20550 24650 50  0001 C CNN
-F 3 "~" H 20550 24650 50  0001 C CNN
-F 4 "C2058544" H 20550 24650 50  0001 C CNN "LCSC"
-F 5 "OPA333AQDBVRQ1" H 20550 24650 50  0001 C CNN "MPN"
-	1    20550 24650
+U 1 1 5E00027B
+P 36550 15400
+F 0 "UMT2" H 36150 15100 50  0000 R CNN
+F 1 "OPA333AQDBVRQ1" H 36150 15730 50  0000 R CNN
+F 2 "SOT23-5" H 36550 15400 50  0001 C CNN
+F 3 "~" H 36550 15400 50  0001 C CNN
+F 4 "C2058544" H 36550 15400 50  0001 C CNN "LCSC"
+F 5 "OPA333AQDBVRQ1" H 36550 15400 50  0001 C CNN "MPN"
+	1    36550 15400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20100 24550 19900 24550
-Text Label 19900 24550 2    45   ~ 0
+	36100 15300 35900 15300
+Text Label 35900 15300 2    45   ~ 0
 MT2_SIG
 Wire Wire Line
-	20100 24650 19900 24650
-Text Label 19900 24650 2    45   ~ 0
+	36100 15400 35900 15400
+Text Label 35900 15400 2    45   ~ 0
 MT2_B
 Wire Wire Line
-	21000 24550 21200 24550
-Text Label 21200 24550 0    45   ~ 0
+	37000 15300 37200 15300
+Text Label 37200 15300 0    45   ~ 0
 MT2_SIG
 Wire Wire Line
-	20350 24300 20350 24100
-Text Label 20350 24100 1    45   ~ 0
+	36350 15050 36350 14850
+Text Label 36350 14850 1    45   ~ 0
 V5A
 Wire Wire Line
-	20350 25000 20350 25200
-Text Label 20350 25200 3    45   ~ 0
+	36350 15750 36350 15950
+Text Label 36350 15950 3    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CMT1F
-U 1 1 5E00026A
-P 18300 23600
-F 0 "CMT1F" H 18300 23440 50  0000 C CNN
-F 1 "47nF" H 18300 23770 50  0000 C CNN
-F 2 "C0603" H 18300 23600 50  0001 C CNN
-F 3 "~" H 18300 23600 50  0001 C CNN
-F 4 "CLASS" H 18300 23600 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 18300 23600 50  0001 C CNN "MPN"
-	1    18300 23600
+U 1 1 5E00027C
+P 34300 14350
+F 0 "CMT1F" H 34300 14190 50  0000 C CNN
+F 1 "47nF" H 34300 14520 50  0000 C CNN
+F 2 "C0603" H 34300 14350 50  0001 C CNN
+F 3 "~" H 34300 14350 50  0001 C CNN
+F 4 "CLASS" H 34300 14350 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 34300 14350 50  0001 C CNN "MPN"
+	1    34300 14350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 23600 17850 23600
-Text Label 17850 23600 2    45   ~ 0
+	34050 14350 33850 14350
+Text Label 33850 14350 2    45   ~ 0
 MT1_B
 Wire Wire Line
-	18550 23600 18750 23600
-Text Label 18750 23600 0    45   ~ 0
+	34550 14350 34750 14350
+Text Label 34750 14350 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:C CMT2F
-U 1 1 5E00026B
-P 20350 23600
-F 0 "CMT2F" H 20350 23440 50  0000 C CNN
-F 1 "47nF" H 20350 23770 50  0000 C CNN
-F 2 "C0603" H 20350 23600 50  0001 C CNN
-F 3 "~" H 20350 23600 50  0001 C CNN
-F 4 "CLASS" H 20350 23600 50  0001 C CNN "LCSC"
-F 5 "MLCC-47nF-25V" H 20350 23600 50  0001 C CNN "MPN"
-	1    20350 23600
+U 1 1 5E00027D
+P 36350 14350
+F 0 "CMT2F" H 36350 14190 50  0000 C CNN
+F 1 "47nF" H 36350 14520 50  0000 C CNN
+F 2 "C0603" H 36350 14350 50  0001 C CNN
+F 3 "~" H 36350 14350 50  0001 C CNN
+F 4 "CLASS" H 36350 14350 50  0001 C CNN "LCSC"
+F 5 "MLCC-47nF-25V" H 36350 14350 50  0001 C CNN "MPN"
+	1    36350 14350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20100 23600 19900 23600
-Text Label 19900 23600 2    45   ~ 0
+	36100 14350 35900 14350
+Text Label 35900 14350 2    45   ~ 0
 MT2_B
 Wire Wire Line
-	20600 23600 20800 23600
-Text Label 20800 23600 0    45   ~ 0
+	36600 14350 36800 14350
+Text Label 36800 14350 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:F FMT1
-U 1 1 5E00026C
-P 18300 22400
-F 0 "FMT1" H 18300 22240 50  0000 C CNN
-F 1 "FUSE-350mA-0603" H 18300 22570 50  0000 C CNN
-F 2 "F0603" H 18300 22400 50  0001 C CNN
-F 3 "~" H 18300 22400 50  0001 C CNN
-F 4 "CLASS" H 18300 22400 50  0001 C CNN "LCSC"
-F 5 "FUSE-350mA-0603" H 18300 22400 50  0001 C CNN "MPN"
-	1    18300 22400
+U 1 1 5E00027E
+P 34300 13150
+F 0 "FMT1" H 34300 12990 50  0000 C CNN
+F 1 "FUSE-350mA-0603" H 34300 13320 50  0000 C CNN
+F 2 "F0603" H 34300 13150 50  0001 C CNN
+F 3 "~" H 34300 13150 50  0001 C CNN
+F 4 "CLASS" H 34300 13150 50  0001 C CNN "LCSC"
+F 5 "FUSE-350mA-0603" H 34300 13150 50  0001 C CNN "MPN"
+	1    34300 13150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 22400 17850 22400
-Text Label 17850 22400 2    45   ~ 0
+	34050 13150 33850 13150
+Text Label 33850 13150 2    45   ~ 0
 MT1_RAW
 Wire Wire Line
-	18550 22400 18750 22400
-Text Label 18750 22400 0    45   ~ 0
+	34550 13150 34750 13150
+Text Label 34750 13150 0    45   ~ 0
 MT1_F
 $Comp
 L traction-r1:F FMT2
-U 1 1 5E00026D
-P 20350 22400
-F 0 "FMT2" H 20350 22240 50  0000 C CNN
-F 1 "FUSE-350mA-0603" H 20350 22570 50  0000 C CNN
-F 2 "F0603" H 20350 22400 50  0001 C CNN
-F 3 "~" H 20350 22400 50  0001 C CNN
-F 4 "CLASS" H 20350 22400 50  0001 C CNN "LCSC"
-F 5 "FUSE-350mA-0603" H 20350 22400 50  0001 C CNN "MPN"
-	1    20350 22400
+U 1 1 5E00027F
+P 36350 13150
+F 0 "FMT2" H 36350 12990 50  0000 C CNN
+F 1 "FUSE-350mA-0603" H 36350 13320 50  0000 C CNN
+F 2 "F0603" H 36350 13150 50  0001 C CNN
+F 3 "~" H 36350 13150 50  0001 C CNN
+F 4 "CLASS" H 36350 13150 50  0001 C CNN "LCSC"
+F 5 "FUSE-350mA-0603" H 36350 13150 50  0001 C CNN "MPN"
+	1    36350 13150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20100 22400 19900 22400
-Text Label 19900 22400 2    45   ~ 0
+	36100 13150 35900 13150
+Text Label 35900 13150 2    45   ~ 0
 MT2_RAW
 Wire Wire Line
-	20600 22400 20800 22400
-Text Label 20800 22400 0    45   ~ 0
+	36600 13150 36800 13150
+Text Label 36800 13150 0    45   ~ 0
 MT2_F
 $Comp
 L traction-r1:R RMT1P
-U 1 1 5E00026E
-P 18300 22800
-F 0 "RMT1P" H 18300 22640 50  0000 C CNN
-F 1 "10k" H 18300 22970 50  0000 C CNN
-F 2 "R0603" H 18300 22800 50  0001 C CNN
-F 3 "~" H 18300 22800 50  0001 C CNN
-F 4 "CLASS" H 18300 22800 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 18300 22800 50  0001 C CNN "MPN"
-	1    18300 22800
+U 1 1 5E000280
+P 34300 13550
+F 0 "RMT1P" H 34300 13390 50  0000 C CNN
+F 1 "10k" H 34300 13720 50  0000 C CNN
+F 2 "R0603" H 34300 13550 50  0001 C CNN
+F 3 "~" H 34300 13550 50  0001 C CNN
+F 4 "CLASS" H 34300 13550 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 34300 13550 50  0001 C CNN "MPN"
+	1    34300 13550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 22800 17850 22800
-Text Label 17850 22800 2    45   ~ 0
+	34050 13550 33850 13550
+Text Label 33850 13550 2    45   ~ 0
 VREF5
 Wire Wire Line
-	18550 22800 18750 22800
-Text Label 18750 22800 0    45   ~ 0
+	34550 13550 34750 13550
+Text Label 34750 13550 0    45   ~ 0
 MT1_F
 $Comp
 L traction-r1:R RMT1S
-U 1 1 5E00026F
-P 18300 23200
-F 0 "RMT1S" H 18300 23040 50  0000 C CNN
-F 1 "1k" H 18300 23370 50  0000 C CNN
-F 2 "R0603" H 18300 23200 50  0001 C CNN
-F 3 "~" H 18300 23200 50  0001 C CNN
-F 4 "CLASS" H 18300 23200 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 18300 23200 50  0001 C CNN "MPN"
-	1    18300 23200
+U 1 1 5E000281
+P 34300 13950
+F 0 "RMT1S" H 34300 13790 50  0000 C CNN
+F 1 "1k" H 34300 14120 50  0000 C CNN
+F 2 "R0603" H 34300 13950 50  0001 C CNN
+F 3 "~" H 34300 13950 50  0001 C CNN
+F 4 "CLASS" H 34300 13950 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 34300 13950 50  0001 C CNN "MPN"
+	1    34300 13950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18050 23200 17850 23200
-Text Label 17850 23200 2    45   ~ 0
+	34050 13950 33850 13950
+Text Label 33850 13950 2    45   ~ 0
 MT1_F
 Wire Wire Line
-	18550 23200 18750 23200
-Text Label 18750 23200 0    45   ~ 0
+	34550 13950 34750 13950
+Text Label 34750 13950 0    45   ~ 0
 MT1_B
 $Comp
 L traction-r1:R RMT2P
-U 1 1 5E000270
-P 20350 22800
-F 0 "RMT2P" H 20350 22640 50  0000 C CNN
-F 1 "10k" H 20350 22970 50  0000 C CNN
-F 2 "R0603" H 20350 22800 50  0001 C CNN
-F 3 "~" H 20350 22800 50  0001 C CNN
-F 4 "CLASS" H 20350 22800 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 20350 22800 50  0001 C CNN "MPN"
-	1    20350 22800
+U 1 1 5E000282
+P 36350 13550
+F 0 "RMT2P" H 36350 13390 50  0000 C CNN
+F 1 "10k" H 36350 13720 50  0000 C CNN
+F 2 "R0603" H 36350 13550 50  0001 C CNN
+F 3 "~" H 36350 13550 50  0001 C CNN
+F 4 "CLASS" H 36350 13550 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 36350 13550 50  0001 C CNN "MPN"
+	1    36350 13550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20100 22800 19900 22800
-Text Label 19900 22800 2    45   ~ 0
+	36100 13550 35900 13550
+Text Label 35900 13550 2    45   ~ 0
 VREF5
 Wire Wire Line
-	20600 22800 20800 22800
-Text Label 20800 22800 0    45   ~ 0
+	36600 13550 36800 13550
+Text Label 36800 13550 0    45   ~ 0
 MT2_F
 $Comp
 L traction-r1:R RMT2S
-U 1 1 5E000271
-P 20350 23200
-F 0 "RMT2S" H 20350 23040 50  0000 C CNN
-F 1 "1k" H 20350 23370 50  0000 C CNN
-F 2 "R0603" H 20350 23200 50  0001 C CNN
-F 3 "~" H 20350 23200 50  0001 C CNN
-F 4 "CLASS" H 20350 23200 50  0001 C CNN "LCSC"
-F 5 "R0603-CLASS" H 20350 23200 50  0001 C CNN "MPN"
-	1    20350 23200
+U 1 1 5E000283
+P 36350 13950
+F 0 "RMT2S" H 36350 13790 50  0000 C CNN
+F 1 "1k" H 36350 14120 50  0000 C CNN
+F 2 "R0603" H 36350 13950 50  0001 C CNN
+F 3 "~" H 36350 13950 50  0001 C CNN
+F 4 "CLASS" H 36350 13950 50  0001 C CNN "LCSC"
+F 5 "R0603-CLASS" H 36350 13950 50  0001 C CNN "MPN"
+	1    36350 13950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20100 23200 19900 23200
-Text Label 19900 23200 2    45   ~ 0
+	36100 13950 35900 13950
+Text Label 35900 13950 2    45   ~ 0
 MT2_F
 Wire Wire Line
-	20600 23200 20800 23200
-Text Label 20800 23200 0    45   ~ 0
+	36600 13950 36800 13950
+Text Label 36800 13950 0    45   ~ 0
 MT2_B
 $Comp
 L traction-r1:R TVSM1
-U 1 1 5E000272
-P 22400 22400
-F 0 "TVSM1" H 22400 22240 50  0000 C CNN
-F 1 "PESD5V0L1BA" H 22400 22570 50  0000 C CNN
-F 2 "SOD323" H 22400 22400 50  0001 C CNN
-F 3 "~" H 22400 22400 50  0001 C CNN
-F 4 "CLASS" H 22400 22400 50  0001 C CNN "LCSC"
-F 5 "PESD5V0L1BA" H 22400 22400 50  0001 C CNN "MPN"
-	1    22400 22400
+U 1 1 5E000284
+P 38400 13150
+F 0 "TVSM1" H 38400 12990 50  0000 C CNN
+F 1 "PESD5V0L1BA" H 38400 13320 50  0000 C CNN
+F 2 "SOD323" H 38400 13150 50  0001 C CNN
+F 3 "~" H 38400 13150 50  0001 C CNN
+F 4 "CLASS" H 38400 13150 50  0001 C CNN "LCSC"
+F 5 "PESD5V0L1BA" H 38400 13150 50  0001 C CNN "MPN"
+	1    38400 13150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	22150 22400 21950 22400
-Text Label 21950 22400 2    45   ~ 0
+	38150 13150 37950 13150
+Text Label 37950 13150 2    45   ~ 0
 MT1_F
 Wire Wire Line
-	22650 22400 22850 22400
-Text Label 22850 22400 0    45   ~ 0
+	38650 13150 38850 13150
+Text Label 38850 13150 0    45   ~ 0
 AGND
 $Comp
 L traction-r1:R TVSM2
-U 1 1 5E000273
-P 22400 22800
-F 0 "TVSM2" H 22400 22640 50  0000 C CNN
-F 1 "PESD5V0L1BA" H 22400 22970 50  0000 C CNN
-F 2 "SOD323" H 22400 22800 50  0001 C CNN
-F 3 "~" H 22400 22800 50  0001 C CNN
-F 4 "CLASS" H 22400 22800 50  0001 C CNN "LCSC"
-F 5 "PESD5V0L1BA" H 22400 22800 50  0001 C CNN "MPN"
-	1    22400 22800
+U 1 1 5E000285
+P 38400 13550
+F 0 "TVSM2" H 38400 13390 50  0000 C CNN
+F 1 "PESD5V0L1BA" H 38400 13720 50  0000 C CNN
+F 2 "SOD323" H 38400 13550 50  0001 C CNN
+F 3 "~" H 38400 13550 50  0001 C CNN
+F 4 "CLASS" H 38400 13550 50  0001 C CNN "LCSC"
+F 5 "PESD5V0L1BA" H 38400 13550 50  0001 C CNN "MPN"
+	1    38400 13550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	22150 22800 21950 22800
-Text Label 21950 22800 2    45   ~ 0
+	38150 13550 37950 13550
+Text Label 37950 13550 2    45   ~ 0
 MT2_F
 Wire Wire Line
-	22650 22800 22850 22800
-Text Label 22850 22800 0    45   ~ 0
+	38650 13550 38850 13550
+Text Label 38850 13550 0    45   ~ 0
 AGND
 Wire Notes Line
-	8500 27000 16100 27000
+	24500 19250 32100 19250
 Wire Notes Line
-	16100 27000 16100 30750
+	32100 19250 32100 23000
 Wire Notes Line
-	16100 30750 8500 30750
+	32100 23000 24500 23000
 Wire Notes Line
-	8500 30750 8500 27000
-Text Notes 8560 27160 0    79   ~ 16
+	24500 23000 24500 19250
+Text Notes 24560 19410 0    79   ~ 16
 COMMS / CAN-FD1
 $Comp
 L traction-r1:ACT45B-101-2P-TL003 LCAN1
-U 1 1 5E000274
-P 13400 27900
-F 0 "LCAN1" H 13000 27500 50  0000 R CNN
-F 1 "ACT45B-101-2P-TL003" H 13000 28330 50  0000 R CNN
-F 2 "CMC1210" H 13400 27900 50  0001 C CNN
-F 3 "~" H 13400 27900 50  0001 C CNN
-F 4 "CLASS" H 13400 27900 50  0001 C CNN "LCSC"
-F 5 "ACT45B-101-2P-TL003" H 13400 27900 50  0001 C CNN "MPN"
-	1    13400 27900
+U 1 1 5E000286
+P 29400 20150
+F 0 "LCAN1" H 29000 19750 50  0000 R CNN
+F 1 "ACT45B-101-2P-TL003" H 29000 20580 50  0000 R CNN
+F 2 "CMC1210" H 29400 20150 50  0001 C CNN
+F 3 "~" H 29400 20150 50  0001 C CNN
+F 4 "CLASS" H 29400 20150 50  0001 C CNN "LCSC"
+F 5 "ACT45B-101-2P-TL003" H 29400 20150 50  0001 C CNN "MPN"
+	1    29400 20150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12950 27700 12750 27700
-Text Label 12750 27700 2    45   ~ 0
+	28950 19950 28750 19950
+Text Label 28750 19950 2    45   ~ 0
 CANH1_T
 Wire Wire Line
-	12950 27800 12750 27800
-Text Label 12750 27800 2    45   ~ 0
+	28950 20050 28750 20050
+Text Label 28750 20050 2    45   ~ 0
 CANH1
 Wire Wire Line
-	12950 27900 12750 27900
-Text Label 12750 27900 2    45   ~ 0
+	28950 20150 28750 20150
+Text Label 28750 20150 2    45   ~ 0
 CANL1_T
 Wire Wire Line
-	12950 28000 12750 28000
-Text Label 12750 28000 2    45   ~ 0
+	28950 20250 28750 20250
+Text Label 28750 20250 2    45   ~ 0
 CANL1
 $Comp
 L traction-r1:PESD2IVN24-T TVSC1
-U 1 1 5E000275
-P 13400 30000
-F 0 "TVSC1" H 13000 29650 50  0000 R CNN
-F 1 "PESD2IVN24-T" H 13000 30380 50  0000 R CNN
-F 2 "SOT23" H 13400 30000 50  0001 C CNN
-F 3 "~" H 13400 30000 50  0001 C CNN
-F 4 "C406047" H 13400 30000 50  0001 C CNN "LCSC"
-F 5 "PESD2IVN24-T" H 13400 30000 50  0001 C CNN "MPN"
-	1    13400 30000
+U 1 1 5E000287
+P 29400 22250
+F 0 "TVSC1" H 29000 21900 50  0000 R CNN
+F 1 "PESD2IVN24-T" H 29000 22630 50  0000 R CNN
+F 2 "SOT23" H 29400 22250 50  0001 C CNN
+F 3 "~" H 29400 22250 50  0001 C CNN
+F 4 "C406047" H 29400 22250 50  0001 C CNN "LCSC"
+F 5 "PESD2IVN24-T" H 29400 22250 50  0001 C CNN "MPN"
+	1    29400 22250
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12950 29850 12750 29850
-Text Label 12750 29850 2    45   ~ 0
+	28950 22100 28750 22100
+Text Label 28750 22100 2    45   ~ 0
 CANH1
 Wire Wire Line
-	12950 29950 12750 29950
-Text Label 12750 29950 2    45   ~ 0
+	28950 22200 28750 22200
+Text Label 28750 22200 2    45   ~ 0
 CANL1
 Wire Wire Line
-	12950 30050 12750 30050
-Text Label 12750 30050 2    45   ~ 0
+	28950 22300 28750 22300
+Text Label 28750 22300 2    45   ~ 0
 DGND
 $Comp
 L traction-r1:TCAN1042HGVDRQ1 UCAN1
-U 1 1 5E000276
-P 11300 28400
-F 0 "UCAN1" H 10900 28000 50  0000 R CNN
-F 1 "TCAN1042HGVDRQ1" H 10900 28830 50  0000 R CNN
-F 2 "SOIC8" H 11300 28400 50  0001 C CNN
-F 3 "~" H 11300 28400 50  0001 C CNN
-F 4 "C132550" H 11300 28400 50  0001 C CNN "LCSC"
-F 5 "TCAN1042HGVDRQ1" H 11300 28400 50  0001 C CNN "MPN"
-	1    11300 28400
+U 1 1 5E000288
+P 27300 20650
+F 0 "UCAN1" H 26900 20250 50  0000 R CNN
+F 1 "TCAN1042HGVDRQ1" H 26900 21080 50  0000 R CNN
+F 2 "SOIC8" H 27300 20650 50  0001 C CNN
+F 3 "~" H 27300 20650 50  0001 C CNN
+F 4 "C132550" H 27300 20650 50  0001 C CNN "LCSC"
+F 5 "TCAN1042HGVDRQ1" H 27300 20650 50  0001 C CNN "MPN"
+	1    27300 20650
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	10850 28200 10650 28200
-Text Label 10650 28200 2    45   ~ 0
+	26850 20450 26650 20450
+Text Label 26650 20450 2    45   ~ 0
 DGND
 Wire Wire Line
-	10850 28300 10650 28300
-Text Label 10650 28300 2    45   ~ 0
+	26850 20550 26650 20550
+Text Label 26650 20550 2    45   ~ 0
 V5A
 Wire Wire Line
-	11750 28200 11950 28200
-Text Label 11950 28200 0    45   ~ 0
+	27750 20450 27950 20450
+Text Label 27950 20450 0    45   ~ 0
 CANH1_T
 Wire Wire Line
-	11750 28300 11950 28300
-Text Label 11950 28300 0    45   ~ 0
+	27750 20550 27950 20550
+Text Label 27950 20550 0    45   ~ 0
 CANL1_T
 Wire Wire Line
-	11750 28400 11950 28400
-Text Label 11950 28400 0    45   ~ 0
+	27750 20650 27950 20650
+Text Label 27950 20650 0    45   ~ 0
 CAN0_RX
 Wire Wire Line
-	11750 28500 11950 28500
-Text Label 11950 28500 0    45   ~ 0
+	27750 20750 27950 20750
+Text Label 27950 20750 0    45   ~ 0
 CAN0_TX
 Wire Wire Line
-	11100 27950 11100 27750
-Text Label 11100 27750 1    45   ~ 0
+	27100 20200 27100 20000
+Text Label 27100 20000 1    45   ~ 0
 V5A
 Wire Wire Line
-	11100 28850 11100 29050
-Text Label 11100 29050 3    45   ~ 0
+	27100 21100 27100 21300
+Text Label 27100 21300 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CCAN1
-U 1 1 5E000277
-P 11100 29600
-F 0 "CCAN1" H 11100 29440 50  0000 C CNN
-F 1 "1uF" H 11100 29770 50  0000 C CNN
-F 2 "C0603" H 11100 29600 50  0001 C CNN
-F 3 "~" H 11100 29600 50  0001 C CNN
-F 4 "CLASS" H 11100 29600 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-25V" H 11100 29600 50  0001 C CNN "MPN"
-	1    11100 29600
+U 1 1 5E000289
+P 27100 21850
+F 0 "CCAN1" H 27100 21690 50  0000 C CNN
+F 1 "1uF" H 27100 22020 50  0000 C CNN
+F 2 "C0603" H 27100 21850 50  0001 C CNN
+F 3 "~" H 27100 21850 50  0001 C CNN
+F 4 "CLASS" H 27100 21850 50  0001 C CNN "LCSC"
+F 5 "MLCC-1uF-25V" H 27100 21850 50  0001 C CNN "MPN"
+	1    27100 21850
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	10850 29600 10650 29600
-Text Label 10650 29600 2    45   ~ 0
+	26850 21850 26650 21850
+Text Label 26650 21850 2    45   ~ 0
 V5A
 Wire Wire Line
-	11350 29600 11550 29600
-Text Label 11550 29600 0    45   ~ 0
+	27350 21850 27550 21850
+Text Label 27550 21850 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CCT1
-U 1 1 5E000278
-P 13200 29400
-F 0 "CCT1" H 13200 29240 50  0000 C CNN
-F 1 "4.7nF" H 13200 29570 50  0000 C CNN
-F 2 "C0603" H 13200 29400 50  0001 C CNN
-F 3 "~" H 13200 29400 50  0001 C CNN
-F 4 "CLASS" H 13200 29400 50  0001 C CNN "LCSC"
-F 5 "MLCC-4.7nF-50V" H 13200 29400 50  0001 C CNN "MPN"
-	1    13200 29400
+U 1 1 5E00028A
+P 29200 21650
+F 0 "CCT1" H 29200 21490 50  0000 C CNN
+F 1 "4.7nF" H 29200 21820 50  0000 C CNN
+F 2 "C0603" H 29200 21650 50  0001 C CNN
+F 3 "~" H 29200 21650 50  0001 C CNN
+F 4 "CLASS" H 29200 21650 50  0001 C CNN "LCSC"
+F 5 "MLCC-4.7nF-50V" H 29200 21650 50  0001 C CNN "MPN"
+	1    29200 21650
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12950 29400 12750 29400
-Text Label 12750 29400 2    45   ~ 0
+	28950 21650 28750 21650
+Text Label 28750 21650 2    45   ~ 0
 CANS1
 Wire Wire Line
-	13450 29400 13650 29400
-Text Label 13650 29400 0    45   ~ 0
+	29450 21650 29650 21650
+Text Label 29650 21650 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RCT1A
-U 1 1 5E000279
-P 13200 28600
-F 0 "RCT1A" H 13200 28440 50  0000 C CNN
-F 1 "60.4R" H 13200 28770 50  0000 C CNN
-F 2 "R0603" H 13200 28600 50  0001 C CNN
-F 3 "~" H 13200 28600 50  0001 C CNN
-F 4 "CLASS" H 13200 28600 50  0001 C CNN "LCSC"
-F 5 "R0603-60R4-1%" H 13200 28600 50  0001 C CNN "MPN"
-	1    13200 28600
+U 1 1 5E00028B
+P 29200 20850
+F 0 "RCT1A" H 29200 20690 50  0000 C CNN
+F 1 "60.4R" H 29200 21020 50  0000 C CNN
+F 2 "R0603" H 29200 20850 50  0001 C CNN
+F 3 "~" H 29200 20850 50  0001 C CNN
+F 4 "CLASS" H 29200 20850 50  0001 C CNN "LCSC"
+F 5 "R0603-60R4-1%" H 29200 20850 50  0001 C CNN "MPN"
+	1    29200 20850
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12950 28600 12750 28600
-Text Label 12750 28600 2    45   ~ 0
+	28950 20850 28750 20850
+Text Label 28750 20850 2    45   ~ 0
 CANH1_T
 Wire Wire Line
-	13450 28600 13650 28600
-Text Label 13650 28600 0    45   ~ 0
+	29450 20850 29650 20850
+Text Label 29650 20850 0    45   ~ 0
 CANS1
 $Comp
 L traction-r1:R RCT1B
-U 1 1 5E00027A
-P 13200 29000
-F 0 "RCT1B" H 13200 28840 50  0000 C CNN
-F 1 "60.4R" H 13200 29170 50  0000 C CNN
-F 2 "R0603" H 13200 29000 50  0001 C CNN
-F 3 "~" H 13200 29000 50  0001 C CNN
-F 4 "CLASS" H 13200 29000 50  0001 C CNN "LCSC"
-F 5 "R0603-60R4-1%" H 13200 29000 50  0001 C CNN "MPN"
-	1    13200 29000
+U 1 1 5E00028C
+P 29200 21250
+F 0 "RCT1B" H 29200 21090 50  0000 C CNN
+F 1 "60.4R" H 29200 21420 50  0000 C CNN
+F 2 "R0603" H 29200 21250 50  0001 C CNN
+F 3 "~" H 29200 21250 50  0001 C CNN
+F 4 "CLASS" H 29200 21250 50  0001 C CNN "LCSC"
+F 5 "R0603-60R4-1%" H 29200 21250 50  0001 C CNN "MPN"
+	1    29200 21250
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	12950 29000 12750 29000
-Text Label 12750 29000 2    45   ~ 0
+	28950 21250 28750 21250
+Text Label 28750 21250 2    45   ~ 0
 CANS1
 Wire Wire Line
-	13450 29000 13650 29000
-Text Label 13650 29000 0    45   ~ 0
+	29450 21250 29650 21250
+Text Label 29650 21250 0    45   ~ 0
 CANL1_T
 Wire Notes Line
-	16500 26250 24100 26250
+	32500 17000 40100 17000
 Wire Notes Line
-	24100 26250 24100 30000
+	40100 17000 40100 20750
 Wire Notes Line
-	24100 30000 16500 30000
+	40100 20750 32500 20750
 Wire Notes Line
-	16500 30000 16500 26250
-Text Notes 16560 26410 0    79   ~ 16
+	32500 20750 32500 17000
+Text Notes 32560 17160 0    79   ~ 16
 COMMS / CAN-FD2
 $Comp
 L traction-r1:ACT45B-101-2P-TL003 LCAN2
-U 1 1 5E00027B
-P 21400 27150
-F 0 "LCAN2" H 21000 26750 50  0000 R CNN
-F 1 "ACT45B-101-2P-TL003" H 21000 27580 50  0000 R CNN
-F 2 "CMC1210" H 21400 27150 50  0001 C CNN
-F 3 "~" H 21400 27150 50  0001 C CNN
-F 4 "CLASS" H 21400 27150 50  0001 C CNN "LCSC"
-F 5 "ACT45B-101-2P-TL003" H 21400 27150 50  0001 C CNN "MPN"
-	1    21400 27150
+U 1 1 5E00028D
+P 37400 17900
+F 0 "LCAN2" H 37000 17500 50  0000 R CNN
+F 1 "ACT45B-101-2P-TL003" H 37000 18330 50  0000 R CNN
+F 2 "CMC1210" H 37400 17900 50  0001 C CNN
+F 3 "~" H 37400 17900 50  0001 C CNN
+F 4 "CLASS" H 37400 17900 50  0001 C CNN "LCSC"
+F 5 "ACT45B-101-2P-TL003" H 37400 17900 50  0001 C CNN "MPN"
+	1    37400 17900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20950 26950 20750 26950
-Text Label 20750 26950 2    45   ~ 0
+	36950 17700 36750 17700
+Text Label 36750 17700 2    45   ~ 0
 CANH2_T
 Wire Wire Line
-	20950 27050 20750 27050
-Text Label 20750 27050 2    45   ~ 0
+	36950 17800 36750 17800
+Text Label 36750 17800 2    45   ~ 0
 CANH2
 Wire Wire Line
-	20950 27150 20750 27150
-Text Label 20750 27150 2    45   ~ 0
+	36950 17900 36750 17900
+Text Label 36750 17900 2    45   ~ 0
 CANL2_T
 Wire Wire Line
-	20950 27250 20750 27250
-Text Label 20750 27250 2    45   ~ 0
+	36950 18000 36750 18000
+Text Label 36750 18000 2    45   ~ 0
 CANL2
 $Comp
 L traction-r1:PESD2IVN24-T TVSC2
-U 1 1 5E00027C
-P 21400 29250
-F 0 "TVSC2" H 21000 28900 50  0000 R CNN
-F 1 "PESD2IVN24-T" H 21000 29630 50  0000 R CNN
-F 2 "SOT23" H 21400 29250 50  0001 C CNN
-F 3 "~" H 21400 29250 50  0001 C CNN
-F 4 "C406047" H 21400 29250 50  0001 C CNN "LCSC"
-F 5 "PESD2IVN24-T" H 21400 29250 50  0001 C CNN "MPN"
-	1    21400 29250
+U 1 1 5E00028E
+P 37400 20000
+F 0 "TVSC2" H 37000 19650 50  0000 R CNN
+F 1 "PESD2IVN24-T" H 37000 20380 50  0000 R CNN
+F 2 "SOT23" H 37400 20000 50  0001 C CNN
+F 3 "~" H 37400 20000 50  0001 C CNN
+F 4 "C406047" H 37400 20000 50  0001 C CNN "LCSC"
+F 5 "PESD2IVN24-T" H 37400 20000 50  0001 C CNN "MPN"
+	1    37400 20000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20950 29100 20750 29100
-Text Label 20750 29100 2    45   ~ 0
+	36950 19850 36750 19850
+Text Label 36750 19850 2    45   ~ 0
 CANH2
 Wire Wire Line
-	20950 29200 20750 29200
-Text Label 20750 29200 2    45   ~ 0
+	36950 19950 36750 19950
+Text Label 36750 19950 2    45   ~ 0
 CANL2
 Wire Wire Line
-	20950 29300 20750 29300
-Text Label 20750 29300 2    45   ~ 0
+	36950 20050 36750 20050
+Text Label 36750 20050 2    45   ~ 0
 DGND
 $Comp
 L traction-r1:TCAN1042HGVDRQ1 UCAN2
-U 1 1 5E00027D
-P 19300 27650
-F 0 "UCAN2" H 18900 27250 50  0000 R CNN
-F 1 "TCAN1042HGVDRQ1" H 18900 28080 50  0000 R CNN
-F 2 "SOIC8" H 19300 27650 50  0001 C CNN
-F 3 "~" H 19300 27650 50  0001 C CNN
-F 4 "C132550" H 19300 27650 50  0001 C CNN "LCSC"
-F 5 "TCAN1042HGVDRQ1" H 19300 27650 50  0001 C CNN "MPN"
-	1    19300 27650
+U 1 1 5E00028F
+P 35300 18400
+F 0 "UCAN2" H 34900 18000 50  0000 R CNN
+F 1 "TCAN1042HGVDRQ1" H 34900 18830 50  0000 R CNN
+F 2 "SOIC8" H 35300 18400 50  0001 C CNN
+F 3 "~" H 35300 18400 50  0001 C CNN
+F 4 "C132550" H 35300 18400 50  0001 C CNN "LCSC"
+F 5 "TCAN1042HGVDRQ1" H 35300 18400 50  0001 C CNN "MPN"
+	1    35300 18400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18850 27450 18650 27450
-Text Label 18650 27450 2    45   ~ 0
+	34850 18200 34650 18200
+Text Label 34650 18200 2    45   ~ 0
 DGND
 Wire Wire Line
-	18850 27550 18650 27550
-Text Label 18650 27550 2    45   ~ 0
+	34850 18300 34650 18300
+Text Label 34650 18300 2    45   ~ 0
 V5A
 Wire Wire Line
-	19750 27450 19950 27450
-Text Label 19950 27450 0    45   ~ 0
+	35750 18200 35950 18200
+Text Label 35950 18200 0    45   ~ 0
 CANH2_T
 Wire Wire Line
-	19750 27550 19950 27550
-Text Label 19950 27550 0    45   ~ 0
+	35750 18300 35950 18300
+Text Label 35950 18300 0    45   ~ 0
 CANL2_T
 Wire Wire Line
-	19750 27650 19950 27650
-Text Label 19950 27650 0    45   ~ 0
+	35750 18400 35950 18400
+Text Label 35950 18400 0    45   ~ 0
 CAN1_RX
 Wire Wire Line
-	19750 27750 19950 27750
-Text Label 19950 27750 0    45   ~ 0
+	35750 18500 35950 18500
+Text Label 35950 18500 0    45   ~ 0
 CAN1_TX
 Wire Wire Line
-	19100 27200 19100 27000
-Text Label 19100 27000 1    45   ~ 0
+	35100 17950 35100 17750
+Text Label 35100 17750 1    45   ~ 0
 V5A
 Wire Wire Line
-	19100 28100 19100 28300
-Text Label 19100 28300 3    45   ~ 0
+	35100 18850 35100 19050
+Text Label 35100 19050 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CCAN2
-U 1 1 5E00027E
-P 19100 28850
-F 0 "CCAN2" H 19100 28690 50  0000 C CNN
-F 1 "1uF" H 19100 29020 50  0000 C CNN
-F 2 "C0603" H 19100 28850 50  0001 C CNN
-F 3 "~" H 19100 28850 50  0001 C CNN
-F 4 "CLASS" H 19100 28850 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-25V" H 19100 28850 50  0001 C CNN "MPN"
-	1    19100 28850
+U 1 1 5E000290
+P 35100 19600
+F 0 "CCAN2" H 35100 19440 50  0000 C CNN
+F 1 "1uF" H 35100 19770 50  0000 C CNN
+F 2 "C0603" H 35100 19600 50  0001 C CNN
+F 3 "~" H 35100 19600 50  0001 C CNN
+F 4 "CLASS" H 35100 19600 50  0001 C CNN "LCSC"
+F 5 "MLCC-1uF-25V" H 35100 19600 50  0001 C CNN "MPN"
+	1    35100 19600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	18850 28850 18650 28850
-Text Label 18650 28850 2    45   ~ 0
+	34850 19600 34650 19600
+Text Label 34650 19600 2    45   ~ 0
 V5A
 Wire Wire Line
-	19350 28850 19550 28850
-Text Label 19550 28850 0    45   ~ 0
+	35350 19600 35550 19600
+Text Label 35550 19600 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CCT2
-U 1 1 5E00027F
-P 21200 28650
-F 0 "CCT2" H 21200 28490 50  0000 C CNN
-F 1 "4.7nF" H 21200 28820 50  0000 C CNN
-F 2 "C0603" H 21200 28650 50  0001 C CNN
-F 3 "~" H 21200 28650 50  0001 C CNN
-F 4 "CLASS" H 21200 28650 50  0001 C CNN "LCSC"
-F 5 "MLCC-4.7nF-50V" H 21200 28650 50  0001 C CNN "MPN"
-	1    21200 28650
+U 1 1 5E000291
+P 37200 19400
+F 0 "CCT2" H 37200 19240 50  0000 C CNN
+F 1 "4.7nF" H 37200 19570 50  0000 C CNN
+F 2 "C0603" H 37200 19400 50  0001 C CNN
+F 3 "~" H 37200 19400 50  0001 C CNN
+F 4 "CLASS" H 37200 19400 50  0001 C CNN "LCSC"
+F 5 "MLCC-4.7nF-50V" H 37200 19400 50  0001 C CNN "MPN"
+	1    37200 19400
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20950 28650 20750 28650
-Text Label 20750 28650 2    45   ~ 0
+	36950 19400 36750 19400
+Text Label 36750 19400 2    45   ~ 0
 CANS2
 Wire Wire Line
-	21450 28650 21650 28650
-Text Label 21650 28650 0    45   ~ 0
+	37450 19400 37650 19400
+Text Label 37650 19400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RCT2A
-U 1 1 5E000280
-P 21200 27850
-F 0 "RCT2A" H 21200 27690 50  0000 C CNN
-F 1 "60.4R" H 21200 28020 50  0000 C CNN
-F 2 "R0603" H 21200 27850 50  0001 C CNN
-F 3 "~" H 21200 27850 50  0001 C CNN
-F 4 "CLASS" H 21200 27850 50  0001 C CNN "LCSC"
-F 5 "R0603-60R4-1%" H 21200 27850 50  0001 C CNN "MPN"
-	1    21200 27850
+U 1 1 5E000292
+P 37200 18600
+F 0 "RCT2A" H 37200 18440 50  0000 C CNN
+F 1 "60.4R" H 37200 18770 50  0000 C CNN
+F 2 "R0603" H 37200 18600 50  0001 C CNN
+F 3 "~" H 37200 18600 50  0001 C CNN
+F 4 "CLASS" H 37200 18600 50  0001 C CNN "LCSC"
+F 5 "R0603-60R4-1%" H 37200 18600 50  0001 C CNN "MPN"
+	1    37200 18600
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20950 27850 20750 27850
-Text Label 20750 27850 2    45   ~ 0
+	36950 18600 36750 18600
+Text Label 36750 18600 2    45   ~ 0
 CANH2_T
 Wire Wire Line
-	21450 27850 21650 27850
-Text Label 21650 27850 0    45   ~ 0
+	37450 18600 37650 18600
+Text Label 37650 18600 0    45   ~ 0
 CANS2
 $Comp
 L traction-r1:R RCT2B
-U 1 1 5E000281
-P 21200 28250
-F 0 "RCT2B" H 21200 28090 50  0000 C CNN
-F 1 "60.4R" H 21200 28420 50  0000 C CNN
-F 2 "R0603" H 21200 28250 50  0001 C CNN
-F 3 "~" H 21200 28250 50  0001 C CNN
-F 4 "CLASS" H 21200 28250 50  0001 C CNN "LCSC"
-F 5 "R0603-60R4-1%" H 21200 28250 50  0001 C CNN "MPN"
-	1    21200 28250
+U 1 1 5E000293
+P 37200 19000
+F 0 "RCT2B" H 37200 18840 50  0000 C CNN
+F 1 "60.4R" H 37200 19170 50  0000 C CNN
+F 2 "R0603" H 37200 19000 50  0001 C CNN
+F 3 "~" H 37200 19000 50  0001 C CNN
+F 4 "CLASS" H 37200 19000 50  0001 C CNN "LCSC"
+F 5 "R0603-60R4-1%" H 37200 19000 50  0001 C CNN "MPN"
+	1    37200 19000
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	20950 28250 20750 28250
-Text Label 20750 28250 2    45   ~ 0
+	36950 19000 36750 19000
+Text Label 36750 19000 2    45   ~ 0
 CANS2
 Wire Wire Line
-	21450 28250 21650 28250
-Text Label 21650 28250 0    45   ~ 0
+	37450 19000 37650 19000
+Text Label 37650 19000 0    45   ~ 0
 CANL2_T
 Wire Notes Line
-	24500 16750 32100 16750
+	32500 21250 40100 21250
 Wire Notes Line
-	32100 16750 32100 19500
+	40100 21250 40100 24000
 Wire Notes Line
-	32100 19500 24500 19500
+	40100 24000 32500 24000
 Wire Notes Line
-	24500 19500 24500 16750
-Text Notes 24560 16910 0    79   ~ 16
+	32500 24000 32500 21250
+Text Notes 32560 21410 0    79   ~ 16
 VEHICLE-IF / CONNECTOR
 $Comp
 L traction-r1:TE_770669-1__AMPSEAL_23_ JVEH
-U 1 1 5E000282
-P 27550 17950
-F 0 "JVEH" H 27150 17250 50  0000 R CNN
-F 1 "TE 770669-1 (AMPSEAL 23)" H 27150 18680 50  0000 R CNN
-F 2 "AMPSEAL23" H 27550 17950 50  0001 C CNN
-F 3 "~" H 27550 17950 50  0001 C CNN
-F 4 "CLASS" H 27550 17950 50  0001 C CNN "LCSC"
-F 5 "TE 770669-1 (AMPSEAL 23)" H 27550 17950 50  0001 C CNN "MPN"
-	1    27550 17950
+U 1 1 5E000294
+P 35550 22450
+F 0 "JVEH" H 35150 21750 50  0000 R CNN
+F 1 "TE 770669-1 (AMPSEAL 23)" H 35150 23180 50  0000 R CNN
+F 2 "AMPSEAL23" H 35550 22450 50  0001 C CNN
+F 3 "~" H 35550 22450 50  0001 C CNN
+F 4 "CLASS" H 35550 22450 50  0001 C CNN "LCSC"
+F 5 "TE 770669-1 (AMPSEAL 23)" H 35550 22450 50  0001 C CNN "MPN"
+	1    35550 22450
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	27100 17450 26900 17450
-Text Label 26900 17450 2    45   ~ 0
+	35100 21950 34900 21950
+Text Label 34900 21950 2    45   ~ 0
 VCANH1
 Wire Wire Line
-	27100 17550 26900 17550
-Text Label 26900 17550 2    45   ~ 0
+	35100 22050 34900 22050
+Text Label 34900 22050 2    45   ~ 0
 VCANH2
 Wire Wire Line
-	27100 17650 26900 17650
-Text Label 26900 17650 2    45   ~ 0
+	35100 22150 34900 22150
+Text Label 34900 22150 2    45   ~ 0
 VCANL1
 Wire Wire Line
-	27100 17750 26900 17750
-Text Label 26900 17750 2    45   ~ 0
+	35100 22250 34900 22250
+Text Label 34900 22250 2    45   ~ 0
 VCANL2
 Wire Wire Line
-	27100 17850 26900 17850
-Text Label 26900 17850 2    45   ~ 0
+	35100 22350 34900 22350
+Text Label 34900 22350 2    45   ~ 0
 FAULT_OUT
 Wire Wire Line
-	27100 17950 26900 17950
-Text Label 26900 17950 2    45   ~ 0
+	35100 22450 34900 22450
+Text Label 34900 22450 2    45   ~ 0
 KL15R
 Wire Wire Line
-	27100 18050 26900 18050
-Text Label 26900 18050 2    45   ~ 0
+	35100 22550 34900 22550
+Text Label 34900 22550 2    45   ~ 0
 KL30
 Wire Wire Line
-	27100 18150 26900 18150
-Text Label 26900 18150 2    45   ~ 0
+	35100 22650 34900 22650
+Text Label 34900 22650 2    45   ~ 0
 MT1_RAW
 Wire Wire Line
-	27100 18250 26900 18250
-Text Label 26900 18250 2    45   ~ 0
+	35100 22750 34900 22750
+Text Label 34900 22750 2    45   ~ 0
 AGND
 Wire Wire Line
-	27100 18350 26900 18350
-Text Label 26900 18350 2    45   ~ 0
+	35100 22850 34900 22850
+Text Label 34900 22850 2    45   ~ 0
 MT2_RAW
 Wire Wire Line
-	28000 17450 28200 17450
-Text Label 28200 17450 0    45   ~ 0
+	36000 21950 36200 21950
+Text Label 36200 21950 0    45   ~ 0
 AGND
 Wire Wire Line
-	28000 17550 28200 17550
-Text Label 28200 17550 0    45   ~ 0
+	36000 22050 36200 22050
+Text Label 36200 22050 0    45   ~ 0
 VREX_P
 Wire Wire Line
-	28000 17650 28200 17650
-Text Label 28200 17650 0    45   ~ 0
+	36000 22150 36200 22150
+Text Label 36200 22150 0    45   ~ 0
 VREX_N
 Wire Wire Line
-	28000 17750 28200 17750
-Text Label 28200 17750 0    45   ~ 0
+	36000 22250 36200 22250
+Text Label 36200 22250 0    45   ~ 0
 RSLV_S1
 Wire Wire Line
-	28000 17850 28200 17850
-Text Label 28200 17850 0    45   ~ 0
+	36000 22350 36200 22350
+Text Label 36200 22350 0    45   ~ 0
 RSLV_S2
 Wire Wire Line
-	28000 17950 28200 17950
-Text Label 28200 17950 0    45   ~ 0
+	36000 22450 36200 22450
+Text Label 36200 22450 0    45   ~ 0
 RSLV_S3
 Wire Wire Line
-	28000 18050 28200 18050
-Text Label 28200 18050 0    45   ~ 0
+	36000 22550 36200 22550
+Text Label 36200 22550 0    45   ~ 0
 RSLV_S4
 Wire Wire Line
-	28000 18150 28200 18150
-Text Label 28200 18150 0    45   ~ 0
+	36000 22650 36200 22650
+Text Label 36200 22650 0    45   ~ 0
 DGND
 Wire Wire Line
-	28000 18250 28200 18250
-Text Label 28200 18250 0    45   ~ 0
+	36000 22750 36200 22750
+Text Label 36200 22750 0    45   ~ 0
 DGND
 Wire Wire Line
-	27350 18700 27350 18900
-Text Label 27350 18900 3    45   ~ 0
+	35350 23200 35350 23400
+Text Label 35350 23400 3    45   ~ 0
 DGND
 Wire Wire Line
-	27450 18700 27450 18900
-Text Label 27450 18900 3    45   ~ 0
+	35450 23200 35450 23400
+Text Label 35450 23400 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:F FVS1
-U 1 1 5E000283
-P 29400 17400
-F 0 "FVS1" H 29400 17240 50  0000 C CNN
-F 1 "MF-LSMF" H 29400 17570 50  0000 C CNN
-F 2 "PTC1206" H 29400 17400 50  0001 C CNN
-F 3 "~" H 29400 17400 50  0001 C CNN
-F 4 "CLASS" H 29400 17400 50  0001 C CNN "LCSC"
-F 5 "MF-LSMF-CLASS" H 29400 17400 50  0001 C CNN "MPN"
-	1    29400 17400
+U 1 1 5E000295
+P 37400 21900
+F 0 "FVS1" H 37400 21740 50  0000 C CNN
+F 1 "MF-LSMF" H 37400 22070 50  0000 C CNN
+F 2 "PTC1206" H 37400 21900 50  0001 C CNN
+F 3 "~" H 37400 21900 50  0001 C CNN
+F 4 "CLASS" H 37400 21900 50  0001 C CNN "LCSC"
+F 5 "MF-LSMF-CLASS" H 37400 21900 50  0001 C CNN "MPN"
+	1    37400 21900
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29150 17400 28950 17400
-Text Label 28950 17400 2    45   ~ 0
+	37150 21900 36950 21900
+Text Label 36950 21900 2    45   ~ 0
 KL15R
 Wire Wire Line
-	29650 17400 29850 17400
-Text Label 29850 17400 0    45   ~ 0
+	37650 21900 37850 21900
+Text Label 37850 21900 0    45   ~ 0
 KL15
 $Comp
 L traction-r1:L LVS1
-U 1 1 5E000284
-P 29400 17800
-F 0 "LVS1" H 29400 17640 50  0000 C CNN
-F 1 "FB-470R" H 29400 17970 50  0000 C CNN
-F 2 "FB0603" H 29400 17800 50  0001 C CNN
-F 3 "~" H 29400 17800 50  0001 C CNN
-F 4 "CLASS" H 29400 17800 50  0001 C CNN "LCSC"
-F 5 "FB-470R-CLASS" H 29400 17800 50  0001 C CNN "MPN"
-	1    29400 17800
+U 1 1 5E000296
+P 37400 22300
+F 0 "LVS1" H 37400 22140 50  0000 C CNN
+F 1 "FB-470R" H 37400 22470 50  0000 C CNN
+F 2 "FB0603" H 37400 22300 50  0001 C CNN
+F 3 "~" H 37400 22300 50  0001 C CNN
+F 4 "CLASS" H 37400 22300 50  0001 C CNN "LCSC"
+F 5 "FB-470R-CLASS" H 37400 22300 50  0001 C CNN "MPN"
+	1    37400 22300
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29150 17800 28950 17800
-Text Label 28950 17800 2    45   ~ 0
+	37150 22300 36950 22300
+Text Label 36950 22300 2    45   ~ 0
 VCANH1
 Wire Wire Line
-	29650 17800 29850 17800
-Text Label 29850 17800 0    45   ~ 0
+	37650 22300 37850 22300
+Text Label 37850 22300 0    45   ~ 0
 CANH1
 $Comp
 L traction-r1:L LVS2
-U 1 1 5E000285
-P 29400 18200
-F 0 "LVS2" H 29400 18040 50  0000 C CNN
-F 1 "FB-470R" H 29400 18370 50  0000 C CNN
-F 2 "FB0603" H 29400 18200 50  0001 C CNN
-F 3 "~" H 29400 18200 50  0001 C CNN
-F 4 "CLASS" H 29400 18200 50  0001 C CNN "LCSC"
-F 5 "FB-470R-CLASS" H 29400 18200 50  0001 C CNN "MPN"
-	1    29400 18200
+U 1 1 5E000297
+P 37400 22700
+F 0 "LVS2" H 37400 22540 50  0000 C CNN
+F 1 "FB-470R" H 37400 22870 50  0000 C CNN
+F 2 "FB0603" H 37400 22700 50  0001 C CNN
+F 3 "~" H 37400 22700 50  0001 C CNN
+F 4 "CLASS" H 37400 22700 50  0001 C CNN "LCSC"
+F 5 "FB-470R-CLASS" H 37400 22700 50  0001 C CNN "MPN"
+	1    37400 22700
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29150 18200 28950 18200
-Text Label 28950 18200 2    45   ~ 0
+	37150 22700 36950 22700
+Text Label 36950 22700 2    45   ~ 0
 VCANL1
 Wire Wire Line
-	29650 18200 29850 18200
-Text Label 29850 18200 0    45   ~ 0
+	37650 22700 37850 22700
+Text Label 37850 22700 0    45   ~ 0
 CANL1
 $Comp
 L traction-r1:L LVS3
-U 1 1 5E000286
-P 29400 18600
-F 0 "LVS3" H 29400 18440 50  0000 C CNN
-F 1 "FB-470R" H 29400 18770 50  0000 C CNN
-F 2 "FB0603" H 29400 18600 50  0001 C CNN
-F 3 "~" H 29400 18600 50  0001 C CNN
-F 4 "CLASS" H 29400 18600 50  0001 C CNN "LCSC"
-F 5 "FB-470R-CLASS" H 29400 18600 50  0001 C CNN "MPN"
-	1    29400 18600
+U 1 1 5E000298
+P 37400 23100
+F 0 "LVS3" H 37400 22940 50  0000 C CNN
+F 1 "FB-470R" H 37400 23270 50  0000 C CNN
+F 2 "FB0603" H 37400 23100 50  0001 C CNN
+F 3 "~" H 37400 23100 50  0001 C CNN
+F 4 "CLASS" H 37400 23100 50  0001 C CNN "LCSC"
+F 5 "FB-470R-CLASS" H 37400 23100 50  0001 C CNN "MPN"
+	1    37400 23100
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29150 18600 28950 18600
-Text Label 28950 18600 2    45   ~ 0
+	37150 23100 36950 23100
+Text Label 36950 23100 2    45   ~ 0
 VCANH2
 Wire Wire Line
-	29650 18600 29850 18600
-Text Label 29850 18600 0    45   ~ 0
+	37650 23100 37850 23100
+Text Label 37850 23100 0    45   ~ 0
 CANH2
 $Comp
 L traction-r1:L LVS4
-U 1 1 5E000287
-P 29400 19000
-F 0 "LVS4" H 29400 18840 50  0000 C CNN
-F 1 "FB-470R" H 29400 19170 50  0000 C CNN
-F 2 "FB0603" H 29400 19000 50  0001 C CNN
-F 3 "~" H 29400 19000 50  0001 C CNN
-F 4 "CLASS" H 29400 19000 50  0001 C CNN "LCSC"
-F 5 "FB-470R-CLASS" H 29400 19000 50  0001 C CNN "MPN"
-	1    29400 19000
+U 1 1 5E000299
+P 37400 23500
+F 0 "LVS4" H 37400 23340 50  0000 C CNN
+F 1 "FB-470R" H 37400 23670 50  0000 C CNN
+F 2 "FB0603" H 37400 23500 50  0001 C CNN
+F 3 "~" H 37400 23500 50  0001 C CNN
+F 4 "CLASS" H 37400 23500 50  0001 C CNN "LCSC"
+F 5 "FB-470R-CLASS" H 37400 23500 50  0001 C CNN "MPN"
+	1    37400 23500
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29150 19000 28950 19000
-Text Label 28950 19000 2    45   ~ 0
+	37150 23500 36950 23500
+Text Label 36950 23500 2    45   ~ 0
 VCANL2
 Wire Wire Line
-	29650 19000 29850 19000
-Text Label 29850 19000 0    45   ~ 0
+	37650 23500 37850 23500
+Text Label 37850 23500 0    45   ~ 0
 CANL2
 Wire Notes Line
-	24500 20000 32100 20000
+	40500 6500 48100 6500
 Wire Notes Line
-	32100 20000 32100 23250
+	48100 6500 48100 9750
 Wire Notes Line
-	32100 23250 24500 23250
+	48100 9750 40500 9750
 Wire Notes Line
-	24500 23250 24500 20000
-Text Notes 24560 20160 0    79   ~ 16
+	40500 9750 40500 6500
+Text Notes 40560 6660 0    79   ~ 16
 CARD-IF / HARNESS
 $Comp
-L traction-r1:HARNESS-2x20-CLASS JICC
-U 1 1 5E000288
-P 27400 21700
-F 0 "JICC" H 26700 20500 50  0000 R CNN
-F 1 "HARNESS-2x20" H 26700 22930 50  0000 R CNN
-F 2 "MicroFit40" H 27400 21700 50  0001 C CNN
-F 3 "~" H 27400 21700 50  0001 C CNN
-F 4 "CLASS" H 27400 21700 50  0001 C CNN "LCSC"
-F 5 "HARNESS-2x20-CLASS" H 27400 21700 50  0001 C CNN "MPN"
-	1    27400 21700
+L traction-r1:IPL1-120-01-L-D-K JICC
+U 1 1 5E00029A
+P 43400 8200
+F 0 "JICC" H 42700 7000 50  0000 R CNN
+F 1 "IPL1-120-01-L-D-K" H 42700 9430 50  0000 R CNN
+F 2 "HDR2x20-2.54" H 43400 8200 50  0001 C CNN
+F 3 "~" H 43400 8200 50  0001 C CNN
+F 4 "CLASS" H 43400 8200 50  0001 C CNN "LCSC"
+F 5 "IPL1-120-01-L-D-K" H 43400 8200 50  0001 C CNN "MPN"
+	1    43400 8200
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	26650 20700 26450 20700
-Text Label 26450 20700 2    45   ~ 0
+	42650 7200 42450 7200
+Text Label 42450 7200 2    45   ~ 0
 V5GD
 Wire Wire Line
-	26650 20800 26450 20800
-Text Label 26450 20800 2    45   ~ 0
+	42650 7300 42450 7300
+Text Label 42450 7300 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 20900 26450 20900
-Text Label 26450 20900 2    45   ~ 0
+	42650 7400 42450 7400
+Text Label 42450 7400 2    45   ~ 0
 EN_FLYBK_HS
 Wire Wire Line
-	26650 21000 26450 21000
-Text Label 26450 21000 2    45   ~ 0
+	42650 7500 42450 7500
+Text Label 42450 7500 2    45   ~ 0
 EN_FLYBK_LS
 Wire Wire Line
-	26650 21100 26450 21100
-Text Label 26450 21100 2    45   ~ 0
+	42650 7600 42450 7600
+Text Label 42450 7600 2    45   ~ 0
 DRV_EN
 Wire Wire Line
-	26650 21200 26450 21200
-Text Label 26450 21200 2    45   ~ 0
+	42650 7700 42450 7700
+Text Label 42450 7700 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 21300 26450 21300
-Text Label 26450 21300 2    45   ~ 0
+	42650 7800 42450 7800
+Text Label 42450 7800 2    45   ~ 0
 ASC_CMD
 Wire Wire Line
-	26650 21400 26450 21400
-Text Label 26450 21400 2    45   ~ 0
+	42650 7900 42450 7900
+Text Label 42450 7900 2    45   ~ 0
 QDIS_CMD
 Wire Wire Line
-	26650 21500 26450 21500
-Text Label 26450 21500 2    45   ~ 0
+	42650 8000 42450 8000
+Text Label 42450 8000 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 21600 26450 21600
-Text Label 26450 21600 2    45   ~ 0
+	42650 8100 42450 8100
+Text Label 42450 8100 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 21700 26450 21700
-Text Label 26450 21700 2    45   ~ 0
+	42650 8200 42450 8200
+Text Label 42450 8200 2    45   ~ 0
 VBAT_H
 Wire Wire Line
-	26650 21800 26450 21800
-Text Label 26450 21800 2    45   ~ 0
+	42650 8300 42450 8300
+Text Label 42450 8300 2    45   ~ 0
 HW_ID
 Wire Wire Line
-	26650 21900 26450 21900
-Text Label 26450 21900 2    45   ~ 0
+	42650 8400 42450 8400
+Text Label 42450 8400 2    45   ~ 0
 VBAT_H
 Wire Wire Line
-	26650 22000 26450 22000
-Text Label 26450 22000 2    45   ~ 0
+	42650 8500 42450 8500
+Text Label 42450 8500 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 22100 26450 22100
-Text Label 26450 22100 2    45   ~ 0
+	42650 8600 42450 8600
+Text Label 42450 8600 2    45   ~ 0
 DGND
 Wire Wire Line
-	26650 22200 26450 22200
-Text Label 26450 22200 2    45   ~ 0
+	42650 8700 42450 8700
+Text Label 42450 8700 2    45   ~ 0
 FLT_HS_N
 Wire Wire Line
-	26650 22300 26450 22300
-Text Label 26450 22300 2    45   ~ 0
+	42650 8800 42450 8800
+Text Label 42450 8800 2    45   ~ 0
 FLT_LS_N
 Wire Wire Line
-	26650 22400 26450 22400
-Text Label 26450 22400 2    45   ~ 0
+	42650 8900 42450 8900
+Text Label 42450 8900 2    45   ~ 0
 RDY_HS
 Wire Wire Line
-	26650 22500 26450 22500
-Text Label 26450 22500 2    45   ~ 0
+	42650 9000 42450 9000
+Text Label 42450 9000 2    45   ~ 0
 RDY_LS
 Wire Wire Line
-	26650 22600 26450 22600
-Text Label 26450 22600 2    45   ~ 0
+	42650 9100 42450 9100
+Text Label 42450 9100 2    45   ~ 0
 VDC1_P
 Wire Wire Line
-	28150 20700 28350 20700
-Text Label 28350 20700 0    45   ~ 0
+	44150 7200 44350 7200
+Text Label 44350 7200 0    45   ~ 0
 VDC1_N
 Wire Wire Line
-	28150 20800 28350 20800
-Text Label 28350 20800 0    45   ~ 0
+	44150 7300 44350 7300
+Text Label 44350 7300 0    45   ~ 0
 VDC2_P
 Wire Wire Line
-	28150 20900 28350 20900
-Text Label 28350 20900 0    45   ~ 0
+	44150 7400 44350 7400
+Text Label 44350 7400 0    45   ~ 0
 AGND
 Wire Wire Line
-	28150 21000 28350 21000
-Text Label 28350 21000 0    45   ~ 0
+	44150 7500 44350 7500
+Text Label 44350 7500 0    45   ~ 0
 VDC2_N
 Wire Wire Line
-	28150 21100 28350 21100
-Text Label 28350 21100 0    45   ~ 0
+	44150 7600 44350 7600
+Text Label 44350 7600 0    45   ~ 0
 TMOD_U
 Wire Wire Line
-	28150 21200 28350 21200
-Text Label 28350 21200 0    45   ~ 0
+	44150 7700 44350 7700
+Text Label 44350 7700 0    45   ~ 0
 TMOD_V
 Wire Wire Line
-	28150 21300 28350 21300
-Text Label 28350 21300 0    45   ~ 0
+	44150 7800 44350 7800
+Text Label 44350 7800 0    45   ~ 0
 TMOD_W
 Wire Wire Line
-	28150 21400 28350 21400
-Text Label 28350 21400 0    45   ~ 0
+	44150 7900 44350 7900
+Text Label 44350 7900 0    45   ~ 0
 TMOD_RTN
 Wire Wire Line
-	28150 21500 28350 21500
-Text Label 28350 21500 0    45   ~ 0
+	44150 8000 44350 8000
+Text Label 44350 8000 0    45   ~ 0
 HVIL_A
 Wire Wire Line
-	28150 21600 28350 21600
-Text Label 28350 21600 0    45   ~ 0
+	44150 8100 44350 8100
+Text Label 44350 8100 0    45   ~ 0
 HVIL_B
 Wire Wire Line
-	28150 21700 28350 21700
-Text Label 28350 21700 0    45   ~ 0
+	44150 8200 44350 8200
+Text Label 44350 8200 0    45   ~ 0
 DGND
 Wire Wire Line
-	28150 21800 28350 21800
-Text Label 28350 21800 0    45   ~ 0
+	44150 8300 44350 8300
+Text Label 44350 8300 0    45   ~ 0
 DGND
 Wire Wire Line
-	28150 21900 28350 21900
-Text Label 28350 21900 0    45   ~ 0
+	44150 8400 44350 8400
+Text Label 44350 8400 0    45   ~ 0
 VBAT_L
 Wire Wire Line
-	28150 22000 28350 22000
-Text Label 28350 22000 0    45   ~ 0
+	44150 8500 44350 8500
+Text Label 44350 8500 0    45   ~ 0
 PWM_UH
 Wire Wire Line
-	28150 22100 28350 22100
-Text Label 28350 22100 0    45   ~ 0
+	44150 8600 44350 8600
+Text Label 44350 8600 0    45   ~ 0
 VBAT_L
 Wire Wire Line
-	28150 22200 28350 22200
-Text Label 28350 22200 0    45   ~ 0
+	44150 8700 44350 8700
+Text Label 44350 8700 0    45   ~ 0
 PWM_UL
 Wire Wire Line
-	28150 22300 28350 22300
-Text Label 28350 22300 0    45   ~ 0
+	44150 8800 44350 8800
+Text Label 44350 8800 0    45   ~ 0
 PWM_VH
 Wire Wire Line
-	28150 22400 28350 22400
-Text Label 28350 22400 0    45   ~ 0
+	44150 8900 44350 8900
+Text Label 44350 8900 0    45   ~ 0
 PWM_VL
 Wire Wire Line
-	28150 22500 28350 22500
-Text Label 28350 22500 0    45   ~ 0
+	44150 9000 44350 9000
+Text Label 44350 9000 0    45   ~ 0
 PWM_WH
 Wire Wire Line
-	28150 22600 28350 22600
-Text Label 28350 22600 0    45   ~ 0
+	44150 9100 44350 9100
+Text Label 44350 9100 0    45   ~ 0
 PWM_WL
 $Comp
 L traction-r1:R RCPD0
-U 1 1 5E000289
-P 29850 20650
-F 0 "RCPD0" H 29850 20490 50  0000 C CNN
-F 1 "10k" H 29850 20820 50  0000 C CNN
-F 2 "R0603" H 29850 20650 50  0001 C CNN
-F 3 "~" H 29850 20650 50  0001 C CNN
-F 4 "CLASS" H 29850 20650 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 29850 20650 50  0001 C CNN "MPN"
-	1    29850 20650
+U 1 1 5E00029B
+P 45850 7150
+F 0 "RCPD0" H 45850 6990 50  0000 C CNN
+F 1 "10k" H 45850 7320 50  0000 C CNN
+F 2 "R0603" H 45850 7150 50  0001 C CNN
+F 3 "~" H 45850 7150 50  0001 C CNN
+F 4 "CLASS" H 45850 7150 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 45850 7150 50  0001 C CNN "MPN"
+	1    45850 7150
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29600 20650 29400 20650
-Text Label 29400 20650 2    45   ~ 0
+	45600 7150 45400 7150
+Text Label 45400 7150 2    45   ~ 0
 MCU_GATE_EN
 Wire Wire Line
-	30100 20650 30300 20650
-Text Label 30300 20650 0    45   ~ 0
+	46100 7150 46300 7150
+Text Label 46300 7150 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RCPD1
-U 1 1 5E00028A
-P 29850 21050
-F 0 "RCPD1" H 29850 20890 50  0000 C CNN
-F 1 "10k" H 29850 21220 50  0000 C CNN
-F 2 "R0603" H 29850 21050 50  0001 C CNN
-F 3 "~" H 29850 21050 50  0001 C CNN
-F 4 "CLASS" H 29850 21050 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 29850 21050 50  0001 C CNN "MPN"
-	1    29850 21050
+U 1 1 5E00029C
+P 45850 7550
+F 0 "RCPD1" H 45850 7390 50  0000 C CNN
+F 1 "10k" H 45850 7720 50  0000 C CNN
+F 2 "R0603" H 45850 7550 50  0001 C CNN
+F 3 "~" H 45850 7550 50  0001 C CNN
+F 4 "CLASS" H 45850 7550 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 45850 7550 50  0001 C CNN "MPN"
+	1    45850 7550
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29600 21050 29400 21050
-Text Label 29400 21050 2    45   ~ 0
+	45600 7550 45400 7550
+Text Label 45400 7550 2    45   ~ 0
 ASC_REQ
 Wire Wire Line
-	30100 21050 30300 21050
-Text Label 30300 21050 0    45   ~ 0
+	46100 7550 46300 7550
+Text Label 46300 7550 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RCPD2
-U 1 1 5E00028B
-P 29850 21450
-F 0 "RCPD2" H 29850 21290 50  0000 C CNN
-F 1 "10k" H 29850 21620 50  0000 C CNN
-F 2 "R0603" H 29850 21450 50  0001 C CNN
-F 3 "~" H 29850 21450 50  0001 C CNN
-F 4 "CLASS" H 29850 21450 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 29850 21450 50  0001 C CNN "MPN"
-	1    29850 21450
+U 1 1 5E00029D
+P 45850 7950
+F 0 "RCPD2" H 45850 7790 50  0000 C CNN
+F 1 "10k" H 45850 8120 50  0000 C CNN
+F 2 "R0603" H 45850 7950 50  0001 C CNN
+F 3 "~" H 45850 7950 50  0001 C CNN
+F 4 "CLASS" H 45850 7950 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 45850 7950 50  0001 C CNN "MPN"
+	1    45850 7950
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29600 21450 29400 21450
-Text Label 29400 21450 2    45   ~ 0
+	45600 7950 45400 7950
+Text Label 45400 7950 2    45   ~ 0
 MCU_EN_FLYBK_HS
 Wire Wire Line
-	30100 21450 30300 21450
-Text Label 30300 21450 0    45   ~ 0
+	46100 7950 46300 7950
+Text Label 46300 7950 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RCPD3
-U 1 1 5E00028C
-P 29850 21850
-F 0 "RCPD3" H 29850 21690 50  0000 C CNN
-F 1 "10k" H 29850 22020 50  0000 C CNN
-F 2 "R0603" H 29850 21850 50  0001 C CNN
-F 3 "~" H 29850 21850 50  0001 C CNN
-F 4 "CLASS" H 29850 21850 50  0001 C CNN "LCSC"
-F 5 "R0603-10k" H 29850 21850 50  0001 C CNN "MPN"
-	1    29850 21850
+U 1 1 5E00029E
+P 45850 8350
+F 0 "RCPD3" H 45850 8190 50  0000 C CNN
+F 1 "10k" H 45850 8520 50  0000 C CNN
+F 2 "R0603" H 45850 8350 50  0001 C CNN
+F 3 "~" H 45850 8350 50  0001 C CNN
+F 4 "CLASS" H 45850 8350 50  0001 C CNN "LCSC"
+F 5 "R0603-10k" H 45850 8350 50  0001 C CNN "MPN"
+	1    45850 8350
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29600 21850 29400 21850
-Text Label 29400 21850 2    45   ~ 0
+	45600 8350 45400 8350
+Text Label 45400 8350 2    45   ~ 0
 MCU_EN_FLYBK_LS
 Wire Wire Line
-	30100 21850 30300 21850
-Text Label 30300 21850 0    45   ~ 0
+	46100 8350 46300 8350
+Text Label 46300 8350 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RHWP
-U 1 1 5E00028D
-P 29850 22250
-F 0 "RHWP" H 29850 22090 50  0000 C CNN
-F 1 "10k" H 29850 22420 50  0000 C CNN
-F 2 "R0603" H 29850 22250 50  0001 C CNN
-F 3 "~" H 29850 22250 50  0001 C CNN
-F 4 "CLASS" H 29850 22250 50  0001 C CNN "LCSC"
-F 5 "R0603-10k-1%" H 29850 22250 50  0001 C CNN "MPN"
-	1    29850 22250
+U 1 1 5E00029F
+P 45850 8750
+F 0 "RHWP" H 45850 8590 50  0000 C CNN
+F 1 "10k" H 45850 8920 50  0000 C CNN
+F 2 "R0603" H 45850 8750 50  0001 C CNN
+F 3 "~" H 45850 8750 50  0001 C CNN
+F 4 "CLASS" H 45850 8750 50  0001 C CNN "LCSC"
+F 5 "R0603-10k-1%" H 45850 8750 50  0001 C CNN "MPN"
+	1    45850 8750
 	1    0    0    -1  
 $EndComp
 Wire Wire Line
-	29600 22250 29400 22250
-Text Label 29400 22250 2    45   ~ 0
+	45600 8750 45400 8750
+Text Label 45400 8750 2    45   ~ 0
 VREF5
 Wire Wire Line
-	30100 22250 30300 22250
-Text Label 30300 22250 0    45   ~ 0
+	46100 8750 46300 8750
+Text Label 46300 8750 0    45   ~ 0
 HW_ID
 $EndSCHEMATC

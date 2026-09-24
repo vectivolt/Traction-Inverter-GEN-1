@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.11)
+# Hardware → firmware contract (rev A.12)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -7,7 +7,8 @@ review finding dispositioned as *Firmware Handled* (round 6:
 [`review-A7-disposition.md`](review-A7-disposition.md), round 8:
 [`review-A8-disposition.md`](review-A8-disposition.md), round 9:
 [`review-A9-disposition.md`](review-A9-disposition.md), round 10:
-[`review-A10-disposition.md`](review-A10-disposition.md)) points at a numbered requirement here
+[`review-A10-disposition.md`](review-A10-disposition.md), rounds 12–13:
+[`review-A11-disposition.md`](review-A11-disposition.md), [`review-A12-disposition.md`](review-A12-disposition.md)) points at a numbered requirement here
 (`FW-xx`). The traction application itself is a separate deliverable (review R-F08); nothing in
 this repository claims it exists. Verification of each requirement is HIL first, then bench.
 
@@ -79,14 +80,17 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
 ## 4. Fast protection paths
 
 - **FW-05** Phase overcurrent: ADC channel thresholds with hardware compare (S32K396 ADC
-  watchdog / BCTU → eTPU fault input) at **1.25 × √2 × the SKU peak rms current, in instantaneous
+  watchdog / BCTU → eFlexPWM_1 FAULT input; the S32K39 routing of the ADC watchdog to a PWM fault is a HIL item — see `firmware/docs/traceability.md`) at **1.25 × √2 × the SKU peak rms current, in instantaneous
   amperes, both polarities**: ±601 A (8XX, 340 A rms) / ±707 A (4XX, 400 A rms), converted to ADC
   codes with each channel's calibrated gain, offset and sign (round 12, R1-F25/R2-F18: the §2 table
   is in A rms, and a literal 1.25 × 340 = 425 A would sit below the 481 A crest of rated
   operation). Response ≤ 2 PWM periods, independent of the FOC ISR. Σ(Ia+Ib+Ic) plausibility every
   sample. **Per-channel validity window 0.2–4.8 V** (the HC5FW output range): outside it the channel
   is invalid — an open signal wire or an unpowered sensor reads 0 V through the card's 100 k
-  pull-down (R⟨ph⟩B0, round 12, R1-F03).
+  pull-down (R⟨ph⟩B0, round 12, R1-F03). **Safe state after an overcurrent trip (A.12, from the
+  firmware implementation):** the high sides are forced off by the PWM fault input and the event is
+  treated as *control lost* — a latched fault, cleared only through FW-15; the low sides follow the §6
+  matrix (SPO, or PWM-ASC where the matrix requires it), never a torque-producing PWM.
 - **FW-06** DC overvoltage: both V_DC channels in hardware compare at the SKU OV trip; action =
   high sides forced off + zero torque request + ASC request, then PWM-ASC (§4c; if the §6 matrix
   allows). Round 7 (RR06/A6-R08) replaces the written "20 µs" with a budget that must be
@@ -115,7 +119,7 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
   +0.5 V offset, now on an ADC pin) outside 0.475–0.525 V ⇒ **both channels invalid** (a failed
   offset buffer shifts both by up to 228 V and passes the 5 % check); with contactors closed,
   |V_DC − V_pack(BMS)| > 3 % ⇒ fault. A channel reading < 0.25 V is the AMC1311 fail-safe
-  state, not a dead bus. **Both channels are also invalid whenever V5GD (PTB5, V5GD/2) is outside
+  state, not a dead bus. **Both channels are also invalid whenever V5GD (PTD27 since the A.12 ball map — PTB5 has no ADC on the 289-MAPBGA; V5GD/2) is outside
   4.75–5.25 V** (round 9, R9X-01). The AMC1311 LV sides run on V5GD; unpowered, they leave the
   receivers at their +0.5 V offset, a false "0 V bus" that the plausibility checks cannot see.
 - **FW-08** Regeneration with the battery path lost (contactor opens; a BMS charge limit that
@@ -229,7 +233,7 @@ FLT/RDY lines sit between logic thresholds:
 - the module-NTC clamp diodes, fed by the card's 5.1 k NTC pull-ups;
 - DRV_EN and PWM, through the NSI6611 input clamps.
 
-The firmware therefore reads V5GD directly (PTB5). Outside 4.75–5.25 V it forces SPO: `ASC_CLR`,
+The firmware therefore reads V5GD directly (PTD27; A.12 ball map). Outside 4.75–5.25 V it forces SPO: `ASC_CLR`,
 MCU_GATE_EN low, PWM low. That removes the second path. It also marks V_DC invalid (FW-07), sets a
 supply DTC, and does not arm. The V5GD-off bench item covers both paths. If the NTC path alone can
 hold V5GD up, the NTC clamps move to a zener to ground.
@@ -256,17 +260,23 @@ Which one is safe depends on the **motor**: the crossover speed n_x where the li
 back-EMF peak √3·ω_e·ψ_f equals the allowed link voltage (880 V 8XX / 530 V 4XX, cold
 magnets). Motor data are a commissioning input (R-F16); the table is the rule.
 
+**The columns split on speed; the energy condition applies in both.** Every cell that ends in SPO — at any
+speed, including standstill — is released only under rule (a) or (b) below for the current at the fault
+(round 13, A11-R01: winding energy 1.5·L·I² does not depend on speed; the 0.35 mH screening motor at
+340 A rms carries 61 J at 0 rpm, and an isolated 8XX link takes it to 1065–1089 V). "n < n_x" means the
+back-EMF cannot charge the link on its own; it is not an energy exemption.
+
 | Condition | n < n_x | n ≥ n_x |
 |---|---|---|
 | Healthy, command/CAN lost | ramp to zero torque, then SPO | ramp to zero torque; keep current control (field weakening) while the battery is present |
-| Battery path lost (contactor open, contactor/precharge feedback invalid, or V_DC leaving the pack voltage) | zero torque, then SPO | **LS-ASC** (FW-06), release to SPO below n_x |
+| Battery path lost (contactor open, contactor/precharge feedback invalid, or V_DC leaving the pack voltage) | zero torque at the current-loop rate; if the link crosses the OV trip while current is still flowing (winding energy with no sink), FW-06 fires **LS-ASC** at any speed — the current then circulates and decays in the winding instead of charging the link; release to SPO once the current is gone (round 13) | **LS-ASC** (FW-06), release to SPO below n_x |
 | BMS charge limit → 0 with the battery still connected (full or cold pack) | zero torque, then SPO | ramp regen to zero at the current-loop rate and keep current control (field weakening) as in the healthy row — the connected pack is a voltage source, so this is not an ASC case; FW-06 stays armed as the backstop if the pack is then opened (round 12, R1-F02/R2-F35: the old row merged the two events) |
 | Resolver invalid | SPO | LS-ASC (no angle needed) |
 | DESAT on a **high-side** switch (FLT_HS) | SPO | SPO first. The fault latch holds EN low, and LS-ASC with EN low has no documented LS DESAT. After the FW-15 reset (≥ 1.5 ms), LS-ASC is permitted **only as PWM-ASC** with EN high (§4c). **Assumption:** the HS DESAT came from a shorted LS device or a phase-to-DC− fault, which LS-ASC completes into a symmetric short. **If an HS device has itself failed short**, the LS DESAT (documented with EN high and IN+ high) soft-turns the LS off, FLT_LS follows and the row below applies (SPO): one bounded extra SC event, never a sustained shoot-through. The ASC latch alone must not be used for this row. **Energy during the SPO interval** (round 8, R7-06): for ≥ 1.5 ms the rectified motor current flows into the battery, so the inverter asks the VCU/BMS to keep the contactors closed until ASC is back or n < n_x (FW-08b). Whether the link stays inside its rating if the battery path is lost inside that window is decided by the motor/vehicle release rule below (DC-link energy 32.8 J 8XX / 28.6 J 4XX to U_N); no brake chopper by default |
 | DESAT on a **low-side** switch (FLT_LS) | SPO | **SPO only** — the cause may be a shorted HS switch; LS-ASC would short the link through the motor |
 | MCU hang / reset | hardware: FS0B ⇒ SPO; FS1B ⇒ LS-ASC per FW-12 policy | same — choose the FS1B policy from the motor's n_x. Unconditional FS1B-ASC is safe only if the motor tolerates ASC braking torque at low speed. In FS1B-ASC EN is low (§4c), so a new HS short during it is not bounded by the drivers — a double fault. After the reset, §9 decides from speed whether to keep ASC |
 | Gate-logic supply (V5GD) loss, or the power board's LV feed lost (QLVS, FVBx) | SPO (FLT/RDY read low or V5GD out of window: latch set, ASC masked or cleared, PWM/EN low) | SPO — release rule (a) or (b) below; the HV backup bias cannot help here (ASC is masked, or V15 and the ASC opto are dead too) |
-| Total LV (KL30) loss | SPO (gates park low by UVLO) | SPO — **energy-safe only if E_LL,pk(n_max) < 1000 V (8XX cap rating at 85 °C) / 600 V (4XX)**. Motors above that need the HV-fed backup-bias option (TI TIDM-02014 pattern) before release — S10: gate reservoirs hold ASC only 0.5–3.1 ms (round 7: worst case now starts at the 13.54 V low-corner rail) and the command path ≈1 ms |
+| Total LV (KL30) loss | SPO (gates park low by UVLO) — energy-safe only under rule (a) for the current at the fault, or with the battery retained (b) | SPO — **energy-safe only under rule (a)** (back-EMF *and* winding energy; the old "E_LL,pk(n_max) < U_N" test alone was incomplete, round 13). Motors that fail (a) need the HV-fed backup-bias option (c) before release — S10: gate reservoirs hold ASC only 0.5–3.1 ms (round 7: worst case now starts at the 13.54 V low-corner rail) and the command path ≈1 ms |
 
 **Motor/vehicle release rule for SPO energy** (round 9, A8-G02). Every SPO interval at n ≥ n_x sends
 the rectified motor energy into the battery. These intervals are the ≥ 1.5 ms FLT_HS reset, an FLT_LS
@@ -286,8 +296,11 @@ pack can each cause it. A motor/vehicle combination is released only when one of
   ≈ 277 A rms from 850 V (250 A from the 880 V trip); a 340 A rms motor of that inductance is
   released under rule (b).
 - **(b)** The VCU/BMS integration shows, on HIL/dyno, that the contactors stay closed through inverter
-  fault recovery at n ≥ n_x for every opening cause they can be driven by, the inverter's own faults
-  included. The pack must also accept the rectified charge down to n_x (FW-08b).
+  fault recovery **at every operating point where rule (a) fails** — high current at any speed, not only
+  n ≥ n_x (round 13, A11-R01) — for every opening cause they can be driven by, the inverter's own
+  faults included. The pack must also accept the rectified charge (FW-08b). Rule (b) cannot cover the
+  rows whose premise is that the battery path is already gone; those rows rely on FW-06 LS-ASC
+  absorbing the winding energy (above) or on rule (a).
 - **(c)** For **total KL30 loss** only, the HV-fed backup-bias ASC option is fitted. It cannot
   restore ASC for the V5GD row (masked by design) or for a lost power-board feed (R9X-09).
 
@@ -454,7 +467,7 @@ is (round-7 cross-check):
 **A driver FLT still low at boot** is a pending DESAT from before the reset (review T7-02,
 cross-check R8X-14). The step-2 one-shot cannot release it while FS0B holds DRV_EN low, so the
 fault latch re-sets and FW-16 cannot start. The result is no arming, and SPO with ASC masked, which
-is what §6 wants. A **V5GD loss** looks similar but is told apart by the V5GD reading on PTB5
+is what §6 wants. A **V5GD loss** looks similar but is told apart by the V5GD reading on PTD27
 (outside 4.75–5.25 V). It is a supply DTC, not a DESAT (§6 V5GD row), and no arming follows.
 Round 9 cross-check R9X-01: the first version tested "both V_DC channels invalid", but a dead V5GD
 makes the receivers read a valid-looking 0 V. For a real pending DESAT, log the DTC and

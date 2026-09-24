@@ -51,7 +51,7 @@ const PAGES = {
       ["SENSE-VDC", [/^RVDD[1-6]$/, /^RVDDL$/, /^CVDDF$/, /^UIVDC$/]],
       ["SENSE-VDC2", [/^RVBD[1-6]$/, /^RVBDL$/, /^CVBDF$/, /^UIVB$/]],
       ["ISO-BIAS", [/^U5L[BC]$/, /^C5L[BC][12]$/, /^PS5[BC]$/, /^C5[BC][12]$/]],
-      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD)$/, /^CASCD?$/, /^ZASC$/, /^DASCR$/]],
+      ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD|F[12]|E[12])$/, /^CASC(D|I[12]|IB|O|F)?$/, /^ZASC$/, /^DASCR$/]],
     ], ["SENSE-VDC", "SENSE-VDC2", "ISO-BIAS", "ASC-BUFFER"]],
     ["LV-POWER", [
       ["PROT-H", [/^FH1$/, /^DRH$/, /^DTVH$/, /^LFH1$/, /^CLVH[12]$/]],
@@ -73,7 +73,7 @@ const PAGES = {
     ["DISCHARGE", [
       ["ENTRY", [/^JDC[PN]$/, /^JCTL$/]],
       ["BLEED", [/^RBLD\d+$/]],
-      ["ACTIVE", [/^RDIS[1-4]$/, /^QDIS$/, /^UQD$/, /^PSQD$/, /^RQD(G|PD|L)$/, /^CQD$/]],
+      ["ACTIVE", [/^RDIS[1-4]$/, /^QDIS$/, /^UQD$/, /^PSQD$/, /^RQD(G|PD|L|F[12]|E[12])$/, /^CQD(I[12]|IB|O|F)?$/]],
     ], ["ENTRY", "BLEED", "ACTIVE"]],
   ],
   card: [

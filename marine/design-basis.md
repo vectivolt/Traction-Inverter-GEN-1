@@ -44,7 +44,7 @@ converter with public specifications was found.
 | Discharge | < 60 V within 5 s, otherwise warning labels | active path 1.8/2.3 s + label (§7) |
 | PM machines | means to stop a windmilling propeller; regenerated power must not raise alarms | shaft lock when towed; back-EMF rule (§6b) |
 | Semiconductor margin (**BV only**) | repetitive peak voltage ≥ 1.5 × U_P (dedicated supply) or 1.8 × U_P (common bus) | read literally: 1200 V parts ≤ 800/667 V, 1700 V parts ≤ 1133/944 V — **get BV's written interpretation**; no DNV/LR/ABS/IRS equivalent found |
-| Control power | E10 DC supply ±10 %, battery-fed +30/−25 % | ship 24 V → **isolated 24→12 V, 60 W** in the kit (the card's TVS stands off 20.5 V; its LV budget is ≈25–30 W) |
+| Control power | E10 DC supply ±10 %, battery-fed +30/−25 % | ship 24 V → **isolated 24→12 V, 60 W** in the kit: the Road LV side is a 12 V (9–16 V) design, why in §11 (its LV budget is ≈25–30 W) |
 | Creepage (ABS) | IEC 61800-5-1 at OVC III / PD3: 12.5 mm at 800 V, 16 mm at 1000 V | argue PD2 inside a sealed coated enclosure (Editron precedent) or lay out for PD3 — decide before the Road PCB layout, which M8 inherits |
 
 ## 3. Operating basis (what "rated" means in this series)
@@ -124,7 +124,7 @@ the M8/M10 continuous currents (300/270 A) must be confirmed against it.
 | Tj at rating, V_max | IGBT 117 °C · diode (regen) 97 °C | IGBT 119 °C · diode 96 °C |
 | Cruise cycle ΔTj (85 %) | 52 K → 0.73 M cycles (LESIT) | 54 K → 0.59 M cycles |
 | Semiconductor efficiency at cruise | 98.6 % | 98.7 % |
-| Short circuit | 4.46 µs detect + soft-off vs 5 µs derated | 4.09 µs vs 4.8 µs derated (6 µs @1000 V → 1100 V) |
+| Short circuit | **open release gate**, as on the Road (RR04/③): detect + soft-off 4.81 µs at the typical 400 mA, 10.3 µs at the 100 mA DS minimum, vs 5 µs derated | same gate: 4.35 / 8.44 µs vs 4.8 µs derated (6 µs @1000 V → 1100 V) |
 
 **M8-SiC** (the Road 8XX SiC build, frozen fork, 10 kHz) has the same 300 A / 214 kW
 capacitor-bound rating, tug rating 235 A / 167 kW, and 98.9 % at cruise — the extra ≈0.3 pt is
@@ -197,8 +197,11 @@ mainly terminal boxes and cables. That is why a standard 3-phase cell can serve 
   - Its aux contact goes into the Road HVIL loop (open = torque off), so the cell needs no new
     input.
 - **Sustained ASC needs gate power.** A towed or windmilling PM propeller can demand ASC for
-  hours, but the Road ASC holds only 1–3 ms after low-voltage loss. The cell's 24 V must
+  hours, but the Road ASC holds only 0.5–3.1 ms after low-voltage loss. The cell's 24 V must
   therefore be class-grade and battery-backed, with two feeds on towed or single-screw vessels.
+  - Since Road A.9 the power board's LV feed also follows the card's V5A (the QLVS switch), so the
+    FS26 must stay awake while ASC is held. The marine firmware never parks it in LPOFF then, and
+    an FS26 restart ends ASC like a 24 V loss.
   - The motor needs I_ch ≈ 1 pu, because ASC copper loss is (3/2)·I_ch²·R: rated loss at 1 pu,
     4–9× at 2–3 pu.
   - ASC cannot hold a shaft at 0 rpm, which is why class wants a shaft lock.
@@ -272,10 +275,30 @@ item is firmware or a small kit, nothing complicated.
 | Breakaway at 0 rpm (fouled propeller, tug pushing) | at 0 Hz one switch carries the full peak as DC and switches at it every period | firmware drops f_sw to **1 kHz below 2 Hz** → rated torque held indefinitely: M8 117 °C (134 % available), M10 139 °C (110 %). At the running f_sw the same point would pass 150 °C | report |
 | Propeller already turning (ship moving, towed) | the PM motor is generating | **flying start** from the resolver angle and speed — no search, no transient | firmware |
 | Cell joining a live DC bus (after repair, at sea) | 300–320 µF charged from ≈10 µH of feeder: **≈5–6 kA** ring | **per-cell precharge** 90 Ω (M8) / 110 Ω (M10): ≤ 10 A, 116/182 J, ≈150 ms — resistor + small contactor in the DC entry kit | report |
-| Back-EMF with the cell off | PM flux cannot be switched off | motor spec: **E_LL,pk at 115 % overspeed ≤ 0.95 × OV trip** (836 V M8, 1093 V M10) → safe pulse-off is safe at every speed; ASC only for switch faults; shaft lock when towed | motor spec |
+| Back-EMF with the cell off | PM flux cannot be switched off, and a winding carrying current stores energy | motor spec: **E_LL,pk at 115 % overspeed ≤ 0.95 × OV trip**, cold magnets as in the Road rule (836 V M8, 1093 V M10), **and the winding-energy condition below** → pulse-off is safe at every speed with the DC grid connected; ASC for switch faults and a lost DC path (MFW-08); shaft lock when towed | report + motor spec |
 | Genset-fed bus (hybrid tugs/ferries) | step-load acceptance of the gensets | power-limit and ramp commands from the PMS on CAN; a hardwired fast load-reduction input | firmware + PMS |
 | Crash stop | regeneration up to rated power | regen capped at the BMS charge limit; EMS keeps SOC headroom; brake chopper only for genset-only or full-battery cases | system |
 | N cells on one shaft | all winding sets must pull together | master broadcasts one torque ramp; a cell that fails to start leaves N−1 running | firmware |
+
+**Winding energy — the second motor condition** (Road `firmware-contract.md` §6 rule (a), rev A.11,
+R1-F01/R2-F08; applied in both matrix columns since round 13/A.12, F135). The back-EMF rule covers the steady rectified voltage only. At pulse-off with the DC
+path lost, the diodes also rectify the stored winding energy ¾·(L_d·î_d² + L_q·î_q²) (= 1.5·L·I²)
+into the isolated link, at any speed. The Road screen, with V₀ = the OV trip and C_min, is
+V_pk ≤ E + √((V₀ − E)² + 2·W/C_min) ≤ U_N. The Marine links hold 32.8 J (M8: 880 → 1000 V at
+291 µF) and 50.1 J (M10: 1150 → 1300 V at 273 µF).
+
+A motor built to the §6 I_ch ≈ 1 pu rule, with ψ_f at the back-EMF limit and rated at 80 Hz, has
+L_d ≈ 1.97 / 2.86 mH. At the 110 % current it stores 321 / 378 J, 8–10 times the headroom. Even at
+E = 0 the link alone covers only ≈ 105 / 108 A rms, and back-EMF only raises V_pk. So such a motor
+fails rule (a) by design and is released under Road rule (b):
+- the DC grid stays connected through the cell's pulse-off intervals (DESAT recovery, V5GD/feed loss,
+  24 V loss, MCU hang) for every opening cause, the cell's own faults and the vessel's
+  fault-isolation logic included. Evidence: the IEC 61660 selectivity study (§11) and FAT;
+- if the DC path does open with current flowing, FW-06 LS-ASC keeps the energy in the winding
+  (MFW-08).
+
+The real L_d/L_q(i), ψ_f and n_max are commissioning inputs (gate 5); a lower-inductance motor may
+meet rule (a) outright.
 
 ## 6c. Regenerative braking — who owns what
 
@@ -293,7 +316,7 @@ Ownership:
 | Where the energy goes | EMS / PMS and BMS | caps regen at the BMS charge limit and the PMS power limit (MFW-04/05) | — |
 | Full battery | EMS keeps SOC headroom — the normal case for battery vessels | regen limited to what the battery accepts; the crash stop then relies on the headroom | — |
 | Genset-only bus (diode-rectifier gensets cannot take power back) | system integrator: a **brake chopper + resistors** | option: **a standard cell in chopper mode** (firmware). Each leg's low-side IGBT switches an external resistor; the high-side diode freewheels. ≈260 kW (M8) / 303 kW (M10) per cell, IGBT at ≈64 °C — bounded by the cell's DC entry, not its silicon | report |
-| Battery breaker opens during regen | — | FW-06 ≤ 20 µs (Road N9) → zero torque + ASC. Link peak 901 V (M8) / 1170 V (M10), 90 % of the cans' rating. A once-per-PWM-period V_DC sample would end at 1075 V / 1453 V | report |
+| Battery breaker opens during regen | — | FW-06 (Road N9, round-7 chain): ≤ 15.6 µs to the ASC request, then ≤ 7.56 µs ASC entry (UCC14141-Q1 17.4 V low end, A.12) → zero torque + LS-ASC (MFW-08). Link peak 909 V (M8) / 1178 V (M10), 91 % of the cans' rating. A once-per-PWM-period V_DC sample would end at 1075 V / 1453 V. M10 uses the same bias module and opto, already rated ≥ 1150 V DC | report |
 | Windmilling | vessel: shaft lock when towed dead | powered: zero-torque (or BMS-limited braking) current control, no alarms (DNV); unpowered: the §6b back-EMF rule keeps the rectified link under the trip | §6b |
 | Device heating in regen | cell | diode Tj in continuous regeneration: 97 °C (M8) / 96 °C (M10) | report |
 
@@ -315,7 +338,14 @@ is sized per project.
 Marine has no crash case: the target is IEC 61800-5-1's < 60 V within 5 s for accessible parts
 (both pass with margin). The QDIS-stuck-on case (384/515 W into 10 W parts with the battery
 connected) is bounded exactly as on the Road (fire only with the DC breaker reported open,
-precharge plausibility, fail-open flameproof wirewounds).
+precharge plausibility, fail-open flameproof wirewounds; the TE SQP10 candidate goes through the
+stuck-ON test, Road gate ㉖).
+
+Two Road rules carry over, re-derived at A.12 for the UCC14141-Q1 bias: the QDIS gate is fed
+through the kept 1.5 k/10 k divider, now **11.6–16.3 V** (low end set by the VOW3120's guaranteed
+V_OH ≥ V_CC − 4 V); M10 uses the same part and divider, already rated ≥ 1150 V DC working. The
+FW-16 boot self-test runs only at ≤ 0.1 J in the link: ≤ 26 / 24 mJ at a < 3 V reading, or after
+QDIS for 2 τ = 1.4 / 1.64 s from a < 60 V reading. That top-up time is a Marine parameter-set value.
 
 ## 8. Battery and DC-grid voltage windows (the BMS ranges)
 
@@ -336,15 +366,59 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.8**.
-It carries the round-7 and round-8 safety-logic, ASC and gate-supply fixes
-(`../docs/review-A7-disposition.md`, `../docs/review-A8-disposition.md`), and it has
-the same PCBs and supply chain, but its own part number, its own firmware build, and a distinct
-identity resistor — **RHWID 47 k (4.12 V on HW_ID)**, 0.68 V clear of the nearest Road code
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.12**.
+The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass; no Marine unit
+is built or type-approved yet, so neither move needed a class notification. M8 carries the Road
+fixes of review rounds 7–13 (`../docs/review-A7-disposition.md` … `../docs/review-A12-disposition.md`). It has the same PCBs and
+supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
+**RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
-(FW-01/02 mechanism; the marine ratings assume 45 °C coolant, the Road's 65 °C). A Road change
+(FW-01 mechanism; the marine ratings assume 45 °C coolant, the Road's 65 °C). A Road change
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
+
+**What A.9–A.12 brought** (Road `design-basis.md` §11i–§11k; A.12 = round 13,
+`review-A12-disposition.md`):
+- **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
+  end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
+  Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
+  Card-side LV-feed switch QLVS (parking drain ≤ 43 µA; its sustained-ASC consequence is in §6).
+  Harness re-laid: V5GD 1, HW_ID 2, VBAT_H 19/20, VBAT_L 39/40. The motor/vehicle release rule
+  (a)–(c) of the Road `firmware-contract.md` §6.
+- **A.10.** RDY lines Schmitt-buffered (USCH3); RASCG a 0.33 W part.
+- **A.11.** Release rule (a) becomes an energy inequality (§6b). Resolver exciter a real MFB
+  (|H(10 kHz)| 1.85). V_DC bias = TI UCC12050 per channel behind its own 5 V LDO. Hall 100 k
+  open-wire pull-downs, HC5FW drawn with its real terminals. Resolver inputs 10 k. LV-entry TVS bound
+  as TPSMC24CA-VR (§11). CSB5 1 µF, ALM2402 HTSSOP14-PWP, on-board NTCs. FW-05 in instantaneous
+  amperes, "BMS limit 0" split from "contactor open" (§10). Road barrier register §6a. Electronics BOM
+  ₹70,913 SiC / ₹45,413 IGBT, −₹127 since A.8 and inside the §12 rounding.
+- **A.12.** Barrier register gates ⑪ and ㉔ closed at BOM level: ASC/discharge optos Vishay
+  **VOW3120-X017T** (V_IORM 1414 Vpk, DIN EN 60747-5-5), bias modules TI **UCC14141-Q1**
+  (single-output configuration set to 18.0 V by a 62 k/10 k divider, regulated **17.4–18.6 V**),
+  Y-caps Vishay **VY1472M63Y5UQ6TV0** (500 VAC / 1500 V DC) — all ≥ 1150 V DC, so the same parts
+  also close M10's "certified bias module / SO6L-class opto" asks (§6a, §9); the residual is their
+  certificate status (VDE/UL/CQC listed "planned" — check at PO). ASC entry now **7.56 µs** (was
+  7.52 µs), release ≤ 1.06 µs (was 0.75 µs); QDIS gate divider (kept 1.5 k/10 k) now **11.6–16.3 V**;
+  RASCL/RQDL **270 Ω 1 %** (10.8–15.8 mA, was 261 Ω); RASCG dissipation while ASC is held 88 mW.
+  Resolver RSIN/RCOS/RSINF/RCOSF → **12 k** (holds the S32K39 3 mA injection limit with the MCU
+  unpowered); CSINA2/CCOSA2 → **220 pF C0G** (S32K39 DS Table 38, was 100 pF); corner ≈ 23 kHz, −24°
+  on both channels; channel matching is an EOL calibration item (bound 1.3°, Road verifier row). LV-entry boost is
+  TPS55340**QRTERQ1** (-Q1): 38 V recommended / 40 V absolute — the commercial part's 34 V figure
+  was the wrong reference and the "≥ 42 V boost" argument a false premise; the TVS long-pulse
+  (400 ms) case is WARN (no datasheet rating beyond 1 ms — the OEM/ship supply source resistance is
+  the limiter, not the boost). V_DC bias LDO (NCV4276C DPAK) thermal row: 58.5 K/W reference pad,
+  0.76 W worst → Tj ≈ 129 °C at 85 °C (WARN; layout rule ≥ 1.2 in² 2 oz copper per LDO); production
+  V_DC-bias part **UCC12051QDVERQ1** (AEC-Q100), UCC12050 is the proto fit. Safety contract §6: the
+  winding-energy condition (rule (a)) now applies in **both matrix columns**; at n < n_x with the
+  battery path lost the sink is FW-06 LS-ASC; rule (b) applies wherever (a) fails and is barred for
+  rows whose premise is the lost battery — Marine's own "ASC at any speed" note (§6b, MFW-08)
+  already matched this. MCU pin freeze: the S32K396 289-MAPBGA is fully bound (all 289 balls) and
+  FS26's 48 pins verified — the Road control card (shared by M8 and M10) is no longer a
+  symbolic-pin design. The 40-way harness connector is bound to Samtec IPL1-120-01-L-D-K /
+  IPD1-20-D-K / CC79L-2024-01-L crimps, and the discharge resistors to TT/Welwyn SQP10-470RJB15 /
+  -220RJB15 (the 470 Ω matches the marine active-discharge value, §7). The 4XX DC-link can
+  (Faratronic C3D1U506KFAA382) is bound on a different Road board from M8's 8XX bank and does not
+  change the M8/M10 cap-bank gates.
 
 | Change | M8 | M10 |
 |---|---|---|
@@ -353,38 +427,52 @@ move with the automotive line.
 | DESAT string | 2 × US1M, 4.7 k, 82 pF | **3 × US1M**, 4.7 k, 82 pF (trip 3.65–6.55 V vs 1.92 V VCEsat) |
 | Gate resistors | Road IGBT 1.0/1.0 Ω | start 1.0/1.0 Ω (DS point) — set by DPT at 1100 V |
 | Flyback transformer | VGT12EEM (Road gate ⑤) | **transformer certified ≥ 1150 V DC working** |
-| Isolated bias (ASC/QDIS) | QA01C (Road BOM note) | **module certified ≥ 1150 V DC working** |
-| Opto (UQD, UASC) | TLP152 (V4) per Road N8 | **SO6L/SOW-class reinforced opto** |
-| Phase sensors | HC5FW 900-S + busbar sleeve (N7) | same + sleeve rated for 1100 V, LEM sign-off |
+| Isolated bias (ASC/QDIS) | UCC14141-Q1 (Road gate ㉔, A.12) | **same part** — V_IOWM 1414 V DC ≥ 1150 V; ASC entry time and QDIS gate divider re-derived for its output |
+| V_DC-channel bias | UCC12050 per channel (Road A.11; production AVL UCC12051QDVERQ1, A.12) | same (V_IOWM 1697 V DC ≥ 1150 V) |
+| Opto (UQD, UASC) | VOW3120-X017T, Road gate ⑪ (N8, A.12) | **same part** — V_IORM 1414 Vpk ≥ 1150 V |
+| Phase sensors | HC5FW 900-S + busbar sleeve (N7, Road gate ⑩) | same + sleeve rated for 1100 V, LEM sign-off |
+| Y-caps | VY1472M63Y5UQ6TV0 (Road gate ㉔, A.12) | **same part** — 1500 V DC ≥ 1150 V; Y1/500 VAC class is for the 690 V AC grid case |
+| Road A.9–A.12 power-side changes | included | carried into the new power and discharge PCBs: harness map (V5GD 1, HW_ID 2, VBAT_H 19/20, VBAT_L 39/40), UCC12050 V_DC bias, RASCG 0.33 W part (88 mW actual), 50 V CASC/CQD, TPSMC24CA-VR on both LV feeds, the QDIS gate divider (now 11.6–16.3 V), TPS55340-Q1 real ratings (38 V rec / 40 V abs) |
 | Cap bank / discharge | Road | §7 values, new busbar drawing |
 | V_DC sense divider | 6 × 1206 per channel (142 V each at 850 V) | **8 × 1206** per channel (138 V each at 1100 V; 6 would put 183 V = 92 % of 200 V on each) |
 | Control card | Road (RHWID code only) | Road |
-| M8-SiC | = Road 8XX SiC build, RHWID 100 k | — |
+| M8-SiC | = Road 8XX SiC build, RHWID 30 k | — |
 | Identity (HW_ID, MFW-01) | RHWID 47 k → 4.12 V | RHWID 1 k → 0.45 V |
 | Enclosure / environment | marine enclosure, conformal coat, anti-condensation heater, DC fuses, marine connectors — §11 | same |
 
-**Insulation** (component ratings, datasheets): NSI6611A-Q1 and AMC1311B are reinforced to IEC
-60747-17 with 2121/2120 V DC working — good for both classes. TLP152 (UL1577 only, 5 mm),
-QA01C and VGT12EEM (1-minute test voltages, no working rating) are open on the Road (N8, BOM
-note, VERIFY ⑤) and must be replaced for M10. HC5FW/SP1 is a reduced-insulation part whose
-insulation is completed by the busbar sleeve (N7). PCB creepage is the insulation-coordination
-study; conformal coating is the marine baseline anyway (humidity, salt).
+**Insulation.** The barrier list is the Road register ([`docs/design-basis.md`](../docs/design-basis.md)
+§6a, rev A.12) and is not restated here. The report's *Insulation* section applies it at 850 V (M8)
+and 1150 V (M10). Round 13 bound gates ⑪ and ㉔ to orderable parts (Vishay VOW3120-X017T opto, TI
+UCC14141-Q1 bias, Vishay VY1472M63Y5UQ6TV0 Y-caps), all already rated ≥ 1150 V DC — so M10 needs no
+separate certified part for these, only their certificate status (VDE/UL/CQC, listed "planned")
+checked at PO. The register's remaining open gates ask for statements at the Road's 850 V DC:
+- ⑤ VGT12EEM flyback transformer;
+- ⑩ HC5FW sleeve (N7).
+
+Marine's 1000 V grids make each of them stricter, not looser. M10 needs the same statements at
+≥ 1150 V DC (its OV trip), and on an IT network a first earth fault leaves the whole link across one
+Y-cap — the VY1472's 1500 V DC rating still covers that at 1150 V; its Y1/500 VAC class is sized for
+the 690 V AC grid case, not the DC bus. The A.11 UCC12050 closes the V_DC-channel bias for both
+classes (V_IOWM 1697 V DC; production AVL part UCC12051QDVERQ1, A.12). PCB creepage is the
+insulation-coordination study; conformal coating is the marine baseline anyway (humidity, salt).
 
 ## 10. Firmware — Marine additions to the Road contract
 
-The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), FW-01…FW-21) applies unchanged.
-The marine build adds:
+The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), rev A.12, FW-01…FW-21)
+applies unchanged, with Marine parameter-set values. FW-05 trips at 1.25 × √2 × the 110 % current in
+instantaneous amperes: ±583 A (M8) / ±525 A (M10). The FW-16 QDIS top-up is §7's. The marine build
+adds:
 
 | # | Requirement | Source |
 |---|---|---|
-| MFW-01 | **Identity.** HW_ID codes: M8 IGBT 47 k (4.12 V), M8-SiC 100 k (4.55 V), M10 1 k (0.45 V). All are clear of the Road codes (0.90/1.60/2.50/3.44 V). A cross-series parameter set refuses to enable the gates | FW-01/02 mechanism |
+| MFW-01 | **Identity.** HW_ID codes: M8 IGBT 47 k (4.12 V), M8-SiC 30 k (3.75 V; 100 k sat at 4.55 V, inside the > 4.6 V open-pin fault window — round 13), M10 1 k (0.45 V). All are clear of the Road codes (0.90/1.60/2.50/3.44 V). A cross-series parameter set refuses to enable the gates. FW-02's τ check is only a plausibility check since Road A.11: M10's nominal τ (2350 Ω × 303 µF ≈ 0.71 s) equals the Road 4XX value, so the M10 cap-bank/discharge kit is proven by traceability and the EOL C/R measurement (Road `dfm.md` §4) | FW-01 mechanism; FW-02 |
 | MFW-02 | **Duty class.** Each parameter set carries its ratings and its duty class: continuous (ferry) or tug. The 110 % / 60 s overload runs on an I²t budget | §3, §5 |
 | MFW-03 | **Reduce power instead of tripping.** Coolant temperature, leak, module NTC, DC-window edges, BMS and PMS limits reduce power, give a pre-warning and broadcast "power limitation". Trip only for damaging faults (DESAT, OV, hardware) | DNV/BV/ABS/LR (§2) |
-| MFW-04 | **BMS contract.** Obey the charge/discharge current and voltage limits; cap regeneration at the charge limit; raise an alarm on converter failure. FW-06 runs at ≤ 20 µs on a free-running V_DC slot (Road N9) | IRS battery guidelines Rev.3; §6c |
+| MFW-04 | **BMS contract.** Obey the charge/discharge current and voltage limits; cap regeneration at the charge limit; raise an alarm on converter failure. A charge limit of 0 with the battery connected is not a lost DC path: regen ramps to zero with current control kept, and FW-06 stays armed as the backstop (Road §6, round 12). FW-06 runs the Road chain: ≤ 15.6 µs to the ASC request on a free-running V_DC slot, then ≤ 7.56 µs ASC entry (Road N9, round 7; timing re-derived round 13/A.12 for the UCC14141-Q1) | IRS battery guidelines Rev.3; §6c |
 | MFW-05 | **PMS contract.** Power-limit and ramp commands on CAN, plus a hardwired fast load-reduction input to protect gensets | §6b |
 | MFW-06 | **Standstill.** Switch at 1 kHz below 2 Hz. A stall timer (≥ 50 % current at < 1 % speed for more than 10 s) warns, then derates | §6b (verified) |
 | MFW-07 | **Flying start** from the resolver angle and speed | §6b |
-| MFW-08 | **Safe state per set.** Safe pulse-off at every speed, relying on the motor back-EMF rule. ASC only for a switch fault in that cell, following the Road matrix: LS-ASC for a shorted low-side switch; a shorted high-side switch gets pulse-off plus **automatic opening of the set's disconnector**. Healthy sets clamp to their N−1 limits and do not trip. Towing/windmilling raises no alarm from regenerated power. Shaft-lock interlock | DNV, KR (§2), §6 |
+| MFW-08 | **Safe state per set.** Pulse-off at every speed with the DC grid connected, relying on the §6b motor rule (back-EMF, and the winding energy under Road rule (b)); the cell never opens its own DC entry while its set carries current. ASC for a switch fault in that cell follows the Road matrix: LS-ASC for a shorted low-side switch; a shorted high-side switch gets pulse-off plus **automatic opening of the set's disconnector**. LS-ASC also when FW-06 finds the DC path lost with current flowing, **at any speed** — the Road matrix itself now fires this at n < n_x too (round 13/A.12, F135: the energy condition applies in both columns, so the battery-path-lost row below n_x also uses FW-06 LS-ASC as the sink), matching what Marine already required because its motor never reaches n_x under the back-EMF rule; release to pulse-off once the current is gone. Healthy sets clamp to their N−1 limits and do not trip. Towing/windmilling raises no alarm from regenerated power. Shaft-lock interlock | DNV, KR (§2), §6, §6b |
 | MFW-09 | **Multi-set control.** Angle offset per set, auto-calibrated at commissioning from back-EMF zero crossings. 6ω (plus 12ω for N ≥ 3) resonant loops, dead-time compensation, coupling feed-forward, sharing weights, N−1 limits. A backup master takes over; a cell holds its last reference for 50 ms, then ramps to zero | §6 |
 | MFW-10 | **Shaft bus.** CAN-FD at 1/5 Mbit/s, 1 kHz (500 Hz for N = 8). PWM sync from time-stamped frames; loss of sync gives an alarm | §6 |
 | MFW-11 | **Speed feedback.** One resolver per set (motor spec), with a back-EMF observer for plausibility. A set without its own resolver runs as a **follower**: I/f below ≈10 % speed, then the observer (VACON practice). On resolver loss: alarm, then limp-home above 10 % speed. Losing the reference must never increase thrust | BV, ABS, DNV; multiphase brief §4 |
@@ -402,7 +490,7 @@ The marine build adds:
 |---|---|---|
 | Marine enclosure: IP44 minimum, IP54 target; stainless hardware; pressure-equalising vent | CG-0339 Enclosure B; condensing humidity (class B) | 8–15 k |
 | Anti-condensation heater + thermostat | Humidity B; ABS/BV require anti-condensation means | 1.5–3 k |
-| Isolated 24 → 12 V, 60 W (EN 50155 / IEC 60945 class), fed from **class-grade, battery-backed 24 V**; diode-OR of two feeds where the shaft can be towed | The card's TVS stands off 20.5 V against ship 24 V (18–31.2 V); sustained ASC needs gate power (§6) | 4–8 k (+1 k second feed) |
+| Isolated 24 → 12 V, 60 W (EN 50155 / IEC 60945 class), fed from **class-grade, battery-backed 24 V**; diode-OR of two feeds where the shaft can be towed | The Road LV side is a 12 V (KL30 9–16 V) design. Its entry TVS is the TPSMC24CA-VR since A.11 (24 V stand-off, V_BR 26.7–29.5 V): dark at 24 V, but ship 24 V reaches 31.2 V, above even its maximum breakdown. More decisive, the power board's V15 rail is a boost (TPS55340-Q1), which cannot step 18–31 V down. It passes the input through, and the ULDO15 post-regulator then dissipates ≈ 2.8 W at 24 V into thermal shutdown (Road F51: a survival case, not an operating mode). That drops V15, which feeds the UCC14141-Q1 ASC/discharge bias (8–18 V input, A.12; V15 sits well inside) and the UCC12050 V_DC bias. The flybacks and LDOs are rated and benched at 9–16 V, 24 V only as a 60 s jump start (Road gate ⑬). Sustained ASC needs gate power (§6) | 4–8 k (+1 k second feed) |
 | DC entry kit: 2 semiconductor fuses + precharge (90/110 Ω + contactor) | Fuse per converter (ABS); precharge before joining a live bus | 12–25 k |
 | Motor-side / DC disconnector (if in the cell's scope) | KR (PM motors); maintenance isolation | 15–30 k |
 | Leak sensor + drip tray; marine glands | Liquid-cooling rules | 1–5 k |
@@ -462,7 +550,7 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - Build it on a committed 60–70 t tug programme (GTTP: 16 tugs by 2027, 50 by 2030).
    - Until then, quote tandem quad motors on M10 cells.
 4. **Motor partner, in parallel with Phase 1.** A DUAL/QUAD PM motor with isolated neutrals, one
-   resolver per set, the §6b back-EMF rule and I_ch ≈ 1 pu. Danfoss EM-PMI DUAL/QUAD is the
+   resolver per set, the §6b back-EMF and winding-energy conditions, and I_ch ≈ 1 pu. Danfoss EM-PMI DUAL/QUAD is the
    benchmark to match.
 
 **Open gates.** Each one is a WARN in the report or an RFQ:
@@ -471,23 +559,29 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - 1700 V and SiC cosmic-ray FIT at the class voltages;
    - terminal RMS rating of the D3 modules (M8 300 A, M10 270 A);
    - power-cycling curves, which replace the LESIT estimate;
+   - the short-circuit statement at 850 V (M8) and 1100 V (M10) at the 16.9 V gate-rail corner
+     (Road RR04/③, round 12);
    - the datasheet defects in §4.
 2. **Faratronic:** the 15 µF / 1300 V class can (≥ 15 A).
-3. **Certified barrier parts for M10:** bias module and flyback transformer (≥ 1150 V DC
-   working), an SO6L-class opto, and LEM sign-off on the 1100 V busbar sleeve.
+3. **Certified barrier parts for M10:** the flyback transformer (≥ 1150 V DC working, Road gate
+   ⑤) and LEM sign-off on the 1100 V busbar sleeve. Round 13 bound the bias module (TI
+   UCC14141-Q1), opto (Vishay VOW3120-X017T) and Y-caps (Vishay VY1472M63Y5UQ6TV0) to parts
+   already rated ≥ 1150 V DC, so gates ⑪/㉔ close at the same working-voltage ask — the residual
+   is their certificate status (VDE/UL/CQC, listed "planned") at PO.
 4. **Class:**
    - current IRS Pt 4 Ch 8 and DNV texts;
    - HV test levels for 850–1200 V DC equipment;
    - BV's reading of 1.5 / 1.8 × U_P, before quoting BV-classed vessels.
 5. **Motor partner:** per-set L_d/L_q/leakage, back-EMF harmonics, demagnetisation withstand,
-   back-EMF at 115 % overspeed (≤ 836 / 1093 V), and N−1 thermal limits.
+   back-EMF at 115 % overspeed (≤ 836 / 1093 V), and N−1 thermal limits. L_d/L_q(i) and ψ_f also
+   set the §6b winding energy; per vessel, the rule-(b) evidence is the IEC 61660 study and FAT.
 6. **Owners:** measured ferry and tug duty profiles. They set the tug rating.
 7. **Bench:**
    - CAN-FD PWM sync accuracy;
    - 6ω loop on a DUAL motor;
    - 1 kHz standstill ripple;
    - M10 double-pulse test at 1100 V (sets RG);
-   - contained short-circuit test on the 1700 V IGBT;
+   - contained short-circuit test on the 1700 V IGBT (M8: the Road's, gate ③);
    - coldplate Rth (shared with Road).
 8. **Before the Road PCB layout (which M8 inherits):** decide the creepage strategy, PD2 sealed
    or PD3.

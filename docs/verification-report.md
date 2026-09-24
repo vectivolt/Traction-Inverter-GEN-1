@@ -1,4 +1,4 @@
-# Design Verification Report — rev A.11 (2026-09-24)
+# Design Verification Report — rev A.12 (2026-09-24)
 
 End-to-end verification of the 220 kW / 800 V traction inverter at actual operating corners
 (V_bus 500–850 V · KL30 9–16 V · 10 kHz · 65 °C coldplate), worst-case component tolerances.
@@ -12,7 +12,7 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — `loss-model.mjs`) is checked on the
 same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review — all fixed; review cross-reference in [`review-A6-disposition.md`](review-A6-disposition.md), [`review-A7-disposition.md`](review-A7-disposition.md) and [`review-A8-disposition.md`](review-A8-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review · F135–F142 rev A.12 rechecks, pin freeze and production closure — all fixed; review cross-reference in [`review-A6-disposition.md`](review-A6-disposition.md), [`review-A7-disposition.md`](review-A7-disposition.md) and [`review-A8-disposition.md`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -56,11 +56,17 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | F127 | MED | LEM HC5FW drawn as a 3-pin VCC/OUT/GND symbol; the device has 1 V_ref, 2 V_out, 3 Gnd, 4 U_C and E1–E4 mass pins and no connector (R1-F04) | 8-terminal symbol by DS number (V_ref open, E1–E4 to Gnd); the off-board carrier drawing derives from it; ERC by terminal number |
 | F128 | MED | A resolver wire shorted to KL30 (shares the vehicle connector) injected ≈ 23 mA into an SDADC pin through 330 + 120 Ω against the S32K39's 3 mA limit (operating and absolute maximum), and both legs pulled 20 mA into the VMID buffer through the 680 Ω bias (R2-F13, R1-F20) | RSINF/RCOSF and RSIN/RCOS → 10 k: 1.0 / 1.8 / 2.9 mA at 16 / 24 / 35 V, buffer 2.7 mA; caps rescaled (47 p + 100 p differential, 22 p common-mode on both legs — the P-only caps converted CM to DM): corner 47 kHz, −12° on both channels; SWG given its 47 pF load |
 | F129 | LOW | VREF5 sat at 3.3 µF nominal, the FS26 upper limit, before tolerance (R2-F11) | CSB5 2.2 µF → 1 µF (0805 X7R 16 V): 2.1 µF nominal, 1.4–2.3 µF effective over tolerance, bias, temperature and aging |
-| F130 | **HIGH** | LV-entry coordination (R1-F14, R2-F10, found by the Opus check): the notes described the classic TPSMC24CA (V_BR 22.8–25.2 V), which conducts at the 24 V/60 s jump start and, in an ISO 16750-2 test B at Ri ≤ 2 Ω, takes more than the (extrapolated) 400 ms capability; at 0.5 Ω the polyfuse then trips inside the pulse, sees ≈ 30 V against its 24 V V_max and latches until a KL30 cycle; the archived datasheet was the -VR series | TPSMC24CA-VR bound explicitly (AEC-Q101, 24 V stand-off, V_BR 26.7–29.5 V, same pad and price): dark at 24 V, clamps ≤ 33 V under the boost's 34 V abs max; test B covered on paper at Ri ≥ 4 Ω, the OEM's Ri is gate ㉓ (≤ 2 Ω: TVS pulse test or 35 V-rated rails). Polyfuse kept (the 33 V part holds 1.17 A hot against the 1.19 A worst chain) |
+| F130 | **HIGH** | LV-entry coordination (R1-F14, R2-F10, found by the Opus check): the notes described the classic TPSMC24CA (V_BR 22.8–25.2 V), which conducts at the 24 V/60 s jump start and, in an ISO 16750-2 test B at Ri ≤ 2 Ω, takes more than the (extrapolated) 400 ms capability; at 0.5 Ω the polyfuse then trips inside the pulse, sees ≈ 30 V against its 24 V V_max and latches until a KL30 cycle; the archived datasheet was the -VR series | TPSMC24CA-VR bound explicitly (AEC-Q101, 24 V stand-off, V_BR 26.7–29.5 V, same pad and price): dark at 24 V, clamps ≤ 33 V under the boost's 34 V abs max; test B covered on paper at Ri ≥ 4 Ω, the OEM's Ri is gate ㉗ (≤ 2 Ω: TVS pulse test or 35 V-rated rails). Polyfuse kept (the 33 V part holds 1.17 A hot against the 1.19 A worst chain) |
 | F131 | LOW | UEXD (ALM2402QPWPRQ1) bought as "HTSSOP16"; the PWP package is 14-pin (R1-F05, R2-F26) | footprint HTSSOP14-PWP; ERC asserts the 14-pin package against the symbol |
 | F132 | LOW | Board NTCs drawn as 2-pin headers, bought as 0603 NTCs (R2-F27) | on-board RTAMB/RTHS 0603 (symbol = BOM) |
 | F133 | LOW | kicad5-verify exited 0 on an empty page set (R2-F29) | fails unless 4 sheets and ≥ 1500 pins were compared |
 | F134 | LOW | Contract and document defects: FW-05 threshold in A rms; §6 merged "contactor open" with "BMS limit 0"; FW-15 "NVM first" ahead of the safe action; FW-02 τ bands overlap; HW_ID "pin 40"; "LQFP-176"; stale "inside 6 µs" IGBT text; ALT field offered M7 rectifiers and a 3-lead TO-247; CAN termination fixed; FW-18 silent on invalid witnesses; S6 double-update unstated (R1-F02/F11/F18/F23/F24/F25/F27, R2-F18/F19/F24/F33/F34/F35) | all corrected: instantaneous ±601/±707 A; rows split; retained-RAM latch, queued NVM; plausibility wording + EOL measurement; pin 2; 289-MAPBGA; RR04 wording; ALT = qualify-before-use; endpoint DNP option; "unknown, never safe"; delay stated |
+| F135 | **HIGH** | Round 13 (A11-R01 ×2): rule (a) was fixed but the §6 matrix stayed speed-split — standstill freewheel of the 0.35 mH screening motor at 340 A rms takes an isolated 8XX link to 1089 V from the trip; the KL30 row still cited the back-EMF test and rule (b) applied only at n ≥ n_x | column note: the energy condition applies in both columns; battery-path-lost row at n < n_x uses FW-06 LS-ASC as the energy sink; KL30 row cites rule (a); rule (b) at every point where (a) fails, barred where the premise is the lost battery |
+| F136 | MED | Round 13 (A11-R02/R03): the 10 k injection bound assumed a powered 5.7 V clamp — unpowered, 35 V gives 3.42 mA against the 3 mA absolute limit; and the SDADC anti-alias capacitor (C_AAF 180 pF min, Table 38) had been cut to 100 pF | RSINF/RCOSF and RSIN/RCOS 12 k (2.92 mA at 35 V into 0 V, −1 % R; VMID buffer 5.4 mA); 220 pF C0G at the pins; corner 23 kHz, −24° both channels; the channel-matching bound is stated (1.3° from the Z_DIFF corners by the verifier's amplitude-ratio form; the recheck's 1.09° used a phase form — the larger is carried) instead of "ratio-cancelled" |
+| F137 | LOW | Round 13 (A11-R05/N01): the verifier's guard counted JSON pages, not distinct assemblies | exact set {power, capbank, disch, card}, no duplicates, ≥ 1500 pins |
+| F138 | LOW | Round 13 (A11-R06 / R03): the LV-entry argument used the commercial TPS55340's 34 V absolute maximum (and an older row 45 V) — the fitted -Q1 part is 38 V recommended / 40 V absolute, so the "≥ 42 V boost" premise was false | model, BOM and gate ㉗ corrected; the commercial part marked PROTO ONLY |
+| F139 | LOW | Round 13 (R04): the V_DC bias LDO thermal row assumed 40 K/W; the NCV4276C DPAK reference pad is 58.5 K/W and the UCC12050's 50 mA is typical | 0.76 W worst → Tj ≈ 129 °C at 85 °C on the reference pad (WARN); ≥ 1.2 in² 2 oz copper per LDO in dfm §4; measured at the hot first article |
+| F140 | **HIGH** | Pin freeze (rev A.12): the A.4 "GEN3-exact" MCU port list was symbolic and partly wrong — PTG10 has no PWM output, PTB0/PTB4/PTB5/PTF5 no ADC, PTB2/PTB3 are external-mux ADDRESS outputs, PTA10 is JTAG_TDO, PTA11–13 do not exist on the 289-MAPBGA | all 289 balls bound from SPF-91122 rev C (anchored on the DS supply balls): PWM_1 A/B pairs on PTC31/PTA6, PTC30/PTA7, PTC29/PTC8 with FAULT0/FAULT2 on PTC26/PTC25; 17 analog inputs on ADC-capable balls with the currents on three instances; SDADC pairs as GEN3; FS26 48 pins verified; ERC by ball |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |
@@ -137,8 +143,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 
 ## Margin tables
 
-
-### Power stage — 8XX SiC
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — 8XX SiC
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -146,8 +153,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Tj steady-state bound, peak 30 s (340 A, 850 V, 10 kHz) | 135 °C (554 W/switch) | 175 °C Tj max | ✅ PASS | 77% of limit · cond 329 + sw 204 + Qrr 7 + dead-time 14 W; 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Tj steady-state bound, continuous (185 A, 700 V, 10 kHz) | 90 °C (200 W/switch) | 175 °C Tj max | ✅ PASS | 52% of limit · cond 98 + sw 91 + Qrr 3 + dead-time 7 W; 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Semiconductor efficiency @ continuous (120 kW, 700 V) | 99.01 % (1197 W) | - | ℹ️ | six switches, conservative 175 °C R_DS(on); caps/busbar/LV add ≈0.1–0.2 pt |
-
-### Power stage — 8XX IGBT
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — 8XX IGBT
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -157,8 +165,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Tj steady-state bound, continuous (185 A, 700 V, 5 kHz) | 99 °C (250 W/switch) | 150 °C Tvjop | ✅ PASS | 66% of limit · IGBT 85+165 W · diode 16+26 W (motoring); 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Diode Tj bound, continuous regeneration (cosφ −0.85) | 90 °C (108 W) | 150 °C | ✅ PASS | 60% of limit · F26 — the FWD is its own die (Rth 0.10 K/W); regen loads it hardest; RR07 — the IGBT's 181 W heats the shared coldplate too |
 | Semiconductor efficiency @ continuous (120 kW, 700 V) | 98.56 % (1751 W) | - | ℹ️ | six switches, conservative 175 °C R_DS(on); caps/busbar/LV add ≈0.1–0.2 pt |
-
-### Power stage — 4XX IGBT
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — 4XX IGBT
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -168,8 +177,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Tj steady-state bound, continuous (250 A, 400 V, 5 kHz) | 100 °C (253 W/switch) | 150 °C Tvjop | ✅ PASS | 67% of limit · IGBT 126+128 W · diode 23+20 W (motoring); 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Diode Tj bound, continuous regeneration (cosφ −0.85) | 94 °C (140 W) | 150 °C | ✅ PASS | 63% of limit · F26 — the FWD is its own die (Rth 0.10 K/W); regen loads it hardest; RR07 — the IGBT's 151 W heats the shared coldplate too |
 | Semiconductor efficiency @ continuous (90 kW, 400 V) | 98.07 % (1775 W) | - | ℹ️ | six switches, conservative 175 °C R_DS(on); caps/busbar/LV add ≈0.1–0.2 pt |
-
-### Power stage — 4XX SiC
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — 4XX SiC
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -177,16 +187,18 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Tj steady-state bound, peak 30 s (400 A, 500 V, 10 kHz) | 143 °C (618 W/switch) | 175 °C Tj max | ✅ PASS | 82% of limit · cond 456 + sw 141 + Qrr 5 + dead-time 16 W; 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Tj steady-state bound, continuous (250 A, 400 V, 10 kHz) | 98 °C (261 W/switch) | 175 °C Tj max | ✅ PASS | 56% of limit · cond 178 + sw 70 + Qrr 2 + dead-time 10 W; 65 °C coolant + 0.045 K/W coldplate (shared by the position's IGBT and diode, RR07); the 30 s transient is in S4 |
 | Semiconductor efficiency @ continuous (90 kW, 400 V) | 98.29 % (1567 W) | - | ℹ️ | six switches, conservative 175 °C R_DS(on); caps/busbar/LV add ≈0.1–0.2 pt |
-
-### Power stage — all SKUs
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — all SKUs
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Peak switch current vs module rating | 566 A pk (4XX, 400 A rms) | 600 A DC / 1200 A 1 ms | ✅ PASS | 47% of limit · 8XX SKUs: 481 A pk |
 | Phase-current sensing headroom | ≈620 A (566 A pk + 10 % ripple, 4XX) | ±900 A LEM range | ✅ PASS | 69% of limit · 8XX ≈530 A — the ±900 A sensor covers every SKU (review F33 assumed 600 A rms; above ≈480 A rms a 4XX-HP frame needs a larger sensor) |
 | Turn-off overshoot, SiC 850 V / 481 A, cold (RG_OFF 6.8 Ω) | 1104 V at 15 nH (17 kA/µs est.) | 1080 V repetitive guard · 1200 V abs | 🟡 WARN | hot 1000 V. DPT GATE, not closed on paper: module Ls unpublished (hiitio RFQ); at the DS 3.3 Ω tf (13 ns) the same loop would reach 1294 V. Levers: RG_OFF → 10 Ω (≈+30 mJ Eoff, +11 °C at peak) and/or firmware I_pk(V_dc) above 800 V. The old S8 0.3 V term was a 1000× unit error (F01). IGBT SKUs: tf 200–385 ns ⇒ <40 V |
-
-### DC link — 8XX bank (8XX SiC)
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### DC link — 8XX bank (8XX SiC)
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -194,8 +206,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Ripple per can, continuous (185 A) | 7.5 A | 15.4 A | ✅ PASS | 49% of limit |
 | Voltage vs U_N at 85 °C, OV trip 880 V | 880 V | 1000 V | ✅ PASS | 88% of limit · normal max 850 V = 85 % |
 | Stored energy at V_max (C +10 % + 3 µF local) | 128.4 J | - | ℹ️ | 320 µF nominal |
-
-### DC link — 4XX bank (4XX IGBT)
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### DC link — 4XX bank (4XX IGBT)
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -203,40 +216,46 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Ripple per can, continuous (250 A) | 10.2 A | 18 A | ✅ PASS | 56% of limit |
 | Voltage vs U_N at 85 °C, OV trip 530 V | 530 V | 600 V | ✅ PASS | 88% of limit · normal max 500 V = 83 % |
 | Stored energy at V_max (C +10 % + 3 µF local) | 110.4 J | - | ℹ️ | 800 µF nominal |
-
-### DC link — 8XX bank (8XX SiC)
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### DC link — 8XX bank (8XX SiC)
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | ESR heating per can, continuous | 0.44 W | 1.85 W (15.4 A²·7.8 mΩ = the 15 K rise) | ✅ PASS | 24% of limit |
-
-### DC link — 4XX bank (4XX IGBT)
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### DC link — 4XX bank (4XX IGBT)
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | 4XX can binding | 50 µF / 600 V (85 °C) in the same 37.5 mm positions | ≥18 A rms @10 kHz/70 °C | 🟡 WARN | CLASS part until the Faratronic RFQ returns the exact MPN + ripple/ESR/life data (review F20/F21) — the busbar drawing is unchanged |
-
-### Regeneration, battery path lost — 8XX bus
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Regeneration, battery path lost — 8XX bus
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Link charging at 220 kW regen (C_min 291 µF) | 0.89 V/µs; 850→880 V trip in 34 µs | - | ℹ️ | a 100 µs response would end at 962 V and a once-per-PWM-period sample at 5 kHz (200 µs) at 1038 V — why FW-06 is 20 µs on a free-running V_DC slot |
-| Link peak with the FW-06 response (15.6 µs to HS-off + ASC request, then 7.5 µs all-off at 481 A) | 906 V | 1000 V can U_N at 85 °C | ✅ PASS | 91% of limit · round 7: the whole chain, not a written 20 µs — the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x); HIL event-to-ASC measurement + dyno contactor opening under full regen are the gates |
-
-### Regeneration, battery path lost — 4XX bus
+| Link peak with the FW-06 response (15.6 µs to HS-off + ASC request, then 7.6 µs all-off at 481 A) | 906 V | 1000 V can U_N at 85 °C | ✅ PASS | 91% of limit · round 7: the whole chain, not a written 20 µs — the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x); HIL event-to-ASC measurement + dyno contactor opening under full regen are the gates |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Regeneration, battery path lost — 4XX bus
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Link charging at 150 kW regen (C_min 723 µF) | 0.42 V/µs; 500→530 V trip in 74 µs | - | ℹ️ | a 100 µs response would end at 568 V and a once-per-PWM-period sample at 5 kHz (200 µs) at 603 V — why FW-06 is 20 µs on a free-running V_DC slot |
-| Link peak with the FW-06 response (15.6 µs to HS-off + ASC request, then 7.5 µs all-off at 566 A) | 542 V | 600 V can U_N at 85 °C | ✅ PASS | 90% of limit · round 7: the whole chain, not a written 20 µs — the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x); HIL event-to-ASC measurement + dyno contactor opening under full regen are the gates |
-
-### Regeneration, battery path lost — budget
+| Link peak with the FW-06 response (15.6 µs to HS-off + ASC request, then 7.6 µs all-off at 566 A) | 542 V | 600 V can U_N at 85 °C | ✅ PASS | 90% of limit · round 7: the whole chain, not a written 20 µs — the motor's stored magnetic energy adds a motor-dependent step on the non-ASC path (below n_x); HIL event-to-ASC measurement + dyno contactor opening under full regen are the gates |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Regeneration, battery path lost — budget
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | FW-06 latency to the ASC request (RR06/A6-R08) | 15.6 µs = divider lag 6.19 + AMC1311B 2.1 + receiver 0.3 + sample wait 5 (≥ 200 kS/s per channel) + conversion 1 + compare→fault→ASC_REQ 1 | allocated in FW-06 | ℹ️ | the divider's 6.2 µs is the lag of a first-order filter behind a ramp; the route (ADC analog watchdog → eFlexPWM fault + ASC_REQ) is a firmware deliverable measured on HIL — no comparator is added unless that measurement misses the budget |
-
-### Discharge — 8XX values
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Discharge — 8XX values
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -247,8 +266,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Energy per 10 W wirewound (C+10 %) | 32.1 J | 100 J single-pulse | ✅ PASS | 32% of limit · peak 101 W/resistor decaying τ = 0.67 s; firmware ≤ 3 discharges/5 min (thermal recovery) |
 | V per wirewound | 212.5 V | ≥350 V axial class | ✅ PASS | 61% of limit |
 | QDIS stuck ON with the battery connected | 384 W continuous (96 W/resistor) | not survivable by 10 W parts | 🟡 WARN | F23: bounded, not survived — firmware fires QDIS only with contactors reported OPEN + auto-timeout; a pre-existing FET short is caught at the next precharge (link plateaus ≈5 % low, abnormal τ); the fail-open flameproof wirewound class opens the string. Never demonstrated on a live battery |
-
-### Discharge — 4XX values
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Discharge — 4XX values
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -259,14 +279,16 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Energy per 10 W wirewound (C+10 %) | 27.6 J | 100 J single-pulse | ✅ PASS | 28% of limit · peak 75 W/resistor decaying τ = 0.78 s; firmware ≤ 3 discharges/5 min (thermal recovery) |
 | V per wirewound | 125 V | ≥350 V axial class | ✅ PASS | 36% of limit |
 | QDIS stuck ON with the battery connected | 284 W continuous (71 W/resistor) | not survivable by 10 W parts | 🟡 WARN | F23: bounded, not survived — firmware fires QDIS only with contactors reported OPEN + auto-timeout; a pre-existing FET short is caught at the next precharge (link plateaus ≈5 % low, abnormal τ); the fail-open flameproof wirewound class opens the string. Never demonstrated on a live battery |
-
-### Discharge — 8XX values
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Discharge — 8XX values
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | QDIS stress | 0.45 A pk (4XX 0.57 A) | 1200 V / 42 A part | ✅ PASS | fully-enhanced switch, no linear region |
-
-### Gate drive
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Gate drive
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -288,8 +310,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Global DRV_EN drop after a DESAT vs the faulted driver's soft turn-off | 22–53 µs RC delay (+0.4–0.8 µs FLT) | IGBT soft-off 12 µs at the DS-minimum 100 mA | ✅ PASS | 54% of limit · F71: NSI6611 DS is silent on RST/EN during soft turn-off — 10 k/3.3 nF to the USCH Schmitt threshold (V_T− 0.22–0.49 V_CC) makes the design independent of it; FS0B/MCU paths stay undelayed |
 | Fault-latch CLEAR one-shot (15 nF into 10 k, at the USCH output) | 72–210 µs low per falling edge | ≥ 49 µs to deliver the drivers' reset edge through the delay | ✅ PASS | 67% of limit · review F06 disposition: PRE=CLR=L (both outputs high) is the ONLY way to give the NSI6611s their RST/EN rising edge while FLT is still asserted — a fault-dominant latch would deadlock recovery. The one-shot bounds one stuck-low pin in hardware; a re-pulsing pin is RR03 → FW-15 (eFlexPWM fault lock), the drivers' own latch and the FS26 watchdog |
 | Slow edges at LVC inputs (Δt/ΔV 5–10 ns/V) | RC nodes and FS0B via USCH, FLT diode-OR and FS1B strap via USCH2, RDY_HS/LS via USCH3 (no limit) — none left | every open-drain or RC edge on the safety chain | ✅ PASS | round 7 RR01/RR02: the two RC nodes were 14,000–63,500 ns/V — buffered. The remaining open-drain release edges only return a latch or AND input to its idle level with no output change (PRE release with CLR high holds; RDY releases while MCU_GATE_EN is low per §9 sequencing and FW-14) |
-
-### Flyback
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Flyback
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -302,15 +325,17 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | Start threshold at the 12 V node, worst (2.2 k) | 7.72 V needed | 8.05 V at KL30 = 9 V | ✅ PASS | 96% of limit · A.6 needed 7.95 V (divider on VDD). Burst-to-takeover energy is S1's job |
 | Start resistor dissipation @24 V jump start | 0.078 W | 0.25 W (1206) | ✅ PASS | 31% of limit · 12 mW at 16 V; VDD sits at the aux-derived 10.9 V |
 | CS resistor power (bank, DCM) | 0.098 W | 0.75 W (1210) | ✅ PASS | 13% of limit · D_on 0.214 at 8.05 V in; the old (Ipk/√3)² assumed a 100 % duty triangle |
-
-### Flyback A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Flyback A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Reflected voltage vs clamp-TVS standoff | 7.4 V | 13 V SMAJ13A standoff | ✅ PASS | 57% of limit · F38 — TVS must stay dark in normal OFF; dots per TDK p.3/9 |
 | Drain worst case (clamped load dump) | 61.2 V | 80 V BUK7Y14-80E | ✅ PASS | 77% of limit · F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF) |
-
-### Safety A.8
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Safety A.8
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -320,23 +345,25 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | FS0B load at its V_OL point (5.1 k into the USCH input) | 0.93 mA | 2 mA (V_OL ≤ 0.4 V) | ✅ PASS | 47% of limit · pin ≤ 0.4 V: under the SBC's own 0.7 V read-back threshold and the buffer's 1.0 V V_T− minimum |
 | FAULT_OUT asserted level at the VCU (10 k to 5 V) | 1.11 V | 1.5 V (5 V CMOS V_IL) | ✅ PASS | 74% of limit · sink-only through DFO: the VCU must pull up (firmware-contract §9) |
 | FAULT_OUT shorted to KL30 (FS1B released): ASC_SET_N clamp vs USCH2 V_I abs max | 5.96 / 6.12 / 6.33 V at 16 / 24 / 35 V (125 °C) | 6.5 V abs max (74LVC3G17) | ✅ PASS | 97% of limit · to ground: blocked by DFO. Into V5A ≤ 0.14 mA live / 0.63 mA with V5A off (disabled LDO2 discharges it through 20–60 Ω: ≤ 40 mV). RFS1/RFS4 14.3 mA for the ≤ 0.4 s pulse, 8.9 mA at a jump start (short-time overload of the 0603s — accepted for a shorted wire). A7-N04: the round-7 BAT46 into V5A back-fed a sleeping rail with ≈8 mA. Vishay alt BZT52B5V6 (+6·10⁻⁴/K): ≤ 6.43 V |
-| ASC break-before-make: HS off before LS on | LS starts ≥ 3.94 µs after the latch sets | HS off by 2.71 µs (0.21 µs to EN + 2.5 µs IGBT dead time) | ✅ PASS | 69% of limit · RR05, FS1B path shown (FS0B → USCH → ANDs → EN); the MCU path is faster (eFlexPWM fault on the high-side outputs → IN+ low, tpHL ≤ 0.13 µs), and its low sides come on by PWM after the dead time. EN stays high on the MCU path so LS DESAT keeps priority (DS §8.12). SiC dead time is 1.0 µs — more margin |
-| ASC entry, latch set → LS gates on (worst) | 7.52 µs | counted in the FW-06 budget (§2b) | ℹ️ | release ≤ 0.75 µs (TLP152 tpHL 0.19 µs + DASCR discharge + tASC_f 0.48 µs); exit is MCU-sequenced (FW-06a) |
-| Latched driver FLT masks ASC on every path (UASCG) before DRV_EN drops | ASC_CMD low ≤ 11 ns, LS ASC pins released ≤ 0.76 µs | DRV_EN drop ≥ 22 µs after FLT | ✅ PASS | 3% of limit · round 8 R7-01/A7-N01: the faulted NSI6611 holds its own gate off through IN-low and EN-low with ASC high (DS Fig. 8.11); the gate removes ASC from the HEALTHY low sides and the eFlexPWM fault forces IN low, so the bridge reaches SPO (FS1B-ASC included). The MCU re-enters ASC only through §4c after the FW-15 reset. Wiring locked in erc-audit |
-| TLP152 LED current — ASC opto (RASCL, from UASCG) | 10.3 mA cold · 10.67 mA hot · 14.99 mA max | guaranteed: ≥ 1.25 × I_FLH 7.5 mA, ≤ 20 mA abs · recommended 10–15 mA | ✅ PASS | 74LVC1G08-Q100: guaranteed margins 1.37× over I_FLH and 1.33× under the abs max; the 10–15 mA window closes only with the ±28 % V_F tempco band (typical-derived — T7-04 bench). Cold = −40 °C V_F 1.95 V with R_out ≤ 21.9 Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F 1.7 V with R_out ≤ 34.4 Ω (125 °C); max at V5A 5.1 V, V_F 1.228 V, R_out 0. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold |
-| TLP152 LED current — discharge opto (RQDL, from USCH2 ch3) | 10.3 mA cold · 10.67 mA hot · 14.99 mA max | guaranteed: ≥ 1.25 × I_FLH 7.5 mA, ≤ 20 mA abs · recommended 10–15 mA | ✅ PASS | 74LVC3G17-Q100: guaranteed margins 1.37× over I_FLH and 1.33× under the abs max; the 10–15 mA window closes only with the ±28 % V_F tempco band (typical-derived — T7-04 bench). Cold = −40 °C V_F 1.95 V with R_out ≤ 21.9 Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F 1.7 V with R_out ≤ 34.4 Ω (125 °C); max at V5A 5.1 V, V_F 1.228 V, R_out 0. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold |
-
-### Safety A.9
+| ASC break-before-make: HS off before LS on | LS starts ≥ 4.42 µs after the latch sets | HS off by 2.71 µs (0.21 µs to EN + 2.5 µs IGBT dead time) | ✅ PASS | 61% of limit · RR05, FS1B path shown (FS0B → USCH → ANDs → EN); the MCU path is faster (eFlexPWM fault on the high-side outputs → IN+ low, tpHL ≤ 0.13 µs), and its low sides come on by PWM after the dead time. EN stays high on the MCU path so LS DESAT keeps priority (DS §8.12). SiC dead time is 1.0 µs — more margin |
+| ASC entry, latch set → LS gates on (worst) | 7.56 µs | counted in the FW-06 budget (§2b) | ℹ️ | release ≤ 1.06 µs (VOW3120 tpHL 0.5 µs max + DASCR discharge + tASC_f 0.48 µs); exit is MCU-sequenced (FW-06a) |
+| Latched driver FLT masks ASC on every path (UASCG) before DRV_EN drops | ASC_CMD low ≤ 11 ns, LS ASC pins released ≤ 1.07 µs | DRV_EN drop ≥ 22 µs after FLT | ✅ PASS | 5% of limit · round 8 R7-01/A7-N01: the faulted NSI6611 holds its own gate off through IN-low and EN-low with ASC high (DS Fig. 8.11); the gate removes ASC from the HEALTHY low sides and the eFlexPWM fault forces IN low, so the bridge reaches SPO (FS1B-ASC included). The MCU re-enters ASC only through §4c after the FW-15 reset. Wiring locked in erc-audit |
+| VOW3120 LED current — ASC opto (RASCL, from UASCG) | 10.77 mA cold · 10.93 mA hot · 15.84 mA max | guaranteed: ≥ 1.25 × I_FLH 8 mA, ≤ 25 mA abs · recommended 10–16 mA | ✅ PASS | 74LVC1G08-Q100: guaranteed margins 1.35× over I_FLH and 1.58× under the abs max; the 10–16 mA window closes only with the ±28 % V_F tempco band (typical-derived — T7-04 bench). Cold = −40 °C V_F 1.72 V with R_out ≤ 21.9 Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F 1.53 V with R_out ≤ 34.4 Ω (125 °C); max at V5A 5.1 V, V_F 0.865 V, R_out 0. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold on the TLP152; A.12: the VOW3120 V_F (1.0–1.6 V) moves the window, 261 R would reach 16.4 mA |
+| VOW3120 LED current — discharge opto (RQDL, from USCH2 ch3) | 10.77 mA cold · 10.93 mA hot · 15.84 mA max | guaranteed: ≥ 1.25 × I_FLH 8 mA, ≤ 25 mA abs · recommended 10–16 mA | ✅ PASS | 74LVC3G17-Q100: guaranteed margins 1.35× over I_FLH and 1.58× under the abs max; the 10–16 mA window closes only with the ±28 % V_F tempco band (typical-derived — T7-04 bench). Cold = −40 °C V_F 1.72 V with R_out ≤ 21.9 Ω (V_OH ≥ 3.8 V at −32 mA, −40…85 °C); hot = 100 °C V_F 1.53 V with R_out ≤ 34.4 Ω (125 °C); max at V5A 5.1 V, V_F 0.865 V, R_out 0. R7-03/A7-N03: 470 R from the MCU pin gave 6.4–6.8 mA; cross-check R8X-04: 270 R mixed temperatures and dipped to 9.9 mA cold on the TLP152; A.12: the VOW3120 V_F (1.0–1.6 V) moves the window, 261 R would reach 16.4 mA |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Safety A.9
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
-| RASCG continuous dissipation while ASC is held (QA01C-18 top into the ZASC clamp) | 119 mW | 272 mW at 85 °C (ESR03EZPF2201, 0.33 W at 70 °C) | ✅ PASS | 44% of limit · S9-01: a generic 0603 rated 0.1 W at 70 °C allows only 82 mW at 85 °C. 2.2 k is kept: it sets the ASC break-before-make RC with CASCD |
+| RASCG continuous dissipation while ASC is held (UCC14141-Q1 top into the ZASC clamp) | 88 mW | 272 mW at 85 °C (ESR03EZPF2201, 0.33 W at 70 °C) | ✅ PASS | 32% of limit · S9-01: a generic 0603 rated 0.1 W at 70 °C allows only 82 mW at 85 °C. 2.2 k is kept: it sets the ASC break-before-make RC with CASCD |
 | RFS4 with FAULT_OUT shorted to KL30 and FS1B asserted (22 mA limit end) | 0.234 / 0.484 / 0.651 W at 16 / 24 / 35 V | 0.27 W continuous at 85 °C (ESR03, 0.33 W at 70 °C); ≈1.3 W for 5 s overload | ✅ PASS | 86% of limit · A8-03: 0.23 W was only the 16 V case. Pulses ≤ 0.65 W last ≤ 0.1 s (FS1B_TDUR) or the ≤ 0.3 s boot hold — ≤ 0.2 J against the 5 s overload rating; the 16 V row is the continuous case (no release). BACKUP_SAFETY_PATH_FS1B = 0 stops RSTB loops. A 0.1 W 0603 is 0.08 W at 85 °C and fails the continuous case |
 | RFS4 with FS1B held a whole key-on (18 V/60 min at 65 °C · 24 V/60 s at 25 °C) | 0.3 W · 0.48 W (element ≈150 °C) | 0.33 W continuous at ≤ 70 °C (ESR03); 155 °C element | 🟡 WARN | R9X-14: 18 V fits. The 24 V jump start runs the resistor at 1.47× its nameplate for 60 s — under its 155 °C element limit at 25 °C but outside the rating, in a triple condition (FAULT_OUT shorted to KL30, a high-limit FS1B part, a jump start). Drift or an open only disconnects FAULT_OUT from an already-shorted wire, and the FS1B preset keeps working through the strap. Accepted; bench item |
 | FW-16 self-test residual energy, 8XX bank (read < 3 V, or QDIS 2 τ from < 60 V) | ≤ 26 mJ (read) · ≤ 15 mJ (QDIS 2 τ = 1.4 s) | 0.1 J design limit | ✅ PASS | 26% of limit · A8-N03: "< 60 V" allowed 0.62 J at C_max 355.3 µF. R9X-07: the first "< 12 V read" rule assumed a 1 V error — it can be 9 V. n_ss from E_LL,pk(n_ss) ≤ 12 V. Fixture-qualified, not a destructive test |
 | FW-16 self-test residual energy, 4XX bank (read < 3 V, or QDIS 2 τ from < 60 V) | ≤ 64 mJ (read) · ≤ 39 mJ (QDIS 2 τ = 1.63 s) | 0.1 J design limit | ✅ PASS | 64% of limit · A8-N03: "< 60 V" allowed 1.54 J at C_max 883.3 µF. R9X-07: the first "< 12 V read" rule assumed a 1 V error — it can be 9 V. n_ss from E_LL,pk(n_ss) ≤ 12 V. Fixture-qualified, not a destructive test |
-
-### LV A.9
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.9
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -344,36 +371,41 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | LV feed switch held off by a hot 2N7002 (leakage × 10 k gate-source) | 0.5 V at 50 µA | 1.0 V V_GS(th) min | ✅ PASS | 50% of limit · R9X-10: with the first 100 k the same leakage made 5 V — the switch could half-close in a hot parked car |
 | LV feed switch inrush into the power board at each wake (drain-gate 100 nF slew) | 0.68 A at 12 V · 1.06 A at 16 V | 3 A (polyfuses, harness, VBATC dip) | ✅ PASS | 35% of limit · R9X-04: slew = gate current / 100 nF ≈ 15 V/ms at 12 V; without it the gate-drain charge alone let 9–31 A through (2.5–4.4 mJ) and dipped VBATC ~2 V at every wake |
 | Parking drain, whole inverter (KL30 present, FS26 in LPOFF) | ≤ 43 µA at 25 °C · ≤ 126 µA at 85 °C | 0.1 mA at 25 °C (OEM sleep budgets ≤ 0.1–1 mA per ECU) | ✅ PASS | 43% of limit · N17 + R9X-03: before, the power board's LV side drew ≥ 47 mA from the QA01C-18 no-load inputs alone (≈150 mA in all) and ULDOEX kept the exciter at ≈0.9 mA; both now follow V5A. S1 start-up already starts VDD at 0 V, so a switched feed costs no start time |
-
-### LV A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | IGN_SNS at 16 V KL15 | 2.68 V | 5 V ADC range | ✅ PASS | 54% of limit · F41 — was a raw diode into PTA25 (13.3 V) |
 | IGN pin injection @40 V load dump | 0.72 mA | 3 mA S32K39 injection spec | ✅ PASS | 24% of limit |
-
-### Sensing A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Sensing A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Fail-safe window (healthy-zero 0.5 V vs railed ~0.05 V) | 0.45 V window | ≥0.2 V discrimination | ✅ PASS | 44% of limit · F42 — AMC1311 dead-HV state now distinguishable from a dead bus |
 | V_DC linear FS, worst tolerance corner | 902 V | 850 V operating max | ✅ PASS | 94% of limit · F43 — reviewer corner assumed 900 V operation and 1% bottom; ours is 850 V / 0.1% |
-
-### LV A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | TPS55340 SYNC pin level (grounded) | 0 V | 7 V abs on SYNC | ✅ PASS | 1% of limit · F49 — pin 5 is SYNC, not a second VIN; 12 V there exceeds abs max |
-| V15 behind ULDO15 @24 V jump start | 15.0 V | 16.5 V QA01C normal-max | ✅ PASS | 91% of limit · F51 — boost pass-through clamped; LDO input 23.5 V << 40 V rating |
+| V15 behind ULDO15 @24 V jump start | 15.0 V | 18 V UCC14141-Q1 recommended max (16.5 V was the QA01C window) | ✅ PASS | 91% of limit · F51 — boost pass-through clamped; LDO input 23.5 V << 40 V rating |
 | ULDO15 input at clamped load dump | ≈33 V | 40 V NCV4276C operating max | ✅ PASS | 83% of limit · F51 — TPSMC24CA clamp level on the 12 V node |
-
-### LV A.7
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.7
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | CB15O1/2 (V15B) at clamped load dump | ≈33 V | 50 V MLCC rating | ✅ PASS | 66% of limit · round 7 RR10 — V15B follows V12L−Vf in pass-through; the 25 V parts were overstressed |
-
-### LV A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -385,40 +417,45 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | ULDO15 feed-forward zero (49.9k·220pF) | 14.5 kHz | 11–18 kHz (onsemi Cb guidance) | ✅ PASS | 81% of limit · F54 — COUT 22 µF ceramic |
 | ULDOEX feed-forward zero (38.3k·270pF) | 15.4 kHz | 11–18 kHz (onsemi Cb guidance) | ✅ PASS | 86% of limit · F55 |
 | VEXD target for ALM2402 | 12.07 V | 16 V recommended max (18 V abs) | ✅ PASS | 75% of limit · F55 — was raw VBATC: 24 V jump start exceeded abs max |
-
-### Flyback A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Flyback A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | QF gate drive vs BUK7Y14-80E VGS abs | 11.8 V | ±20 V DC (was BUK9Y: ±10 V) | ✅ PASS | 59% of limit · F56 — logic-level part was outside abs max at the VDD drive |
 | Gate zener standing load | 0 W (BZT52-C15 dark at the ≈11 V VDD) | was ~0.4 W/zener all ON-time | ✅ PASS | F56 — the 5.6 V clamp conducted ~0.29 A through every ON interval (historical estimate, not carried into the new budget) |
-
-### Discharge
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Discharge
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
-| QDIS gate V_GS (QA01C-18 envelope through the 1.5 k/10 k divider) vs HCM75S12T4K3 +22 V abs | 13.3–18.2 V (rail 16.9–20.9 V) | +22 V abs max (+18 V recommended) | ✅ PASS | 83% of limit · round 9 A8-N02: 47 Ω passed the rail straight to the gate — up to 20.9 V at this 2–4 % load, above the +18 V recommended level with the < 10 % load region extrapolated. The divider keeps the top at the recommended level and 3.8 V under the abs max; the low end fully enhances a 0.45 A discharge. BENCH: V18Q, QDVO and V_GS at start-up, no load and ON |
-
-### IGBT SKUs
+| QDIS gate V_GS (UCC14141-Q1 envelope through the 1.5 k/10 k divider) vs HCM75S12T4K3 +22 V abs | 11.6–16.3 V (rail 17.4–18.6 V) | +22 V abs max (+18 V recommended) | ✅ PASS | 74% of limit · round 9 A8-N02: 47 Ω passed the QA01C-18 rail straight to the gate (up to 20.9 V at this load); the divider was kept when the regulated UCC14141-Q1 replaced it (A.12) — the top sits 5.7 V under the abs max and the low end (VOW3120 V_OH bound, UVLO 11–13.5 V rising first) still fully enhances a 0.45 A discharge. BENCH: V18Q, QDVO and V_GS at start-up, no load and ON |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### IGBT SKUs
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | Gate rails legality (+15.6/−5.1) | on 15.6 V · off −5.1 V | ±20 V abs; VGE(th) min 5.0 V | ✅ PASS | 78% of limit · DS characterizes at ±15; high Vth + Miller clamp justify −5.1 off-bias — dv/dt shoot-through is a DPT row |
 | Pin map / footprint | IDENTICAL to HCS600FH120D3C1 (DS p.8: 1=G_L 2=E_L 3=DC− 4=DC+ 5/6=NTC 7=G_H 8=E_H 9=C-sense 10/11=AC) | - | ✅ PASS | zero layout change; MODx pinLabels carry over (KS labels = Kelvin emitter) |
 | Short-circuit rating used for DESAT timing | tP ≤ 6 µs @800 V, 175 °C, VGE 15 V (DS Table 5) | - | ✅ PASS | F03: docs and S9 carried a 10 µs class; 850 V/15.6 V operation shortens it — treated as ≈5 µs |
-
-### LV A.4
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.4
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | UB15 comp zero (2k·100nF) vs output pole | 796 Hz vs ~140 Hz | fZ slightly above fP (TI rule) | ✅ PASS | 60% of limit · F59 — series RC replaces the lone 10 nF (screening phase margin ~0°); bench Bode gates it |
 | UB15 RHP zero @12 V/0.33 A | 451 kHz | far above the loop crossover | ✅ PASS | F59 — light-load boost: RHPZ not the constraint |
-
-### LV
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
-| V15 boost setpoint (110k/9.53k) | 15.41 V | 13.5–16.5 V module window | ✅ PASS | 28% of limit · QA01C/ISO5V input range |
+| V15 boost setpoint (110k/9.53k) | 15.41 V | 13.5–16.5 V design band (the UCC14141-Q1 accepts 8–18 V; the bias LDOs 5–40 V) | ✅ PASS | 28% of limit · kept at the tighter QA01C-era band |
 | Boost switch current @9 V | 0.72 A avg | 5.25 A limit | ✅ PASS | 14% of limit |
 | NCV4276 5 V load (6 driver VCC1 + optos) | 50 mA | 400 mA | ✅ PASS | 13% of limit |
 | FS26 VMONEXT divider (52.3k/10k @5 V) | 0.794 V | 0.8 V fixed reference ±window | ✅ PASS | 6% of limit · F34 — old 10k/18.7k fed 3.26 V = permanent OV; OTP window set around 100 % |
@@ -426,8 +463,9 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | NCV4276 dissipation @12 V | 0.35 W | ~1.5 W DPAK on copper | ✅ PASS | 23% of limit |
 | Polyfuse hold (worst chain @9 V) | 1.19 A | 3 A hold | ✅ PASS | 40% of limit |
 | Load-dump path | TVS 24 V standoff, clamp ~39 V | - | ✅ PASS | F25 — all 12 V-node MLCCs raised to 50 V rating; TPS55340 Vin abs 45 V rides the clamped pulse |
-
-### Sensing
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Sensing
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
@@ -441,44 +479,49 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | HVIL signatures (drive hi/lo/open) | 3.0 / 2.0 / 2.5 V | - | ✅ PASS | distinct at ±5 % R tolerance (worst separation 0.38 V) |
 | Resolver monitor dividers @4 V pk | 2.83 / 3.31 V | 5 V SDADC input | ✅ PASS | 66% of limit |
 | Resolver drive @9 V KL30 | ≈6.5 V pp available vs 8 V pp target | - | 🟡 WARN | ALM2402 swing at cold-crank INCLUDING ULDOEX dropout (~0.3 V @ ~150 mA, A.4.3) — angle still tracks (amplitude-invariant demod); GEN3-equivalent behavior |
-
-### System A.11
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### System A.11
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | SPO freewheel energy at 340 A rms into the isolated link (8XX SiC, screening motor 0.35 mH, zero back-EMF) | 61 J → 1092 V from the 880 V trip | 32.8 J headroom to 1000 V U_N at C_min 291 µF | 🟡 WARN | round 12: rule (a) of §6 covers this motor only up to 250 A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX) |
 | SPO freewheel energy at 400 A rms into the isolated link (4XX IGBT, screening motor 0.35 mH, zero back-EMF) | 84 J → 716 V from the 530 V trip | 28.6 J headroom to 600 V U_N at C_min 723 µF | 🟡 WARN | round 12: rule (a) of §6 covers this motor only up to 233 A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX) |
-
-### Sensing A.11
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Sensing A.11
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
-| Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge) | |H| 1.85 (1.75–1.94 over ±10 % caps) → 7.7 V pp differential (7–8.5 over the SWG MAXAPP range) | 8 V pp target; SWG amplitude register is the firmware knob (0.39–2.30 V pp) | ✅ PASS | f0 17.9 kHz, Q 0.77, passband gain −1.85. 24 k is the ceiling: the ALM2402's ≈0.13 V/µs slew at −40 °C caps each output near 2.07 V pk (8.3 V pp). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped — 4.7 nF from the output to the summing node and 24 k to the inverting input — a first-order 2 kHz roll-off with |H(10 kHz)| 0.18, i.e. 0.75 V pp from the SWG maximum. OPA348: 1 MHz GBW gives ≈ 35× loop gain at 10 kHz; slew needed 242988.373 V/µs of 0.5 |
-| Hall signal open wire (R⟨ph⟩B0 100 k) | reads 0 V; 2.5 → 0.3 V in 0.7 ms | outside the HC5FW 0.2–4.8 V window (FW-05); RL ≥ 10 k | ✅ PASS | round 12 (R1-F03): the README had claimed the pull-down since A.4; an unpowered sensor reads the same 0 V. The Σi = 0 check alone could not see a stale 2.5 V (zero-current) reading at standstill |
-| VDC bias LDO (NCV4276C DPAK from V15, one per UCC12050) | 0.66 W → Tj ≈ 111 °C at 85 °C ambient (40 K/W on a 1 in² pad) | 150 °C Tj max | ✅ PASS | 74% of limit · UCC12050 idles at 50 mA (TI §6.9) + the AMC1311's 8 mA at ≈50 % efficiency; one shared LDO would carry 1.3 W, and the V5GD LDO already runs from the 12 V node — hence one LDO per channel, which also keeps the channels independent (F4) |
+| Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge) | |H| 1.85 (1.75–1.94 over ±10 % caps) → 7.7 V pp differential (7–8.5 over the SWG MAXAPP range) | ≥ 6.5 V pp (resolver minimum, gate ㉕); 8 V pp is the target, not a guarantee — the SWG MAXAPP low corner gives 7.0 V pp and the low-SWG/low-filter corner 6.5 V pp | ✅ PASS | f0 17.9 kHz, Q 0.77, passband gain −1.85. 24 k is the ceiling: the ALM2402's ≈0.13 V/µs slew at −40 °C caps each output near 2.07 V pk (8.3 V pp). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped — 4.7 nF from the output to the summing node and 24 k to the inverting input — a first-order 2 kHz roll-off with |H(10 kHz)| 0.18, i.e. 0.75 V pp from the SWG maximum. OPA348: 1 MHz GBW gives ≈ 35× loop gain at 10 kHz; slew needed 242988.373 V/µs of 0.5 |
+| Hall signal open wire (R⟨ph⟩B0 100 k) | reads 0 V; 2.5 → 0.2 V (the window edge) in 0.83 ms | outside the HC5FW 0.2–4.8 V window (FW-05); RL ≥ 10 k | ✅ PASS | round 12 (R1-F03): the README had claimed the pull-down since A.4; an unpowered sensor reads the same 0 V. The Σi = 0 check alone could not see a stale 2.5 V (zero-current) reading at standstill |
+| VDC bias LDO (NCV4276C DPAK from V15, one per UCC12050) | 0.76 W → Tj ≈ 129 °C at 85 °C on the 1.14 in² reference pad (58.5 K/W) | 150 °C Tj max | ✅ PASS | 86% of limit · A11-R04: the same power on a D2PAK reference pad (43.3 K/W) would be 118 °C. Layout rule (dfm §4): ≥ 1.2 in² of 2 oz copper under each U5LB/U5LC; the hot first article measures both input currents and case temperatures. One shared LDO would carry 1.5 W, and the V5GD LDO already runs from the 12 V node — hence one LDO per channel, which also keeps the channels independent (F4) |
 | VDC bias barrier working voltage (UCC12050 V_IOWM) | 1697 VDC / 1200 Vrms reinforced (VDE 0884-11) | 850 VDC link (same class as the AMC1311, 1.2 kVrms) | ✅ PASS | 50% of limit · round 12 (R1-F12, R2-F02/F03): the A.4.4 bind "MGJ2D150505SC" does not exist and the MGJ2 family is reinforced to 150 Vrms only — every module family checked (MGJ1/2, NXE/NXJ, RECOM RxxP/R1SX, Mornsun QA, ADuM6028) fails the working-voltage criterion |
-| Resolver wire shorted to KL30: SDADC pin injection (RSINF 10 k + RSINR 120) | 1.02 / 1.81 / 2.9 mA at 16 / 24 / 35 V | 3 mA per pin — the S32K39 operating AND absolute-maximum limit (no transient allowance) | ✅ PASS | 97% of limit · round 12: the GEN3 330 Ω + 120 Ω let 23 mA in. Both legs pull up through the winding, so the VMID buffer sinks 2.7 mA through the two 10 k bias resistors (OPA348 ≈ 7 mA at 125 °C; was 20 mA through 680 Ω). Caps rescaled with the 30× source: 47 pF + 100 pF differential + 22 pF common-mode on both legs → corner 47 kHz, −12° at 10 kHz on both channels (a ±5 % cap mismatch is 0.46 % gain mismatch, ≈0.13° electrical); source 20 k vs Z_DIFF ≥ 215 k is a ratio-cancelled 9 % gain term |
-
-### LV A.11
+| Resolver wire shorted to KL30: SDADC pin injection (RSINF 12 k + RSINR 120, MCU rail at 0 V, −1 % R) | 1.33 / 2 / 2.92 mA at 16 / 24 / 35 V into a 0 V node | 3 mA per pin — the S32K39 operating AND absolute-maximum limit, in every power state | ✅ PASS | 97% of limit · round 12/13: the GEN3 330 Ω + 120 Ω let 23 mA in; the round-12 10 k held only the powered case (5.7 V clamp) — unpowered it was 3.42 mA. The VMID buffer sinks 5.4 mA through the two 12 k bias resistors at 35 V (OPA348 ≈ 7 mA at 125 °C; it saturates toward V5A, an invalid-resolver state for FW-10). 220 pF C_AAF at the pins (S32K39 Table 38: 180 pF min) + 47 pF + 22 pF common-mode both legs → corner 23 kHz, −24° at 10 kHz on both channels; source 24 k vs Z_DIFF 215–380 k: gain 0.899–0.94, cancels only as far as the channels match — worst independent corners 1.29° electrical, an EOL calibration item (FW-20), not "ratio-cancelled" |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### LV A.11
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
-| Load dump test B (35 V, 400 ms) into the classic TPSMC24CA + MF-LSMF300/24X polyfuse | 18.1 A / 469 W at Ri 0.5 Ω · 5.6 A / 133 W at 2 Ω · 2.9 A / 68 W at 4 Ω | ≈ 110 W for 400 ms (1.5 kW class, extrapolated — no rating beyond 1 ms); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12, historical: the A.4 notes described this part — it conducts at the 24 V/60 s jump start (V_BR min 22.8 V) and at Ri ≤ 2 Ω takes ≥ 1.2× the extrapolated 400 ms capability; at 0.5 Ω the polyfuse trips inside the pulse (0.1–0.25 s hot), sees ≈ 30 V (V_max 24 V) and latches until a KL30 cycle — the archived sheet and the LCSC code were the -VR class, now bound explicitly |
-| Load dump test B (35 V, 400 ms) into the TPSMC24CA-VR + MF-LSMF300/24X polyfuse | 11.2 A / 328 W at Ri 0.5 Ω · 3.7 A / 102 W at 2 Ω · 2 A / 53 W at 4 Ω | ≈ 110 W for 400 ms (1.5 kW class, extrapolated — no rating beyond 1 ms); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12: dark at 24 V (V_BR ≥ 26.7 V), clamps ≤ 33 V so the TPS55340 (34 V abs max) is inside its rating; at Ri = 4 Ω the pulse is 55 W (covered), at 2 Ω it is at the extrapolated limit, below 1 Ω the polyfuse trips and sees ≈ 30 V. The OEM's test-B source resistance is release gate ㉓: at ≤ 2 Ω either a TVS pulse test or 35 V-rated rails (a ≥ 42 V boost input in place of the TPS55340) decide. The polyfuse stays (the 33 V MF-LSMF260 holds 1.17 A hot against the 1.19 A worst chain) |
-
-### Power stage — all SKUs
+| Load dump test B (35 V, 400 ms) into the classic TPSMC24CA + MF-LSMF300/24X polyfuse | 18.1 A / 469 W at Ri 0.5 Ω · 5.6 A / 133 W at 2 Ω · 2.9 A / 68 W at 4 Ω | no datasheet rating beyond 1 ms (≈ 110 W at 400 ms is an extrapolation of the 1.5 kW curve, quoted for scale only); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12, historical: the A.4 notes described this part — it conducts at the 24 V/60 s jump start (V_BR min 22.8 V) and at Ri ≤ 2 Ω takes ≥ 1.2× the extrapolated 400 ms capability; at 0.5 Ω the polyfuse trips inside the pulse (0.1–0.25 s hot), sees ≈ 30 V (V_max 24 V) and latches until a KL30 cycle — the archived sheet and the LCSC code were the -VR class, now bound explicitly |
+| Load dump test B (35 V, 400 ms) into the TPSMC24CA-VR + MF-LSMF300/24X polyfuse | 11.2 A / 328 W at Ri 0.5 Ω · 3.7 A / 102 W at 2 Ω · 2 A / 53 W at 4 Ω | no datasheet rating beyond 1 ms (≈ 110 W at 400 ms is an extrapolation of the 1.5 kW curve, quoted for scale only); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12/13: dark at 24 V (V_BR ≥ 26.7 V); clamps ≤ 33 V — and the fitted TPS55340-Q1 is rated 38 V recommended / 40 V absolute (A11-R03: the 34 V used in round 12 was the non-Q1 part), so the rails tolerate the pulse either way. No SMC datasheet rates a pulse beyond 1 ms, so NO 400 ms case is covered on paper, 4 Ω included: gate ㉗ needs supplier long-pulse data or a test at the OEM's source resistance; below ≈ 1 Ω the polyfuse trips inside the pulse and sees ≈ 30 V. The polyfuse stays (the 33 V MF-LSMF260 holds 1.17 A hot against the 1.19 A worst chain) |
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Power stage — all SKUs
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | IGBT short-circuit rating condition vs the design corner | 6 µs at 800 V / 15 V / 175 °C (hiitio DS) | design corner 850 V / VCC2 up to 16.7 V | 🟡 WARN | round 12 (R1-F06, R2-F05): the RR04 release gate (contained SC test) now also asks hiitio for the SC statement at 850 V and the 16.7 V gate-rail corner, or the gate rail's upper corner is tightened; the stale "inside 6 µs" BOM text was removed |
-
-### Safety
+| F141 | **HIGH** | Barrier parts without a published working voltage (gates ⑪/㉔): the TLP152 optos and the QA01C-18 bias modules on the 850 V link carried UL1577 test voltages only, no V_IORM/V_IOWM | Vishay VOW3120-X017T (V_IORM 1414 Vpk, DIN EN 60747-5-5, CPG ≥ 10 mm) and TI UCC14141-Q1 (reinforced, V_IORM 1414 Vpk / V_IOWM 1000 Vrms, DS §7.5 — certificates listed "planned", gate kept for the status) drawn on both boards in the single-output configuration; LED resistors 270 Ω for the lower V_F; Y-caps bound to Vishay VY1 (Y1 500 VAC / 1500 VDC) |
+| F142 | MED | Orderability: the harness connector, the 4XX capacitor can and the discharge resistors were class placeholders ("HARNESS-2x20-CLASS", generic can, generic 10 W) | Samtec IPL1-120-01-L-D-K / IPD1-20-D-K / CC79L crimps (−55…125 °C, 3.8 A/pin, positive latch; no 2.54 mm family states AEC-Q200 — A-Series MPN to confirm, pin numbering to confirm against the print), Faratronic C3D1U506KFAA382, TT SQP10-470RJB15 / -220RJB15 |
+n### Safety
 
 | Check | Value | Limit | Verdict | Margin note |
 |---|---|---|---|---|
 | FS0B → driver EN path | 2 gate delays (~20 ns) + driver td | - | ✅ PASS | no software; erc-verified topology |
 | ASC latch power | V5A + RASCP default-low | - | ✅ PASS | survives MCU reset; FS1B can SET via RFS1 |
-| ASC drive path | TLP152 + QA01C + 5.1 V clamp, DCN-referenced | - | 🟡 WARN | DS 1.2 confirms ASC forces OUTH high at a GND2-referenced 0-5 V pin (F28 level fix applied); behaviour DURING VCC2-UVLO is unspecified — bench-verify that gate power (SBC-held flybacks) is sufficient for ASC hold |
+| ASC drive path | VOW3120 + UCC14141-Q1 + 5.1 V clamp, DCN-referenced | - | 🟡 WARN | DS 1.2 confirms ASC forces OUTH high at a GND2-referenced 0-5 V pin (F28 level fix applied); behaviour DURING VCC2-UVLO is unspecified — bench-verify that gate power (SBC-held flybacks) is sufficient for ASC hold |
 | Default-OFF discipline | 11 pulldowns power + 4 card | - | ✅ PASS | erc-verified |
 
 ## Open vendor/bench inputs (every WARN above names one)

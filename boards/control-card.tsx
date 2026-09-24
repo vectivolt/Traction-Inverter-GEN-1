@@ -10,53 +10,146 @@ import {
 const NO_ROUTE = process.env.TSCI_NO_ROUTE === "1";
 const PH = ["U", "V", "W"] as const;
 
-// MCU signal map: label -> net (labels are GEN3 port names where known)
+// MCU pin map — rev A.12 PIN FREEZE: every connected ball of the S32K396 289-MAPBGA, label = <ball>_<signal>.
+// Source: NXP EV-INVERTERGEN3 S32K396-HPWR-MC schematic (SPF-91122 rev C, sheets 8-13) parsed ball-by-ball and
+// anchored on the S32K39 datasheet supply balls; peripheral function of every signal ball verified against the
+// pin's alternate-function list (calculations/mcu-ballmap.json is the manifest; the ERC cross-checks this table
+// against it). Corrections to the A.4 "GEN3-exact" port list found by the freeze: PTG10 had no PWM (W low is now
+// PTC8 = PWM_1_B[2], U/V lows on PWM_1_B[0]/B[1]); PTB0 had no ADC (V_DC2 -> PTE1); PTB4/PTB5 no ADC (HW_ID -> PTC6,
+// V5GD -> PTD27); PTB2/PTB3 are mux-address OUTPUTS (TMOD_V/W -> PTE2/PTE5); PTA10 is JTAG_TDO (NTC_A -> PTD29);
+// PTA11-13 do not exist on this package (NTC_H/MT1/MT2 -> PTE6/PTA15/PTE18); PTF5 no ADC (INTRLOK_N -> PTE23).
+// Unused GPIO balls (158) are left open and listed in docs/mcu-pin-manifest.md.
 const MCU_PINS: [string, string][] = [
-  // power
-  ["VDD5_1", "V5A"], ["VDD5_2", "V5A"], ["VDD5_3", "V5A"], ["VDD5_4", "V5A"],
-  ["VDD3_1", "V3B"], ["VDD3_2", "V3B"],
-  ["V11_1", "V11"], ["V11_2", "V11"], ["V11_3", "V11"], ["V11_4", "V11"],
-  ["V15_IN", "V15S"], ["BCTRL", "BCTRL"],
-  ["VDDA", "V5A"], ["VREFH1", "VREF5"], ["VREFH2", "VREF5"], ["VREFL", "AGND"],
-  ["VSS1", "DGND"], ["VSS2", "DGND"], ["VSS3", "DGND"],
-  // clock + reset + debug
-  ["XTAL", "XTAL"], ["EXTAL", "EXTAL"], ["RESET_B", "RESET_B"],
-  ["TCK", "TCK"], ["TMS", "TMS"], ["TDI", "TDI"], ["TDO", "TDO"],
-  // FS26 SBC (GEN3: PTD20/PTA17/PTE7/PTF16, PTE15/16, PTC7, PTE1)
-  ["PTD20_MISO", "SBC_MISO"], ["PTA17_MOSI", "SBC_MOSI"], ["PTE7_SCK", "SBC_SCK"], ["PTF16_CS", "SBC_CS"],
-  ["PTE15_FCCU0", "FCCU_ERR0"], ["PTE16_FCCU1", "FCCU_ERR1"],
-  ["PTC7_INTB", "SBC_INTB"], ["ADC0_S12", "SBC_AMUX"],
-  // PWM (GEN3 exact ports)
-  ["PTC31_PWMUH", "PWM_UH"], ["PTG10_PWMUL", "PWM_UL"], ["PTC30_PWMVH", "PWM_VH"],
-  ["PTA6_PWMVL", "PWM_VL"], ["PTC29_PWMWH", "PWM_WH"], ["PTA7_PWMWL", "PWM_WL"],
-  // driver feedback + enables
-  ["PTC26_FLTHS", "FLT_HS_N"], ["PTC25_FLTLS", "FLT_LS_N"],
-  ["PTB10_RDYHS", "RDY_HS"], ["PTB11_RDYLS", "RDY_LS"],
-  ["PTD16_GATEEN", "MCU_GATE_EN"],
-  ["PTD30_ENFLYH", "MCU_EN_FLYBK_HS"], ["PTD31_ENFLYL", "MCU_EN_FLYBK_LS"],
-  ["PTD6_ASCREQ", "ASC_REQ"], ["PTD8_ASCCLR", "ASC_CLR_M"], ["PTD5_QDIS", "QDIS_M"],
-  ["PTD9_FLTCLR", "FLT_CLR_M"],
-  ["PTD10_DRVENRB", "DRV_EN_RB"], ["PTD11_ASCRB", "ASC_CMD_RB"],
-  // analog
-  ["PTA0_VDC1", "VDC1_SE"], ["PTB0_VDC2", "VDC2_SE"],
-  // review A.6: the receivers' shared +0.5 V offset (VOFS) and the SKU identity are read too —
-  // a failed UVOF would shift BOTH VDC channels equally (invisible to the 5 % cross-check)
-  ["PTB1_VOFS", "VOFS"], ["PTB4_HWID", "HW_ID"],
-  // round 9 cross-check (R9X-01/06): V5GD itself is read — a dead or back-powered (hovering) V5GD
-  // also unpowers the AMC1311 LV sides, whose receivers would then read a false "0 V bus"
-  ["PTB5_V5GD", "V5GD_SNS"],
-  ["PTA8_ISU", "ISNS_U"], ["PTB8_ISV", "ISNS_V"], ["PTB13_ISW", "ISNS_W"],
-  ["PTA9_TMU", "TMOD_U"], ["PTB2_TMV", "TMOD_V"], ["PTB3_TMW", "TMOD_W"],
-  ["PTA10_NTCA", "NTC_A"], ["PTA11_NTCH", "NTC_H"],
-  ["PTA12_MT1", "MT1_SIG"], ["PTA13_MT2", "MT2_SIG"],
-  // resolver (SWG excitation + SDADC differential pairs — GEN3)
-  ["SWG1", "SWG1"], ["SDADC1_P", "SIN_P"], ["SDADC1_N", "SIN_N"],
-  ["SDADC2_P", "COS_P"], ["SDADC2_N", "COS_N"],
-  ["SDD01_P", "VREXM_P"], ["SDD01_N", "VREXM_N"],
-  // interlock + CAN + ignition
-  ["PTE31_ILKP", "INTRLOK_P"], ["PTF5_ILKN", "INTRLOK_N"],
-  ["CAN0_TX", "CAN0_TX"], ["CAN0_RX", "CAN0_RX"], ["CAN1_TX", "CAN1_TX"], ["CAN1_RX", "CAN1_RX"],
-  ["PTA25_IGN", "IGN_SNS"],
+  ["A2_ISU", "ISNS_U"],  // PTA8 ADC3_P1 — phase current U
+  ["A3_RESET_B", "RESET_B"],  // PTA5 RESET_b — reset
+  ["A5_VDC2", "VDC2_SE"],  // PTE1 ADC1_P6 — V_DC channel 2 (was PTB0: no ADC)
+  ["A7_VDDA_SWG01", "V5A"],  // VDDA_SWG01 — SWG analog supply (filtered 5 V)
+  ["A8_SWG1", "SWG1"],  // SWG1_0 SWG1_0 — resolver excitation source
+  ["A9_VREFH_R2R", "VREF5"],  // VREFH_R2R — ADC reference high (FS26 VREF 5 V)
+  ["A11_MT1", "MT1_SIG"],  // PTA15 ADC3_P4 — motor temp 1 (PTA12 absent)
+  ["A12_VREXMP", "VREXM_P"],  // PTA16 SDADC1_AN[0] — excitation monitor + (SDADC1 AN0)
+  ["A13_VDC1", "VDC1_SE"],  // PTA0 ADC6_P4 — V_DC channel 1
+  ["A14_ISV", "ISNS_V"],  // PTB8 ADC4_P5 — phase current V
+  ["A15_V5GD", "V5GD_SNS"],  // PTD27 ADC4_P6 — V5GD/2 monitor (was PTB5: no ADC)
+  ["A16_SINN", "SIN_N"],  // PTD26 SDADC2_AN[1] — resolver SIN- (SDADC2 AN1)
+  ["B2_VSS", "DGND"],  // VSS — ground
+  ["B3_TMU", "TMOD_U"],  // PTA9 ADC0_P7 — module NTC U
+  ["B4_ILKP", "INTRLOK_P"],  // PTE31 — HVIL ladder drive
+  ["B8_VSSA_SWG01", "AGND"],  // VSSA_SWG01 — SWG analog ground
+  ["B9_VREFL_R2R", "AGND"],  // VREFL_R2R — ADC reference low
+  ["B10_TMV", "TMOD_V"],  // PTE2 ADC3_P2 — module NTC V (was PTB2: mux-address output)
+  ["B11_NTCH", "NTC_H"],  // PTE6 ADC3_P3 — board NTC hot zone (PTA11 absent on this package)
+  ["B12_INTB", "SBC_INTB"],  // PTC7 EIRQ[7] — FS26 INTB (EIRQ)
+  ["B13_COSP", "COS_P"],  // PTD28 SDADC3_AN[0] — resolver COS+ (SDADC3 AN0)
+  ["B14_COSN", "COS_N"],  // PTA1 SDADC3_AN[1] — resolver COS- (SDADC3 AN1)
+  ["B16_VSS", "DGND"],  // VSS — ground
+  ["C2_FCCU1", "FCCU_ERR1"],  // PTE16 FCCU_ERR1 — FCCU error out 1
+  ["C3_CAN1RX", "CAN1_RX"],  // PTA22 CAN1_RX — FlexCAN1 RX
+  ["C12_HWID", "HW_ID"],  // PTC6 ADC3_P6 — SKU identity (was PTB4: no ADC)
+  ["C13_ENFLYL", "MCU_EN_FLYBK_LS"],  // PTD31 — flyback LS enable (OR)
+  ["C14_NTCA", "NTC_A"],  // PTD29 ADC5_P7 — board NTC ambient (was PTA10 = JTAG_TDO)
+  ["C15_SINP", "SIN_P"],  // PTB9 SDADC2_AN[0] — resolver SIN+ (SDADC2 AN0)
+  ["C17_AMUX", "SBC_AMUX"],  // PTB11 ADC0_S14 — FS26 AMUX (was a named ADC0_S12 pin)
+  ["D2_FCCU0", "FCCU_ERR0"],  // PTE15 FCCU_ERR0 — FCCU error out 0
+  ["D3_CAN1TX", "CAN1_TX"],  // PTA23 CAN1_TX — FlexCAN1 TX
+  ["D4_VSS", "DGND"],  // VSS — ground
+  ["D8_ILKN", "INTRLOK_N"],  // PTE23 ADC1_P7 — HVIL signature (was PTF5: no ADC)
+  ["D9_VSS", "DGND"],  // VSS — ground
+  ["D11_MT2", "MT2_SIG"],  // PTE18 ADC3_P5 — motor temp 2 (PTA13 absent)
+  ["D12_VREXMN", "VREXM_N"],  // PTE17 SDADC1_AN[1] — excitation monitor - (SDADC1 AN1)
+  ["D13_ENFLYH", "MCU_EN_FLYBK_HS"],  // PTD30 — flyback HS enable (OR)
+  ["D14_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["D15_RDYHS", "RDY_HS"],  // PTB10 EIRQ[24] — RDY HS bank (GPIO/EIRQ)
+  ["E5_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["E6_VREFH_SAR_456", "VREF5"],  // VREFH_SAR_456 — ADC reference high (FS26 VREF 5 V)
+  ["E7_VREFL_SAR_456", "AGND"],  // VREFL_SAR_456 — ADC reference low
+  ["E8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["E9_VREFL_SDADC_01", "AGND"],  // VREFL_SDADC_01 — ADC reference low
+  ["E10_VREFH_SDADC_01", "VREF5"],  // VREFH_SDADC_01 — ADC reference high (FS26 VREF 5 V)
+  ["E11_VSSA_SDADC", "AGND"],  // VSSA_SDADC — SDADC analog ground
+  ["E12_VDDA_SDADC", "V5A"],  // VDDA_SDADC — SDADC analog supply (filtered 5 V)
+  ["E13_VSS", "DGND"],  // VSS — ground
+  ["F1_NMOS_CTRL", "BCTRL"],  // NMOS_CTRL — gate of the external V11 ballast NMOS
+  ["F2_TMW", "TMOD_W"],  // PTE5 ADC1_S8 — module NTC W (was PTB3: mux-address output)
+  ["F5_VSS", "DGND"],  // VSS — ground
+  ["F6_TMS", "TMS"],  // PTA4 JTAG_TMS — JTAG TMS / SWDIO
+  ["F7_TCK", "TCK"],  // PTC4 JTAG_TCK — JTAG TCK / SWCLK
+  ["F8_TDI", "TDI"],  // PTC5 JTAG_TDI — JTAG TDI
+  ["F13_VREFH_SDADC_23", "VREF5"],  // VREFH_SDADC_23 — ADC reference high (FS26 VREF 5 V)
+  ["G5_VSS", "DGND"],  // VSS — ground
+  ["G7_VSS", "DGND"],  // VSS — ground
+  ["G8_TDO", "TDO"],  // PTA10 JTAG_TDO — JTAG TDO / SWO
+  ["G10_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["G11_VSS", "DGND"],  // VSS — ground
+  ["G13_VREFL_SDADC_23", "AGND"],  // VREFL_SDADC_23 — ADC reference low
+  ["G15_CS", "SBC_CS"],  // PTF16 LPSPI3_PCS0 — LPSPI3 PCS0
+  ["H1_IGN", "IGN_SNS"],  // PTA25 ADC0_S8 — KL15 sense
+  ["H5_VREFH_SAR_456", "VREF5"],  // VREFH_SAR_456 — ADC reference high (FS26 VREF 5 V)
+  ["H6_VREFH_SAR_0123", "VREF5"],  // VREFH_SAR_0123 — ADC reference high (FS26 VREF 5 V)
+  ["H7_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["H8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["H9_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["H10_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["H13_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["H16_ISW", "ISNS_W"],  // PTB13 ADC0_S19 — phase current W
+  ["J1_VSS", "DGND"],  // VSS — ground
+  ["J4_VSS", "DGND"],  // VSS — ground
+  ["J5_VSS_DCDC", "DGND"],  // VSS_DCDC — internal DC/DC ground (PMIC option)
+  ["J6_VREFL_SAR_0123", "AGND"],  // VREFL_SAR_0123 — ADC reference low
+  ["J7_VSS", "DGND"],  // VSS — DS PMIC figure lists J7 as a ground ball ("V25" in the figure text); g
+  ["J8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["J9_VSS", "DGND"],  // VSS — ground
+  ["J10_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["J13_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["J14_VSS", "DGND"],  // VSS — ground
+  ["K1_EXTAL", "EXTAL"],  // EXTAL — 40 MHz crystal
+  ["K8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["K9_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["K10_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["K11_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["K15_MISO", "SBC_MISO"],  // PTD20 LPSPI3_SIN — LPSPI3 SIN
+  ["L1_XTAL", "XTAL"],  // XTAL — 40 MHz crystal
+  ["L5_VDD_DCDC", "V5A"],  // VDD_DCDC — internal DC/DC input — follows HV_A (DS: never above VDD_HV_A; GEN3 de
+  ["L7_VSS", "DGND"],  // VSS — ground
+  ["L8_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["L11_VSS", "DGND"],  // VSS — ground
+  ["L14_PWMUH", "PWM_UH"],  // PTC31 PWM_1_A[0] — PWM U high
+  ["L17_MOSI", "SBC_MOSI"],  // PTA17 LPSPI3_SOUT — LPSPI3 SOUT
+  ["M5_VSS", "DGND"],  // VSS — ground
+  ["M15_PWMUL", "PWM_UL"],  // PTA6 PWM_1_B[0] — PWM U low
+  ["M16_PWMVL", "PWM_VL"],  // PTA7 PWM_1_B[1] — PWM V low
+  ["M17_SCK", "SBC_SCK"],  // PTE7 LPSPI3_SCK — LPSPI3 SCK
+  ["N4_VDD_HV_B", "V5A"],  // VDD_HV_B — 5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC — a 3.3 
+  ["N5_VDD_LVDS", "V3B"],  // VDD_LVDS — LVDS/LFAST supply 2.97–3.63 V (unused LFAST; DS: ramp after HV_A) — th
+  ["N6_VSS", "DGND"],  // VSS — ground
+  ["N7_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
+  ["N8_VSS", "DGND"],  // VSS — ground
+  ["N9_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
+  ["N10_VSS", "DGND"],  // VSS — ground
+  ["N15_PWMWL", "PWM_WL"],  // PTC8 PWM_1_B[2] — PWM W low
+  ["N16_PWMWH", "PWM_WH"],  // PTC29 PWM_1_A[2] — PWM W high
+  ["N17_PWMVH", "PWM_VH"],  // PTC30 PWM_1_A[1] — PWM V high
+  ["P2_GATEEN", "MCU_GATE_EN"],  // PTD16 — gate enable (UAND1.B)
+  ["P4_VSS", "DGND"],  // VSS — ground
+  ["P14_VSS", "DGND"],  // VSS — ground
+  ["P15_FLTHS", "FLT_HS_N"],  // PTC26 PWM_1_FAULT[0] — driver fault HS bank -> eFlexPWM1 FAULT0 (hardware PWM inhibit, FW-15)
+  ["R7_VDD_HV_B", "V5A"],  // VDD_HV_B — 5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC — a 3.3 
+  ["R8_ASCCLR", "ASC_CLR_M"],  // PTD8 — ASC clear
+  ["R10_VDD_HV_B", "V5A"],  // VDD_HV_B — 5 V I/O domain B (5 V like GEN3: the safety gates are 5 V LVC — a 3.3 
+  ["R13_CAN0TX", "CAN0_TX"],  // PTC21 CAN0_TX — FlexCAN0 TX (GEN3 choice)
+  ["R14_FLTLS", "FLT_LS_N"],  // PTC25 PWM_1_FAULT[2] — driver fault LS bank -> eFlexPWM1 FAULT2
+  ["R17_VOFS", "VOFS"],  // PTB1 ADC4_S11 — receiver offset monitor
+  ["T2_VSS", "DGND"],  // VSS — ground
+  ["T5_ASCREQ", "ASC_REQ"],  // PTD6 — ASC request (latch clock)
+  ["T6_DRVENRB", "DRV_EN_RB"],  // PTD10 — DRV_EN read-back
+  ["T7_VSS", "DGND"],  // VSS — ground
+  ["T10_VSS", "DGND"],  // VSS — ground
+  ["T16_VSS", "DGND"],  // VSS — ground
+  ["U2_RDYLS", "RDY_LS"],  // PTB5 EIRQ[13] — RDY LS bank (GPIO/EIRQ)
+  ["U5_QDIS", "QDIS_M"],  // PTD5 — discharge command
+  ["U6_ASCRB", "ASC_CMD_RB"],  // PTD11 — ASC_CMD read-back
+  ["U8_FLTCLR", "FLT_CLR_M"],  // PTD9 — fault-latch clear one-shot
+  ["U14_CAN0RX", "CAN0_RX"],  // PTC23 CAN0_RX — FlexCAN0 RX (GEN3 choice)
 ];
 
 // FS2633D REAL LQFP48 pin map (FS26 DS Rev.3 Table 3) — index = package pin. Unused pins
@@ -463,23 +556,27 @@ export default () => (
     <resistor name="REXM2" resistance="12k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />
     <resistor name="REXM3" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREXM_N" }} />
     <resistor name="REXM4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_N", pin2: "net.AGND" }} />
-    {/* sin/cos conditioning: 10 k bias pair to VMID + 10 k series + clamps + RC to SDADC.
+    {/* sin/cos conditioning: 12 k bias pair to VMID + 12 k series + clamps + RC to SDADC.
         Round 12 (R2-F13): the resolver wires share the vehicle connector with KL30. With the GEN3
         680 R / 330 R a wire shorted to 16 V pushed (16 - 5.7)/450 = 23 mA into an SDADC pin against
-        the S32K39's 3 mA limit (operating AND absolute maximum, no transient allowance) and 20 mA
-        into the VMID buffer. 10 k series: 1.0 / 1.8 / 2.9 mA at 16 / 24 / 35 V; 10 k bias: both legs
-        pull up through the winding, 2 x 1.35 mA into the OPA348 (it sinks ~7 mA at 125 C). The
-        caps are rescaled with the 30x higher source: 47 pF + 100 pF differential, 22 pF common-mode
-        on BOTH legs (the P-only caps converted common mode to differential): corner ~47 kHz,
-        -12 deg at 10 kHz on both channels; source 20 k vs the SDADC's Z_DIFF >= 215 k is a
-        ratio-cancelled 9 % gain term, calibrated at EOL. 100 pF at the pin is ~800x the SDADC
-        sampling capacitor (Opus check, round 12). */}
+        the S32K39's 3 mA limit (operating AND absolute maximum, no transient allowance).
+        Round 13 (A11-R02): the bound must hold with the MCU rail at 0 V too (clamp at ~0.7 V, or 0 V
+        worst): 35 V into a 0 V node through 0.99 x (12 k + 120) = 2.92 mA. Both legs pull up through
+        the winding, so the VMID buffer sinks 2 x (35 - 2.5)/12 k = 5.4 mA (OPA348 ~7 mA at 125 C;
+        it saturates toward V5A in that fault, which FW-10 sees as an invalid resolver). Pulse
+        dissipation 98 mW in a 12 k for 0.4 s. Caps: the SDADC needs C_AAF >= 180 pF (220 pF typ)
+        directly across its inputs (S32K39 Table 38: R_AAF 5-20 k, C_AAF 180-220 pF) — the round-12
+        100 pF was below that — so 220 pF C0G at the pins, 47 pF at the clamp node, 22 pF common-mode
+        on BOTH legs: corner ~22 kHz, -24 deg at 10 kHz on both channels (the excitation-monitor
+        path carries the phase reference); source 24 k vs the SDADC's Z_DIFF 215-380 k is a gain
+        term that cancels only as far as the two channels match (worst independent corners 1.1 deg
+        electrical), so it is an EOL calibration item (FW-20), not "ratio-cancelled". */}
     {[["SIN", "S1", "S3"], ["COS", "S2", "S4"]].map(([s, a, b]) => (
       <group key={s}>
-        <resistor name={`R${s}1`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: "net.VMID_RSV" }} />
-        <resistor name={`R${s}2`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: "net.VMID_RSV" }} />
-        <resistor name={`R${s}F1`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: `net.${s}F_P` }} />
-        <resistor name={`R${s}F2`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: `net.${s}F_N` }} />
+        <resistor name={`R${s}1`} resistance="12k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: "net.VMID_RSV" }} />
+        <resistor name={`R${s}2`} resistance="12k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: "net.VMID_RSV" }} />
+        <resistor name={`R${s}F1`} resistance="12k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: `net.${s}F_P` }} />
+        <resistor name={`R${s}F2`} resistance="12k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: `net.${s}F_N` }} />
         <chip name={`D${s}P`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "A", pin2: "B", pin3: "G" }}
           connections={{ A: `net.${s}F_P`, B: `net.${s}F_N`, G: "net.AGND" }} />
         <capacitor name={`C${s}D`} capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: `net.${s}F_N` }} />
@@ -489,7 +586,7 @@ export default () => (
         <resistor name={`R${s}R2`} resistance="120" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_N`, pin2: `net.${s}_N` }} />
         <capacitor name={`C${s}A1`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: "net.AGND" }} />
         <capacitor name={`C${s}A3`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_N`, pin2: "net.AGND" }} />
-        <capacitor name={`C${s}A2`} capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: `net.${s}_N` }} />
+        <capacitor name={`C${s}A2`} capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: `net.${s}_N` }} />
       </group>
     ))}
 
