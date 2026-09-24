@@ -492,9 +492,12 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   const effVIN = 22 * 0.8 * 0.65;      // 22 µF 25 V 1210 at 14 V bias
   judge("LV A.4", "VPRE input effective (22 µF @14 V)", `${f(effVIN, 1)} µF`, "≥10 µF eff",
     10 / effVIN, 0.95, "F52 — CLVC2 4.7 µF was under the input spec");
-  const effVREF = 3.3 * 0.8 * 0.85;    // CSB5 2.2 + CMA1 1 + CMA2 0.1 at 5 V bias
-  judge("LV A.4", "VREF5 rail effective (whole rail: 3.3 µF nom)", `${f(effVREF, 1)} µF`, "1.1–3.3 µF eff window",
-    effVREF / 3.3, 0.9, "reviewer correction accepted: count CMA1/CMA2, judge the rail not one part");
+  // CSB5 1 µF + CMA1 1 µF + CMA2 0.1 µF (round 12, R2-F11: 2.2 µF put the nominal rail AT the 3.3 µF upper limit)
+  // CSB5 (0805) at −15 % bias, CMA1 (0603) at −30 %, CMA2 0.1; −10 % tolerance, −15 % at −40 °C, −5 % aging;
+  // max: +10 % tolerance, +5 % after reflow, +15 % X7R over temperature, no bias credit
+  const minVREF = (1.0 * 0.85 + 1.0 * 0.70 + 0.1) * 0.9 * 0.85 * 0.95, maxVREF = 2.1 * 1.1 * 1.05 * 1.15;
+  add("LV A.4", "VREF5 rail effective (whole rail: 2.1 µF nom)", `${f(minVREF, 2)}–${f(maxVREF, 2)} µF`, "1.1–3.3 µF eff window (FS26 COUT_VREF)",
+    minVREF >= 1.1 && maxVREF <= 3.3 ? "PASS" : "FAIL", "round 12 (R2-F11): 2.2 µF put the nominal rail AT the 3.3 µF limit and the A.4 row never looked at the +tolerance corner; CMA1 stays 1 µF as the reservoir at the MCU VREFH pins (AN5032)");
   // ULDO15 / ULDOEX compensation zeros vs onsemi 11–18 kHz guidance
   judge("LV A.4", "ULDO15 feed-forward zero (49.9k·220pF)", `${f(1 / (2 * Math.PI * 49.9e3 * 220e-12) / 1e3, 1)} kHz`,
     "11–18 kHz (onsemi Cb guidance)", 14.5 / 18, 0.95, "F54 — COUT 22 µF ceramic");
@@ -583,6 +586,75 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   add("Sensing", "Resolver drive @9 V KL30", "≈6.5 V pp available vs 8 V pp target", "-", "WARN", "ALM2402 swing at cold-crank INCLUDING ULDOEX dropout (~0.3 V @ ~150 mA, A.4.3) — angle still tracks (amplitude-invariant demod); GEN3-equivalent behavior");
 }
 
+// ============ 7b. ROUND 12 — system review of 4544715 (docs/review-A11-disposition.md) ============
+{
+  // R1-F01/R2-F08: SPO (all switches off) with the battery path gone — the module diodes rectify the stored
+  // winding energy 1.5·L·I² into the isolated link before the current is gone. Rule (a) of §6 now needs
+  // the link headroom ½·C_min·(U_N² − V_max²) to cover it. Screening motor from S6 (0.35 mH); the real
+  // L_d/L_q(i), ψ_f and n_max are a commissioning input (the back-EMF work during the decay adds to this).
+  const Lscr = 0.35e-3;
+  for (const s of [SKU.sic8, SKU.igbt4]) {
+    const cMin = 16 * s.can.c * 0.9 + 3e-6, v0 = s.ovTrip, head = 0.5 * cMin * (s.can.vr85 ** 2 - v0 ** 2);
+    const wMag = 1.5 * Lscr * s.iPk ** 2, iOk = Math.sqrt(head / (1.5 * Lscr));
+    const vEnd = Math.sqrt(v0 ** 2 + 2 * wMag / cMin);   // the E = 0 case of the §6 bound V_pk ≤ E + √((V₀−E)² + 2·W/C)
+    add("System A.11", `SPO freewheel energy at ${s.iPk} A rms into the isolated link (${s.name}, screening motor 0.35 mH, zero back-EMF)`,
+      `${f(wMag, 0)} J → ${f(vEnd, 0)} V from the ${v0} V trip`, `${f(head, 1)} J headroom to ${s.can.vr85} V U_N at C_min ${f(cMin * 1e6, 0)} µF`,
+      wMag > head ? "WARN" : "PASS",
+      `round 12: rule (a) of §6 covers this motor only up to ${f(iOk, 0)} A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX)`);
+  }
+  // R2-F04: resolver exciter — textbook MFB (R1 10k in, R2 24k feedback, R3 10k, C1 1.5 nF to ground, C2 220 pF feedback)
+  {
+    const R1 = 13e3, R2 = 24e3, R3 = 10e3, C1 = 1.5e-9, C2 = 220e-12, w = 2 * Math.PI * 10e3;   // R1 = REXA1 + REXA2: the 100 nF coupling is a short at 10 kHz
+    const H = (c1, c2) => { const a = 1 - w * w * c1 * c2 * R2 * R3, b = w * c2 * (R2 + R3 + R2 * R3 / R1); return (R2 / R1) / Math.hypot(a, b); };
+    const h = H(C1, C2), hs = [0.9, 1.1].flatMap((a) => [0.9, 1.1].map((b) => H(C1 * a, C2 * b)));
+    const f0 = 1 / (2 * Math.PI * Math.sqrt(C1 * C2 * R2 * R3)), Q = Math.sqrt(C1 * C2 * R2 * R3) / (C2 * (R2 + R3 + R2 * R3 / R1));
+    const swg = [1.884, 2.093, 2.302];   // S32K39 Table 40 MAXAPP min/typ/max, V pk-pk
+    add("Sensing A.11", "Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge)", `|H| ${f(h, 2)} (${f(Math.min(...hs), 2)}–${f(Math.max(...hs), 2)} over ±10 % caps) → ${f(2 * swg[1] * h, 1)} V pp differential (${f(2 * swg[0] * h, 1)}–${f(2 * swg[2] * h, 1)} over the SWG MAXAPP range)`,
+      "8 V pp target; SWG amplitude register is the firmware knob (0.39–2.30 V pp)", "PASS",
+      `f0 ${f(f0 / 1e3, 1)} kHz, Q ${f(Q, 2)}, passband gain −${f(R2 / R1, 2)}. 24 k is the ceiling: the ALM2402's ≈0.13 V/µs slew at −40 °C caps each output near 2.07 V pk (8.3 V pp). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped — 4.7 nF from the output to the summing node and 24 k to the inverting input — a first-order 2 kHz roll-off with |H(10 kHz)| 0.18, i.e. ${f(2 * swg[1] * 0.178, 2)} V pp from the SWG maximum. OPA348: 1 MHz GBW gives ≈ ${f(1e6 / 10e3 / (1 + R2 / R1), 0)}× loop gain at 10 kHz; slew needed ${f(Math.PI * 10e3 * 2 * swg[1] * h, 3)} V/µs of 0.5`);
+  }
+  // R1-F03: hall open-wire signature — 100 k to AGND at the card input
+  {
+    const tau = 100e3 * 3.3e-9, t = tau * Math.log(2.5 / 0.3);
+    add("Sensing A.11", "Hall signal open wire (R⟨ph⟩B0 100 k)", `reads 0 V; 2.5 → 0.3 V in ${f(t * 1e3, 2)} ms`, "outside the HC5FW 0.2–4.8 V window (FW-05); RL ≥ 10 k", "PASS",
+      "round 12 (R1-F03): the README had claimed the pull-down since A.4; an unpowered sensor reads the same 0 V. The Σi = 0 check alone could not see a stale 2.5 V (zero-current) reading at standstill");
+  }
+  // R2-F02/F03: VDC-channel bias — UCC12050 per channel behind its own NCV4276C from V15
+  {
+    const iIn = 50e-3 + 8e-3 / 0.5, pLdo = (15 - 5) * iIn, tj = 85 + pLdo * 40;
+    judge("Sensing A.11", "VDC bias LDO (NCV4276C DPAK from V15, one per UCC12050)", `${f(pLdo, 2)} W → Tj ≈ ${f(tj, 0)} °C at 85 °C ambient (40 K/W on a 1 in² pad)`, "150 °C Tj max", tj / 150, 0.85,
+      `UCC12050 idles at 50 mA (TI §6.9) + the AMC1311's ${f(8e-3 * 1e3, 0)} mA at ≈50 % efficiency; one shared LDO would carry ${f(2 * pLdo, 1)} W, and the V5GD LDO already runs from the 12 V node — hence one LDO per channel, which also keeps the channels independent (F4)`);
+    judge("Sensing A.11", "VDC bias barrier working voltage (UCC12050 V_IOWM)", "1697 VDC / 1200 Vrms reinforced (VDE 0884-11)", "850 VDC link (same class as the AMC1311, 1.2 kVrms)", 850 / 1697, 0.9,
+      "round 12 (R1-F12, R2-F02/F03): the A.4.4 bind \"MGJ2D150505SC\" does not exist and the MGJ2 family is reinforced to 150 Vrms only — every module family checked (MGJ1/2, NXE/NXJ, RECOM RxxP/R1SX, Mornsun QA, ADuM6028) fails the working-voltage criterion");
+  }
+  // R2-F13: a resolver wire shorted to KL30 (same vehicle connector) — pin injection through RSINF + RSINR
+  {
+    const rS = 10e3 + 120, iPin = [16, 24, 35].map((v) => (v - 5.7) / rS), iBuf = 2 * (16 - 2.5) / 10e3, iOld = (16 - 5.7) / 450;
+    const cDiff = 47e-12 + 100e-12 + 22e-12, fc = 1 / (2 * Math.PI * 2 * rS * cDiff), ph = Math.atan(10e3 / fc) * 180 / Math.PI;
+    judge("Sensing A.11", "Resolver wire shorted to KL30: SDADC pin injection (RSINF 10 k + RSINR 120)", `${f(iPin[0] * 1e3, 2)} / ${f(iPin[1] * 1e3, 2)} / ${f(iPin[2] * 1e3, 2)} mA at 16 / 24 / 35 V`,
+      "3 mA per pin — the S32K39 operating AND absolute-maximum limit (no transient allowance)", iPin[2] / 3e-3, 0.98,
+      `round 12: the GEN3 330 Ω + 120 Ω let ${f(iOld * 1e3, 0)} mA in. Both legs pull up through the winding, so the VMID buffer sinks ${f(iBuf * 1e3, 1)} mA through the two 10 k bias resistors (OPA348 ≈ 7 mA at 125 °C; was 20 mA through 680 Ω). Caps rescaled with the 30× source: 47 pF + 100 pF differential + 22 pF common-mode on both legs → corner ${f(fc / 1e3, 0)} kHz, −${f(ph, 0)}° at 10 kHz on both channels (a ±5 % cap mismatch is ${f(2 * (10e3 / fc) ** 2 * 5, 2)} % gain mismatch, ≈${f(2 * (10e3 / fc) ** 2 * 5 / 100 * 57.3 / 2, 2)}° electrical); source 20 k vs Z_DIFF ≥ 215 k is a ratio-cancelled ${f(20.24 / 215 * 100, 0)} % gain term`);
+  }
+  // R1-F14/R2-F10 (Opus check): the LV-entry coordination under ISO 16750-2 test B (35 V, 400 ms, Ri 0.5–4 Ω).
+  // TVS I–V above breakdown: V ≈ V_BR + R_d·I with R_d ≈ (V_C − V_BR)/I_PP. Classic TPSMC24CA (V_BR 22.8–25.2 V, 33.2 V at
+  // 45.8 A) vs the 24 V stand-off TPSMC24CA-VR now bound (V_BR 26.7–29.5 V, 38.9 V at 38.6 A). No SMC datasheet rates a
+  // pulse beyond 1 ms; ≈110 W for 400 ms is an extrapolation of the 1.5 kW 10/1000 µs curve, quoted as such.
+  {
+    const tvs = (vbr, rd, ri) => { const i = Math.max(0, (35 - vbr) / (ri + rd)); return [i, i * (vbr + rd * i)]; };
+    for (const [name, vbr, rd] of [["classic TPSMC24CA", 22.8, (33.2 - 25.2) / 45.8], ["TPSMC24CA-VR", 26.7, (38.9 - 29.5) / 38.6]]) {
+      const [[i05, p05], [i2, p2], [i4, p4]] = [0.5, 2, 4].map((ri) => tvs(vbr, rd, ri));
+      add("LV A.11", `Load dump test B (35 V, 400 ms) into the ${name} + MF-LSMF300/24X polyfuse`, `${f(i05, 1)} A / ${f(p05, 0)} W at Ri 0.5 Ω · ${f(i2, 1)} A / ${f(p2, 0)} W at 2 Ω · ${f(i4, 1)} A / ${f(p4, 0)} W at 4 Ω`,
+        "≈ 110 W for 400 ms (1.5 kW class, extrapolated — no rating beyond 1 ms); polyfuse 3 A hold / 5.2 A trip, V_max 24 V", "WARN",
+        name.startsWith("classic")
+          ? "round 12, historical: the A.4 notes described this part — it conducts at the 24 V/60 s jump start (V_BR min 22.8 V) and at Ri ≤ 2 Ω takes ≥ 1.2× the extrapolated 400 ms capability; at 0.5 Ω the polyfuse trips inside the pulse (0.1–0.25 s hot), sees ≈ 30 V (V_max 24 V) and latches until a KL30 cycle — the archived sheet and the LCSC code were the -VR class, now bound explicitly"
+          : "round 12: dark at 24 V (V_BR ≥ 26.7 V), clamps ≤ 33 V so the TPS55340 (34 V abs max) is inside its rating; at Ri = 4 Ω the pulse is 55 W (covered), at 2 Ω it is at the extrapolated limit, below 1 Ω the polyfuse trips and sees ≈ 30 V. The OEM's test-B source resistance is release gate ㉓: at ≤ 2 Ω either a TVS pulse test or 35 V-rated rails (a ≥ 42 V boost input in place of the TPS55340) decide. The polyfuse stays (the 33 V MF-LSMF260 holds 1.17 A hot against the 1.19 A worst chain)");
+    }
+  }
+  // R1-F06/R2-F05: the IGBT SC rating is a test condition, not a corner guarantee
+  add("Power stage — all SKUs", "IGBT short-circuit rating condition vs the design corner", "6 µs at 800 V / 15 V / 175 °C (hiitio DS)", "design corner 850 V / VCC2 up to 16.7 V", "WARN",
+    "round 12 (R1-F06, R2-F05): the RR04 release gate (contained SC test) now also asks hiitio for the SC statement at 850 V and the 16.7 V gate-rail corner, or the gate rail's upper corner is tightened; the stale \"inside 6 µs\" BOM text was removed");
+}
+
 // ============ 8. SAFETY CHAIN TIMING/LOGIC ============
 {
   add("Safety", "FS0B → driver EN path", "2 gate delays (~20 ns) + driver td", "-", "PASS", "no software; erc-verified topology");
@@ -608,7 +680,7 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
 same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -645,6 +717,18 @@ same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also 
 | F120 | MED | Schematic recheck A9-S01: RDY_HS/RDY_LS (open-drain, 5.1 k to V5GD) drove 74LVC1G11-Q100 AND inputs directly at ≈20–100 ns/V against the 10 ns/V recommended limit; the round-7/8 "state-benign" rejection left the shutdown chain outside the datasheet | USCH3 74LVC3G17-Q100 on both RDY lines (RRDB dead-state pull-down); ERC by pin number |
 | F121 | LOW | S9-01: RASCG (2.2 k) carries up to 0.12 W for as long as ASC is held, but was a generic 0603 (0.1 W at 70 °C → 82 mW at 85 °C) | ROHM ESR03EZPF2201 (0.33 W at 70 °C → 0.27 W at 85 °C); 2.2 k kept for the ASC timing |
 | F122 | LOW | S9-02 and notes: discharge sheet heading "67.5k bleeder (58 s)"; "V_GS 13.4–18.1 V" read as a hard ceiling; the A9 disposition still quoted the interim pin-39 V5GD pin | 66 k (56 s nom / 65 s worst); 13.3–18.2 V with 1 % resistors ("a divider, not a clamp"); the final harness map quoted |
+| F123 | **HIGH** | §6 release rule (a) accepted SPO on back-EMF alone and omitted the stored winding energy the diodes rectify into an isolated link: 1.5·L·I² = 61 J (8XX) / 84 J (4XX) with the 0.35 mH screening motor against 40 J of link headroom (R1-F01, R2-F08) | rule (a) now requires ½·C_min·(U_N² − V_max²) ≥ W_mag + W_emf from the motor's dq model; screening row (WARN): 8XX covers that motor only to 277 A rms, above it rule (b) |
+| F124 | **HIGH** | Resolver exciter drawn with the MFB feedback pair swapped (4.7 nF output→summing node, 24 k output→inverting input): first-order 2 kHz roll-off, \|H(10 kHz)\| 0.18, so the S32K39 SWG (≤ 2.30 V pp) would have driven ≈ 0.7 V pp instead of 8 V pp (R2-F04) | textbook MFB 10k/24k/10k with 1.5 nF to ground and 220 pF feedback: f0 17.9 kHz, Q 0.70, \|H\| 1.85 → 7.7 V pp; SWG amplitude is the firmware knob; ERC by topology and value |
+| F125 | **HIGH** | VDC-channel bias "MGJ2D150505SC" is not an existing order code, and the MGJ2 family is reinforced only to 150 Vrms (R1-F12, R2-F02/F03) | TI UCC12050 per channel (V_IOWM 1200 Vrms / 1697 VDC, VDE 0884-11 reinforced, the AMC1311's own class) behind its own NCV4276C from V15; 10 µF X7R both sides; ERC by pin |
+| F126 | MED | The Hall open-wire pull-down claimed in README/design-basis since A.4 was never drawn (R1-F03) | R⟨ph⟩B0 100 k at each card input: open wire or dead sensor reads 0 V, outside the 0.2–4.8 V validity window now in FW-05 |
+| F127 | MED | LEM HC5FW drawn as a 3-pin VCC/OUT/GND symbol; the device has 1 V_ref, 2 V_out, 3 Gnd, 4 U_C and E1–E4 mass pins and no connector (R1-F04) | 8-terminal symbol by DS number (V_ref open, E1–E4 to Gnd); the off-board carrier drawing derives from it; ERC by terminal number |
+| F128 | MED | A resolver wire shorted to KL30 (shares the vehicle connector) injected ≈ 23 mA into an SDADC pin through 330 + 120 Ω against the S32K39's 3 mA limit (operating and absolute maximum), and both legs pulled 20 mA into the VMID buffer through the 680 Ω bias (R2-F13, R1-F20) | RSINF/RCOSF and RSIN/RCOS → 10 k: 1.0 / 1.8 / 2.9 mA at 16 / 24 / 35 V, buffer 2.7 mA; caps rescaled (47 p + 100 p differential, 22 p common-mode on both legs — the P-only caps converted CM to DM): corner 47 kHz, −12° on both channels; SWG given its 47 pF load |
+| F129 | LOW | VREF5 sat at 3.3 µF nominal, the FS26 upper limit, before tolerance (R2-F11) | CSB5 2.2 µF → 1 µF (0805 X7R 16 V): 2.1 µF nominal, 1.4–2.3 µF effective over tolerance, bias, temperature and aging |
+| F130 | **HIGH** | LV-entry coordination (R1-F14, R2-F10, found by the Opus check): the notes described the classic TPSMC24CA (V_BR 22.8–25.2 V), which conducts at the 24 V/60 s jump start and, in an ISO 16750-2 test B at Ri ≤ 2 Ω, takes more than the (extrapolated) 400 ms capability; at 0.5 Ω the polyfuse then trips inside the pulse, sees ≈ 30 V against its 24 V V_max and latches until a KL30 cycle; the archived datasheet was the -VR series | TPSMC24CA-VR bound explicitly (AEC-Q101, 24 V stand-off, V_BR 26.7–29.5 V, same pad and price): dark at 24 V, clamps ≤ 33 V under the boost's 34 V abs max; test B covered on paper at Ri ≥ 4 Ω, the OEM's Ri is gate ㉓ (≤ 2 Ω: TVS pulse test or 35 V-rated rails). Polyfuse kept (the 33 V part holds 1.17 A hot against the 1.19 A worst chain) |
+| F131 | LOW | UEXD (ALM2402QPWPRQ1) bought as "HTSSOP16"; the PWP package is 14-pin (R1-F05, R2-F26) | footprint HTSSOP14-PWP; ERC asserts the 14-pin package against the symbol |
+| F132 | LOW | Board NTCs drawn as 2-pin headers, bought as 0603 NTCs (R2-F27) | on-board RTAMB/RTHS 0603 (symbol = BOM) |
+| F133 | LOW | kicad5-verify exited 0 on an empty page set (R2-F29) | fails unless 4 sheets and ≥ 1500 pins were compared |
+| F134 | LOW | Contract and document defects: FW-05 threshold in A rms; §6 merged "contactor open" with "BMS limit 0"; FW-15 "NVM first" ahead of the safe action; FW-02 τ bands overlap; HW_ID "pin 40"; "LQFP-176"; stale "inside 6 µs" IGBT text; ALT field offered M7 rectifiers and a 3-lead TO-247; CAN termination fixed; FW-18 silent on invalid witnesses; S6 double-update unstated (R1-F02/F11/F18/F23/F24/F25/F27, R2-F18/F19/F24/F33/F34/F35) | all corrected: instantaneous ±601/±707 A; rows split; retained-RAM latch, queued NVM; plausibility wording + EOL measurement; pin 2; 289-MAPBGA; RR04 wording; ALT = qualify-before-use; endpoint DNP option; "unknown, never safe"; delay stated |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |

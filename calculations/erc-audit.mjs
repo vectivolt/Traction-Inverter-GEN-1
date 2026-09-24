@@ -210,9 +210,16 @@ for (const ph of ["U", "V", "W"]) for (const sd of ["H", "L"]) {
   ok(same(P(`D${q}SB.A`), `DST_${q}`) && same(P(`D${q}SB.K`), `VCC_${q}`), `D${q}SB clamps DESAT to VCC2 (not VCC into DESAT)`);
   ok(same(P(`C${q}IN.pin1`), "V5GD") && same(P(`C${q}IN.pin2`), "DGND"), `C${q}IN input-side driver bypass`);
 }
-// QA01C-class SIP-7 modules: +Vo on pin7-label VOP, output common on COM, -Vo unloaded
-for (const [b, u] of [["P", "PSASC"], ["P", "PS5B"], ["P", "PS5C"]]) {
-  ok(P(`${u}.VOP`) !== undefined && P(`${u}.COM`) !== undefined, `${u} real SIP-7 output pins bound`);
+// QA01C-class SIP-7 module: +Vo on pin7-label VOP, output common on COM, -Vo unloaded
+ok(P("PSASC.VOP") !== undefined && P("PSASC.COM") !== undefined, "PSASC real SIP-7 output pins bound");
+// Round 12 (R2-F02/F03): the VDC biases are UCC12050s, one per channel, each behind its own LDO from V15
+for (const [k, v] of [["B", "V5ISO"], ["C", "V5ISO2"]]) {
+  ok(same(P(`PS5${k}.VISO`), v) && same(P(`PS5${k}.SEL`), v) && same(P(`PS5${k}.GNDS`), "DCN") && same(P(`PS5${k}.GNDS9`), "DCN") && same(P(`PS5${k}.GNDS16`), "DCN"),
+    `UCC12050 ${k}: VISO/SEL on ${v} (5.0 V select), all GNDS on DCN`);
+  ok(same(P(`PS5${k}.VINP`), `V5S${k}`) && same(P(`PS5${k}.EN`), `V5S${k}`) && same(P(`PS5${k}.GNDP`), "DGND") && same(P(`PS5${k}.SYNC`), "DGND")
+    && same(P(`PS5${k}.NC6`), "DGND") && same(P(`PS5${k}.NC10`), "DCN"), `UCC12050 ${k}: VINP/EN on its own 5 V, SYNC low, NC pins to their domains`);
+  ok(same(P(`U5L${k}.IN`), "V15") && same(P(`U5L${k}.INH`), "V15") && same(P(`U5L${k}.OUT`), `V5S${k}`) && same(P(`C5L${k}2.pin1`), `V5S${k}`) && same(P(`C5${k}1.pin1`), v),
+    `bias LDO ${k} from V15 with its 10 uF, UCC12050 ${k} output 10 uF`);
 }
 ok(same(D("PSQD.VOP"), "V18Q") && same(D("PSQD.COM"), "DCN"), "PSQD real SIP-7 output pins bound");
 // VCC1 LDO alive whenever LV is present (sensing decoupled from gate-power enable)
@@ -325,14 +332,14 @@ for (const x of ["U", "V", "W"]) {
   ok(same(C(`U${x}B1.INN`), C(`U${x}B1.OUT`)), `hall buffer1 ${x} unity feedback`);
   ok(same(C(`U${x}B2.INN`), C(`U${x}B2.OUT`)), `hall buffer2 ${x} unity feedback`);
   ok(same(C(`R${x}B3.pin2`), `ISNS_${x}`), `hall ${x} lands on ISNS_${x}`);
-  ok(same(C(`USNS${x}.OUT`), `HALL_${x}`) && same(C(`USNS${x}.GND`), "AGND"), `hall sensor ${x} wiring`);
+  ok(same(C(`USNS${x}.OUT`), `HALL_${x}`) && same(C(`USNS${x}.GND`), "AGND") && same(C(`USNS${x}.VCC`), `V5S_${x}`), `hall sensor ${x} wiring`);
 }
 for (const k of ["1", "2"]) {
   ok(same(C(`UVD${k}.OUT`), `VDC${k}_SE`) && same(C(`RVD${k}D.pin2`), `VDC${k}_SE`), `VDC${k} diff-amp closes on output`);
   ok(same(C(`UMCU.PTA0_VDC1`), "VDC1_SE") || k === "2", `MCU reads VDC1`);
 }
 ok(same(C("UMCU.PTB0_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
-ok(same(C("UEXF.INN"), C("REXA4.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes");
+ok(same(C("UEXF.INN"), C("CEXA1.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes (feedback cap to the inverting input)");
 ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H-bridge outputs");
 ok(same(C("JVEH.R1"), "VREX_P") && same(C("JVEH.R2"), "VREX_N"), "resolver drive reaches vehicle connector");
 for (const s of ["SIN", "COS"])
@@ -479,6 +486,51 @@ ok(same(C("QLVS.#1"), "LVS_G") && same(C("QLVS.#2"), "VBSW") && same(C("QLVS.#3"
 ok(same(C("ULDOEX.INH"), "V5A") && same(C("ULDOEX.IN"), "VBATC"), "ULDOEX enabled by V5A, not by KL30 (no LPOFF drain)");
 ok(["VBAT_H", "VBAT_L", "VBSW"].every((n) => bridges(CARD, "NRC", n).every((r) => r === "QLVS")),
   "nothing but QLVS bridges the unswitched KL30 node to the power-board feed (keyed by net)");
+
+// ---------- round-12 lock-ins (system review of 4544715 — docs/review-A11-disposition.md) ----------
+// R1-F04: the HC5FW is drawn with its real terminals (DS p.2: 1 V_ref out, 2 V_out, 3 Gnd, 4 U_C, E1-E4 Gnd)
+for (const x of ["U", "V", "W"]) {
+  ok(same(C(`USNS${x}.#2`), `HALL_${x}`) && same(C(`USNS${x}.#3`), "AGND") && same(C(`USNS${x}.#4`), `V5S_${x}`)
+    && [5, 6, 7, 8].every((p) => same(C(`USNS${x}.#${p}`), "AGND")) && !/^(V5S|HALL|AGND)/.test(C(`USNS${x}.#1`) ?? "x"),
+    `LEM ${x} by terminal number: 2 out, 3/E1-E4 ground, 4 supply, 1 (V_ref) left open`);
+  // R1-F03: the open-wire pull-down the README had claimed is drawn — 100 k from the sensor line to AGND
+  ok(same(C(`R${x}B0.pin1`), `HALL_${x}`) && same(C(`R${x}B0.pin2`), "AGND") && near(V(CARD, `R${x}B0`), 100e3),
+    `hall ${x} signal pull-down 100 k (open wire reads 0 V)`);
+}
+// R2-F04: exciter is a textbook MFB — input R to the summing node, feedback R output->summing node, C to
+// ground at the summing node, R to the inverting input, feedback C output->inverting input; values fixed
+ok(same(C("REXA2.pin2"), "NEX3") && same(C("REXA4.pin1"), "REX_F") && same(C("REXA4.pin2"), "NEX3")
+  && same(C("CEXA2.pin1"), "NEX3") && same(C("CEXA2.pin2"), "AGND") && same(C("REXA3.pin1"), "NEX3") && same(C("REXA3.pin2"), "NEX4")
+  && same(C("CEXA1.pin1"), "REX_F") && same(C("CEXA1.pin2"), "NEX4") && same(C("UEXF.INN"), "NEX4")
+  && near(V(CARD, "CEXA2"), 1.5e-9) && near(V(CARD, "CEXA1"), 220e-12) && near(V(CARD, "REXA4"), 24e3) && near(V(CARD, "REXA2"), 10e3) && near(V(CARD, "REXA3"), 10e3),
+  "exciter MFB topology (feedback R to the summing node, feedback C to the inverting input) and values 10k/24k/10k, 1.5 nF/220 pF: |H(10 kHz)| 1.85");
+// R2-F27: the board NTCs are on-board 0603 parts, biased from VREF5
+for (const [id, n] of [["AMB", "NTC_A"], ["HS", "NTC_H"]])
+  ok(same(C(`RT${id}.pin1`), n) && same(C(`RT${id}.pin2`), "AGND") && same(C(`RT${id}P.pin1`), "VREF5") && same(C(`RT${id}P.pin2`), n),
+    `board NTC RT${id} on-board with its 10 k pull-up`);
+ok(bridges(PWR, "V5SB", "V5SC").length === 0 && bridges(PWR, "V5SB", "V5GD").length === 0 && bridges(PWR, "V5SC", "V5GD").length === 0,
+  "the two VDC bias 5 V rails are separate from each other and from V5GD (keyed by net)");
+// R2-F13: resolver-pin short to KL30 limited to the S32K39's 3 mA injection; R2-F11: VREF5 inside the FS26 window
+ok(["RSINF1", "RSINF2", "RCOSF1", "RCOSF2", "RSIN1", "RSIN2", "RCOS1", "RCOS2"].every((r) => near(V(CARD, r), 10e3))
+  && ["CSIND", "CCOSD"].every((r) => near(V(CARD, r), 47e-12)) && ["CSINA2", "CCOSA2"].every((r) => near(V(CARD, r), 100e-12))
+  && ["CSINF1", "CSINF2", "CCOSF1", "CCOSF2", "CSINA1", "CSINA3", "CCOSA1", "CCOSA3"].every((r) => near(V(CARD, r), 22e-12))
+  && same(C("CSINF2.pin1"), "SINF_N") && same(C("CSINA3.pin1"), "SIN_N") && same(C("CCOSF2.pin1"), "COSF_N") && same(C("CCOSA3.pin1"), "COS_N")
+  && same(C("CEXA4.pin1"), "SWG1") && near(V(CARD, "CEXA4"), 47e-12),
+  "resolver series/bias 10 k (pin injection <= 2.9 mA at 35 V), caps rescaled 47 p / 100 p diff + 22 p common-mode on BOTH legs; SWG 47 pF load");
+ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "CMA2"), 100e-9), "VREF5 rail 2.1 uF nominal (CSB5 1 uF + CMA1 + CMA2)");
+// round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 24 V-stand-off TVS (-VR) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
+for (const [sku, k] of Object.entries(SKUS)) {
+  const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const bad = Object.entries({ PS5B: /^UCC12050/, PS5C: /^UCC12050/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+    .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
+  ok(!bad.length, `${sku}: round-12 parts resolve (UCC12050 + LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs)`, bad.join(", "));
+}
+// R1-F05/R2-F26: the ALM2402 is bought as the 14-pin PWP package the symbol draws
+{
+  const rule = DB.find((r) => r.m.test("UEXD"));
+  ok(rule && /^HTSSOP14/.test(rule.fp ?? "") && CARD.comps.find((c) => c.name === "UEXD") && CARD.pinNet.get("UEXD.#14") !== undefined && CARD.pinNet.get("UEXD.#15") === undefined,
+    "UEXD BOM package is the 14-pin PWP (symbol has 14 pins, no pin 15)", rule?.fp);
+}
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
   const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^QA01C-18$/, PSQD: /^QA01C-18$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })

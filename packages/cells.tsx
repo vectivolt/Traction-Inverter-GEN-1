@@ -335,6 +335,11 @@ export const HallChain = ({ ph, vout, adc }: { ph: string; vout: string; adc: st
     <inductor name={`L${ph}B`} inductance="220nH" footprint="0805" {...gp()} connections={{ pin1: "net.V5A", pin2: `net.V5S_${ph}` }} />
     <capacitor name={`C${ph}S1`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.V5S_${ph}`, pin2: "net.AGND" }} />
     <capacitor name={`C${ph}S2`} capacitance="4.7nF" footprint="0603" {...gp()} connections={{ pin1: `net.V5S_${ph}`, pin2: "net.AGND" }} />
+    {/* Round 12 (R1-F03): the README had claimed an open-wire pull-down since A.4 that was never drawn.
+        100 k at the card input: an open OUT wire or an unpowered sensor reads 0 V, outside the HC5FW
+        0.2-4.8 V output range (FW-05 validity window); the sensor allows RL >= 10 k. Decay 2.5 -> 0.3 V
+        through the 3.3 nF filter in ~0.7 ms. */}
+    <resistor name={`R${ph}B0`} resistance="100k" footprint="0603" {...gp()} connections={{ pin1: vout, pin2: "net.AGND" }} />
     <resistor name={`R${ph}B1`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: vout, pin2: `net.IS1_${ph}` }} />
     <capacitor name={`C${ph}B1`} capacitance="3.3nF" footprint="0603" {...gp()} connections={{ pin1: `net.IS1_${ph}`, pin2: "net.AGND" }} />
     <chip name={`U${ph}B1`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
@@ -348,10 +353,12 @@ export const HallChain = ({ ph, vout, adc }: { ph: string; vout: string; adc: st
 );
 
 // ---- board NTC input (card) -------------------------------------------------------------
+// Round 12 (R2-F27): the BOM bought an 0603 NTC while the symbol drew a 2-pin header. FW-13 calls
+// these "board NTCs", so the thermistor is an on-board 0603 part (RTAMB in free card air, RTHS at
+// the card's hottest zone, placed at layout) — symbol and BOM now agree.
 export const NtcIn = ({ id, out }: { id: string; out: string }) => (
   <group>
-    <chip name={`JT${id}`} footprint={Header(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
-      connections={{ A: out, B: "net.AGND" }} />
+    <resistor name={`RT${id}`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: out, pin2: "net.AGND" }} />
     <resistor name={`RT${id}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: out }} />
     <capacitor name={`CT${id}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: out, pin2: "net.AGND" }} />
   </group>

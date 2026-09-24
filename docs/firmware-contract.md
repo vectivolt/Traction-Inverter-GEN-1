@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.10)
+# Hardware → firmware contract (rev A.11)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -38,7 +38,12 @@ this repository claims it exists. Verification of each requirement is HIL first,
 - **FW-02** The loaded parameter set carries its SKU; a mismatch with `HW_ID` refuses
   `MCU_GATE_EN` (an 8XX OV trip on a 600 V 4XX cap bank destroys it). Cross-check at every
   key-off: the active-discharge time constant τ = R·C gives the fitted link capacitance
-  (8XX ≈ 0.60 s with 1.88 kΩ, 4XX ≈ 0.71 s with 0.88 kΩ); > 20 % off ⇒ DTC.
+  (8XX ≈ 0.60 s with 1.88 kΩ, 4XX ≈ 0.71 s with 0.88 kΩ); > 20 % off ⇒ DTC. This τ check catches a
+  wrong bank behind the right resistor string (0.60 s against 1.5 s) but **not** a wrong bank fitted
+  together with its own discharge board (0.71 s sits inside the 8XX ±20 % band): it is a
+  plausibility check, not the SKU proof. The voltage class of the cap-bank/discharge kit is proven
+  by assembly traceability and the EOL capacitance/resistance measurement (`dfm.md` §4; round 12,
+  R1-F24/R2-F28).
 
 | Parameter set | 8XX SiC | 8XX IGBT | 4XX IGBT | 4XX SiC |
 |---|---|---|---|---|
@@ -52,7 +57,10 @@ this repository claims it exists. Verification of each requirement is HIL first,
 
 The crossover ceiling is set **per switching mode**, not per silicon (round 7, RR08): the S6 model
 gives 51.4° at 10 kHz / 1.2 kHz but 43.3° at 8 kHz / 1.2 kHz, and 47.2° at 8 kHz / 1.1 kHz. The
-parameter set carries one gain set per f_sw; motor L/R and sampled-data timing re-close it.
+parameter set carries one gain set per f_sw; motor L/R and sampled-data timing re-close it. The S6
+screen assumes double-update PWM (sample-to-actuation delay 0.75 T_sw, screening motor 25 mΩ /
+0.35 mH); a single-update implementation (1.5 T_sw) drops the 10 kHz / 1.2 kHz case to 19°, so the
+ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2-F24).
 
 ## 3. Power envelope (review R-F09)
 
@@ -71,8 +79,14 @@ parameter set carries one gain set per f_sw; motor L/R and sampled-data timing r
 ## 4. Fast protection paths
 
 - **FW-05** Phase overcurrent: ADC channel thresholds with hardware compare (S32K396 ADC
-  watchdog / BCTU → eTPU fault input) at 1.25 × the SKU peak, response ≤ 2 PWM periods,
-  independent of the FOC ISR. Σ(Ia+Ib+Ic) plausibility every sample.
+  watchdog / BCTU → eTPU fault input) at **1.25 × √2 × the SKU peak rms current, in instantaneous
+  amperes, both polarities**: ±601 A (8XX, 340 A rms) / ±707 A (4XX, 400 A rms), converted to ADC
+  codes with each channel's calibrated gain, offset and sign (round 12, R1-F25/R2-F18: the §2 table
+  is in A rms, and a literal 1.25 × 340 = 425 A would sit below the 481 A crest of rated
+  operation). Response ≤ 2 PWM periods, independent of the FOC ISR. Σ(Ia+Ib+Ic) plausibility every
+  sample. **Per-channel validity window 0.2–4.8 V** (the HC5FW output range): outside it the channel
+  is invalid — an open signal wire or an unpowered sensor reads 0 V through the card's 100 k
+  pull-down (R⟨ph⟩B0, round 12, R1-F03).
 - **FW-06** DC overvoltage: both V_DC channels in hardware compare at the SKU OV trip; action =
   high sides forced off + zero torque request + ASC request, then PWM-ASC (§4c; if the §6 matrix
   allows). Round 7 (RR06/A6-R08) replaces the written "20 µs" with a budget that must be
@@ -104,7 +118,8 @@ parameter set carries one gain set per f_sw; motor L/R and sampled-data timing r
   state, not a dead bus. **Both channels are also invalid whenever V5GD (PTB5, V5GD/2) is outside
   4.75–5.25 V** (round 9, R9X-01). The AMC1311 LV sides run on V5GD; unpowered, they leave the
   receivers at their +0.5 V offset, a false "0 V bus" that the plausibility checks cannot see.
-- **FW-08** Regeneration with the battery path lost (contactor opens, BMS limit drops to 0):
+- **FW-08** Regeneration with the battery path lost (contactor opens; a BMS charge limit that
+  drops to 0 with the contactors closed is the connected-battery row of §6, not this case):
   enter DC-link voltage control (torque → 0 at the current-loop rate) and rely on FW-06 for
   the fast part; request the VCU/BMS protocol "zero torque before opening" for every
   non-emergency opening.
@@ -244,7 +259,8 @@ magnets). Motor data are a commissioning input (R-F16); the table is the rule.
 | Condition | n < n_x | n ≥ n_x |
 |---|---|---|
 | Healthy, command/CAN lost | ramp to zero torque, then SPO | ramp to zero torque; keep current control (field weakening) while the battery is present |
-| Battery contactor opens / BMS limit 0 | zero torque, then SPO | **LS-ASC** (FW-06), release to SPO below n_x |
+| Battery path lost (contactor open, contactor/precharge feedback invalid, or V_DC leaving the pack voltage) | zero torque, then SPO | **LS-ASC** (FW-06), release to SPO below n_x |
+| BMS charge limit → 0 with the battery still connected (full or cold pack) | zero torque, then SPO | ramp regen to zero at the current-loop rate and keep current control (field weakening) as in the healthy row — the connected pack is a voltage source, so this is not an ASC case; FW-06 stays armed as the backstop if the pack is then opened (round 12, R1-F02/R2-F35: the old row merged the two events) |
 | Resolver invalid | SPO | LS-ASC (no angle needed) |
 | DESAT on a **high-side** switch (FLT_HS) | SPO | SPO first. The fault latch holds EN low, and LS-ASC with EN low has no documented LS DESAT. After the FW-15 reset (≥ 1.5 ms), LS-ASC is permitted **only as PWM-ASC** with EN high (§4c). **Assumption:** the HS DESAT came from a shorted LS device or a phase-to-DC− fault, which LS-ASC completes into a symmetric short. **If an HS device has itself failed short**, the LS DESAT (documented with EN high and IN+ high) soft-turns the LS off, FLT_LS follows and the row below applies (SPO): one bounded extra SC event, never a sustained shoot-through. The ASC latch alone must not be used for this row. **Energy during the SPO interval** (round 8, R7-06): for ≥ 1.5 ms the rectified motor current flows into the battery, so the inverter asks the VCU/BMS to keep the contactors closed until ASC is back or n < n_x (FW-08b). Whether the link stays inside its rating if the battery path is lost inside that window is decided by the motor/vehicle release rule below (DC-link energy 32.8 J 8XX / 28.6 J 4XX to U_N); no brake chopper by default |
 | DESAT on a **low-side** switch (FLT_LS) | SPO | **SPO only** — the cause may be a shorted HS switch; LS-ASC would short the link through the motor |
@@ -257,8 +273,18 @@ the rectified motor energy into the battery. These intervals are the ≥ 1.5 ms 
 until n < n_x, a V5GD loss and a total LV loss. A battery that opens inside such an interval is **not**
 treated as an independent second fault: the inverter's own fault, a crash, a CAN loss or a full/cold
 pack can each cause it. A motor/vehicle combination is released only when one of these holds:
-- **(a)** E_LL,pk(n_max) at cold magnets is below the cans' U_N (1000 V 8XX / 600 V 4XX). SPO is then
-  energy-safe with or without the battery.
+- **(a)** SPO is energy-safe without the battery: at every speed up to n_max (cold magnets), with the
+  largest current the calibration allows there, generating, at the worst rotor angle, the diode-bridge
+  freewheel into the isolated link (C_min, starting at the OV trip 880 V / 530 V) peaks below U_N
+  (1000 V / 600 V). Screen, valid only while E < V₀:
+  V_pk ≤ E + √((V₀ − E)² + 1.5·(L_d·î_d² + L_q·î_q²)/C_min), with E = √3·ω_e·(ψ_f + |L_q − L_d|·Î/2).
+  If the screen fails, or E ≥ V₀ (the current does not decay), a three-phase diode-bridge simulation
+  with L_d(i), L_q(i), ψ_f and R_s decides. Round 12 (R1-F01/R2-F08): the A.9 rule tested the
+  back-EMF alone and missed the stored winding energy ¾·(L_d·i_d² + L_q·i_q²) plus the back-EMF work
+  during the decay (19–76 J for the screening motor — as large as the 52 J of winding energy). With
+  the screening motor (0.35 mH, 25 mΩ) the 8XX link covers the zero-EMF freewheel only up to
+  ≈ 277 A rms from 850 V (250 A from the 880 V trip); a 340 A rms motor of that inductance is
+  released under rule (b).
 - **(b)** The VCU/BMS integration shows, on HIL/dyno, that the contactors stay closed through inverter
   fault recovery at n ≥ n_x for every opening cause they can be driven by, the inverter's own faults
   included. The pack must also accept the rectified charge down to n_x (FW-08b).
@@ -288,7 +314,10 @@ the eFlexPWM lock and the watchdog, not on the driver's own latch (cross-check R
 Until the reset, the driver holds its own gate off through IN, EN and ASC changes (Fig. 8.11). All six RST/EN pins
 are DRV_EN, which the fault latch holds low. So:
 
-1. **FW-15** On FLT_HS/FLT_LS: PWM inputs to zero, log which bank **to NVM first** (round 9, R9X-08).
+1. **FW-15** On FLT_HS/FLT_LS: PWM inputs to zero (the eFlexPWM fault input has already forced
+   them low in hardware); latch which bank in retained RAM at once and **queue** the NVM write
+   (round 9, R9X-08; round 12, R2-F19: the write is asynchronous and bounded, and never sits in front
+   of the §6 action — the hardware chain has already taken it: DRV_EN low, ASC masked).
    V5GD now switches off with V5A, so any FS26 restart (LPOFF, a deep-fail-safe retry, a brown-out)
    also clears the drivers' own latched fault; the NVM record is what survives. Then apply §6. **Hardware PWM
    inhibit (round 7, RR03):** `FLT_HS_N`/`FLT_LS_N` (PTC26/PTC25) are routed through the SIUL2
@@ -384,7 +413,9 @@ are DRV_EN, which the fault latch holds low. So:
 - **FW-17** Fire QDIS only when the VCU/BMS reports the main contactors **open**, auto-release
   after 5 s, at most 3 discharges per 5 min (32 J/resistor pulses; thermal recovery).
 - **FW-18** Witness on both V_DC channels: expected τ (§2); no decay within 200 ms ⇒ stuck-off
-  DTC; the passive bleeder still guarantees < 60 V in 65 s (8XX) / 89 s (4XX) worst case.
+  DTC; the passive bleeder still guarantees < 60 V in 65 s (8XX) / 89 s (4XX) worst case. With
+  either witness invalid (FW-07: VOFS, V5GD or disagreement) the HV state is reported **unknown**,
+  never safe; service isolation then follows the independent measurement (round 12, R1-F18).
 - **FW-19** Precharge plausibility: a link that plateaus ≈5 % below the pack or charges with a
   short time constant indicates a shorted QDIS/string ⇒ refuse to arm. (A stuck-ON QDIS with
   the battery connected dissipates 384 W / 284 W — the fail-open flameproof wirewound class

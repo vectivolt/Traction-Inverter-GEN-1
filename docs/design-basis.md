@@ -182,7 +182,8 @@ Card-side conditioning per phase: supply bead + 47 nF/4.7 nF, 100 Ω + 3.3 nF in
 
 2 × (6 × 470 kΩ series top + 6.2 kΩ bottom → 850 V ≈ 1.87 V; full-scale 2 V = **911 V**, so
 the OV witness never saturates — rev A.3 / F27) into **AMC1311B** (0–2 V input) isolated
-amps, **each with its own reinforced bias module** (F4), read on different ADCs.
+amps, **each with its own reinforced bias supply** (F4; since A.11 a TI UCC12050 per channel, V_IOWM
+1200 Vrms / 1697 VDC, behind its own 5 V LDO from V15), read on different ADCs.
 - 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓; uncalibrated error
   **±2.1 % worst case** (correlated top string — rev A.6, R-F37; the old ±0.7 % was an RSS),
   ≈±0.3 % after EOL calibration; worst-corner linear FS 902 V vs the 880 V OV trip
@@ -192,6 +193,24 @@ amps, **each with its own reinforced bias module** (F4), read on different ADCs.
   pin (FW-07) and cross-checks the BMS pack voltage with contactors closed.
 - (References use AMC0386-Q1 integrated-divider parts — the divider+AMC1311 chain is the
   economical equivalent with the same reinforced barrier.)
+
+## 6a. Isolation barrier register (round 12, R1-F12 / R2-F31)
+
+Every element that bridges the HV domain (DC±, gate domains) to the LV/chassis domain, with the
+class it must carry for the 850 V link and the evidence in hand. A one-minute hipot figure is not a
+working-voltage rating; the gates are in the README VERIFY list.
+
+| Element | Position | Class needed | Evidence | Status |
+|---|---|---|---|---|
+| AMC1311B ×2 | V_DC sense | reinforced, 850 VDC working | V_IOWM 1.2 kVrms, V_IORM 1.7 kVpk (TI, VDE 0884-11) | ✓ |
+| UCC12050 ×2 | V_DC bias (A.11) | reinforced | V_IOWM 1200 Vrms / 1697 VDC, V_IORM 1697 Vpk (TI §6.6) | ✓ — replaces the non-existent MGJ2 code |
+| NSI6611ASC-Q1 ×6 | gate drivers | reinforced | SOIC-16W reinforced grade (DS 1.2) | ✓ |
+| VGT12EEM-200S1A4 ×6 | gate-power transformers | reinforced (gate domains at DC± potential) | 2.6 kVrms test; working insulation unpublished | gate ⑤ |
+| TLP152 ×2 | ASC / discharge command | reinforced | base part UL 1577 only | gate ⑪ (V4 option, V_IORM ≥ 850 Vpk) |
+| QA01C-18 ×2 | ASC / discharge bias | reinforced | 6 kVDC test, EN 60950 Class III; no working-voltage figure | **gate ⑳** (new, round 12) |
+| CY1/CY2 | Y-caps to chassis | Y1 | Y1 class (500 VAC) | gate ⑳: DC working rating at 850 V |
+| HC5FW ×3 | phase busbar aperture | per the LEM/sleeve construction | reduced-insulation variant + ≥ 1 kV sleeve | gate ⑩ |
+| Busbar / HV connector spacing | mechanical | per IEC 60664-1 at the agreed pollution degree | layout rule | layout |
 
 ## 7. Gate drive (per switch × 6)
 
@@ -251,7 +270,8 @@ HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
 ## 8. Control card (ASIL D brain)
 
 - **S32K396** (lockstep M7, ASIL-D capable, on-chip resolver interface + SDADC — the
-  EV-INVERTERGEN3 architecture), LQFP-176.
+  EV-INVERTERGEN3 architecture), 289-MAPBGA per the parts database; the package and ball map are
+  bound at the pin freeze (round 12 removed the stale "LQFP-176").
 - **FS26 SBC** (ASIL-D): VPRE/VCORE/VDDIO/VREF rails from KL30, challenge-response watchdog,
   FCCU error inputs, **FS0B** safe output.
 - Safety chain (hardware): DRV_EN = FS0B ∧ MCU_GATE_EN ∧ RDY_HS ∧ RDY_LS ∧ FLT_OK (two
@@ -355,7 +375,7 @@ one net, joined only at that named interface (rule printed in every NET NAMING p
 | L1 power ⇄ card | `JIC` ⇄ `JICC`, 40-way harness | 6× gate PWM, FLT/RDY, EN/ASC, V_DC + NTC feedbacks, 15 V bias, grounds | every line default-OFF / pulled to safe → gates low, FS26 sees loss |
 | L2 power ⇄ discharge | `JDIS` ⇄ `JCTL`, 4-way (V15, QDIS_CMD, 2× GND) | active-discharge bias + command | opto dark → active path OFF; passive bleeder alone still meets < 60 s |
 | L3 busbar (cap bank) | `JCBE[PN]` lugs ⇄ HV entry cables · `JCB[UVW][PN]` tabs ⇄ EconoDUAL DC terminals · `JCBD[PN]` ⇄ `JDCP/JDCN` | the DC bus itself | bolted, torque-controlled joints; HVIL loop opens before any service parting |
-| L4 card ⇄ LEM ×3 | `JLEM` 10-way | 5 V per sensor + 3 hall outputs | pull-downs give implausible zero → MCU plausibility trips |
+| L4 card ⇄ LEM ×3 | `JLEM` 10-way | 5 V per sensor + 3 hall outputs | 100 k pull-downs (drawn since A.11): an open wire reads 0 V, outside the 0.2–4.8 V window → channel invalid |
 | L5 HVIL | `JHVIL` (power) through the HV connector loop to the card monitor | interlock continuity | open = V_DDIO/2 signature → torque off + commanded discharge |
 
 QDIS_CMD's default-OFF pulldown lives on the **power board** (not only the discharge board),
@@ -371,15 +391,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.10)
+## 11. Verification status (current release: rev A.11)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **1815/1815 (100 %)**;
-- structural ERC **891 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **1883/1883 (100 %)**;
+- structural ERC **914 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **118 PASS / 14 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **123 PASS / 19 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -393,7 +413,31 @@ defect before release. Firmware obligations are in [`firmware-contract.md`](firm
 Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the external
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
-(the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check) and F120–F122 (A.10).
+(the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11k. Rev A.11 — system review round 12 (summary)
+
+Two independent whole-system reviews of `4544715` (28 + 35 findings) are answered line by line in
+[`review-A11-disposition.md`](review-A11-disposition.md). Five things were real and are fixed:
+
+- **SPO energy rule (R1-F01/R2-F08).** Release rule (a) accepted SPO on back-EMF alone; the stored
+  winding energy the diodes rectify into an isolated link (1.5·L·I²) was missing. The rule now
+  requires the link headroom to cover it, and a screening row shows the 8XX bank covers the 0.35 mH
+  screening motor only to 277 A rms.
+- **Resolver exciter (R2-F04).** The drawn filter had its MFB feedback pair swapped: |H(10 kHz)| was
+  0.18, and the S32K39 SWG (≤ 2.3 V pp) could never have reached 8 V pp. A textbook MFB
+  (1.5 nF / 220 pF) gives 1.85 → 7.7 V pp.
+- **V_DC bias (R1-F12, R2-F02/F03).** "MGJ2D150505SC" was never a real order code, and the MGJ2
+  family is reinforced only to 150 Vrms. Each channel now has a TI UCC12050 (V_IOWM 1200 Vrms /
+  1697 VDC) behind its own LDO.
+- **Hall interface (R1-F03/F04).** The open-wire pull-down claimed since A.4 is now drawn (100 k), and
+  the HC5FW is drawn with its real terminals (1 V_ref, 2 V_out, 3 Gnd, 4 U_C, E1–E4).
+- **Resolver harness short to KL30 (R2-F13).** 23 mA into an SDADC pin against a 3 mA limit;
+  series/bias values raised at zero cost.
+
+Plus a package/BOM correction (ALM2402 14-pin PWP), on-board NTCs, a verifier guard, and the contract
+wording items (overcurrent in instantaneous amperes, the "BMS limit 0" row split from "contactor
+open", NVM logging queued behind the safe action, the τ check demoted to plausibility). BOM −₹170/unit.
 
 ## 11j. Rev A.10 — schematic rechecks of A.9 (summary)
 
@@ -668,7 +712,9 @@ real orderable parts, each verified against its manufacturer datasheet before bi
 LCOR → Coilcraft XAL4020-222 (2.2 µH, AEC-Q200; values read from the XAL4000 datasheet),
 LB15/LSBC → XAL4040-103 (one line item for both 10 µH positions), PS5B/PS5C →
 Murata MGJ2D150505SC with an explicit procurement gate (verify the reinforced
-characterization at 850 VDC working and the SIP-7 pin map before PO). One candidate was
+characterization at 850 VDC working and the SIP-7 pin map before PO) — **round 12 resolved that gate
+negatively:** the order code does not exist and no MGJ2 is reinforced above 150 Vrms; both channels
+now use a TI UCC12050 (§6, §6a). One candidate was
 evaluated and **rejected during this binding**: RECOM R15P05S/R6.4 — its 6.4 kV rating is a
 1-second test voltage; the insulation grade per IEC 62368-1 is *basic* at 250 VACrms
 working, which fails the barrier rule for the 850 V bus. PSASC/PSQD stay Mornsun QA01C-18

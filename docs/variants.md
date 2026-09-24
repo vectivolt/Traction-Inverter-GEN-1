@@ -1,4 +1,4 @@
-# GEN-1 platform — one set of boards, four SKUs (rev A.10)
+# GEN-1 platform — one set of boards, four SKUs (rev A.11)
 
 **Short answer to "can one board do SiC/IGBT and 4XX/8XX?" — yes.** The power PCB, control
 card, discharge PCB and cap-bank busbar are the same for every SKU. A SKU is a module choice,
@@ -24,7 +24,7 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
   the same 1200 V silicon. At a 500 V maximum that is a large voltage margin, one module
   qualification, and one volume price — worth more than the ≈0.5 pt efficiency a 750 V part
   would give at 400 V.
-- **The firmware knows what it is driving:** a 1-resistor SKU identity on harness pin 40, read
+- **The firmware knows what it is driving:** a 1-resistor SKU identity on harness pin 2, read
   by the MCU; a mismatch with the loaded parameter set blocks the gates (FW-01/FW-02).
 
 | Common to all SKUs | Changes per SKU |
@@ -39,15 +39,15 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | | **8XX SiC** | **8XX IGBT** | **4XX IGBT** | 4XX SiC |
 |---|---|---|---|---|
 | Module ×3 | HCS600FH120D3C1 | HCG600FH120D3E1EA | HCG600FH120D3E1EA | HCS600FH120D3C1 |
-| DC bus | 500–850 V | 500–850 V | 250–500 V | 250–500 V |
+| DC bus | 500–850 V (a pack above 850 V at full charge is a separate configuration: 5.1 k divider bottoms for a 1108 V linear range, cans, thresholds and DPT re-qualified together — round 12) | 500–850 V | 250–500 V | 250–500 V |
 | f_sw | 8–10 kHz | 5 kHz | 5 kHz | 8–10 kHz |
 | Phase current pk (30 s) / cont | 340 / 185 A rms | 340 / 185 A rms | 400 / 250 A rms | 400 / 250 A rms |
 | Peak / continuous power | **220 / 120 kW** from 654 V | **220 / 120 kW** from 654 V | **150 / 90 kW** from 379 V | 150 / 90 kW from 379 V |
 | …at the bottom of the range | 168 / 91 kW at 500 V | 168 / 91 kW at 500 V | 99 / 62 kW at 250 V | 99 / 62 kW at 250 V |
 | Tj end of 30 s peak at V_max (S4, static junction path; IGBT and diode share the plate — RR07/R7-07; with no plate mass: 135 / 142 / 133 / 143 °C, R8X-11) | 125 °C (175 °C max) | 132 °C (150 °C Tvjop) | 125 °C (150 °C) | 133 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
-| Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹71,080** | **₹45,580** | **₹45,580** | ₹71,080 |
+| Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04). The 6 µs is given at 800 V / 15 V / 175 °C; the design corner is 850 V / 16.7 V, so hiitio's statement covers that corner too (round 12) | same as 8XX IGBT | as 8XX SiC |
+| Electronics BOM @1k | **₹70,913** | **₹45,413** | **₹45,413** | ₹70,913 |
 | Ex-works cost (cost-rollup method) | ≈ ₹1.15 L | ≈ ₹0.90 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.17 L |
 | Cost per peak kW | ≈ ₹525/kW | **≈ ₹410/kW** | ≈ ₹610/kW | ≈ ₹780/kW |
 | Status | **launch** | **launch** | **launch** | on request |

@@ -183,7 +183,7 @@ export default () => (
     {/* FS26 output caps per DS: LDO1 COUT 4.7 uF (2.35-15 eff) · VREF COUT 2.2 uF
         (1.1-3.3 eff) · VBOS 4.7 uF — rev A.4.1 value completions */}
     {[["CSB1", "VPRE", "22uF"], ["CSB2", "VPRE", "22uF"], ["CSB3", "V15S", "22uF"], ["CSB3B", "V15S", "22uF"], ["CSB4", "V11", "10uF"],
-      ["CSB5", "VREF5", "2.2uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
+      ["CSB5", "VREF5", "1uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
       <capacitor key={n} name={n} capacitance={v} footprint="0805" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
     ))}
@@ -415,14 +415,27 @@ export default () => (
     <capacitor name="CVM2" capacitance="220nF" footprint="0603" {...gp()} connections={{ pin1: "net.VMDIV2", pin2: "net.AGND" }} />
     <chip name="UVMB2" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
       connections={{ OUT: "net.VMID_RSV", VN: "net.AGND", INP: "net.VMDIV2", INN: "net.VMID_RSV", VP: "net.V5A" }} />
-    {/* exciter: SWG -> 3rd-order MFB LPF (OPA348) -> ALM2402 H-bridge -> R1/R2 */}
+    {/* exciter: SWG -> AC coupling -> 2nd-order MFB LPF (OPA348, gain -2.4) -> ALM2402 H-bridge -> R1/R2.
+        Round 12 (R2-F04): the drawn network had the MFB feedback pair swapped (4.7 nF from the output
+        to the summing node, 24 k to the inverting input), which made a first-order 2 kHz roll-off:
+        |H(10 kHz)| = 0.18, so the S32K39 SWG (0.39-2.30 V pk-pk, Table 40) would have driven ~0.7 V pp
+        into the resolver instead of 8 V pp. Now a textbook MFB: REXA2 in, REXA4 output->summing node,
+        CEXA2 summing node->ground, REXA3 to the inverting input, CEXA1 output->inverting input.
+        At 10 kHz the 100 nF is a short, so the input resistance is REXA1 + REXA2 = 13 k: passband
+        gain -1.85, f0 17.9 kHz, Q 0.77, |H(10 kHz)| 1.85 (+/-6 % over +/-10 % caps and 1 % resistors):
+        SWG 2.09 V pp -> 3.9 V pp at REX_F -> 7.7 V pp differential (7.0-8.5 over the SWG range).
+        24 k is the ceiling: the ALM2402's ~0.13 V/us slew at -40 C caps each output near 2.07 V pk
+        (8.3 V pp differential). The SWG amplitude register is the firmware knob against the
+        excitation monitor (REXM). CEXA4 gives the SWG its specified 25-100 pF load (Table 40).
+        OPA348: +0.15 % / -2.3 deg at 10 kHz from its 1 MHz GBW (Opus check, round 12). */}
+    <capacitor name="CEXA4" capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: "net.SWG1", pin2: "net.AGND" }} />
     <resistor name="REXA1" resistance="3k" footprint="0603" {...gp()} connections={{ pin1: "net.SWG1", pin2: "net.NEX1" }} />
     <capacitor name="CEXA3" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.NEX1", pin2: "net.NEX2" }} />
     <resistor name="REXA2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.NEX2", pin2: "net.NEX3" }} />
-    <capacitor name="CEXA2" capacitance="300pF" footprint="0603" {...gp()} connections={{ pin1: "net.NEX3", pin2: "net.AGND" }} />
+    <capacitor name="CEXA2" capacitance="1.5nF" footprint="0603" {...gp()} connections={{ pin1: "net.NEX3", pin2: "net.AGND" }} />
     <resistor name="REXA3" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.NEX3", pin2: "net.NEX4" }} />
-    <capacitor name="CEXA1" capacitance="4.7nF" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX3" }} />
-    <resistor name="REXA4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX4" }} />
+    <capacitor name="CEXA1" capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX4" }} />
+    <resistor name="REXA4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX3" }} />
     <chip name="UEXF" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
       connections={{ OUT: "net.REX_F", VN: "net.AGND", INP: "net.VMID_REX", INN: "net.NEX4", VP: "net.V5A" }} />
     {/* resolver-amp supply: ALM2402 abs max is 18 V (rec 16 V) — VBATC can see 24 V jump
@@ -450,21 +463,33 @@ export default () => (
     <resistor name="REXM2" resistance="12k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />
     <resistor name="REXM3" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREXM_N" }} />
     <resistor name="REXM4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_N", pin2: "net.AGND" }} />
-    {/* sin/cos conditioning: 680R bias pair to VMID + 330R series + clamps + RC to SDADC */}
+    {/* sin/cos conditioning: 10 k bias pair to VMID + 10 k series + clamps + RC to SDADC.
+        Round 12 (R2-F13): the resolver wires share the vehicle connector with KL30. With the GEN3
+        680 R / 330 R a wire shorted to 16 V pushed (16 - 5.7)/450 = 23 mA into an SDADC pin against
+        the S32K39's 3 mA limit (operating AND absolute maximum, no transient allowance) and 20 mA
+        into the VMID buffer. 10 k series: 1.0 / 1.8 / 2.9 mA at 16 / 24 / 35 V; 10 k bias: both legs
+        pull up through the winding, 2 x 1.35 mA into the OPA348 (it sinks ~7 mA at 125 C). The
+        caps are rescaled with the 30x higher source: 47 pF + 100 pF differential, 22 pF common-mode
+        on BOTH legs (the P-only caps converted common mode to differential): corner ~47 kHz,
+        -12 deg at 10 kHz on both channels; source 20 k vs the SDADC's Z_DIFF >= 215 k is a
+        ratio-cancelled 9 % gain term, calibrated at EOL. 100 pF at the pin is ~800x the SDADC
+        sampling capacitor (Opus check, round 12). */}
     {[["SIN", "S1", "S3"], ["COS", "S2", "S4"]].map(([s, a, b]) => (
       <group key={s}>
-        <resistor name={`R${s}1`} resistance="680" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: "net.VMID_RSV" }} />
-        <resistor name={`R${s}2`} resistance="680" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: "net.VMID_RSV" }} />
-        <resistor name={`R${s}F1`} resistance="330" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: `net.${s}F_P` }} />
-        <resistor name={`R${s}F2`} resistance="330" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: `net.${s}F_N` }} />
+        <resistor name={`R${s}1`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: "net.VMID_RSV" }} />
+        <resistor name={`R${s}2`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: "net.VMID_RSV" }} />
+        <resistor name={`R${s}F1`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${a}`, pin2: `net.${s}F_P` }} />
+        <resistor name={`R${s}F2`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: `net.RSLV_${b}`, pin2: `net.${s}F_N` }} />
         <chip name={`D${s}P`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "A", pin2: "B", pin3: "G" }}
           connections={{ A: `net.${s}F_P`, B: `net.${s}F_N`, G: "net.AGND" }} />
-        <capacitor name={`C${s}D`} capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: `net.${s}F_N` }} />
-        <capacitor name={`C${s}F`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: "net.VMID_RSV" }} />
+        <capacitor name={`C${s}D`} capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: `net.${s}F_N` }} />
+        <capacitor name={`C${s}F1`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: "net.VMID_RSV" }} />
+        <capacitor name={`C${s}F2`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_N`, pin2: "net.VMID_RSV" }} />
         <resistor name={`R${s}R1`} resistance="120" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_P`, pin2: `net.${s}_P` }} />
         <resistor name={`R${s}R2`} resistance="120" footprint="0603" {...gp()} connections={{ pin1: `net.${s}F_N`, pin2: `net.${s}_N` }} />
-        <capacitor name={`C${s}A1`} capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: "net.AGND" }} />
-        <capacitor name={`C${s}A2`} capacitance="2.2nF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: `net.${s}_N` }} />
+        <capacitor name={`C${s}A1`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: "net.AGND" }} />
+        <capacitor name={`C${s}A3`} capacitance="22pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_N`, pin2: "net.AGND" }} />
+        <capacitor name={`C${s}A2`} capacitance="100pF" footprint="0603" {...gp()} connections={{ pin1: `net.${s}_P`, pin2: `net.${s}_N` }} />
       </group>
     ))}
 
@@ -472,9 +497,15 @@ export default () => (
     <chip name="JLEM" footprint={Header(10, 2)} {...gp()}
       pinLabels={{ pin1: "S5U", pin2: "OU", pin3: "G1", pin4: "S5V", pin5: "OV", pin6: "G2", pin7: "S5W", pin8: "OW", pin9: "SH", pin10: "G3" }}
       connections={{ S5U: "net.V5S_U", OU: "net.HALL_U", G1: "net.AGND", S5V: "net.V5S_V", OV: "net.HALL_V", G2: "net.AGND", S5W: "net.V5S_W", OW: "net.HALL_W", SH: "net.AGND", G3: "net.AGND" }} />
+    {/* Round 12 (R1-F04): the real HC5FW 900-S terminals (DS p.2): 1 V_ref (reference OUTPUT, left
+        open — optional 1-4.7 nF to Gnd), 2 V_out, 3 Gnd, 4 U_C 5 V, E1-E4 mass pins to Gnd. It is a
+        PCB-mount THT device with no connector, so it sits on the off-board carrier at each phase
+        busbar; the carrier drawing derives from THIS symbol, not from the old 3-pin abstraction
+        (which had VCC on terminal 1 = V_ref). RL >= 10 k, CL <= 6.8 nF, output 0.2-4.8 V. */}
     {PH.map((x) => (
-      <chip key={x} name={`USNS${x}`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "VCC", pin2: "OUT", pin3: "GND" }}
-        connections={{ VCC: `net.V5S_${x}`, OUT: `net.HALL_${x}`, GND: "net.AGND" }} />
+      <chip key={x} name={`USNS${x}`} footprint={SmdFP(8)} {...gp()}
+        pinLabels={{ pin1: "VREF", pin2: "OUT", pin3: "GND", pin4: "VCC", pin5: "E1", pin6: "E2", pin7: "E3", pin8: "E4" }}
+        connections={{ VREF: `net.NC_SNS${x}R`, OUT: `net.HALL_${x}`, GND: "net.AGND", VCC: `net.V5S_${x}`, E1: "net.AGND", E2: "net.AGND", E3: "net.AGND", E4: "net.AGND" }} />
     ))}
     {PH.map((x) => (
       <HallChain key={x} ph={x} vout={`net.HALL_${x}`} adc={`net.ISNS_${x}`} />

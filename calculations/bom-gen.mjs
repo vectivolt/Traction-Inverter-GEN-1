@@ -62,7 +62,7 @@ const SUBSYS = [
   ["Discharge (active+passive)", /^(RBLD\d|RDIS\d|QDIS|UQD|PSQD|RQD|CQD)/],
   ["Gate drivers + networks", /^(U[UVW][HL]G|[RDCZ][UVW][HL])/],
   ["Gate-power flybacks", /^([UQ]F[HL]|[RCD]F[HL]|ZF[HL]|TF[HL])/],
-  ["VDC iso sensing + bias", /^(RV[DB]D|CV[DB]DF|UIV|PS5B|C5B)/],
+  ["VDC iso sensing + bias", /^(RV[DB]D|CV[DB]DF|UIV|PS5[BC]|C5[BC]|U5L|C5L)/],
   ["ASC buffer", /^(PSASC|UASC$|RASC(L|G|PD)$|CASCD?$|DASCR|ZASC)/],
   ["LV power (prot+LDO+boost)", /^(F[HL]1|DR[HL]|DTV[HL]|LF[HL]1|CLV[HL]|UGDL|C5G|UB15|LB15|DB15|CB15|RB15)/],
   ["HV entry/Y-caps/HVIL/studs", /^(JHV|JPE|JM[UVW]|CY[12]|RPET|CPET|JHVIL|RHVL|DTVSH)/],

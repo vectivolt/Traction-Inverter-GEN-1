@@ -1,4 +1,4 @@
-# Traction Inverter — 4XX · IGBT (HCG600FH120D3E1EA), 250–500 V bus — BOM (rev A.10, generated 2026-09-23)
+# Traction Inverter — 4XX · IGBT (HCG600FH120D3E1EA), 250–500 V bus — BOM (rev A.11, generated 2026-09-24)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -9,7 +9,7 @@ LEM sensor prices are quote-gated — figures below are the planning assumptions
 Same PCBs for every SKU — this BOM differs from the others only in the rows listed in `parts-db.mjs` SKUS.igbt4.
 All SKUs: [8XX SiC](bom.md) · [8XX IGBT](bom-igbt.md) · [4XX IGBT](bom-igbt4.md) · [4XX SiC](bom-sic4.md) — comparison in [`variants.md`](variants.md).
 
-## power — 306 components, 92 BOM lines, ≈ ₹33,922 @1k
+## power — 313 components, 92 BOM lines, ≈ ₹33,753 @1k
 
 CSV: [`docs/bom-power-igbt4.csv`](bom-power-igbt4.csv). Top cost lines:
 
@@ -17,16 +17,16 @@ CSV: [`docs/bom-power-igbt4.csv`](bom-power-igbt4.csv). Top cost lines:
 |---|---|---|---|---|
 | 3 | HCG600FH120D3E1EA | IGBT half-bridge module 1200 V 600 A, SAME D3 EconoDUAL 3 fo | 28,500 | - |
 | 6 | VGT12EEM-200S1A4 | gate-drive flyback transformer EE, AEC-Q200, 2.6 kVrms — Dig | 2,100 | Wurth 750318131 class / CN custom-wound  |
-| 2 | MGJ2D150505SC | iso 15->+5/-5 V 2 W SIP-7 gate-drive-grade bias, +5 V used | 960 | NO basic-insulation substitutes; Mornsun |
+| 2 | UCC12050DVER | iso 5 V -> 5.0 V 500 mW DC/DC, SOIC-16W | 720 | UCC12051QDVERQ1 (AEC-Q100 G1, same barri |
 | 3 | FILM-1uF-1200V | 1 uF 1200 V film snubber at module DC terminals | 540 | B32774D0505K000 5 uF C3809992 (retune) / |
 | 6 | NSI6611ASC-Q1SWR | iso gate driver 10 A | 510 | NSI6602B / UCC21750-Q1 (map differs) |
 | 2 | AMC1311BDWVR | iso voltage amp 0-2 V in, reinforced | 230 | NSI1311 class |
 | 5 | STUD-M8 | HV DC entry M8 stud | 140 | M10 |
 | 1 | TPS55340QRTERQ1 | boost 12->15.0 V | 140 | LM5155-Q1 / commercial TPS55340RTER C169 |
 | 1 | HARNESS-2x20-CLASS | 40-way dual-row harness to the control card — family chosen  | 120 | TE MATE-N-LOK eq |
+| 3 | NCV4276CDT50RKG | 5 V LDO from V15 for one UCC12050 | 96 | NCV4949 class |
 | 1 | QA01C-18 | iso 15 V-in SiC-driver bias module, OUTPUTS +18/-3 V | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
 | 2 | BUK7Y14-80E | 80 V logic-level NFET LFPAK | 50 | SQJ850EP class |
-| 12 | R2512-1R0-2W | gate turn-on 1.0 R | 48 | - |
 
 ## capbank — 26 components, 4 BOM lines, ≈ ₹4,940 @1k
 
@@ -45,7 +45,7 @@ CSV: [`docs/bom-discharge-igbt4.csv`](bom-discharge-igbt4.csv). Top cost lines:
 
 | Qty | MPN | Description | ₹ ext @1k | Alt |
 |---|---|---|---|---|
-| 1 | HCM75S12T4K3 | SiC MOSFET 1200 V 75 mR TO-247-4L | 350 | any 1200 V >=5 A SiC/Si FET, TO-247 |
+| 1 | HCM75S12T4K3 | SiC MOSFET 1200 V 75 mR TO-247-4L | 350 | 1200 V >=5 A SiC FET in TO-247-4L with t |
 | 4 | WW-220R-10W-AX | 220 R 10 W axial ceramic wirewound, fail-open/flameproof cla | 112 | - |
 | 1 | QA01C-18 | iso 15 V-in SiC-driver bias module >=6 kVDC, OUTPUTS +18/-3  | 95 | B1518S-3WR3HD / YLPTEC QA01C-18 C5369865 |
 | 1 | TLP152 | opto gate driver | 42 | TLP2745 / EL3182 |
@@ -57,7 +57,7 @@ CSV: [`docs/bom-discharge-igbt4.csv`](bom-discharge-igbt4.csv). Top cost lines:
 | 1 | R0603-261R-1% | discharge opto LED series 261 R 1 % from the card Schmitt-bu | 0 | any |
 | 1 | MLCC-100nF-50V | discharge bias decoupling, 50 V | 0 | any |
 
-## control-card — 280 components, 99 BOM lines, ≈ ₹6,040 @1k
+## control-card — 288 components, 96 BOM lines, ≈ ₹6,042 @1k
 
 CSV: [`docs/bom-control-card-igbt4.csv`](bom-control-card-igbt4.csv). Top cost lines:
 
@@ -83,20 +83,20 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 
 | Subsystem | ₹ | share | cumulative | parts |
 |---|---|---|---|---|
-| SiC power modules | 28,500 | 62.5% | 62.5% | 3 |
-| DC-link film caps | 4,800 | 10.5% | 73.1% | 16 |
-| Hall sensors + AFE | 2,321 | 5.1% | 78.2% | 35 |
-| Gate-power flybacks | 2,252 | 4.9% | 83.1% | 77 |
-| MCU + clock + debug | 1,494 | 3.3% | 86.4% | 22 |
-| Vehicle connector + prot | 785 | 1.7% | 88.1% | 6 |
-| misc | 754 | 1.7% | 89.7% | 46 |
-| VDC iso sensing + bias | 725 | 1.6% | 91.3% | 21 |
-| Gate drivers + networks | 659 | 1.4% | 92.8% | 129 |
-| Discharge (active+passive) | 637 | 1.4% | 94.2% | 24 |
-| FS26 SBC + LV input + wake | 608 | 1.3% | 95.5% | 38 |
-| Module snubbers | 540 | 1.2% | 96.7% | 3 |
-| LV power (prot+LDO+boost) | 274 | 0.6% | 97.3% | 28 |
-| Resolver AFE | 272 | 0.6% | 97.9% | 48 |
+| SiC power modules | 28,500 | 62.8% | 62.8% | 3 |
+| DC-link film caps | 4,800 | 10.6% | 73.3% | 16 |
+| Hall sensors + AFE | 2,322 | 5.1% | 78.4% | 38 |
+| Gate-power flybacks | 2,252 | 5.0% | 83.4% | 77 |
+| MCU + clock + debug | 1,494 | 3.3% | 86.7% | 22 |
+| VDC iso sensing + bias | 1,036 | 2.3% | 89.0% | 30 |
+| Vehicle connector + prot | 785 | 1.7% | 90.7% | 6 |
+| Gate drivers + networks | 659 | 1.5% | 92.2% | 129 |
+| Discharge (active+passive) | 637 | 1.4% | 93.6% | 24 |
+| FS26 SBC + LV input + wake | 608 | 1.3% | 94.9% | 38 |
+| Module snubbers | 540 | 1.2% | 96.1% | 3 |
+| LV power (prot+LDO+boost) | 274 | 0.6% | 96.7% | 28 |
+| misc | 273 | 0.6% | 97.3% | 44 |
+| Resolver AFE | 273 | 0.6% | 97.9% | 53 |
 | Harness + pulldowns | 245 | 0.5% | 98.4% | 17 |
 | HV entry/Y-caps/HVIL/studs | 208 | 0.5% | 98.9% | 14 |
 | ASC buffer | 140 | 0.3% | 99.2% | 9 |
@@ -110,16 +110,16 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 
 | Category | ₹ | share |
 |---|---|---|
-| power semiconductors | 30,654 | 67.3% |
-| drive + control ICs | 10,450 | 22.9% |
+| power semiconductors | 30,432 | 67.0% |
+| drive + control ICs | 10,634 | 23.4% |
 | magnetics | 2,183 | 4.8% |
-| connectors + sensors | 1,155 | 2.5% |
-| misc | 440 | 1.0% |
-| capacitors | 278 | 0.6% |
+| connectors + sensors | 1,157 | 2.5% |
+| misc | 435 | 1.0% |
 | isolation | 231 | 0.5% |
-| protection + diodes | 167 | 0.4% |
-| resistors | 23 | 0.1% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **45,580** | 100% |
+| capacitors | 169 | 0.4% |
+| protection + diodes | 149 | 0.3% |
+| resistors | 26 | 0.1% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **45,413** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.

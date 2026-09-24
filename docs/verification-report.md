@@ -1,4 +1,4 @@
-# Design Verification Report — rev A.10 (2026-09-24)
+# Design Verification Report — rev A.11 (2026-09-24)
 
 End-to-end verification of the 220 kW / 800 V traction inverter at actual operating corners
 (V_bus 500–850 V · KL30 9–16 V · 10 kHz · 65 °C coldplate), worst-case component tolerances.
@@ -6,13 +6,13 @@ Three independent layers:
 
 1. **Geometric pin-verify** (sheets vs netlist, `kicad5-verify.mjs`) — the sheets ship only at 100 %
 2. **Structural ERC audit** (netlist vs design intent, `erc-audit.mjs`) — 0 fail, incl. a lock-in per fixed finding
-3. **Numeric verification** (this report, `design-verify.mjs`): **118 PASS · 14 WARN · 0 FAIL** (+16 info)
+3. **Numeric verification** (this report, `design-verify.mjs`): **123 PASS · 19 WARN · 0 FAIL** (+16 info)
 
 A WARN is an item this analysis cannot close on paper — each names its bench or vendor gate.
 Every SKU of the platform (8XX/4XX × SiC/IGBT — `loss-model.mjs`) is checked on the
 same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks — all fixed; review cross-reference in [`review-A6-disposition.md`](review-A6-disposition.md), [`review-A7-disposition.md`](review-A7-disposition.md) and [`review-A8-disposition.md`](review-A8-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review — all fixed; review cross-reference in [`review-A6-disposition.md`](review-A6-disposition.md), [`review-A7-disposition.md`](review-A7-disposition.md) and [`review-A8-disposition.md`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -49,6 +49,18 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | F120 | MED | Schematic recheck A9-S01: RDY_HS/RDY_LS (open-drain, 5.1 k to V5GD) drove 74LVC1G11-Q100 AND inputs directly at ≈20–100 ns/V against the 10 ns/V recommended limit; the round-7/8 "state-benign" rejection left the shutdown chain outside the datasheet | USCH3 74LVC3G17-Q100 on both RDY lines (RRDB dead-state pull-down); ERC by pin number |
 | F121 | LOW | S9-01: RASCG (2.2 k) carries up to 0.12 W for as long as ASC is held, but was a generic 0603 (0.1 W at 70 °C → 82 mW at 85 °C) | ROHM ESR03EZPF2201 (0.33 W at 70 °C → 0.27 W at 85 °C); 2.2 k kept for the ASC timing |
 | F122 | LOW | S9-02 and notes: discharge sheet heading "67.5k bleeder (58 s)"; "V_GS 13.4–18.1 V" read as a hard ceiling; the A9 disposition still quoted the interim pin-39 V5GD pin | 66 k (56 s nom / 65 s worst); 13.3–18.2 V with 1 % resistors ("a divider, not a clamp"); the final harness map quoted |
+| F123 | **HIGH** | §6 release rule (a) accepted SPO on back-EMF alone and omitted the stored winding energy the diodes rectify into an isolated link: 1.5·L·I² = 61 J (8XX) / 84 J (4XX) with the 0.35 mH screening motor against 40 J of link headroom (R1-F01, R2-F08) | rule (a) now requires ½·C_min·(U_N² − V_max²) ≥ W_mag + W_emf from the motor's dq model; screening row (WARN): 8XX covers that motor only to 277 A rms, above it rule (b) |
+| F124 | **HIGH** | Resolver exciter drawn with the MFB feedback pair swapped (4.7 nF output→summing node, 24 k output→inverting input): first-order 2 kHz roll-off, |H(10 kHz)| 0.18, so the S32K39 SWG (≤ 2.30 V pp) would have driven ≈ 0.7 V pp instead of 8 V pp (R2-F04) | textbook MFB 10k/24k/10k with 1.5 nF to ground and 220 pF feedback: f0 17.9 kHz, Q 0.70, |H| 1.85 → 7.7 V pp; SWG amplitude is the firmware knob; ERC by topology and value |
+| F125 | **HIGH** | VDC-channel bias "MGJ2D150505SC" is not an existing order code, and the MGJ2 family is reinforced only to 150 Vrms (R1-F12, R2-F02/F03) | TI UCC12050 per channel (V_IOWM 1200 Vrms / 1697 VDC, VDE 0884-11 reinforced, the AMC1311's own class) behind its own NCV4276C from V15; 10 µF X7R both sides; ERC by pin |
+| F126 | MED | The Hall open-wire pull-down claimed in README/design-basis since A.4 was never drawn (R1-F03) | R⟨ph⟩B0 100 k at each card input: open wire or dead sensor reads 0 V, outside the 0.2–4.8 V validity window now in FW-05 |
+| F127 | MED | LEM HC5FW drawn as a 3-pin VCC/OUT/GND symbol; the device has 1 V_ref, 2 V_out, 3 Gnd, 4 U_C and E1–E4 mass pins and no connector (R1-F04) | 8-terminal symbol by DS number (V_ref open, E1–E4 to Gnd); the off-board carrier drawing derives from it; ERC by terminal number |
+| F128 | MED | A resolver wire shorted to KL30 (shares the vehicle connector) injected ≈ 23 mA into an SDADC pin through 330 + 120 Ω against the S32K39's 3 mA limit (operating and absolute maximum), and both legs pulled 20 mA into the VMID buffer through the 680 Ω bias (R2-F13, R1-F20) | RSINF/RCOSF and RSIN/RCOS → 10 k: 1.0 / 1.8 / 2.9 mA at 16 / 24 / 35 V, buffer 2.7 mA; caps rescaled (47 p + 100 p differential, 22 p common-mode on both legs — the P-only caps converted CM to DM): corner 47 kHz, −12° on both channels; SWG given its 47 pF load |
+| F129 | LOW | VREF5 sat at 3.3 µF nominal, the FS26 upper limit, before tolerance (R2-F11) | CSB5 2.2 µF → 1 µF (0805 X7R 16 V): 2.1 µF nominal, 1.4–2.3 µF effective over tolerance, bias, temperature and aging |
+| F130 | **HIGH** | LV-entry coordination (R1-F14, R2-F10, found by the Opus check): the notes described the classic TPSMC24CA (V_BR 22.8–25.2 V), which conducts at the 24 V/60 s jump start and, in an ISO 16750-2 test B at Ri ≤ 2 Ω, takes more than the (extrapolated) 400 ms capability; at 0.5 Ω the polyfuse then trips inside the pulse, sees ≈ 30 V against its 24 V V_max and latches until a KL30 cycle; the archived datasheet was the -VR series | TPSMC24CA-VR bound explicitly (AEC-Q101, 24 V stand-off, V_BR 26.7–29.5 V, same pad and price): dark at 24 V, clamps ≤ 33 V under the boost's 34 V abs max; test B covered on paper at Ri ≥ 4 Ω, the OEM's Ri is gate ㉓ (≤ 2 Ω: TVS pulse test or 35 V-rated rails). Polyfuse kept (the 33 V part holds 1.17 A hot against the 1.19 A worst chain) |
+| F131 | LOW | UEXD (ALM2402QPWPRQ1) bought as "HTSSOP16"; the PWP package is 14-pin (R1-F05, R2-F26) | footprint HTSSOP14-PWP; ERC asserts the 14-pin package against the symbol |
+| F132 | LOW | Board NTCs drawn as 2-pin headers, bought as 0603 NTCs (R2-F27) | on-board RTAMB/RTHS 0603 (symbol = BOM) |
+| F133 | LOW | kicad5-verify exited 0 on an empty page set (R2-F29) | fails unless 4 sheets and ≥ 1500 pins were compared |
+| F134 | LOW | Contract and document defects: FW-05 threshold in A rms; §6 merged "contactor open" with "BMS limit 0"; FW-15 "NVM first" ahead of the safe action; FW-02 τ bands overlap; HW_ID "pin 40"; "LQFP-176"; stale "inside 6 µs" IGBT text; ALT field offered M7 rectifiers and a 3-lead TO-247; CAN termination fixed; FW-18 silent on invalid witnesses; S6 double-update unstated (R1-F02/F11/F18/F23/F24/F25/F27, R2-F18/F19/F24/F33/F34/F35) | all corrected: instantaneous ±601/±707 A; rows split; retained-RAM latch, queued NVM; plausibility wording + EOL measurement; pin 2; 289-MAPBGA; RR04 wording; ALT = qualify-before-use; endpoint DNP option; "unknown, never safe"; delay stated |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |
@@ -369,7 +381,7 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | VCORE COUT effective (2×22 µF @1.5 V) | 32 µF | 20–100 µF eff (Table 106) | ✅ PASS | 63% of limit · F52 — was 10 µF nominal; inductor now 2.2 µH per CORE_LSEL_OTP |
 | VPRE COUT effective (2×22 µF @6 V) | 26 µF | ≥22 µF test condition | ✅ PASS | 83% of limit · F52 |
 | VPRE input effective (22 µF @14 V) | 11.4 µF | ≥10 µF eff | ✅ PASS | 87% of limit · F52 — CLVC2 4.7 µF was under the input spec |
-| VREF5 rail effective (whole rail: 3.3 µF nom) | 2.2 µF | 1.1–3.3 µF eff window | ✅ PASS | 68% of limit · reviewer correction accepted: count CMA1/CMA2, judge the rail not one part |
+| VREF5 rail effective (whole rail: 2.1 µF nom) | 1.2–2.79 µF | 1.1–3.3 µF eff window (FS26 COUT_VREF) | ✅ PASS | round 12 (R2-F11): 2.2 µF put the nominal rail AT the 3.3 µF limit and the A.4 row never looked at the +tolerance corner; CMA1 stays 1 µF as the reservoir at the MCU VREFH pins (AN5032) |
 | ULDO15 feed-forward zero (49.9k·220pF) | 14.5 kHz | 11–18 kHz (onsemi Cb guidance) | ✅ PASS | 81% of limit · F54 — COUT 22 µF ceramic |
 | ULDOEX feed-forward zero (38.3k·270pF) | 15.4 kHz | 11–18 kHz (onsemi Cb guidance) | ✅ PASS | 86% of limit · F55 |
 | VEXD target for ALM2402 | 12.07 V | 16 V recommended max (18 V abs) | ✅ PASS | 75% of limit · F55 — was raw VBATC: 24 V jump start exceeded abs max |
@@ -429,6 +441,36 @@ same PCBs; losses and thermal use the shared model that `sim-verify.mjs` also ru
 | HVIL signatures (drive hi/lo/open) | 3.0 / 2.0 / 2.5 V | - | ✅ PASS | distinct at ±5 % R tolerance (worst separation 0.38 V) |
 | Resolver monitor dividers @4 V pk | 2.83 / 3.31 V | 5 V SDADC input | ✅ PASS | 66% of limit |
 | Resolver drive @9 V KL30 | ≈6.5 V pp available vs 8 V pp target | - | 🟡 WARN | ALM2402 swing at cold-crank INCLUDING ULDOEX dropout (~0.3 V @ ~150 mA, A.4.3) — angle still tracks (amplitude-invariant demod); GEN3-equivalent behavior |
+
+### System A.11
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| SPO freewheel energy at 340 A rms into the isolated link (8XX SiC, screening motor 0.35 mH, zero back-EMF) | 61 J → 1092 V from the 880 V trip | 32.8 J headroom to 1000 V U_N at C_min 291 µF | 🟡 WARN | round 12: rule (a) of §6 covers this motor only up to 250 A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX) |
+| SPO freewheel energy at 400 A rms into the isolated link (4XX IGBT, screening motor 0.35 mH, zero back-EMF) | 84 J → 716 V from the 530 V trip | 28.6 J headroom to 600 V U_N at C_min 723 µF | 🟡 WARN | round 12: rule (a) of §6 covers this motor only up to 233 A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX) |
+
+### Sensing A.11
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge) | |H| 1.85 (1.75–1.94 over ±10 % caps) → 7.7 V pp differential (7–8.5 over the SWG MAXAPP range) | 8 V pp target; SWG amplitude register is the firmware knob (0.39–2.30 V pp) | ✅ PASS | f0 17.9 kHz, Q 0.77, passband gain −1.85. 24 k is the ceiling: the ALM2402's ≈0.13 V/µs slew at −40 °C caps each output near 2.07 V pk (8.3 V pp). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped — 4.7 nF from the output to the summing node and 24 k to the inverting input — a first-order 2 kHz roll-off with |H(10 kHz)| 0.18, i.e. 0.75 V pp from the SWG maximum. OPA348: 1 MHz GBW gives ≈ 35× loop gain at 10 kHz; slew needed 242988.373 V/µs of 0.5 |
+| Hall signal open wire (R⟨ph⟩B0 100 k) | reads 0 V; 2.5 → 0.3 V in 0.7 ms | outside the HC5FW 0.2–4.8 V window (FW-05); RL ≥ 10 k | ✅ PASS | round 12 (R1-F03): the README had claimed the pull-down since A.4; an unpowered sensor reads the same 0 V. The Σi = 0 check alone could not see a stale 2.5 V (zero-current) reading at standstill |
+| VDC bias LDO (NCV4276C DPAK from V15, one per UCC12050) | 0.66 W → Tj ≈ 111 °C at 85 °C ambient (40 K/W on a 1 in² pad) | 150 °C Tj max | ✅ PASS | 74% of limit · UCC12050 idles at 50 mA (TI §6.9) + the AMC1311's 8 mA at ≈50 % efficiency; one shared LDO would carry 1.3 W, and the V5GD LDO already runs from the 12 V node — hence one LDO per channel, which also keeps the channels independent (F4) |
+| VDC bias barrier working voltage (UCC12050 V_IOWM) | 1697 VDC / 1200 Vrms reinforced (VDE 0884-11) | 850 VDC link (same class as the AMC1311, 1.2 kVrms) | ✅ PASS | 50% of limit · round 12 (R1-F12, R2-F02/F03): the A.4.4 bind "MGJ2D150505SC" does not exist and the MGJ2 family is reinforced to 150 Vrms only — every module family checked (MGJ1/2, NXE/NXJ, RECOM RxxP/R1SX, Mornsun QA, ADuM6028) fails the working-voltage criterion |
+| Resolver wire shorted to KL30: SDADC pin injection (RSINF 10 k + RSINR 120) | 1.02 / 1.81 / 2.9 mA at 16 / 24 / 35 V | 3 mA per pin — the S32K39 operating AND absolute-maximum limit (no transient allowance) | ✅ PASS | 97% of limit · round 12: the GEN3 330 Ω + 120 Ω let 23 mA in. Both legs pull up through the winding, so the VMID buffer sinks 2.7 mA through the two 10 k bias resistors (OPA348 ≈ 7 mA at 125 °C; was 20 mA through 680 Ω). Caps rescaled with the 30× source: 47 pF + 100 pF differential + 22 pF common-mode on both legs → corner 47 kHz, −12° at 10 kHz on both channels (a ±5 % cap mismatch is 0.46 % gain mismatch, ≈0.13° electrical); source 20 k vs Z_DIFF ≥ 215 k is a ratio-cancelled 9 % gain term |
+
+### LV A.11
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| Load dump test B (35 V, 400 ms) into the classic TPSMC24CA + MF-LSMF300/24X polyfuse | 18.1 A / 469 W at Ri 0.5 Ω · 5.6 A / 133 W at 2 Ω · 2.9 A / 68 W at 4 Ω | ≈ 110 W for 400 ms (1.5 kW class, extrapolated — no rating beyond 1 ms); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12, historical: the A.4 notes described this part — it conducts at the 24 V/60 s jump start (V_BR min 22.8 V) and at Ri ≤ 2 Ω takes ≥ 1.2× the extrapolated 400 ms capability; at 0.5 Ω the polyfuse trips inside the pulse (0.1–0.25 s hot), sees ≈ 30 V (V_max 24 V) and latches until a KL30 cycle — the archived sheet and the LCSC code were the -VR class, now bound explicitly |
+| Load dump test B (35 V, 400 ms) into the TPSMC24CA-VR + MF-LSMF300/24X polyfuse | 11.2 A / 328 W at Ri 0.5 Ω · 3.7 A / 102 W at 2 Ω · 2 A / 53 W at 4 Ω | ≈ 110 W for 400 ms (1.5 kW class, extrapolated — no rating beyond 1 ms); polyfuse 3 A hold / 5.2 A trip, V_max 24 V | 🟡 WARN | round 12: dark at 24 V (V_BR ≥ 26.7 V), clamps ≤ 33 V so the TPS55340 (34 V abs max) is inside its rating; at Ri = 4 Ω the pulse is 55 W (covered), at 2 Ω it is at the extrapolated limit, below 1 Ω the polyfuse trips and sees ≈ 30 V. The OEM's test-B source resistance is release gate ㉓: at ≤ 2 Ω either a TVS pulse test or 35 V-rated rails (a ≥ 42 V boost input in place of the TPS55340) decide. The polyfuse stays (the 33 V MF-LSMF260 holds 1.17 A hot against the 1.19 A worst chain) |
+
+### Power stage — all SKUs
+
+| Check | Value | Limit | Verdict | Margin note |
+|---|---|---|---|---|
+| IGBT short-circuit rating condition vs the design corner | 6 µs at 800 V / 15 V / 175 °C (hiitio DS) | design corner 850 V / VCC2 up to 16.7 V | 🟡 WARN | round 12 (R1-F06, R2-F05): the RR04 release gate (contained SC test) now also asks hiitio for the SC statement at 850 V and the 16.7 V gate-rail corner, or the gate rail's upper corner is tightened; the stale "inside 6 µs" BOM text was removed |
 
 ### Safety
 

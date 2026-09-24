@@ -132,4 +132,7 @@ console.log(`\n== ${sheets} pages · ${totPins} connected pins · ${totLabels} l
 console.log(`correct ${totOk} · wrong ${totWrong} · unconnected ${totAbsent} → ${(100 * totOk / totPins).toFixed(2)}%`);
 console.log(`floating labels ${floating} · overlapping symbols ${overlaps} · unclosed frames ${openFrames}`);
 if (problems.length) { console.log("\nfirst problems:"); problems.slice(0, 20).forEach((p) => console.log("  " + p)); }
+// Round 12 (R2-F29): an empty expected-page set left every counter at zero and exited 0. The
+// four assemblies and their pins must actually have been compared.
+if (sheets < 4 || totPins < 1500) { console.log(`FAIL: only ${sheets} sheets / ${totPins} pins compared (need 4 / >= 1500)`); process.exit(1); }
 process.exit(totWrong + totAbsent + floating + overlaps + openFrames ? 1 : 0);

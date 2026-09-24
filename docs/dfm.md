@@ -79,6 +79,11 @@ test on back-to-back rig).
 - Keep every polarized THT part in one orientation per board.
 - No bottom-side THT; bottom SMT limited to chip R/C if used at all.
 - CIN_TRK ≥0.5 µF effective placed at the FS26 TRKIN pin (VPRE bank) — DS placement rule.
+- The cap-bank / discharge kit's voltage class is proven at EOL by measurement, not inferred: LCR the
+  fitted bank (320 µF ± 10 % 8XX / 800 µF 4XX) and the discharge string (1.88 k / 880 Ω) against the
+  serial-linked kit record before the first HV energisation. FW-02's runtime τ check is a plausibility
+  check only — a 4XX bank fitted with its own discharge board reads 0.71 s, inside the 8XX ±20 % band
+  (round 12, R1-F24/R2-F28).
 - ROHM ESR03 parts carry fault-hold power, so their fillet (terminal) temperature is part of the
   rating (DS Fig. 2/4). RASCG (2.2 k, 1 kΩ < R row) is full-rated to 110 °C and allows ≤ 138 °C at
   its 0.12 W; RFS4 (1 k, R ≤ 1 kΩ row) is full-rated to 130 °C and allows ≤ 132 °C at its 0.30 W

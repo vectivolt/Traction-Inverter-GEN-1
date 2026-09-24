@@ -513,7 +513,7 @@ const HAND = {
   ],
   // Exciter in signal order: SWG filter -> op-amp -> power driver -> monitor dividers.
   "RESOLVER / EXCITER": [
-    ["REXA1", "CEXA3", "REXA2", "CEXA2", "REXA3", "CEXA1", "REXA4", "UEXF"],
+    ["CEXA4", "REXA1", "CEXA3", "REXA2", "CEXA2", "REXA3", "CEXA1", "REXA4", "UEXF"],
     ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD", "RSDN"],
     ["ULDOEX", "RLDE1", "RLDE2", "CLDEC", "CLDE"],
     ["REXM1", "REXM2", "REXM3", "REXM4"],
@@ -523,24 +523,24 @@ const HAND = {
     ["RVM3", "RVM4", "CVM2", "UVMB2"],
   ],
   "RESOLVER / SIN": [
-    ["RSIN1", "RSIN2", "RSINF1", "RSINF2", "DSINP", "CSIND", "CSINF"],
-    ["RSINR1", "RSINR2", "CSINA1", "CSINA2"],
+    ["RSIN1", "RSIN2", "RSINF1", "RSINF2", "DSINP", "CSIND", "CSINF1", "CSINF2"],
+    ["RSINR1", "RSINR2", "CSINA1", "CSINA3", "CSINA2"],
   ],
   "RESOLVER / COS": [
-    ["RCOS1", "RCOS2", "RCOSF1", "RCOSF2", "DCOSP", "CCOSD", "CCOSF"],
-    ["RCOSR1", "RCOSR2", "CCOSA1", "CCOSA2"],
+    ["RCOS1", "RCOS2", "RCOSF1", "RCOSF2", "DCOSP", "CCOSD", "CCOSF1", "CCOSF2"],
+    ["RCOSR1", "RCOSR2", "CCOSA1", "CCOSA3", "CCOSA2"],
   ],
   // A hall channel: supply filtering | the two-buffer chain in signal order.
   "PHASE-SENSE / SENSE-IU": [
-    ["LUB", "CUS1", "CUS2", "RUB1", "CUB1"],
+    ["LUB", "CUS1", "CUS2", "RUB0", "RUB1", "CUB1"],
     ["UUB1", "RUB2", "CUB2", "UUB2", "RUB3"],
   ],
   "PHASE-SENSE / SENSE-IV": [
-    ["LVB", "CVS1", "CVS2", "RVB1", "CVB1"],
+    ["LVB", "CVS1", "CVS2", "RVB0", "RVB1", "CVB1"],
     ["UVB1", "RVB2", "CVB2", "UVB2", "RVB3"],
   ],
   "PHASE-SENSE / SENSE-IW": [
-    ["LWB", "CWS1", "CWS2", "RWB1", "CWB1"],
+    ["LWB", "CWS1", "CWS2", "RWB0", "RWB1", "CWB1"],
     ["UWB1", "RWB2", "CWB2", "UWB2", "RWB3"],
   ],
   "PHASE-SENSE / HALL-CONN": [["JLEM", "USNSU", "USNSV", "USNSW"]],

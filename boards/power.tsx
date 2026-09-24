@@ -111,18 +111,31 @@ export default () => (
     <diode name="DASCR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.ASC_DRV", cathode: "net.ASCVO" }} />
     <capacitor name="CASC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18A", pin2: "net.DCN" }} />
 
-    {/* ---- ISOLATED DC-LINK SENSING: two independent channels + shared reinforced bias ---- */}
+    {/* ---- ISOLATED DC-LINK SENSING: two independent channels, each with its OWN reinforced bias ---- */}
     <IsoVSense id="1" outP="net.VDC1_P" outN="net.VDC1_N" />
     <IsoVSense id="2" outP="net.VDC2_P" outN="net.VDC2_N" />
-    <chip name="PS5B" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PS5BN", COM: "net.DCN", VOP: "net.V5ISO" }} />
-    <capacitor name="C5B1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
-    <capacitor name="C5B2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO", pin2: "net.DCN" }} />
-    {/* channel-2 bias is its OWN module — the independence claim of the dual VDC sense must
-        not share a common bias supply (ERC finding F4) */}
-    <chip name="PS5C" footprint={Sip7FP()} {...gp()} pinLabels={{ pin1: "VIN", pin2: "GND", pin5: "VON", pin6: "COM", pin7: "VOP" }}
-      connections={{ VIN: "net.V15", GND: "net.DGND", VON: "net.NC_PS5CN", COM: "net.DCN", VOP: "net.V5ISO2" }} />
-    <capacitor name="C5C1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5ISO2", pin2: "net.DCN" }} />
+    {/* Round 12 (R1-F12, R2-F02/F03): the bound "MGJ2D150505SC" does not exist — the MGJ2 family only
+        makes gate-drive pairs, and its reinforced approval is 150 Vrms — so each channel's bias is now a
+        TI UCC12050 (5 V in -> 5.0 V iso, SEL tied to VISO, EN to VINP; V_IORM 1697 Vpk, V_IOWM
+        1200 Vrms / 1697 VDC reinforced per VDE 0884-11, the same class as the AMC1311 it feeds).
+        It needs 5 V in and idles at 50 mA, so each has its own NCV4276C from V15 (0.6 W in DPAK,
+        instead of 1.2 W on one part or on the V5GD LDO); the two channels stay independent (F4).
+        Pins per TI Table 5-1: 1 EN, 2 GNDP, 3 VINP, 4 SYNC (tie GNDP = internal osc), 5 SYNC_OK
+        (open drain, unused), 6-8 NC (primary domain -> GNDP), 9/15/16 GNDS (15 is the bypass return),
+        10-12 NC (isolated domain -> GNDS), 13 SEL, 14 VISO. 10 uF 16 V X7R on both sides. */}
+    {[["B", "V5ISO"], ["C", "V5ISO2"]].map(([k, v]) => (
+      <group key={k}>
+        <chip name={`U5L${k}`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "NC", pin5: "OUT" }}
+          connections={{ IN: "net.V15", INH: "net.V15", GND: "net.DGND", NC: `net.NC_U5L${k}4`, OUT: `net.V5S${k}` }} />
+        <capacitor name={`C5L${k}1`} capacitance="1uF" footprint="0805" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
+        <capacitor name={`C5L${k}2`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: `net.V5S${k}`, pin2: "net.DGND" }} />
+        <chip name={`PS5${k}`} footprint={SmdFP(16)} {...gp()}
+          pinLabels={{ pin1: "EN", pin2: "GNDP", pin3: "VINP", pin4: "SYNC", pin5: "SYNC_OK", pin6: "NC6", pin7: "NC7", pin8: "NC8", pin9: "GNDS9", pin10: "NC10", pin11: "NC11", pin12: "NC12", pin13: "SEL", pin14: "VISO", pin15: "GNDS", pin16: "GNDS16" }}
+          connections={{ EN: `net.V5S${k}`, GNDP: "net.DGND", VINP: `net.V5S${k}`, SYNC: "net.DGND", SYNC_OK: `net.NC_PS5${k}5`, NC6: "net.DGND", NC7: "net.DGND", NC8: "net.DGND", GNDS9: "net.DCN", NC10: "net.DCN", NC11: "net.DCN", NC12: "net.DCN", SEL: `net.${v}`, VISO: `net.${v}`, GNDS: "net.DCN", GNDS16: "net.DCN" }} />
+        <capacitor name={`C5${k}1`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: `net.${v}`, pin2: "net.DCN" }} />
+        <capacitor name={`C5${k}2`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: `net.${v}`, pin2: "net.DCN" }} />
+      </group>
+    ))}
 
     {/* ---- LV POWER: two protected 12V feeds + V5GD LDO + V15 boost ---- */}
     <chip name="FH1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
