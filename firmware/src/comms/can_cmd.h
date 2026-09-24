@@ -7,14 +7,23 @@
  *   - direction interlock: gear changes only near standstill; D never drives backwards, R never
  *     forwards; N/P => zero torque;
  *   - status frame carries "keep HV connected" (FW-08b), HV state, self-test done, the zero-
- *     torque confirmation the VCU/BMS waits for before a non-emergency opening (FW-08).
+ *     torque confirmation the VCU/BMS waits for before a non-emergency opening (FW-08), and (round
+ *     14) "no safe state proven", "service required / do not re-energise", "open the contactors",
+ *     "limit the speed" and the arming evidence still missing.
  *
  * VCU_CMD 0x101 (8 B): b0 CRC | b1 [3:0] ctr, [5:4] gear, [6] enable, [7] fault reset |
  *   b2-3 torque int16 0.1 Nm | b4 [1:0] contactors (1 open, 2 precharge, 3 closed), [2] DESAT
  *   retry authorisation, [3] discharge request, [4] shutdown | b5 coolant degC + 40 (0xFF n/a)
  * VCU_BMS 0x102 (8 B): b0 CRC | b1 [3:0] ctr | b2-3 pack V 0.1 V | b4-5 charge (regen) power
  *   limit 0.1 kW | b6-7 discharge power limit 0.1 kW
- * INV_STATUS 0x201 (16 B): see can_status_encode(). */
+ * INV_STATUS 0x201 (16 B): b0 CRC | b1 [3:0] ctr, [4] self-test done, [5] keep HV (FW-08b),
+ *   [6] derate, [7] fault | b2 state | b3 [1:0] bridge, [3:2] HV state, [4] zero torque,
+ *   [5] discharging, [6] precharge refused, [7] speed valid | b4-5 torque 0.1 Nm | b6-7 speed rpm |
+ *   b8-9 V_DC 0.1 V (0xFFFF invalid) | b10 module degC + 40 | b11 confirmed DTCs | b12-13 first DTC |
+ *   b14 [0] no safe state proven (an SPO held with neither rule (a) nor (b), A12-R08),
+ *       [1] service required: do not re-energise (stuck-on QDIS), [2] open the contactors,
+ *       [3] speed limit requested (no voltage-feasible current, F23) |
+ *   b15 [4:0] arming evidence missing (arm_evidence.h ARM_EV_* bits). */
 #ifndef CAN_CMD_H
 #define CAN_CMD_H
 
@@ -71,6 +80,11 @@ typedef struct {
     float t_module_c;
     uint16_t n_dtc;
     uint16_t first_dtc;
+    bool no_safe_state;       /* A12-R08 */
+    bool service_required;    /* item 9: do not re-energise */
+    bool open_contactors_req; /* item 9 */
+    bool speed_limit_req;     /* F23 */
+    uint8_t evidence_missing; /* ARM_EV_* bits not present */
 } can_status_t;
 
 void can_cmd_init(can_cmd_t *c);

@@ -50,7 +50,7 @@ const PAGES = {
     ["HV-SENSING", [
       ["SENSE-VDC", [/^RVDD[1-6]$/, /^RVDDL$/, /^CVDDF$/, /^UIVDC$/]],
       ["SENSE-VDC2", [/^RVBD[1-6]$/, /^RVBDL$/, /^CVBDF$/, /^UIVB$/]],
-      ["ISO-BIAS", [/^U5L[BC]$/, /^C5L[BC][12]$/, /^PS5[BC]$/, /^C5[BC][12]$/]],
+      ["ISO-BIAS", [/^U5L[BC]$/, /^C5L[BC][12]$/, /^PS5[BC]$/, /^C5[BC][12]$/, /^R5L[BC]$/]],
       ["ASC-BUFFER", [/^PSASC$/, /^UASC$/, /^RASC(L|G|PD|F[12]|E[12])$/, /^CASC(D|I[12]|IB|O|F)?$/, /^ZASC$/, /^DASCR$/]],
     ], ["SENSE-VDC", "SENSE-VDC2", "ISO-BIAS", "ASC-BUFFER"]],
     ["LV-POWER", [
@@ -78,12 +78,12 @@ const PAGES = {
   ],
   card: [
     ["CONTROL", [
-      ["MCU", [/^UMCU$/, /^Y1$/, /^CY[AB]$/, /^CMD\d+$/, /^CMA[12]$/, /^RMRST$/]],
+      ["MCU", [/^UMCU$/, /^Y1$/, /^CY[AB]$/, /^CMD\d+$/, /^CMA[12]$/, /^RMRST$/, /^CV25$/]],
       ["SWD-BOOT", [/^JSWD$/, /^RBOOT$/, /^CRST$/]],
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [
       ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/, /^QLV[SN]$/, /^RLVS[GDM]$/, /^CLVSM$/, /^ZLVS$/]],
-      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+B?$/, /^RSB\d+$/, /^RAGT$/, /^CVDIG$/, /^CVBOS$/, /^CBT[PC]$/, /^RDBG$/]],
+      ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+B?$/, /^RSB\d+$/, /^RAGT$/, /^CVDIG$/, /^CVBOS$/, /^CBT[PC]$/, /^RDBG$/, /^CBAL$/]],
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
     ["SAFETY", [
@@ -98,7 +98,7 @@ const PAGES = {
     ], ["CH-1", "CH-2"]],
     ["RESOLVER", [
       ["VMID", [/^RVM[1-4]$/, /^CVM[12]$/, /^UVMB[12]$/]],
-      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/]],
+      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/, /^CEXM$/, /^FEX[PN]$/, /^TVSE[PN]$/]],
       ["SIN", [/^RSIN(1|2|F1|F2|R1|R2)$/, /^DSINP$/, /^CSIN[DFA]\d?$/]],
       ["COS", [/^RCOS(1|2|F1|F2|R1|R2)$/, /^DCOSP$/, /^CCOS[DFA]\d?$/]],
     ], ["VMID", "EXCITER", "SIN", "COS"]],
@@ -236,8 +236,11 @@ for (const side of ["power", "capbank", "disch", "card"]) {
       if (seen.has(c.name) || /^NC_/.test(c.name)) continue;
       for (const [bname, regexes] of blocks) {
         if (regexes.some(r => r.test(c.name))) {
+          // Round 14 (A12-R03): a label of the form <ball>_<signal> (the MCU) carries its PHYSICAL ball ID —
+          // that ball becomes the KiCad pin NUMBER, so the netlist/footprint handoff uses H5/J7/L14, not 65/77/94.
+          const ballOf = (p) => /^([A-U]\d{1,2})_/.exec(p.name ?? "")?.[1];
           const allPins = (byComp.get(c.source_component_id) ?? []).map(p => ({
-            pin_number: p.pin_number ?? p.name, name: pinName(c, p),
+            pin_number: ballOf(p) ?? p.pin_number ?? p.name, name: pinName(c, p),
             signal_name: (portNet.get(p.source_port_id) ?? "").replace(/^NC_.*/, ""),
           }));
           // tscircuit emits duplicate alias ports (anode + pin1) for the same physical pin —

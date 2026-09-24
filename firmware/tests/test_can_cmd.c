@@ -115,6 +115,18 @@ TEST(status_frame_round_trip)
     CHECK((uint16_t)(f.data[8] | (f.data[9] << 8)) == 7125u);
 }
 
+/* Round 14 fields of INV_STATUS: byte 14 flags, byte 15 the missing arming evidence. */
+TEST(status_frame_round14_fields)
+{
+    const can_status_t s = {.no_safe_state = true, .open_contactors_req = true, .evidence_missing = 0x19u};
+    hal_can_frame_t f;
+    can_status_encode(&s, 1u, &f);
+    CHECK(f.data[14] == 0x05u && f.data[15] == 0x19u && can_e2e_crc(f.id, f.data, f.len) == f.data[0]);
+    const can_status_t t = {.service_required = true, .speed_limit_req = true, .evidence_missing = 0xFFu};
+    can_status_encode(&t, 2u, &f);
+    CHECK(f.data[14] == 0x0Au && f.data[15] == 0x1Fu);
+}
+
 void suite_can_cmd(void)
 {
     RUN(valid_frame_decoded);
@@ -124,4 +136,5 @@ void suite_can_cmd(void)
     RUN(bms_has_its_own_timeout);
     RUN(direction_interlock);
     RUN(status_frame_round_trip);
+    RUN(status_frame_round14_fields);
 }

@@ -45,9 +45,9 @@ const MCU_PINS: [string, string][] = [
   ["B16_VSS", "DGND"],  // VSS — ground
   ["C2_FCCU1", "FCCU_ERR1"],  // PTE16 FCCU_ERR1 — FCCU error out 1
   ["C3_CAN1RX", "CAN1_RX"],  // PTA22 CAN1_RX — FlexCAN1 RX
-  ["C12_HWID", "HW_ID"],  // PTC6 ADC3_P6 — SKU identity (was PTB4: no ADC)
+  ["B5_HWID", "HW_ID"],  // PTE0 ADC3_P0 — SKU identity. ROUND 14: moved from C12 (PTC6) — C12 is open on the NXP GEN3 board, so its port had no netlist cross-check; B5 = PTE0 is confirmed by NET-91122_C
   ["C13_ENFLYL", "MCU_EN_FLYBK_LS"],  // PTD31 — flyback LS enable (OR)
-  ["C14_NTCA", "NTC_A"],  // PTD29 ADC5_P7 — board NTC ambient (was PTA10 = JTAG_TDO)
+  ["T15_NTCA", "NTC_A"],  // PTC11 ADC5_S11 — board NTC ambient. ROUND 14: moved from C14 (PTD29, no netlist cross-check); T15 = PTC11 confirmed by NET-91122_C
   ["C15_SINP", "SIN_P"],  // PTB9 SDADC2_AN[0] — resolver SIN+ (SDADC2 AN0)
   ["C17_AMUX", "SBC_AMUX"],  // PTB11 ADC0_S14 — FS26 AMUX (was a named ADC0_S12 pin)
   ["D2_FCCU0", "FCCU_ERR0"],  // PTE15 FCCU_ERR0 — FCCU error out 0
@@ -55,7 +55,7 @@ const MCU_PINS: [string, string][] = [
   ["D4_VSS", "DGND"],  // VSS — ground
   ["D8_ILKN", "INTRLOK_N"],  // PTE23 ADC1_P7 — HVIL signature (was PTF5: no ADC)
   ["D9_VSS", "DGND"],  // VSS — ground
-  ["D11_MT2", "MT2_SIG"],  // PTE18 ADC3_P5 — motor temp 2 (PTA13 absent)
+  ["D5_MT2", "MT2_SIG"],  // PTE26 ADC1_P0 — motor temp 2. ROUND 14: moved from D11 (PTE18, no netlist cross-check); D5 = PTE26 confirmed by NET-91122_C
   ["D12_VREXMN", "VREXM_N"],  // PTE17 SDADC1_AN[1] — excitation monitor - (SDADC1 AN1)
   ["D13_ENFLYH", "MCU_EN_FLYBK_HS"],  // PTD30 — flyback HS enable (OR)
   ["D14_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
@@ -84,7 +84,7 @@ const MCU_PINS: [string, string][] = [
   ["G13_VREFL_SDADC_23", "AGND"],  // VREFL_SDADC_23 — ADC reference low
   ["G15_CS", "SBC_CS"],  // PTF16 LPSPI3_PCS0 — LPSPI3 PCS0
   ["H1_IGN", "IGN_SNS"],  // PTA25 ADC0_S8 — KL15 sense
-  ["H5_VREFH_SAR_456", "VREF5"],  // VREFH_SAR_456 — ADC reference high (FS26 VREF 5 V)
+  ["H5_V15", "V15S"],  // V15 — 1.5 V core-regulator input/sense (GEN3 net VCORE; DS Fig. 6). ROUND 14 A12-R01: A.12 had this ball on VREF5 (5 V > 2.75 V abs max)
   ["H6_VREFH_SAR_0123", "VREF5"],  // VREFH_SAR_0123 — ADC reference high (FS26 VREF 5 V)
   ["H7_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
   ["H8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
@@ -96,7 +96,7 @@ const MCU_PINS: [string, string][] = [
   ["J4_VSS", "DGND"],  // VSS — ground
   ["J5_VSS_DCDC", "DGND"],  // VSS_DCDC — internal DC/DC ground (PMIC option)
   ["J6_VREFL_SAR_0123", "AGND"],  // VREFL_SAR_0123 — ADC reference low
-  ["J7_VSS", "DGND"],  // VSS — DS PMIC figure lists J7 as a ground ball ("V25" in the figure text); g
+  ["J7_V25", "V25"],  // V25 — internal 2.5 V flash-regulator OUTPUT: 220 nF to ground (COUT_V25 140 nF min effective; GEN3 C79/C80). ROUND 14 A12-R02: A.12 had it grounded; g
   ["J8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
   ["J9_VSS", "DGND"],  // VSS — ground
   ["J10_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
@@ -140,7 +140,7 @@ const MCU_PINS: [string, string][] = [
   ["R14_FLTLS", "FLT_LS_N"],  // PTC25 PWM_1_FAULT[2] — driver fault LS bank -> eFlexPWM1 FAULT2
   ["R17_VOFS", "VOFS"],  // PTB1 ADC4_S11 — receiver offset monitor
   ["T2_VSS", "DGND"],  // VSS — ground
-  ["T5_ASCREQ", "ASC_REQ"],  // PTD6 — ASC request (latch clock)
+  ["U4_ASCREQ", "ASC_REQ"],  // PTD7 — ASC request (latch clock). ROUND 14: moved from T5 (PTD6, no netlist cross-check); U4 = PTD7 confirmed by NET-91122_C
   ["T6_DRVENRB", "DRV_EN_RB"],  // PTD10 — DRV_EN read-back
   ["T7_VSS", "DGND"],  // VSS — ground
   ["T10_VSS", "DGND"],  // VSS — ground
@@ -273,6 +273,11 @@ export default () => (
     <inductor name="LCOR" inductance="2.2uH" footprint="1210" {...gp()} connections={{ pin1: "net.SWCORE", pin2: "net.V15S" }} />
     <chip name="QBAL" footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "G", pin2: "S", pin3: "D" }}
       connections={{ G: "net.BCTRL", S: "net.V11", D: "net.V15S" }} />
+    {/* Round 14 (A12-R04): CNMOS — NXP's NMOS gate-stability capacitor, 1 nF typ (DS Table 13), NMOS_CTRL to VSS */}
+    <capacitor name="CBAL" capacitance="1nF" footprint="0603" {...gp()} connections={{ pin1: "net.BCTRL", pin2: "net.DGND" }} />
+    {/* Round 14 (A12-R02): COUT_V25 — the J7 internal 2.5 V flash-regulator output capacitor, 220 nF typ / 140 nF min
+        effective (DS Table 11): X7R 10 V 0603 keeps >= 180 nF after tolerance and the 2.5 V bias */}
+    <capacitor name="CV25" capacitance="220nF" footprint="0603" {...gp()} connections={{ pin1: "net.V25", pin2: "net.DGND" }} />
     {/* FS26 output caps per DS: LDO1 COUT 4.7 uF (2.35-15 eff) · VREF COUT 2.2 uF
         (1.1-3.3 eff) · VBOS 4.7 uF — rev A.4.1 value completions */}
     {[["CSB1", "VPRE", "22uF"], ["CSB2", "VPRE", "22uF"], ["CSB3", "V15S", "22uF"], ["CSB3B", "V15S", "22uF"], ["CSB4", "V11", "10uF"],
@@ -546,16 +551,33 @@ export default () => (
       pinLabels={{ pin1: "IN1N", pin2: "IN1P", pin3: "SDN", pin4: "IN2P", pin5: "IN2N", pin6: "GND1", pin7: "NC7", pin8: "NC8", pin9: "OUT2", pin10: "VCCO2", pin11: "VCC", pin12: "VCCO1", pin13: "OUT1", pin14: "GND2" }}
       connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VEXD", VCC: "net.VEXD", VCCO1: "net.VEXD", OUT1: "net.VREX_P", GND2: "net.AGND" }} />
     <resistor name="RSDN" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.EXSD" }} />
+    {/* Round 14 (F04): the ALM2402 outputs reach the vehicle connector directly and its 12.1 V rail does not
+        protect an output pin forced to 24/35 V by a harness fault (output abs max 18 V). Per line: a 1.5 kW
+        bidirectional TVS at the connector node (SMCJ8.5CA — V_BR >= 9.4 V clears the 4-8 V excitation swing;
+        it clamps a fault at ~10-13 V, BELOW the 12.1 V rail + a diode, so the amplifier output is not back-driven)
+        and a series PTC (0.2 A hold, >= 33 V) that trips within tens of ms and then holds the TVS at ~1 W. The
+        amplifier's own short-circuit limit covers a line shorted to ground. design-verify §7c carries the
+        fault currents and the PTC/TVS pulse budget; bench (gate): terminal fault on both lines, MCU on/off. */}
+    <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_P", B: "net.VREX_PC" }} />
+    <chip name="FEXN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_N", B: "net.VREX_NC" }} />
+    <chip name="TVSEP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_PC", A: "net.AGND" }} />
+    <chip name="TVSEN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_NC", A: "net.AGND" }} />
     <resistor name="REXB1" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.EXN1" }} />
     <resistor name="REXB2" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN1" }} />
     <resistor name="REXB3" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN2" }} />
     <resistor name="REXB4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.EXN2" }} />
     <capacitor name="CEXD" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.AGND" }} />
     {/* excitation monitor dividers (GEN3: 4.99k/12.1k, 4.99k/24k) */}
-    <resistor name="REXM1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREXM_P" }} />
-    <resistor name="REXM2" resistance="12k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />
-    <resistor name="REXM3" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREXM_N" }} />
-    <resistor name="REXM4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_N", pin2: "net.AGND" }} />
+    {/* Round 14 (F03/F05): the monitor dividers now hold the S32K39 3 mA per-pad injection limit with the MCU unpowered
+        (an excitation wire shorted to 35 V: 35/(18 k x 0.99) = 1.96 mA; 50 V: 2.81 mA — the round-12 5.1 k gave 5.5-5.7 mA),
+        same ratios as before (42.2/60.2 = 0.701, 84.5/102.5 = 0.824); Thevenin 12.6 k / 14.8 k per leg (<= 20 k R_AAF, Table 38)
+        with the 220 pF C_AAF across the pair: corner ~26 kHz, -21 deg at 10 kHz vs -24 deg on SIN/COS — a fixed 3 deg
+        demodulation-reference offset, calibrated with the channel matching (FW-20). */}
+    <resistor name="REXM1" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREXM_P" }} />
+    <resistor name="REXM2" resistance="42.2k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />
+    <resistor name="REXM3" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREXM_N" }} />
+    <resistor name="REXM4" resistance="84.5k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_N", pin2: "net.AGND" }} />
+    <capacitor name="CEXM" capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.VREXM_N" }} />
     {/* sin/cos conditioning: 12 k bias pair to VMID + 12 k series + clamps + RC to SDADC.
         Round 12 (R2-F13): the resolver wires share the vehicle connector with KL30. With the GEN3
         680 R / 330 R a wire shorted to 16 V pushed (16 - 5.7)/450 = 23 mA into an SDADC pin against
@@ -624,8 +646,9 @@ export default () => (
       <group key={k}>
         <chip name={`FMT${k}`} footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
           connections={{ A: `net.${m}_RAW`, B: `net.${m}_F` }} />
-        <chip name={`TVSM${k}`} footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "L", pin2: "G" }}
-          connections={{ L: `net.${m}_F`, G: "net.AGND" }} />
+        {/* SMAJ5.0A (round 14, F18): cathode on the line, anode on AGND — a real 400 W clamp, drawn as the diode it is */}
+        <chip name={`TVSM${k}`} footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }}
+          connections={{ K: `net.${m}_F`, A: "net.AGND" }} />
         <resistor name={`RMT${k}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: `net.${m}_F` }} />
         <resistor name={`RMT${k}S`} resistance="1k" footprint="0603" {...gp()} connections={{ pin1: `net.${m}_F`, pin2: `net.${m}_B` }} />
         <capacitor name={`CMT${k}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.${m}_B`, pin2: "net.AGND" }} />
@@ -641,7 +664,7 @@ export default () => (
     {/* ---- VEHICLE CONNECTOR (fused + beaded lines per GEN3) ---- */}
     <chip name="JVEH" footprint={Header(23)} {...gp()}
       pinLabels={{ pin1: "KL30", pin2: "GND1", pin3: "KL15", pin4: "CANH1", pin5: "CANL1", pin6: "CANH2", pin7: "CANL2", pin8: "FAULT", pin9: "MT1P", pin10: "MT1R", pin11: "MT2P", pin12: "MT2R", pin13: "R1", pin14: "R2", pin15: "S1", pin16: "S3", pin17: "S2", pin18: "S4", pin19: "SHLDR", pin20: "SHLDS", pin21: "GND2", pin22: "SP1", pin23: "SP2" }}
-      connections={{ KL30: "net.KL30", GND1: "net.DGND", KL15: "net.KL15R", CANH1: "net.VCANH1", CANL1: "net.VCANL1", CANH2: "net.VCANH2", CANL2: "net.VCANL2", FAULT: "net.FAULT_OUT", MT1P: "net.MT1_RAW", MT1R: "net.AGND", MT2P: "net.MT2_RAW", MT2R: "net.AGND", R1: "net.VREX_P", R2: "net.VREX_N", S1: "net.RSLV_S1", S3: "net.RSLV_S3", S2: "net.RSLV_S2", S4: "net.RSLV_S4", SHLDR: "net.DGND", SHLDS: "net.DGND", GND2: "net.DGND", SP1: "net.NC_VSP1", SP2: "net.NC_VSP2" }} />
+      connections={{ KL30: "net.KL30", GND1: "net.DGND", KL15: "net.KL15R", CANH1: "net.VCANH1", CANL1: "net.VCANL1", CANH2: "net.VCANH2", CANL2: "net.VCANL2", FAULT: "net.FAULT_OUT", MT1P: "net.MT1_RAW", MT1R: "net.AGND", MT2P: "net.MT2_RAW", MT2R: "net.AGND", R1: "net.VREX_PC", R2: "net.VREX_NC", S1: "net.RSLV_S1", S3: "net.RSLV_S3", S2: "net.RSLV_S2", S4: "net.RSLV_S4", SHLDR: "net.DGND", SHLDS: "net.DGND", GND2: "net.DGND", SP1: "net.NC_VSP1", SP2: "net.NC_VSP2" }} />
     <chip name="FVS1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.KL15R", B: "net.KL15" }} />
     {[["LVS1", "VCANH1", "CANH1"], ["LVS2", "VCANL1", "CANL1"], ["LVS3", "VCANH2", "CANH2"], ["LVS4", "VCANL2", "CANL2"]].map(([n, a, b]) => (

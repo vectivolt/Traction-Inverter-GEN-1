@@ -68,8 +68,13 @@
     {"cal_fw16_rdy_rise_ms", offsetof(ti_params_t, cal_fw16_rdy_rise_ms), TI_CAL_U32, 250.0f, 1000.0f}, \
     {"cal_oneshot_wait_us", offsetof(ti_params_t, cal_oneshot_wait_us), TI_CAL_U32, 260.0f, 1000.0f}, \
     {"cal_torque_max_nm", offsetof(ti_params_t, cal_torque_max_nm), TI_CAL_F32, 50.0f, 2000.0f}, \
+    {"cal_desat_en_hold_us", offsetof(ti_params_t, cal_desat_en_hold_us), TI_CAL_U32, 55.0f, 250.0f}, \
+    {"cal_vdyn_reserve_frac", offsetof(ti_params_t, cal_vdyn_reserve_frac), TI_CAL_F32, 0.0f, 0.2f}, \
+    {"cal_isns_act_min_a", offsetof(ti_params_t, cal_isns_act_min_a), TI_CAL_F32, 5.0f, 100.0f}, \
+    {"cal_isns_act_frac", offsetof(ti_params_t, cal_isns_act_frac), TI_CAL_F32, 0.05f, 0.5f}, \
+    {"cal_isns_act_debounce", offsetof(ti_params_t, cal_isns_act_debounce), TI_CAL_U8, 4.0f, 100.0f}, \
 }
 
-#define TI_CAL_RANGE_COUNT 62u
+#define TI_CAL_RANGE_COUNT 67u
 
 #endif /* CAL_RANGES_H */

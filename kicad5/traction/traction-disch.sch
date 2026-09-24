@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Discharge board (bolt-on, XM3 pattern)"
 Date "2026-09-23"
-Rev "A.12"
+Rev "A.13"
 Comp "Traction Inverter 220 kW pk - Discharge (HV, bolt-on), sheet 3 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: passive 66k bleeder (56 s nom / 65 s worst) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted"
@@ -14,7 +14,7 @@ Comment3 "3 functional sections - 35 components - cross-section links are net la
 Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"
 $EndDescr
 Text Notes 600 7600 0    60   ~ 12
-220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.12   ·   3 sections   ·   35 components
+220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.13   ·   3 sections   ·   35 components
 Text Notes 600 7900 0    50   ~ 0
 NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab
 Wire Notes Line
@@ -29,7 +29,7 @@ Text Notes 7560 4410 0    79   ~ 16
 DISCHARGE / ENTRY
 $Comp
 L traction-r1:HDR-1x4-2.54 JCTL
-U 1 1 5E00015D
+U 1 1 5E00015F
 P 9150 5850
 F 0 "JCTL" H 8750 5550 50  0000 R CNN
 F 1 "HDR-1x4-2.54" H 8750 6180 50  0000 R CNN
@@ -58,7 +58,7 @@ Text Label 9050 6400 3    45   ~ 0
 DGND
 $Comp
 L traction-r1:TERM_1 JDCN
-U 1 1 5E00015E
+U 1 1 5E000160
 P 8800 5300
 F 0 "JDCN" H 8800 5140 50  0000 C CNN
 F 1 "STUD-M6" H 8800 5470 50  0000 C CNN
@@ -75,7 +75,7 @@ Text Label 8500 5300 2    45   ~ 0
 DCN
 $Comp
 L traction-r1:TERM_1 JDCP
-U 1 1 5E00015F
+U 1 1 5E000161
 P 8800 4900
 F 0 "JDCP" H 8800 4740 50  0000 C CNN
 F 1 "STUD-M6" H 8800 5070 50  0000 C CNN
@@ -102,7 +102,7 @@ Text Notes 7560 660 0    79   ~ 16
 DISCHARGE / BLEED
 $Comp
 L traction-r1:R RBLD1
-U 1 1 5E000160
+U 1 1 5E000162
 P 8300 1150
 F 0 "RBLD1" H 8300 990 50  0000 C CNN
 F 1 "22k" H 8300 1320 50  0000 C CNN
@@ -123,7 +123,7 @@ Text Label 8750 1150 0    45   ~ 0
 BL01
 $Comp
 L traction-r1:R RBLD10
-U 1 1 5E000161
+U 1 1 5E000163
 P 9800 2350
 F 0 "RBLD10" H 9800 2190 50  0000 C CNN
 F 1 "22k" H 9800 2520 50  0000 C CNN
@@ -144,7 +144,7 @@ Text Label 10250 2350 0    45   ~ 0
 BL14
 $Comp
 L traction-r1:R RBLD11
-U 1 1 5E000162
+U 1 1 5E000164
 P 9800 2750
 F 0 "RBLD11" H 9800 2590 50  0000 C CNN
 F 1 "22k" H 9800 2920 50  0000 C CNN
@@ -165,7 +165,7 @@ Text Label 10250 2750 0    45   ~ 0
 BL15
 $Comp
 L traction-r1:R RBLD12
-U 1 1 5E000163
+U 1 1 5E000165
 P 9800 3150
 F 0 "RBLD12" H 9800 2990 50  0000 C CNN
 F 1 "22k" H 9800 3320 50  0000 C CNN
@@ -186,7 +186,7 @@ Text Label 10250 3150 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:R RBLD2
-U 1 1 5E000164
+U 1 1 5E000166
 P 8300 1550
 F 0 "RBLD2" H 8300 1390 50  0000 C CNN
 F 1 "22k" H 8300 1720 50  0000 C CNN
@@ -207,7 +207,7 @@ Text Label 8750 1550 0    45   ~ 0
 BL02
 $Comp
 L traction-r1:R RBLD3
-U 1 1 5E000165
+U 1 1 5E000167
 P 8300 1950
 F 0 "RBLD3" H 8300 1790 50  0000 C CNN
 F 1 "22k" H 8300 2120 50  0000 C CNN
@@ -228,7 +228,7 @@ Text Label 8750 1950 0    45   ~ 0
 BL03
 $Comp
 L traction-r1:R RBLD4
-U 1 1 5E000166
+U 1 1 5E000168
 P 8300 2350
 F 0 "RBLD4" H 8300 2190 50  0000 C CNN
 F 1 "22k" H 8300 2520 50  0000 C CNN
@@ -249,7 +249,7 @@ Text Label 8750 2350 0    45   ~ 0
 BL04
 $Comp
 L traction-r1:R RBLD5
-U 1 1 5E000167
+U 1 1 5E000169
 P 8300 2750
 F 0 "RBLD5" H 8300 2590 50  0000 C CNN
 F 1 "22k" H 8300 2920 50  0000 C CNN
@@ -270,7 +270,7 @@ Text Label 8750 2750 0    45   ~ 0
 BL05
 $Comp
 L traction-r1:R RBLD6
-U 1 1 5E000168
+U 1 1 5E00016A
 P 8300 3150
 F 0 "RBLD6" H 8300 2990 50  0000 C CNN
 F 1 "22k" H 8300 3320 50  0000 C CNN
@@ -291,7 +291,7 @@ Text Label 8750 3150 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:R RBLD7
-U 1 1 5E000169
+U 1 1 5E00016B
 P 9800 1150
 F 0 "RBLD7" H 9800 990 50  0000 C CNN
 F 1 "22k" H 9800 1320 50  0000 C CNN
@@ -312,7 +312,7 @@ Text Label 10250 1150 0    45   ~ 0
 BL11
 $Comp
 L traction-r1:R RBLD8
-U 1 1 5E00016A
+U 1 1 5E00016C
 P 9800 1550
 F 0 "RBLD8" H 9800 1390 50  0000 C CNN
 F 1 "22k" H 9800 1720 50  0000 C CNN
@@ -333,7 +333,7 @@ Text Label 10250 1550 0    45   ~ 0
 BL12
 $Comp
 L traction-r1:R RBLD9
-U 1 1 5E00016B
+U 1 1 5E00016D
 P 9800 1950
 F 0 "RBLD9" H 9800 1790 50  0000 C CNN
 F 1 "22k" H 9800 2120 50  0000 C CNN
@@ -364,7 +364,7 @@ Text Notes 560 660 0    79   ~ 16
 DISCHARGE / ACTIVE
 $Comp
 L traction-r1:UCC14141QDWNRQ1 PSQD
-U 1 1 5E00016C
+U 1 1 5E00016E
 P 1850 2050
 F 0 "PSQD" H 1400 1000 50  0000 R CNN
 F 1 "UCC14141QDWNRQ1" H 1400 3130 50  0000 R CNN
@@ -513,7 +513,7 @@ Text Label 2550 2800 0    45   ~ 0
 V15
 $Comp
 L traction-r1:HCM75S12T4K3 QDIS
-U 1 1 5E00016D
+U 1 1 5E00016F
 P 5850 1350
 F 0 "QDIS" H 5450 1000 50  0000 R CNN
 F 1 "HCM75S12T4K3" H 5450 1730 50  0000 R CNN
@@ -542,7 +542,7 @@ Text Label 6500 1200 0    45   ~ 0
 QD_D
 $Comp
 L traction-r1:VOW3120-X017T UQD
-U 1 1 5E00016E
+U 1 1 5E000170
 P 3900 1800
 F 0 "UQD" H 3500 1500 50  0000 R CNN
 F 1 "VOW3120-X017T" H 3500 2130 50  0000 R CNN
@@ -575,7 +575,7 @@ Text Label 3700 2350 3    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CQD
-U 1 1 5E00016F
+U 1 1 5E000171
 P 3700 4100
 F 0 "CQD" H 3700 3940 50  0000 C CNN
 F 1 "100nF" H 3700 4270 50  0000 C CNN
@@ -596,7 +596,7 @@ Text Label 4150 4100 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CQDF
-U 1 1 5E000170
+U 1 1 5E000172
 P 1600 6200
 F 0 "CQDF" H 1600 6040 50  0000 C CNN
 F 1 "330pF" H 1600 6370 50  0000 C CNN
@@ -617,7 +617,7 @@ Text Label 2050 6200 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:C CQDI1
-U 1 1 5E000171
+U 1 1 5E000173
 P 1600 3400
 F 0 "CQDI1" H 1600 3240 50  0000 C CNN
 F 1 "10uF" H 1600 3570 50  0000 C CNN
@@ -638,7 +638,7 @@ Text Label 2050 3400 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CQDI2
-U 1 1 5E000172
+U 1 1 5E000174
 P 1600 3800
 F 0 "CQDI2" H 1600 3640 50  0000 C CNN
 F 1 "10uF" H 1600 3970 50  0000 C CNN
@@ -659,7 +659,7 @@ Text Label 2050 3800 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CQDIB
-U 1 1 5E000173
+U 1 1 5E000175
 P 1600 4200
 F 0 "CQDIB" H 1600 4040 50  0000 C CNN
 F 1 "100nF" H 1600 4370 50  0000 C CNN
@@ -680,7 +680,7 @@ Text Label 2050 4200 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:C CQDO
-U 1 1 5E000174
+U 1 1 5E000176
 P 1600 6600
 F 0 "CQDO" H 1600 6440 50  0000 C CNN
 F 1 "10uF" H 1600 6770 50  0000 C CNN
@@ -701,7 +701,7 @@ Text Label 2050 6600 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:R RDIS1
-U 1 1 5E000175
+U 1 1 5E000177
 P 5650 2000
 F 0 "RDIS1" H 5650 1840 50  0000 C CNN
 F 1 "470R" H 5650 2170 50  0000 C CNN
@@ -722,7 +722,7 @@ Text Label 6100 2000 0    45   ~ 0
 DIS1
 $Comp
 L traction-r1:R RDIS2
-U 1 1 5E000176
+U 1 1 5E000178
 P 5650 2400
 F 0 "RDIS2" H 5650 2240 50  0000 C CNN
 F 1 "470R" H 5650 2570 50  0000 C CNN
@@ -743,7 +743,7 @@ Text Label 6100 2400 0    45   ~ 0
 DIS2
 $Comp
 L traction-r1:R RDIS3
-U 1 1 5E000177
+U 1 1 5E000179
 P 5650 2800
 F 0 "RDIS3" H 5650 2640 50  0000 C CNN
 F 1 "470R" H 5650 2970 50  0000 C CNN
@@ -764,7 +764,7 @@ Text Label 6100 2800 0    45   ~ 0
 DIS3
 $Comp
 L traction-r1:R RDIS4
-U 1 1 5E000178
+U 1 1 5E00017A
 P 5650 3200
 F 0 "RDIS4" H 5650 3040 50  0000 C CNN
 F 1 "470R" H 5650 3370 50  0000 C CNN
@@ -785,7 +785,7 @@ Text Label 6100 3200 0    45   ~ 0
 QD_D
 $Comp
 L traction-r1:R RQDE1
-U 1 1 5E000179
+U 1 1 5E00017B
 P 1600 4600
 F 0 "RQDE1" H 1600 4440 50  0000 C CNN
 F 1 "10k" H 1600 4770 50  0000 C CNN
@@ -806,7 +806,7 @@ Text Label 2050 4600 0    45   ~ 0
 ENA_QD
 $Comp
 L traction-r1:R RQDE2
-U 1 1 5E00017A
+U 1 1 5E00017C
 P 1600 5000
 F 0 "RQDE2" H 1600 4840 50  0000 C CNN
 F 1 "4.7k" H 1600 5170 50  0000 C CNN
@@ -827,7 +827,7 @@ Text Label 2050 5000 0    45   ~ 0
 DGND
 $Comp
 L traction-r1:R RQDF1
-U 1 1 5E00017B
+U 1 1 5E00017D
 P 1600 5400
 F 0 "RQDF1" H 1600 5240 50  0000 C CNN
 F 1 "62k" H 1600 5570 50  0000 C CNN
@@ -848,7 +848,7 @@ Text Label 2050 5400 0    45   ~ 0
 FB_QD
 $Comp
 L traction-r1:R RQDF2
-U 1 1 5E00017C
+U 1 1 5E00017E
 P 1600 5800
 F 0 "RQDF2" H 1600 5640 50  0000 C CNN
 F 1 "10k" H 1600 5970 50  0000 C CNN
@@ -869,7 +869,7 @@ Text Label 2050 5800 0    45   ~ 0
 DCN
 $Comp
 L traction-r1:R RQDG
-U 1 1 5E00017D
+U 1 1 5E00017F
 P 3700 3300
 F 0 "RQDG" H 3700 3140 50  0000 C CNN
 F 1 "1.5k" H 3700 3470 50  0000 C CNN
@@ -890,7 +890,7 @@ Text Label 4150 3300 0    45   ~ 0
 G_QDIS
 $Comp
 L traction-r1:R RQDL
-U 1 1 5E00017E
+U 1 1 5E000180
 P 3700 2900
 F 0 "RQDL" H 3700 2740 50  0000 C CNN
 F 1 "270R" H 3700 3070 50  0000 C CNN
@@ -911,7 +911,7 @@ Text Label 4150 2900 0    45   ~ 0
 QDA
 $Comp
 L traction-r1:R RQDPD
-U 1 1 5E00017F
+U 1 1 5E000181
 P 3700 3700
 F 0 "RQDPD" H 3700 3540 50  0000 C CNN
 F 1 "10k" H 3700 3870 50  0000 C CNN

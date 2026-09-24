@@ -5,8 +5,13 @@
  *         The FW-16 2-tau top-up is not counted (<= 1.6 J, contract).
  *  FW-18: witness on both channels — no decay (>= cal_qdis_decay_min_frac) within 200 ms => stuck-
  *         off DTC and no further active discharge this key cycle (the passive bleeder takes the link
- *         below 60 V in 65 s / 89 s); either witness invalid => HV state UNKNOWN (never SAFE). Stuck-on: with QDIS
- *         off and the contactors open the link decays far faster than the passive bleeder.
+ *         below 60 V in 65 s / 89 s); either witness invalid => HV state UNKNOWN (never SAFE).
+ *         Stuck-on / unexpected discharge: QDIS not commanded, the contactors open and the bridge not
+ *         modulating (nothing may draw on the link), yet the link decays at the active-discharge
+ *         rate (tau below cal_qdis_stuck_on_frac of the bleeder's) => stuck_on, latched. A shorted
+ *         QDIS with the battery connected bypasses the 5 s release (4 x 96 W in the resistors) and
+ *         only shows at the next opening; app.c then refuses to re-energise (service required,
+ *         kept in NVM) and asks the VCU to open the contactors.
  *  FW-02: tau from the first 200 ms, > 20 % off the SKU's expected tau => DTC (plausibility only).
  *  FW-19: during precharge a plateau more than cal_precharge_low_frac below the pack, or a tau
  *         shorter than the vehicle's minimum, refuses arming. */
@@ -40,7 +45,9 @@ void dis_init(dis_t *d);
 dis_req_t dis_request(dis_t *d, ti_contactor_t contactors, const vdc_t *v, bool counted, uint32_t now_ms,
                       const ti_params_t *p);
 void dis_abort(dis_t *d);
-void dis_step(dis_t *d, ti_contactor_t contactors, const vdc_t *v, uint32_t now_ms, const ti_params_t *p);
+/* bridge_mod: the bridge is modulating (the motor may draw on the link: no stuck-on verdict). */
+void dis_step(dis_t *d, ti_contactor_t contactors, const vdc_t *v, bool bridge_mod, uint32_t now_ms,
+              const ti_params_t *p);
 bool dis_output(const dis_t *d);
 /* FW-18: the HV state the vehicle may be told. */
 ti_hv_state_t dis_hv_state(const vdc_t *v);

@@ -14,10 +14,12 @@
  * channels < 3 V, or from any reading < 60 V after a QDIS 2-tau top-up (not counted by FW-17);
  * VCU reports the contactors open; standstill (resolver valid, |n| < n_ss); PWM low; latch clear.
  * A failed condition SKIPS the test (never runs on assumption): the caller then uses the stored
- * pass of this or the previous key cycle, or refuses to arm. */
+ * pass of this or the previous key cycle, or refuses to arm. Every MCU_GATE_EN drop of the test
+ * goes through the bridge (br_spo), so the A12-R05 DESAT hold covers it too. */
 #ifndef GATE_SELFTEST_H
 #define GATE_SELFTEST_H
 
+#include "bridge.h"
 #include "discharge.h"
 #include "fs26.h"
 
@@ -66,8 +68,8 @@ typedef struct {
 void st_init(st_t *t);
 bool st_conditions(const st_cond_t *c);
 st_energy_t st_energy(const st_cond_t *c, const ti_params_t *p);
-st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_t *v, ti_contactor_t cont,
-                 uint32_t now_ms, const ti_params_t *p);
+st_res_t st_step(st_t *t, const st_cond_t *c, bridge_t *br, fs26_t *fs, dis_t *dis, const vdc_t *v,
+                 ti_contactor_t cont, uint32_t now_ms, const ti_params_t *p);
 bool st_in_step_h(const st_t *t);
 
 #endif /* GATE_SELFTEST_H */

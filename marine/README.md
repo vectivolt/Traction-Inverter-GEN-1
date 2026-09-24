@@ -114,10 +114,12 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.12** (review rounds 7–13: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.13** (review rounds 7–14: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
-V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze; list in
-design-basis §9). It adds:
+V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
+re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,
+excitation-monitor and exciter/motor-temperature line hardening, V_DC-bias LDO ballast,
+UCC14141-Q1 certificate; list in design-basis §9). It adds:
 
 - the marine kit, about ₹27–56k per cell:
   - IP54 enclosure;
@@ -166,9 +168,9 @@ optos are now Vishay **VOW3120-X017T** (V_IORM 1414 Vpk) and their bias modules 
 with these parts. M10 (1150 V working) is covered by the *same* parts (1414 Vpk / 1414 V DC /
 1500 V DC, all ≥ 1150 V) — its "certified bias module / SO6L-class opto" asks are satisfied too,
 and its Y1/500 VAC Y-cap class (sized for the 690 V AC grid case, not the DC bus) is not the
-limiting figure. The only residual is the certificate status: VDE/UL/CQC are listed "planned" in
-the UCC14141-Q1 datasheet, so check them at PO. The flyback transformer (gate ⑤) is still open for
-M10.
+limiting figure. The UCC14141-Q1's VDE certificate (40058888) is now issued and archived (round
+14/A.13); UL/CQC remain "planned" in the datasheet, and the opto/Y-cap certificates are
+unchanged — check them at PO. The flyback transformer (gate ⑤) is still open for M10.
 
 ## Cost and roadmap
 

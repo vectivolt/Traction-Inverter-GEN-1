@@ -67,7 +67,7 @@ TEST(resolver_spi_can_bindings)
 TEST(safety_gpio_mscr_indices)
 {
     CHECK(BP_MCU_GATE_EN_MSCR == 3u * 32u + 16u); /* PTD16 */
-    CHECK(BP_ASC_REQ_MSCR == 3u * 32u + 6u);
+    CHECK(BP_ASC_REQ_MSCR == 3u * 32u + 7u); /* PTD7 = ball U4 since rev A.13 (round 14: moved from T5/PTD6, which the GEN3 netlist could not confirm) */
     CHECK(BP_ASC_CLR_M_MSCR == 3u * 32u + 8u);
     CHECK(BP_FLT_CLR_M_MSCR == 3u * 32u + 9u);
     CHECK(BP_DRV_EN_RB_MSCR == 3u * 32u + 10u);

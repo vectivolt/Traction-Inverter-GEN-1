@@ -30,7 +30,7 @@ TEST(fires_only_with_contactors_reported_open)
     CHECK(!dis_output(&d));
     CHECK(dis_request(&d, TI_CONT_OPEN, &v, true, 0u, P()) == DIS_REQ_OK);
     CHECK(dis_output(&d));
-    dis_step(&d, TI_CONT_CLOSED, &v, 10u, P()); /* the report changes: release at once */
+    dis_step(&d, TI_CONT_CLOSED, &v, false, 10u, P()); /* the report changes: release at once */
     CHECK(!dis_output(&d) && d.st == DIS_ABORTED);
 }
 
@@ -39,7 +39,7 @@ static void run_decay(dis_t *d, float v0, float tau, uint32_t ms, uint32_t t0)
     for (uint32_t t = 1u; t <= ms; t++) {
         const float v = v0 * expf(-(float)t * 1e-3f / tau);
         const vdc_t l = link(v, v, true);
-        dis_step(d, TI_CONT_OPEN, &l, t0 + t, P());
+        dis_step(d, TI_CONT_OPEN, &l, false, t0 + t, P());
     }
 }
 
@@ -65,10 +65,10 @@ TEST(auto_release_after_5s)
     run_decay(&d, 800.0f, 30.0f, 199u, 0u); /* slow decay (still > 10 % drop? no) */
     d.witness_done = true;                  /* isolate the 5 s rule from the witness */
     for (uint32_t t = 200u; t < 5000u; t++) {
-        dis_step(&d, TI_CONT_OPEN, &v, t, P());
+        dis_step(&d, TI_CONT_OPEN, &v, false, t, P());
     }
     CHECK(dis_output(&d));
-    dis_step(&d, TI_CONT_OPEN, &v, 5000u, P());
+    dis_step(&d, TI_CONT_OPEN, &v, false, 5000u, P());
     CHECK(!dis_output(&d) && d.st == DIS_DONE);
 }
 
@@ -80,7 +80,7 @@ TEST(stuck_off_detected_in_200ms)
     const vdc_t v = link(800.0f, 800.0f, true);
     (void)dis_request(&d, TI_CONT_OPEN, &v, true, 0u, P());
     for (uint32_t t = 1u; t <= 200u; t++) {
-        dis_step(&d, TI_CONT_OPEN, &v, t, P()); /* no decay */
+        dis_step(&d, TI_CONT_OPEN, &v, false, t, P()); /* no decay */
     }
     CHECK(d.stuck_off && dtc_active(DTC_QDIS_STUCK_OFF) && !dis_output(&d));
 }
@@ -105,7 +105,7 @@ TEST(invalid_witness_means_unknown_never_safe)
     CHECK(dis_hv_state(&v) == TI_HV_UNKNOWN);
     (void)dis_request(&d, TI_CONT_OPEN, &v, true, 0u, P());
     for (uint32_t t = 1u; t <= 300u; t++) {
-        dis_step(&d, TI_CONT_OPEN, &v, t, P());
+        dis_step(&d, TI_CONT_OPEN, &v, false, t, P());
     }
     CHECK(!d.stuck_off && (dis_hv_state(&v) == TI_HV_UNKNOWN)); /* no verdict on a blind witness */
     v = link(10.0f, 10.0f, true);
@@ -138,7 +138,7 @@ TEST(stuck_on_seen_as_fast_decay_with_qdis_off)
     for (uint32_t t = 0u; t <= 1001u; t++) { /* QDIS never commanded, contactors open, tau 0.6 s */
         const float vv = 800.0f * expf(-(float)t * 1e-3f / 0.6f);
         const vdc_t l = link(vv, vv, true);
-        dis_step(&d, TI_CONT_OPEN, &l, t, P());
+        dis_step(&d, TI_CONT_OPEN, &l, false, t, P());
     }
     CHECK(d.stuck_on && dtc_active(DTC_QDIS_STUCK_ON));
     dis_init(&d);
@@ -146,9 +146,30 @@ TEST(stuck_on_seen_as_fast_decay_with_qdis_off)
     for (uint32_t t = 0u; t <= 2001u; t++) { /* the passive bleeder alone: 66 k x 323 uF */
         const float vv = 800.0f * expf(-(float)t * 1e-3f / 21.3f);
         const vdc_t l = link(vv, vv, true);
-        dis_step(&d, TI_CONT_OPEN, &l, t, P());
+        dis_step(&d, TI_CONT_OPEN, &l, false, t, P());
     }
     CHECK(!d.stuck_on);
+}
+
+/* Item 9: the link falling at the active-discharge rate with QDIS not commanded is a stuck-on QDIS —
+ * unless the bridge is modulating (the motor may be drawing on the link): no verdict then. */
+TEST(unexpected_discharge_judged_only_with_nothing_drawing_on_the_link)
+{
+    dis_t d;
+    dis_init(&d);
+    dtc_init();
+    for (uint32_t t = 0u; t <= 1001u; t++) { /* the motor draws the link down (FW-08, contactors open) */
+        const float vv = 800.0f * expf(-(float)t * 1e-3f / 0.6f);
+        const vdc_t l = link(vv, vv, true);
+        dis_step(&d, TI_CONT_OPEN, &l, true, t, P());
+    }
+    CHECK(!d.stuck_on && !dtc_active(DTC_QDIS_STUCK_ON));
+    for (uint32_t t = 0u; t <= 1002u; t++) { /* the same decay with the bridge off: a shorted QDIS */
+        const float vv = 800.0f * expf(-(float)t * 1e-3f / 0.6f);
+        const vdc_t l = link(vv, vv, true);
+        dis_step(&d, TI_CONT_OPEN, &l, false, 2000u + t, P());
+    }
+    CHECK(d.stuck_on && dtc_active(DTC_QDIS_STUCK_ON) && !dis_output(&d));
 }
 
 static pch_result_t precharge(float plateau, float tau, float v_pack)
@@ -194,5 +215,6 @@ void suite_discharge(void)
     RUN(invalid_witness_means_unknown_never_safe);
     RUN(three_per_five_minutes_and_uncounted_topup);
     RUN(stuck_on_seen_as_fast_decay_with_qdis_off);
+    RUN(unexpected_discharge_judged_only_with_nothing_drawing_on_the_link);
     RUN(fw19_precharge_plateau_and_tau);
 }

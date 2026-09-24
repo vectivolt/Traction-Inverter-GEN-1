@@ -32,7 +32,7 @@ void t_run(const char *name, void (*fn)(void))
 int main(void)
 {
     void (*const suites[])(void) = {
-        suite_crc,         suite_params,     suite_board_map,  suite_platform_cfg,  suite_current,   suite_vdc,
+        suite_crc,         suite_time,       suite_params,     suite_board_map,  suite_platform_cfg,  suite_current,   suite_vdc,
         suite_temp,        suite_hvil,       suite_hwid,       suite_ign,       suite_resolver,
         suite_foc,         suite_torque,     suite_dclink,     suite_gains,     suite_can_cmd,
         suite_dtc,         suite_discharge,  suite_nvlog,      suite_calib,     suite_safe_state,

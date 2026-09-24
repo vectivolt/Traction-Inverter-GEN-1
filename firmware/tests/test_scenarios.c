@@ -1,5 +1,7 @@
 /* test_scenarios.c — the whole firmware (app.c) on the simulated card, power board, FS26, VCU
  * and link. Each scenario is a contract edge case end to end. */
+#include <string.h>
+
 #include "dtc.h"
 #include "harness.h"
 #include "nvlog.h"
@@ -7,6 +9,7 @@
 
 #define LOW_RPM 1000.0f
 #define HIGH_RPM 10000.0f /* screening motor n_x = 8086 rpm (8XX) */
+#define WRAP_US 4294967296ull /* the 32-bit microsecond counter wraps here (A12-R06) */
 
 static bool ever_armed;
 
@@ -18,9 +21,9 @@ static void run_watch(uint32_t ms)
     }
 }
 
-static bool run_at(float rpm, float torque)
+static bool run_at_epoch(float rpm, float torque, uint64_t epoch_us)
 {
-    sim_reset();
+    sim_reset_at_us(epoch_us);
     dtc_init();
     h_setup(TI_SKU_8XX_SIC);
     h_boot();
@@ -33,6 +36,16 @@ static bool run_at(float rpm, float torque)
     }
     h_run_ms(20u);
     return (g_app.sm.st == SM_RUN) || (g_app.sm.st == SM_DERATE) || (g_app.sm.st == SM_ARMED_ZERO_TORQUE);
+}
+
+static bool run_at(float rpm, float torque) { return run_at_epoch(rpm, torque, 1000000u); }
+
+/* run the whole firmware until the microsecond counter is lead_us short of its wrap */
+static void run_until_wrap_minus(uint64_t lead_us)
+{
+    for (uint32_t k = 0u; (k < 20000u) && ((hal_time_us64() + lead_us) < WRAP_US); k++) {
+        h_run_ms(1u);
+    }
 }
 
 static bool last_status(hal_can_frame_t *out)
@@ -99,7 +112,7 @@ TEST(frozen_alive_counter_is_stale)
     H.freeze_ctr = true; /* frames keep arriving, all with the same counter */
     h_run_ms(80u);
     CHECK(g_app.t_cmd_nm < 100.0f);
-    CHECK(!can_cmd_fresh(&g_app.can, hal_time_us() / 1000u, g_app.p));
+    CHECK(!can_cmd_fresh(&g_app.can, hal_time_ms(), g_app.p));
 }
 
 TEST(bms_limit_zero_connected_is_not_asc_but_contactor_open_is)
@@ -459,6 +472,359 @@ TEST(swg_trim_is_written_to_the_generator)
     CHECK(g_app.rslv.exc_ratio > 0.95f && g_app.rslv.exc_ratio < 1.05f);
 }
 
+/* A12-R05 end to end. The driver latches FLT at t_flt; the fault ISR runs at t = 0 (+0.3 us). The
+ * 1 ms task then runs inside the hold (at n >= n_x the FW-15 recovery starts: br_rec_start; below
+ * n_x apply_decision's SPO) and the current-loop ISR polls. MCU_GATE_EN must stay high until the
+ * hold has run (checked at hold - 1 and in the edge log), the PWM must be off from t = 0, and it
+ * must drop by hold + 1; the §6 follow-up (FW-15 reset, PWM-ASC at speed) still happens. */
+static void desat_hold_case(float rpm, bool hs)
+{
+    CHECK(run_at(rpm, 0.0f));
+    CHECK(hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && hal_gpio_read(HAL_DI_DRV_EN_RB));
+    const uint32_t hold = g_app.p->cal_desat_en_hold_us;
+    const uint64_t t_flt = sim_now_ns();
+    sim_chain_desat(hs, false);
+    sim_advance_ns(300u); /* fault ISR entry: t = 0 */
+    CHECK(hal_pwm_mode() == HAL_PWM_OFF && !sim_chain_hs_on() && !sim_chain_ls_on());
+    CHECK(hal_gpio_out_state(HAL_DO_MCU_GATE_EN)); /* not dropped by the ISR */
+    sim_advance_us(10u);
+    app_task_1ms(&g_app); /* apply_decision / br_rec_start inside the hold */
+    app_isr_current(&g_app);
+    const uint64_t t_hm1 = t_flt + ((uint64_t)(hold - 1u) * 1000u);
+    if (sim_now_ns() < t_hm1) {
+        sim_advance_ns(t_hm1 - sim_now_ns());
+    }
+    app_isr_current(&g_app);
+    CHECK(sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, false, t_flt) >= t_flt + ((uint64_t)hold * 1000u));
+    CHECK(hal_pwm_mode() == HAL_PWM_OFF && !hal_gpio_read(HAL_DI_DRV_EN_RB)); /* the latch holds DRV_EN */
+    sim_advance_ns(t_flt + ((uint64_t)(hold + 1u) * 1000u) - sim_now_ns());
+    app_isr_current(&g_app);
+    CHECK(!hal_gpio_out_state(HAL_DO_MCU_GATE_EN)); /* hold + 1: dropped */
+    const uint64_t t_en = sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, false, t_flt);
+    CHECK(t_en != UINT64_MAX && (t_en - t_flt) >= (uint64_t)hold * 1000u && (t_en - t_flt) <= 200000u);
+}
+
+TEST(desat_at_speed_holds_en_through_the_hold_then_reset_and_pwm_asc)
+{
+    desat_hold_case(HIGH_RPM, true);
+    const uint64_t t_fault = sim_now_ns();
+    h_run_ms(10u); /* the FW-15 reset, then PWM-ASC (§6 FLT_HS at n >= n_x) */
+    CHECK(sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, t_fault - 200000u) != UINT64_MAX);
+    CHECK(g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC && hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+    CHECK(sim_chain_ls_on() && !sim_chain_hs_on());
+}
+
+TEST(desat_at_low_speed_spo_waits_for_the_hold)
+{
+    desat_hold_case(LOW_RPM, false);
+    h_run_ms(20u);
+    CHECK(g_app.fm.dec.action == SS_ACT_SPO && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && g_app.sm.st == SM_FAULT);
+}
+
+/* A12-R06: VCU and BMS frames every 10 ms keep arriving while the counter wraps: nothing may go
+ * stale, no torque may ramp; after the wrap a silent VCU is still caught within FW-11's 20 ms. */
+TEST(running_across_the_microsecond_wrap_keeps_fresh_frames_fresh)
+{
+    CHECK(run_at_epoch(LOW_RPM, 100.0f, WRAP_US - 3000000u));
+    run_until_wrap_minus(40000u);
+    bool stale = false;
+    bool lost = false;
+    for (uint32_t k = 0u; k < 100u; k++) {
+        h_run_ms(1u);
+        stale = stale || !can_cmd_fresh(&g_app.can, hal_time_ms(), g_app.p) ||
+                !can_bms_fresh(&g_app.can, hal_time_ms(), g_app.p);
+        lost = lost || fm_active(&g_app.fm, SS_ROW_CMD_LOST) || (g_app.t_cmd_nm < 99.0f);
+    }
+    CHECK(hal_time_us64() > WRAP_US && hal_time_us() < 100000u); /* crossed it */
+    CHECK(!stale && !lost && !dtc_active(DTC_CAN_TIMEOUT) && !dtc_active(DTC_BMS_TIMEOUT));
+    CHECK(g_app.sm.st == SM_RUN && hal_pwm_mode() == HAL_PWM_MOD);
+    H.send_cmd = false; /* the VCU goes silent after the wrap */
+    h_run_ms(35u);
+    CHECK(dtc_active(DTC_CAN_TIMEOUT) && fm_active(&g_app.fm, SS_ROW_CMD_LOST) && g_app.t_cmd_nm < 99.0f);
+}
+
+/* A12-R06: the wrap placed inside every boot dwell timer (sensor self-test / FS0B release, gate-power
+ * start 11–161 ms, FW-16 RDY rise 170–320 and 323–473 ms, precharge 483–1178 ms): each boot still
+ * reaches ARMED_ZERO_TORQUE with no DTC. */
+TEST(boot_across_the_microsecond_wrap_reaches_armed)
+{
+    const uint32_t wrap_after_boot_ms[5] = {6u, 80u, 250u, 400u, 800u};
+    for (unsigned k = 0u; k < 5u; k++) {
+        sim_reset_at_us(WRAP_US - (1000u * (uint64_t)wrap_after_boot_ms[k]));
+        dtc_init();
+        h_setup(TI_SKU_8XX_SIC);
+        h_boot();
+        CHECK(h_to_armed());
+        h_run_ms(5u);
+        CHECK(hal_time_us64() > WRAP_US && dtc_first_active() == DTC_NONE);
+        CHECK(hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && g_app.selftest == SM_OK);
+    }
+}
+
+/* A12-R06 / FW-15: a DESAT 100 ms before the wrap with the retry authorised at once: the FW-15
+ * recovery may not start before 1 s after the event (the old ms stamps saw 4 290 000 s at the wrap). */
+TEST(desat_retry_waits_1s_across_the_microsecond_wrap)
+{
+    CHECK(run_at_epoch(LOW_RPM, 100.0f, WRAP_US - 3000000u));
+    run_until_wrap_minus(100000u);
+    const uint64_t t_fault = sim_now_ns();
+    sim_chain_desat(true, false);
+    h_run_ms(5u);
+    CHECK(g_app.sm.st == SM_FAULT && dtc_active(DTC_DESAT_HS));
+    H.retry_auth = true;
+    h_run_ms(1600u);
+    const uint64_t t_clr = sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, t_fault);
+    CHECK(t_clr != UINT64_MAX && (t_clr - t_fault) >= 1000000000u);
+}
+
+/* A12-R06: DTC time stamps the application takes across the wrap keep their distance. */
+TEST(dtc_time_stamps_across_the_microsecond_wrap_in_the_application)
+{
+    CHECK(run_at_epoch(LOW_RPM, 20.0f, WRAP_US - 3000000u));
+    run_until_wrap_minus(60000u);
+    H.send_cmd = false; /* silent from 60 ms before the wrap to 60 ms after */
+    h_run_ms(120u);
+    uint32_t first = 0u;
+    uint32_t last = 0u;
+    CHECK(dtc_times(DTC_CAN_TIMEOUT, &first, &last));
+    CHECK(ti_age(last, first) >= 90u && ti_age(last, first) <= 110u);
+}
+
+/* A12-R08 on the vehicle CAN: a DESAT at standstill with 340 A rms flowing, on a vehicle released
+ * under rule (b): keep HV asserted; the pack disconnected: keep HV dropped, "no safe state proven"
+ * set; reconnected and the current decayed: both clear. */
+TEST(standstill_desat_at_rated_current_reports_keep_hv_on_can)
+{
+    sim_reset();
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    h_cal.motor.rule_b_released = true; /* HIL/dyno showed rule (b) for this vehicle */
+    calib_seal(&h_cal);
+    h_boot();
+    CHECK(h_to_armed());
+    H.i_pk_a = 480.8f; /* 340 A rms at 0 rpm */
+    h_run_ms(5u);
+    sim_chain_desat(true, false);
+    h_run_ms(30u);
+    hal_can_frame_t f;
+    CHECK(last_status(&f) && ((f.data[1] & 0x20u) != 0u) && ((f.data[14] & 0x01u) == 0u));
+    CHECK(g_app.fm.dec.action == SS_ACT_SPO && !hal_gpio_read(HAL_DI_DRV_EN_RB));
+    H.contactors = TI_CONT_OPEN; /* the battery goes */
+    h_run_ms(30u);
+    CHECK(last_status(&f) && ((f.data[1] & 0x20u) == 0u) && ((f.data[14] & 0x01u) != 0u));
+    CHECK(dtc_active(DTC_SPO_ENERGY));
+    H.contactors = TI_CONT_CLOSED;
+    H.i_pk_a = 5.0f; /* the winding current has decayed */
+    h_run_ms(30u);
+    CHECK(last_status(&f) && ((f.data[1] & 0x20u) == 0u) && ((f.data[14] & 0x01u) == 0u));
+}
+
+/* F06: the host default validates nothing. The firmware never leaves the inhibited state: FS0B is
+ * never released, FW-16 never starts (no gate energised through ASC), MCU_GATE_EN and DRV_EN never
+ * rise, gate power is never enabled; the status names every missing item. */
+TEST(arming_refused_without_evidence_and_the_status_names_it)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    h_unprovision(); /* no IMCR route bound, no EOL/HIL validation record */
+    h_boot();
+    CHECK(g_app.init == SM_FAIL && dtc_active(DTC_ARM_EVIDENCE));
+    H.enable = true;
+    H.torque_nm = 100.0f;
+    const uint64_t t0 = sim_now_ns();
+    bool gates = false;
+    for (uint32_t k = 0u; k < 3000u; k++) {
+        if (g_app.sm.st == SM_PRECHARGE_WAIT) {
+            H.contactors = TI_CONT_CLOSED;
+        }
+        h_run_ms(1u);
+        gates = gates || hal_gpio_out_state(HAL_DO_MCU_GATE_EN) || hal_gpio_read(HAL_DI_DRV_EN_RB) ||
+                hal_gpio_out_state(HAL_DO_EN_FLYBK_HS) || hal_gpio_out_state(HAL_DO_EN_FLYBK_LS);
+    }
+    CHECK(!gates && sim_fs26_fs0b_asserted() && g_app.st.s == ST_IDLE && g_app.sm.st == SM_FAULT);
+    CHECK(sim_gpio_edge_ns(HAL_DO_ASC_REQ, true, t0) == UINT64_MAX); /* no FW-16 ASC energisation */
+    hal_can_frame_t f;
+    CHECK(last_status(&f) && (f.data[15] == (ARM_EV_ROUTE_BOUND | ARM_EV_FAULT_ROUTE_VALIDATED | ARM_EV_OVP_ROUTE_VALIDATED)));
+}
+
+/* F01: a board configuration with the TODO(RM) placeholders (host default: UNBOUND) never arms, even
+ * with a valid validation record. */
+TEST(unbound_fault_route_never_arms)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    sim_pwm_fault_route_bind(false);
+    h_boot();
+    CHECK(g_app.init == SM_FAIL && dtc_active(DTC_ARM_EVIDENCE));
+    H.contactors = TI_CONT_CLOSED;
+    H.enable = true;
+    ever_armed = false;
+    run_watch(2500u);
+    hal_can_frame_t f;
+    CHECK(!ever_armed && last_status(&f) && (f.data[15] == ARM_EV_ROUTE_BOUND));
+}
+
+/* F06: positive control — everything present: arming permitted and nothing reported missing. */
+TEST(arming_permitted_with_a_valid_record)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    h_boot();
+    CHECK(g_app.init == SM_OK && h_to_armed());
+    h_run_ms(20u);
+    hal_can_frame_t f;
+    CHECK(hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && last_status(&f) && (f.data[15] == 0u));
+}
+
+/* F06: a record for another card, another image, another SKU, without the OVP validation, with the
+ * FW-06 chain measured outside 15.6 us, or with a broken CRC validates nothing: arming refused. */
+TEST(arming_refused_on_record_identity_or_crc_mismatch)
+{
+    for (unsigned k = 0u; k < 6u; k++) {
+        sim_reset();
+        dtc_init();
+        h_setup(TI_SKU_8XX_SIC);
+        arm_validation_t v;
+        arm_validation_make(&v, h_serial(), h_p.sku, TI_FW_ID, ARM_EV_VALIDATED, 14200u);
+        switch (k) {
+        case 0u: v.hw_serial[7] ^= 0x01u; break;            /* another card */
+        case 1u: v.fw_id += 1u; break;                      /* another image */
+        case 2u: v.sku = (uint8_t)TI_SKU_4XX_SIC; break;    /* another SKU */
+        case 3u: v.flags = ARM_EV_FAULT_ROUTE_VALIDATED; break; /* OVP chain not validated */
+        case 4u: v.ovp_chain_ns = 16000u; break;            /* measured, but over 15.6 us */
+        default: break;
+        }
+        arm_validation_seal(&v);
+        if (k == 5u) {
+            v.crc32 ^= 0x00010000u; /* a corrupted record */
+        }
+        sim_nvm_wipe();
+        h_store_validation(&v);
+        h_boot();
+        H.contactors = TI_CONT_CLOSED;
+        H.enable = true;
+        ever_armed = false;
+        run_watch(2000u);
+        hal_can_frame_t f;
+        CHECK(!ever_armed && dtc_active(DTC_ARM_EVIDENCE) && last_status(&f));
+        const uint8_t miss = (k < 3u) || (k == 5u) ? (uint8_t)ARM_EV_VALIDATED : (uint8_t)ARM_EV_OVP_ROUTE_VALIDATED;
+        CHECK(f.data[15] == miss);
+    }
+}
+
+/* F02: after a watchdog (RSTB) reset the lock-down is re-written and re-locked before anything can
+ * arm again, and stays write-protected. */
+TEST(watchdog_reset_relocks_before_rearming)
+{
+    CHECK(run_at(0.0f, 0.0f));
+    sim_fs26_mcu_reset();
+    CHECK(!hal_pwm_protection_locked());
+    h_boot();
+    CHECK(hal_pwm_protection_locked() && hal_pwm_config_matches() && g_app.init == SM_OK);
+    CHECK(!sim_pwm_reg_write(SIM_PWM_DISMAP0_SM2, 0x0000u, SIM_MASTER_CPU));
+    CHECK(h_run_until(SM_ARMED_ZERO_TORQUE, 3000u));
+    h_run_ms(20u);
+    hal_can_frame_t f;
+    CHECK(last_status(&f) && (f.data[15] == 0u));
+}
+
+/* F06 at run time: evidence read back every tick. If the route stops reading back bound while armed,
+ * arming is withdrawn through the §6 "control lost" row (not a blind SPO) and the status says why. */
+TEST(evidence_lost_while_armed_goes_through_section6)
+{
+    CHECK(run_at(LOW_RPM, 50.0f));
+    sim_pwm_fault_route_bind(false); /* e.g. an IMCR corrupted after init */
+    h_run_ms(20u);
+    hal_can_frame_t f;
+    CHECK(dtc_active(DTC_ARM_EVIDENCE) && fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID));
+    CHECK(g_app.sm.st == SM_FAULT && hal_pwm_mode() != HAL_PWM_MOD && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+    CHECK(last_status(&f) && (f.data[15] == ARM_EV_ROUTE_BOUND));
+}
+
+/* F23: a motor whose demagnetisation limit (100 A) is below the field weakening the speed needs:
+ * no voltage-feasible current exists even at iq = 0, so the firmware commands zero torque, asks the
+ * VCU for a speed limit and records the DTC. */
+TEST(infeasible_current_gives_zero_torque_speed_limit_and_dtc)
+{
+    sim_reset();
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    h_cal.motor.id_demag_a = 100.0f;
+    calib_seal(&h_cal);
+    h_boot();
+    CHECK(h_to_run(50.0f));
+    h_ramp_speed(HIGH_RPM, 600u);
+    h_run_ms(20u);
+    hal_can_frame_t f;
+    CHECK(g_app.t_cmd_nm == 0.0f && g_app.iq_ref == 0.0f && g_app.id_ref >= -100.0f - 1e-3f);
+    CHECK(dtc_active(DTC_TORQUE_INFEASIBLE) && last_status(&f) && ((f.data[14] & 0x08u) != 0u));
+    h_ramp_speed(LOW_RPM, 600u); /* back where it is feasible: torque returns, request withdrawn */
+    h_run_ms(20u);
+    CHECK(g_app.t_cmd_nm > 40.0f && last_status(&f) && ((f.data[14] & 0x08u) == 0u));
+}
+
+/* F24 end to end: all three sensor outputs stuck at the zero-current level (e.g. a failed shared
+ * reference). At zero command nothing can be seen; once torque is commanded the KCL sum still reads
+ * 0 A, but the activity check invalidates the currents: control lost, the §6 row, no modulation. */
+TEST(all_three_current_channels_stuck_detected_under_command)
+{
+    CHECK(run_at(LOW_RPM, 0.0f));
+    H.isns_stuck = 0x7u;
+    h_run_ms(50u);
+    CHECK(g_app.isns.valid && !dtc_active(DTC_ISNS_STUCK)); /* zero command: no evidence */
+    H.enable = true;
+    H.torque_nm = 100.0f;
+    h_run_ms(30u);
+    CHECK(!g_app.isns.sum_fault && dtc_active(DTC_ISNS_STUCK));
+    CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD);
+}
+
+/* F24 end to end: one channel stuck while the commanded current stays inside the 45 A KCL tolerance
+ * (35 Nm = 39 A peak): the sum never trips, the activity check does. */
+TEST(one_current_channel_stuck_below_the_kcl_tolerance_detected)
+{
+    CHECK(run_at(LOW_RPM, 35.0f));
+    H.isns_stuck = 0x4u; /* phase W */
+    h_run_ms(40u);
+    CHECK(!g_app.isns.sum_fault && dtc_active(DTC_ISNS_STUCK));
+    CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD);
+}
+
+/* Item 9: a QDIS shorted while the battery is connected (its 5 s release cannot switch it off) shows
+ * at the next contactor opening as a link falling at the active-discharge rate with no discharge
+ * commanded: latched DTC, "service required / do not re-energise" and "open the contactors" on CAN,
+ * no re-arming when the VCU closes the contactors again, and the lock survives a reboot. */
+TEST(stuck_on_qdis_latches_service_required_and_never_rearms)
+{
+    CHECK(run_at(0.0f, 0.0f));
+    H.qdis_stuck_on = true;
+    H.enable = false;
+    H.contactors = TI_CONT_OPEN; /* a normal opening at zero torque */
+    h_run_ms(1300u);
+    hal_can_frame_t f;
+    CHECK(g_app.dis.stuck_on && dtc_active(DTC_QDIS_STUCK_ON));
+    CHECK(!hal_gpio_out_state(HAL_DO_QDIS)); /* never commanded */
+    CHECK(last_status(&f) && ((f.data[14] & 0x06u) == 0x06u));
+    H.qdis_stuck_on = false; /* even if the part recovers: no re-energising before service */
+    H.link_v = 0.0f;
+    H.contactors = TI_CONT_PRECHARGE;
+    ever_armed = false;
+    run_watch(800u);
+    H.contactors = TI_CONT_CLOSED;
+    H.enable = true;
+    run_watch(500u);
+    CHECK(!ever_armed && g_app.sm.st == SM_FAULT);
+    CHECK(last_status(&f) && ((f.data[14] & 0x06u) == 0x06u));
+    sim_reset(); /* power off and on: the next key cycle (retained RAM lost, the NVM kept) */
+    (void)memset(&g_app_session, 0, sizeof g_app_session);
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    h_boot();
+    CHECK(g_app.cold_start && g_app.init == SM_FAIL && dtc_active(DTC_QDIS_STUCK_ON));
+    H.contactors = TI_CONT_CLOSED;
+    H.enable = true;
+    ever_armed = false;
+    run_watch(1500u);
+    CHECK(!ever_armed && last_status(&f) && ((f.data[14] & 0x06u) == 0x06u));
+}
+
 void suite_scenarios(void)
 {
     RUN(boot_to_run_follows_section_9);
@@ -485,4 +851,21 @@ void suite_scenarios(void)
     RUN(overcurrent_crest_does_not_trip_620_does);
     RUN(asc_exit_only_below_n_x_by_mcu_command);
     RUN(swg_trim_is_written_to_the_generator);
+    RUN(desat_at_speed_holds_en_through_the_hold_then_reset_and_pwm_asc);
+    RUN(desat_at_low_speed_spo_waits_for_the_hold);
+    RUN(running_across_the_microsecond_wrap_keeps_fresh_frames_fresh);
+    RUN(boot_across_the_microsecond_wrap_reaches_armed);
+    RUN(desat_retry_waits_1s_across_the_microsecond_wrap);
+    RUN(dtc_time_stamps_across_the_microsecond_wrap_in_the_application);
+    RUN(standstill_desat_at_rated_current_reports_keep_hv_on_can);
+    RUN(arming_refused_without_evidence_and_the_status_names_it);
+    RUN(unbound_fault_route_never_arms);
+    RUN(arming_permitted_with_a_valid_record);
+    RUN(arming_refused_on_record_identity_or_crc_mismatch);
+    RUN(watchdog_reset_relocks_before_rearming);
+    RUN(evidence_lost_while_armed_goes_through_section6);
+    RUN(infeasible_current_gives_zero_torque_speed_limit_and_dtc);
+    RUN(all_three_current_channels_stuck_detected_under_command);
+    RUN(one_current_channel_stuck_below_the_kcl_tolerance_detected);
+    RUN(stuck_on_qdis_latches_service_required_and_never_rearms);
 }

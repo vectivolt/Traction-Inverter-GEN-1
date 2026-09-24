@@ -1,7 +1,8 @@
 /* torque.h — torque path: limits (FW-03 power envelope, FW-04 thermal derating and the 30 s peak
  * budget, BMS regen/discharge power relayed by the VCU, FW-11 zero regen on BMS timeout),
  * torque -> current (MTPA LUT with a closed-form fallback, field weakening on the voltage
- * ellipse, a negative-Id demagnetisation clamp, the current circle) and the guards. */
+ * ellipse, a negative-Id demagnetisation clamp, the current circle), a final voltage-feasibility
+ * witness (F23) and the guards. */
 #ifndef TORQUE_H
 #define TORQUE_H
 
@@ -39,9 +40,24 @@ void torque_limits(torque_lim_t *l, float vdc, float omega_mech_rad_s, float p_c
                    const ti_params_t *p);
 /* Clamp a request to the limits (sign convention: T > 0 accelerates in +speed). */
 float torque_clamp(const torque_lim_t *l, float t_req_nm, float omega_mech_rad_s);
-/* Torque -> (id, iq). Returns false on a non-finite input (outputs zeroed). */
-bool torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, const motor_t *m, const mtpa_lut_t *lut,
-                       const ti_params_t *p, float *id, float *iq);
+typedef enum {
+    TQ_NONFINITE = 0, /* a non-finite input or result: outputs zeroed */
+    TQ_OK,            /* the MTPA / field-weakening / clamped pair is voltage-feasible as it is */
+    TQ_LIMITED,       /* |iq| reduced (or id pushed toward the demagnetisation limit) to be feasible */
+    TQ_INFEASIBLE     /* not even iq = 0 is feasible inside the demagnetisation and current limits:
+                         outputs = iq 0 at the least-voltage id; the caller commands zero torque,
+                         requests a speed limit and sets a DTC */
+} tq_res_t;
+
+/* Torque -> (id, iq). Every result other than TQ_NONFINITE/TQ_INFEASIBLE satisfies the witness
+ * torque_v_required(id, iq) <= torque_v_available(vdc). */
+tq_res_t torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, const motor_t *m, const mtpa_lut_t *lut,
+                           const ti_params_t *p, float *id, float *iq);
+/* Steady-state phase-voltage magnitude (peak) a dq pair needs at omega_e: Rs, Ld, Lq and psi. */
+float torque_v_required(float id, float iq, float omega_e, const motor_t *m);
+/* What a steady-state reference may use: the FOC limit cal_mod_index_max * V_dc / sqrt(3) less the
+ * dynamic reserve cal_vdyn_reserve_frac kept for the current loop. */
+float torque_v_available(float vdc, const ti_params_t *p);
 /* MTPA d-current for a q-current (closed form). */
 float torque_mtpa_id(float iq, const motor_t *m);
 

@@ -224,7 +224,7 @@ bool sim_chain_read(hal_di_t pin)
 uint8_t sim_chain_pwm_fault_pins(void)
 {
     uint8_t f = 0u;
-    if (!has(SIM_STUCK_PWM_FAULT_ROUTE)) {
+    if (!has(SIM_STUCK_PWM_FAULT_ROUTE) && sim_pwm_route_active()) { /* unbound IMCR: no route */
         f |= flt_n(true) ? 0u : HAL_PWM_FAULT_FLT_HS;
         f |= flt_n(false) ? 0u : HAL_PWM_FAULT_FLT_LS;
     }

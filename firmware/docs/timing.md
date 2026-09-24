@@ -10,10 +10,10 @@ at full load, and an NVM job in flight.
 
 | Context | Trigger | Rate / period | NVIC prio | Work | Budget | WCET measured |
 |---|---|---|---|---|---|---|
-| eFlexPWM_1 fault ISR | FFLAG (FAULT0 FLT_HS, FAULT1 ADC watchdog, FAULT2 FLT_LS) | event | 0 | FW-06: ASC_REQ edge, dead-time wait, PWM-ASC. FW-15 step 1: bank to retained RAM, queue NVM, §6 decision. FW-05: OC row | FW-06 action ≤ 1.0 µs to the ASC_REQ edge (`fw06_action_us`); whole ISR ≤ 10 µs (proposed) | |
+| eFlexPWM_1 fault ISR | FFLAG (FAULT0 FLT_HS, FAULT1 ADC watchdog, FAULT2 FLT_LS) | event | 0 | FW-06: ASC_REQ edge, dead-time wait, PWM-ASC. FW-15 step 1: PWM off, DESAT hold started (the MCU_GATE_EN drop is deferred), bank to retained RAM, queue NVM, §6 decision. FW-05: OC row | FW-06 action ≤ 1.0 µs to the ASC_REQ edge (`fw06_action_us`); whole ISR ≤ 10 µs (proposed) | |
 | SDADC block stamp | eDMA major loop, SDADC2 (SIN) | 10 kHz (resolver carrier) | 1 | time stamp and block counter only | ≤ 1 µs | |
-| Current loop `app_isr_current` | BCTU end of list (PWM_1 SM0 VAL0/VAL1 triggers) | 2·f_sw: 20 kHz (SiC 10 kHz), 16 kHz (SiC 8 kHz), 10 kHz (IGBT 5 kHz) | 2 | phase currents, FW-05 software check, V_DC, resolver block, FOC, guards, duty write | must finish before the next half-cycle reload: < 0.5·T_sw minus the conversion time (≈ 23 µs at 20 kHz) | |
-| 1 ms task `app_task_1ms` | STM_0 channel 0 | 1 kHz | 4 | slow ADC list, temperatures, HVIL, IGN, CAN RX/TX, FS26 watchdog (every 2 ms), fault manager, state machine, torque path, discharge, gate power, FW-16 steps | ≤ 400 µs (40 % CPU, proposed) | |
+| Current loop `app_isr_current` | BCTU end of list (PWM_1 SM0 VAL0/VAL1 triggers) | 2·f_sw: 20 kHz (SiC 10 kHz), 16 kHz (SiC 8 kHz), 10 kHz (IGBT 5 kHz) | 2 | `br_service` (a pending MCU_GATE_EN drop), phase currents, FW-05 software check, V_DC, resolver block, stuck-channel check (F24), FOC, guards, duty write | must finish before the next half-cycle reload: < 0.5·T_sw minus the conversion time (≈ 23 µs at 20 kHz) | |
+| 1 ms task `app_task_1ms` | STM_0 channel 0 | 1 kHz | 4 | 64-bit time read (keeps the extension alive), `br_service`, slow ADC list, temperatures, HVIL, IGN, CAN RX/TX, FS26 watchdog (every 2 ms), fault manager, arming-evidence read-back, state machine, torque path (voltage witness), discharge + service lock, gate power, FW-16 steps | ≤ 400 µs (40 % CPU, proposed) | |
 | FlexCAN RX | RTD FlexCAN ISR → callback | event (VCU frames every 10 ms) | 5 | copy into a 16-deep ring | ≤ 2 µs | |
 | Background `app_idle` | main loop | continuous | none | NVM queue: Fee/Fls main functions | not time-critical, never on a safety path | |
 
@@ -49,10 +49,14 @@ scope on the target.
 
 ## Critical sections
 
-`hal_crit_enter/exit` set PRIMASK. That masks the fault ISR too, which is necessary because
-`nv_queue()` is called from the fault ISR and from the task. The only user is the `nv_queue`
-record copy, which is ≤ 28 bytes (`nv_fault_t`), a few tens of cycles. That time adds directly to
-the FW-06 action segment, so it is listed there.
+`hal_crit_enter/exit` set PRIMASK. That masks the fault ISR too, which is necessary because each
+user is reached from the fault ISR and from lower contexts. The users are:
+- the `nv_queue` record copy, ≤ 28 bytes (`nv_fault_t`), a few tens of cycles;
+- `hal_time_us64()`: one STM read and the high-word update (A12-R06), a handful of cycles;
+- the bridge's DESAT-hold bookkeeping (`en_low`, `br_service`): two GPIO reads, one time read and
+  at most one GPIO write (A12-R05).
+Whichever of these happens to be running when the V_DC compare trips adds directly to the FW-06
+action segment, so they are listed there; the `nv_queue` copy stays the longest.
 
 ## Other periodic deadlines
 
@@ -65,10 +69,12 @@ the FW-06 action segment, so it is listed there.
 | HVIL reaction | ≤ 100 ms (FW-09) | `hvil.c` |
 | QDIS witness | 200 ms (FW-18) | `discharge.c` |
 | FW-15 driver reset | ≥ 1.5 ms low, then one-shot 72–210 µs + DRV_EN RC (`cal_oneshot_wait_us`) | `bridge.c: br_rec_step` |
+| DESAT hold (A12-R05) | no software MCU_GATE_EN drop for `cal_desat_en_hold_us` = 60 µs after a FLT line is first seen low (the fault latch drops DRV_EN at 22–53 µs by itself); the drop happens at the first current-loop ISR after it, so 60 µs + ≤ one ISR period (≤ 160 µs at 10 kHz) | `bridge.c: en_low, br_service` |
+| 64-bit time base (A12-R06) | `hal_time_us64()` must be read at least once per 32-bit wrap (71.6 min); the 1 ms task reads it every tick. All ms stamps derive from it and wrap at 2^32 ms (49.7 days) | `hal/timer.h`, `s32k396_io.c`, `app.c: app_task_1ms` |
 | SWT (MCU watchdog) | 50 ms, serviced by the task | `hal_wdog_kick` |
 | Resolver | 10 kHz blocks; a gap of more than 8 blocks re-acquires (≈ 2.2 ms invalid) | `resolver.c` |
 | Resolver chain latency | `cal_rslv_latency_us` (SDADC group delay + filter envelope), measured on HIL | `rslv_theta_e_at` |
 
 Every hardware timing that the contract does not fix is a `cal_*` field. Each has its contract
-default and a `[min, max]` range (`include/cal_ranges.h`, 62 items). None is invented as a
+default and a `[min, max]` range (`include/cal_ranges.h`, 67 items). None is invented as a
 constant in the code.

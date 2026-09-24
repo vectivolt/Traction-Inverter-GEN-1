@@ -16,6 +16,7 @@
 #include <stdint.h>
 
 #include "board_pins.h"
+#include "s32k396_board_cfg.h"
 #include "s32k396_cfg.h"
 #include "ti_types.h"
 
@@ -55,6 +56,11 @@
 #define SIUL2_MSCR(i) (IP_SIUL2->MSCR[(i)])
 #define SIUL2_IMCR(i) (IP_SIUL2->IMCR[(i)])
 #define STM_CNT() (IP_STM_0->CNT)
+/* REG_PROT areas (s32k396_cfg.h layout): module base + offset. TODO(RM): base symbols. */
+#define TI_PWM_BASE ((uintptr_t)IP_FLEXPWM_1)
+#define TI_SIUL2_BASE ((uintptr_t)IP_SIUL2)
+#define REGPROT_U8(base, ofs) (*(volatile uint8_t *)((base) + (ofs)))
+#define REGPROT_U32(base, ofs) (*(volatile uint32_t *)((base) + (ofs)))
 #else
 typedef struct {
     volatile uint16_t INIT, CTRL2, CTRL, VAL0, VAL1, VAL2, VAL3, VAL4, VAL5, OCTRL, TCTRL, DISMAP0, DISMAP1, DTCNT0,
@@ -76,7 +82,9 @@ extern ti_shadow_t g_ti_shadow; /* host syntax-check build only */
 #define SIUL2_MSCR(i) (g_ti_shadow.mscr[(i)])
 #define SIUL2_IMCR(i) (g_ti_shadow.imcr[(i)])
 #define STM_CNT() (g_ti_shadow.stm_cnt)
+#define TI_PWM_BASE ((uintptr_t)&g_ti_shadow.pwm) /* offsets only: the shadow has no REG_PROT area */
 #endif
+#define TI_IMCR_SSS_MASK 0xFu /* TODO(RM): IMCR SSS field width */
 
 /* SIUL2 MSCR fields used directly (S32K3 RM, SIUL2 chapter). TODO(HW-RM): confirm on S32K39. */
 #define TI_MSCR_OBE (1u << 21) /* output buffer enable */
@@ -84,12 +92,16 @@ extern ti_shadow_t g_ti_shadow; /* host syntax-check build only */
 #define TI_MSCR_SSS_MASK 0x7u  /* source signal select (ALT function) */
 
 /* IMCR routing of the FLT pins to eFlexPWM_1 FAULT0/FAULT2 (contract FW-15: "routed through the
- * SIUL2 input mux"). TODO(RTD/HW): IMCR index and SSS value from the S32K39 IOMUX table; if the
- * mux cannot reach FAULT0/FAULT2 from PTC26/PTC25 the contract asks for a card pin swap. */
-#define TI_IMCR_PWM1_FAULT0 0u
-#define TI_IMCR_PWM1_FAULT2 0u
-#define TI_IMCR_SSS_PTC26 0u
-#define TI_IMCR_SSS_PTC25 0u
+ * SIUL2 input mux"): the values come from s32k396_board_cfg.h (TODO(RM)). A placeholder can never
+ * reach a target image: the header #errors, and filled values must be non-zero with two different
+ * IMCR indices. Other builds see the route as UNBOUND (hal_pwm_fault_route_bound() false). */
+#define TI_IMCR_ROUTE_BOUND                                                                              \
+    ((TI_IMCR_PWM1_FAULT0 != TI_IMCR_UNBOUND) && (TI_IMCR_PWM1_FAULT2 != TI_IMCR_UNBOUND) &&             \
+     (TI_IMCR_SSS_PTC26 != TI_IMCR_UNBOUND) && (TI_IMCR_SSS_PTC25 != TI_IMCR_UNBOUND) &&                 \
+     (TI_IMCR_PWM1_FAULT0 != TI_IMCR_PWM1_FAULT2))
+#if defined(TI_RTD_AVAILABLE)
+_Static_assert(TI_IMCR_ROUTE_BOUND, "s32k396_board_cfg.h: IMCR values must be non-zero, the two indices distinct");
+#endif
 
 /* Platform-internal entry points (s32k396_io.c), called from s32k396_main.c. */
 bool s32k_gpio_init(void);

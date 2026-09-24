@@ -18,7 +18,7 @@ stateDiagram-v2
     [*] --> OFF
     OFF --> INIT: KL15 on
     INIT --> SAFE_POWERDOWN: KL15 off
-    INIT --> FAULT: init FAIL (FS26 readback/OTP, HW_ID, SKU, calibration, gains, PWM lock)
+    INIT --> FAULT: init FAIL (FS26 readback/OTP, HW_ID, SKU, calibration, gains, arming evidence,<br/>service lock)
     INIT --> SENSOR_SELFTEST: init OK, then the §9 step 2 fault-latch clear (one-shot)
 
     SENSOR_SELFTEST --> SAFE_POWERDOWN: KL15 off
@@ -60,13 +60,13 @@ stateDiagram-v2
 
 | State | MCU_GATE_EN (arm) | Torque | Notes |
 |---|---|---|---|
-| OFF, INIT, SENSOR_SELFTEST | no | no | FS0B still holds DRV_EN low until step 4. §9 step 5 keeps the ASC latch when n ≥ n_x at boot. |
+| OFF, INIT, SENSOR_SELFTEST | no | no | FS0B still holds DRV_EN low until step 4. §9 step 5 keeps the ASC latch when n ≥ n_x at boot. An incomplete arming evidence (route, image, REG_PROT lock, EOL/HIL record) or a service lock fails INIT: FAULT for the key cycle, so FS0B is never released and FW-16 never runs (round 14). |
 | VEHICLE_HANDSHAKE | no | no | Waits for a fresh E2E-valid VCU command. |
 | GATE_SELFTEST | per FW-16 step | no | Runs only under its measured no-HV, standstill conditions (≤ 0.1 J). Otherwise it uses the stored pass or refuses. |
 | PRECHARGE_WAIT | no | no | FW-19 watches the precharge curve. A refusal forbids arming for the key cycle. |
 | ARMED_ZERO_TORQUE | yes | zero | |
 | RUN / DERATE | yes | yes | DERATE is FW-04 with hysteresis. The retry after a DESAT runs at reduced torque. |
-| FAULT | no | no | The §6 action is applied by the fault manager. Exit is only through the rows clearing or the FW-15 retry path. |
+| FAULT | no | no | The §6 action is applied by the fault manager. Exit is only through the rows clearing or the FW-15 retry path. A failure that forbids arming (evidence, service lock, FW-16/FW-19 refusal) keeps it here for the key cycle. |
 | DISCHARGE | no | no | QDIS is fired only while the contactors are reported open (FW-17/18). |
 | SAFE_POWERDOWN | no | no | Discharges if the contactors are open, flushes NVM, then LPOFF. |
 

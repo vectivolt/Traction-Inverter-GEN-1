@@ -9,7 +9,8 @@
  *   angle        rad  electrical unless suffixed _mech; wrapped to [0, 2*pi)
  *   time         us   uint32_t free-running microseconds, wraps every 71.6 min — compare only with
  *                     ti_elapsed()/ti_age() (unsigned subtraction), never with < or >
- *                ms   uint32_t for slow timers (1 kHz task), same wrap rules
+ *                ms   uint32_t for slow timers (1 kHz task), same wrap rules; only from hal_time_ms()
+ *                     (hal/timer.h: us64 / 1000), never hal_time_us() / 1000 (A12-R06)
  *   ADC          code uint16_t 12-bit, 0..4095 = VREFL..VREFH (VREF5 = 5.0 V, ratiometric)
  * Every sensor value that leaves sense/ carries a validity flag and a sample time (ti_meas_t).
  * MISRA-style rules used throughout: fixed-width types, no recursion, no dynamic memory, every loop

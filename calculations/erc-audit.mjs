@@ -238,7 +238,8 @@ for (const [k, v] of [["B", "V5ISO"], ["C", "V5ISO2"]]) {
     `UCC12050 ${k}: VISO/SEL on ${v} (5.0 V select), all GNDS on DCN`);
   ok(same(P(`PS5${k}.VINP`), `V5S${k}`) && same(P(`PS5${k}.EN`), `V5S${k}`) && same(P(`PS5${k}.GNDP`), "DGND") && same(P(`PS5${k}.SYNC`), "DGND")
     && same(P(`PS5${k}.NC6`), "DGND") && same(P(`PS5${k}.NC10`), "DCN"), `UCC12050 ${k}: VINP/EN on its own 5 V, SYNC low, NC pins to their domains`);
-  ok(same(P(`U5L${k}.IN`), "V15") && same(P(`U5L${k}.INH`), "V15") && same(P(`U5L${k}.OUT`), `V5S${k}`) && same(P(`C5L${k}2.pin1`), `V5S${k}`) && same(P(`C5${k}1.pin1`), v),
+  ok(same(P(`R5L${k}.pin1`), "V15") && same(P(`R5L${k}.pin2`), `V15L${k}`) && near(V(PWR, `R5L${k}`), 47) && same(P(`C5L${k}1.pin1`), `V15L${k}`)
+    && same(P(`U5L${k}.IN`), `V15L${k}`) && same(P(`U5L${k}.INH`), `V15L${k}`) && same(P(`U5L${k}.OUT`), `V5S${k}`) && same(P(`C5L${k}2.pin1`), `V5S${k}`) && same(P(`C5${k}1.pin1`), v),
     `bias LDO ${k} from V15 with its 10 uF, UCC12050 ${k} output 10 uF`);
 }
 // VCC1 LDO alive whenever LV is present (sensing decoupled from gate-power enable)
@@ -361,7 +362,23 @@ for (const k of ["1", "2"]) {
 ok(same(C("UMCU.A5_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
 ok(same(C("UEXF.INN"), C("CEXA1.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes (feedback cap to the inverting input)");
 ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H-bridge outputs");
-ok(same(C("JVEH.R1"), "VREX_P") && same(C("JVEH.R2"), "VREX_N"), "resolver drive reaches vehicle connector");
+// Round 14 (F04): the drive reaches the connector through a PTC per line, with a TVS at the connector node
+ok(same(C("FEXP.A"), "VREX_P") && same(C("FEXP.B"), "VREX_PC") && same(C("FEXN.A"), "VREX_N") && same(C("FEXN.B"), "VREX_NC")
+  && same(C("JVEH.R1"), "VREX_PC") && same(C("JVEH.R2"), "VREX_NC") && same(C("TVSEP.K"), "VREX_PC") && same(C("TVSEN.K"), "VREX_NC")
+  && same(C("TVSEP.A"), "AGND") && same(C("TVSEN.A"), "AGND") && same(C("TVSM1.K"), "MT1_F") && same(C("TVSM1.A"), "AGND") && same(C("TVSM2.K"), "MT2_F") && same(C("TVSM2.A"), "AGND"), "resolver drive reaches the vehicle connector through FEXP/FEXN with TVSEP/TVSEN at the connector node (terminal-fault protection, F04)");
+// Round 14: the feedback/monitor networks sense the amplifier side of the PTCs
+ok(same(C("REXB2.pin1"), "VREX_P") && same(C("REXM1.pin1"), "VREX_P") && same(C("REXM3.pin1"), "VREX_N"), "exciter feedback and monitor stay on the amplifier side of the PTCs");
+ok(near(V(CARD, "REXM1"), 18e3) && near(V(CARD, "REXM3"), 18e3) && near(V(CARD, "REXM2"), 42.2e3) && near(V(CARD, "REXM4"), 84.5e3)
+  && same(C("CEXM.pin1"), "VREXM_P") && same(C("CEXM.pin2"), "VREXM_N") && near(V(CARD, "CEXM"), 220e-12),
+  "excitation monitor 18 k / 42.2 k / 84.5 k (<= 3 mA unpowered injection at 50 V) with 220 pF C_AAF across the SDADC1 pair (F03/F05)");
+// Round 14 (A12-R01/R02/R04): MCU supply balls re-derived against the GEN3 netlist
+ok(same(C("UMCU.H5_V15"), "V15S") && C("UMCU.H5_VREFH_SAR_456") === undefined, "H5 is V15 on the 1.5 V rail V15S (A12-R01; not VREF5)");
+ok(same(C("UMCU.J7_V25"), "V25") && same(C("CV25.pin1"), "V25") && same(C("CV25.pin2"), "DGND") && near(V(CARD, "CV25"), 220e-9) && C("UMCU.J7_VSS") === undefined,
+  "J7 is V25 with its 220 nF COUT_V25 to ground, not a ground ball (A12-R02)");
+ok(same(C("CBAL.pin1"), "BCTRL") && same(C("CBAL.pin2"), "DGND") && near(V(CARD, "CBAL"), 1e-9) && same(C("UMCU.F1_NMOS_CTRL"), "BCTRL"), "CNMOS 1 nF on the ballast gate (A12-R04)");
+ok(same(C("UMCU.E6_VREFH_SAR_456"), "VREF5") && same(C("UMCU.H6_VREFH_SAR_0123"), "VREF5"), "SAR reference-high balls E6/H6 on VREF5");
+ok(same(C("UMCU.B5_HWID"), "HW_ID") && same(C("UMCU.T15_NTCA"), "NTC_A") && same(C("UMCU.D5_MT2"), "MT2_SIG") && same(C("UMCU.U4_ASCREQ"), "ASC_REQ")
+  && ["C12_HWID", "C14_NTCA", "D11_MT2", "T5_ASCREQ"].every((l) => C(`UMCU.${l}`) === undefined), "round-14 remap: HW_ID/NTC_A/MT2_SIG/ASC_REQ on GEN3-netlist-confirmed balls B5/T15/D5/U4");
 for (const s of ["SIN", "COS"])
   ok(same(C(`R${s}R1.pin2`), `${s}_P`) && same(C(`R${s}R2.pin2`), `${s}_N`), `${s} pair reaches SDADC nets`);
 ok(same(C("UCAN1.TXD"), "CAN0_TX") && same(C("UCAN1.RXD"), "CAN0_RX"), "CAN1 TX/RX not swapped");
@@ -381,7 +398,7 @@ for (const k of ["H", "L"]) {
 }
 ok(DIS.comps.filter((c) => /^RBLD\d+$/.test(c.name)).every((c) => near(Number(c.resistance), 22e3)), "bleeder parts 22 k (66 k total)");
 ok(same(P("RHWID.pin1"), "HW_ID") && same(P("RHWID.pin2"), "DGND"), "SKU identity resistor on the power board (platform)");
-ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.C12_HWID"), "HW_ID"), "SKU identity read by the MCU ADC");
+ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.B5_HWID"), "HW_ID"), "SKU identity read by the MCU ADC (B5/PTE0 ADC3_P0 since A.13)");
 ok(same(C("UMCU.R17_VOFS"), "VOFS"), "shared VDC receiver offset monitored by the MCU (F11 common cause)");
 ok(same(C("JVEH.SHLDR"), "DGND") && same(C("JVEH.SHLDS"), "DGND"), "resolver shields return at the connector ground, not AGND (F35)");
 ok(same(C("CFLTD.pin1"), "FLT_OKD") && same(C("CFLTD.pin2"), "DGND") && near(V(CARD, "CFLTD"), 3.3e-9) && near(V(CARD, "RFLTD"), 10e3),
@@ -541,9 +558,9 @@ ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "C
 // round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 24 V-stand-off TVS (-VR) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ PS5B: /^UCC12050/, PS5C: /^UCC12050/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMCJ8\.5CA/, FEXP: /^MF-MSMF020$/, FMT1: /^0438\.375WRA$/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: round-12 parts resolve (UCC12050 + LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs)`, bad.join(", "));
+  ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMCJ8.5CA + MF-MSMF020)`, bad.join(", "));
 }
 // ---------- round-13 PIN FREEZE: every UMCU pin label is <ball>_<signal>, on the net the manifest gives, and a
 // signal ball carries the peripheral function it is used for (calculations/mcu-ballmap.json, from SPF-91122 + DS anchors)

@@ -153,6 +153,56 @@ static inline pwm_mode_img_t pwm_mode_image(uint32_t mode)
     return m;
 }
 
+/* ---------------- REG_PROT (F02) ----------------
+ * Generic S32K3 register-protection layout. TODO(RM): verify every offset and bit on the S32K39
+ * reference manual before relying on it:
+ *   SLBRn (8 bit) at module base + TI_REGPROT_SLBR_OFS + n covers the module bytes 4n..4n+3:
+ *     SLB[3:0] = one soft-lock bit per byte (1 = locked), WE[7:4] = write enable of those SLB bits;
+ *   GCR (32 bit) at module base + TI_REGPROT_GCR_OFS: HLB = hard lock (every SLBR read-only until
+ *     reset).
+ * "Locked" is decided only from values read back (regprot_locked): all-zero reads, a missing HLB
+ * or one missing SLB bit => not locked. A matching configuration image is never taken as a lock. */
+#define TI_REGPROT_SLBR_OFS 0x1800u     /* TODO(RM) */
+#define TI_REGPROT_GCR_OFS 0x1FFCu      /* TODO(RM) */
+#define TI_REGPROT_GCR_HLB (1uL << 31)  /* TODO(RM) */
+#define TI_REGPROT_WE_SHIFT 4u          /* TODO(RM) */
+
+typedef struct {
+    uint32_t ofs;  /* byte offset of the register in its module */
+    uint8_t width; /* bytes */
+} regprot_reg_t;
+
+static inline uint32_t regprot_slbr_index(uint32_t ofs) { return ofs / 4u; }
+
+/* The SLB bits of bytes [ofs, ofs + width) inside their SLBR (a register never straddles two). */
+static inline uint8_t regprot_slb_bits(uint32_t ofs, uint32_t width)
+{
+    uint8_t m = 0u;
+    for (uint32_t k = 0u; (k < width) && (k < 4u); k++) {
+        const uint32_t b = (ofs % 4u) + k;
+        m = (uint8_t)(m | ((b < 4u) ? (1u << b) : 0u));
+    }
+    return m;
+}
+
+/* The SLBR write that sets those bits: WE for the same bytes (the neighbours' bits untouched). */
+static inline uint8_t regprot_slbr_lock_value(uint32_t ofs, uint32_t width)
+{
+    const uint8_t slb = regprot_slb_bits(ofs, width);
+    return (uint8_t)((uint8_t)(slb << TI_REGPROT_WE_SHIFT) | slb);
+}
+
+/* slbr_read[i] = the SLBR byte read for regs[i]. True only with HLB set and every SLB bit set. */
+static inline bool regprot_locked(uint32_t gcr, const uint8_t *slbr_read, const regprot_reg_t *regs, uint32_t n)
+{
+    bool ok = (n > 0u) && ((gcr & TI_REGPROT_GCR_HLB) != 0u);
+    for (uint32_t i = 0u; i < n; i++) {
+        const uint8_t need = regprot_slb_bits(regs[i].ofs, regs[i].width);
+        ok = ok && (need != 0u) && ((uint8_t)(slbr_read[i] & need) == need);
+    }
+    return ok;
+}
+
 /* ---------------- ADC_SAR ---------------- */
 /* RTD/RM channel index: precision inputs Pn = n (0..7), standard inputs Sn = 32 + n (0..23). */
 #define S32K3_ADC_CH(sub, n) ((uint8_t)(((sub) == 'S') ? (32u + (uint32_t)(n)) : (uint32_t)(n)))

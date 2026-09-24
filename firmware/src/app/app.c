@@ -30,7 +30,8 @@ void app_fault_isr_entry(void) { app_isr_fault(&g_app); }
 
 uint32_t app_isr_period_us(const app_t *a) { return 500000u / a->gains.fsw_hz; }
 
-static uint32_t now_ms(void) { return hal_time_us() / 1000u; }
+/* Time (A12-R06): microsecond intervals use hal_time_us(); every millisecond time stamp comes from
+ * hal_time_ms() (or the task's own 64-bit read), never from hal_time_us() / 1000. */
 
 /* ======================= init ======================= */
 static void set_watchdogs(app_t *a)
@@ -64,7 +65,7 @@ static void key_cycle_init(app_t *a)
 
 static void forbid(app_t *a, dtc_id_t d)
 {
-    dtc_set(d, now_ms());
+    dtc_set(d, hal_time_ms());
     a->no_arm = true;
 }
 
@@ -125,13 +126,40 @@ static void init_calibration(app_t *a, const calib_t *cal)
     }
 }
 
+/* Round 14 (F01/F02/F06): arming needs every piece of evidence (arm_evidence.h); each missing one
+ * is a DTC, forbids arming for the key cycle and is named in the CAN status. */
+static void init_evidence(app_t *a)
+{
+    arm_validation_t v;
+    const bool present = nv_read(NV_REC_VALIDATION, &v, (uint16_t)sizeof v);
+    a->evidence = (uint8_t)(arm_evidence_platform() |
+                            arm_validation_flags(&v, present, a->serial, a->p->sku, TI_FW_ID, a->p));
+    const uint8_t pwm = ARM_EV_CONFIG_MATCHES | ARM_EV_PROTECTION_LOCKED;
+    if ((a->evidence & pwm) != pwm) {
+        forbid(a, DTC_PWM_LOCK); /* a matching image is not a locked one */
+    }
+    if ((a->evidence & (uint8_t)(ARM_EV_ROUTE_BOUND | ARM_EV_VALIDATED)) != (uint8_t)(ARM_EV_ROUTE_BOUND | ARM_EV_VALIDATED)) {
+        forbid(a, DTC_ARM_EVIDENCE);
+    }
+}
+
+/* Item 9: a stuck-on QDIS found in an earlier key cycle still forbids re-energising. */
+static void init_service_lock(app_t *a)
+{
+    nv_service_t r;
+    if (nv_read(NV_REC_DTC, &r, (uint16_t)sizeof r) && (r.magic == NV_SERVICE_MAGIC)) {
+        a->service_required = true;
+        forbid(a, DTC_QDIS_STUCK_ON);
+    }
+}
+
 void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t serial[8])
 {
     (void)memset(a, 0, sizeof *a);
     a->p = p;
     (void)memcpy(a->serial, serial, 8u);
     dtc_init();
-    br_init(&a->br); /* §9 step 1: every enable low, ASC_CLR latch high */
+    br_init(&a->br, p); /* §9 step 1: every enable low, ASC_CLR latch high */
     gp_init(&a->gp);
     (void)hal_adc_init();
     (void)hal_sdadc_init(CARRIER_HZ);
@@ -146,9 +174,9 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
         forbid(a, DTC_PARAMS_INVALID);
     }
     init_calibration(a, cal);
-    if (!hal_pwm_init(a->gains.fsw_hz, p->dead_time_ns) || !hal_pwm_config_locked()) {
-        forbid(a, DTC_PWM_LOCK);
-    }
+    (void)hal_pwm_init(a->gains.fsw_hz, p->dead_time_ns);
+    init_evidence(a);
+    init_service_lock(a);
     set_watchdogs(a);
     a->swg_amp = SWG_AMP_DEFAULT;
     (void)hal_swg_start(CARRIER_HZ, a->swg_amp);
@@ -173,7 +201,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     st_init(&a->st);
     sm_init(&a->sm);
     a->init = a->no_arm ? SM_FAIL : SM_OK;
-    a->last_task_ms = now_ms();
+    a->last_task_ms = hal_time_ms();
 }
 
 /* ======================= shared helpers ======================= */
@@ -187,7 +215,7 @@ static bool battery_present(const app_t *a, uint32_t t_ms)
 
 static fm_ctx_t ctx_now(const app_t *a)
 {
-    const uint32_t t = now_ms();
+    const uint32_t t = hal_time_ms();
     fm_ctx_t c = {.speed_rpm = a->speed_rpm, .speed_known = a->speed_known, .battery_present = battery_present(a, t),
                   .asc_active = (a->br.mode == BR_ASC), .vdc_v = a->vdc.vdc, .now_ms = t, .key_cycle = a->key_cycle};
     if (a->isns.valid) {
@@ -297,6 +325,17 @@ static void sense_fast(app_t *a, uint32_t now_us)
     }
 }
 
+/* F24: while modulating, every phase the reference asks for current must show it (current.c). The
+ * reference is the one the loop tracked while these currents were sampled. */
+static void stuck_check(app_t *a, uint32_t now_us)
+{
+    float ra;
+    float rb;
+    foc_ipark(a->foc.id_ref, a->foc.iq_ref, rslv_theta_e_at(&a->rslv, &a->cal.rslv, now_us, a->p), &ra, &rb);
+    const float r3[3] = {ra, (-0.5f * ra) + ((0.5f * TI_SQRT3) * rb), (-0.5f * ra) - ((0.5f * TI_SQRT3) * rb)};
+    isns_activity(&a->isns, r3, a->p);
+}
+
 static void control_fast(app_t *a, uint32_t now_us)
 {
     if (a->zero_now) {
@@ -308,6 +347,9 @@ static void control_fast(app_t *a, uint32_t now_us)
             br_spo(&a->br, false); /* armed idle: PWM off, EN high */
         }
         return;
+    }
+    if ((a->br.mode == BR_MOD) && a->isns.valid && a->rslv.valid) {
+        stuck_check(a, now_us);
     }
     if (!a->isns.valid || !a->rslv.valid || !a->vdc.valid) {
         /* no angle / current / voltage => no modulation; the §6 row at the current-loop rate */
@@ -328,7 +370,7 @@ static void control_fast(app_t *a, uint32_t now_us)
         !br_modulate(&a->br, a->foc.duty, a->p)) {
         br_spo(&a->br, false);
         a->mod_req = false;
-        dtc_set(DTC_CTRL_NONFINITE, now_us / 1000u);
+        dtc_set(DTC_CTRL_NONFINITE, hal_time_ms());
     }
 }
 
@@ -336,6 +378,7 @@ void app_isr_current(app_t *a)
 {
     const uint32_t now_us = hal_time_us();
     a->n_isr++;
+    br_service(&a->br); /* A12-R05: a drop left pending by the DESAT hold happens here once it has run */
     sense_fast(a, now_us);
     if (!a->offs_ok && (hal_pwm_mode() == HAL_PWM_OFF) && (a->offs_n < OFFSET_SAMPLES)) {
         for (uint32_t i = 0u; i < 3u; i++) { /* standstill zero-current reference (§9 step 3) */
@@ -385,9 +428,14 @@ void app_isr_fault(app_t *a)
         apply_decision(a, now_us);
     }
     if ((f & (HAL_PWM_FAULT_FLT_HS | HAL_PWM_FAULT_FLT_LS)) != 0u) {
+        br_service(&a->br); /* A12-R05: the first sight of the FLT starts the DESAT hold */
         const bool hs_low = !hal_gpio_read(HAL_DI_FLT_HS_N);
         const bool ls_low = !hal_gpio_read(HAL_DI_FLT_LS_N);
-        br_spo(&a->br, true); /* FW-15 step 1: the hardware already did it; software agrees */
+        /* FW-15 step 1: PWM off now (the FAULT0/2 input already did it). MCU_GATE_EN is NOT dropped
+         * here: it is an undelayed AND input, while the fault latch takes DRV_EN low only 22–53 us
+         * after the FLT so the NSI6611 can finish its soft turn-off. The bridge drops EN after the
+         * DESAT hold (cal_desat_en_hold_us). */
+        br_spo(&a->br, true);
         a->mod_req = false;
         const fm_ctx_t c = ctx_now(a);
         if (ls_low && !fm_active(&a->fm, SS_ROW_FLT_LS)) {
@@ -489,7 +537,7 @@ static void detect(app_t *a, const fm_ctx_t *c)
         const bool open = a->isns.open_wire[0] || a->isns.open_wire[1] || a->isns.open_wire[2];
         const bool ibad = !a->isns.valid;
         const dtc_id_t id = open ? DTC_ISNS_OPEN : (a->isns.sum_fault ? DTC_ISNS_SUM
-                          : (!a->isns.fresh ? DTC_ISNS_STALE : DTC_ISNS_RANGE));
+                          : (a->isns.stuck_fault ? DTC_ISNS_STUCK : (!a->isns.fresh ? DTC_ISNS_STALE : DTC_ISNS_RANGE)));
         if (ibad) {
             flag(a, true, SS_ROW_RESOLVER_INVALID, true, id, c); /* control lost: same §6 row */
         }
@@ -540,7 +588,7 @@ static void recovery(app_t *a, uint32_t now_us, bool for_retry)
     } else if (r == BR_REC_FAIL) {
         a->rec_active = false;
         a->br.rec = BR_REC_IDLE;
-        dtc_set(DTC_FLT_RECOVERY_FAIL, now_us / 1000u);
+        dtc_set(DTC_FLT_RECOVERY_FAIL, hal_time_ms());
     } else {
         /* waiting */
     }
@@ -619,7 +667,7 @@ static void selftest_step(app_t *a, uint32_t t_ms)
                          .n_ss_rpm = (a->cal_err == 0u) ? motor_n_ss_rpm(&a->cal.motor, a->p) : 0.0f,
                          .pwm_low = (hal_pwm_mode() == HAL_PWM_OFF),
                          .flt_high = hal_gpio_read(HAL_DI_FLT_HS_N) && hal_gpio_read(HAL_DI_FLT_LS_N)};
-    const st_res_t r = st_step(&a->st, &c, &a->fs, &a->dis, &a->vdc, a->can.contactors, t_ms, a->p);
+    const st_res_t r = st_step(&a->st, &c, &a->br, &a->fs, &a->dis, &a->vdc, a->can.contactors, t_ms, a->p);
     if (r == ST_RES_PASS) {
         const nv_selftest_t rec = {.key_cycle = a->key_cycle, .passed = 1u};
         (void)nv_queue(NV_REC_SELFTEST, &rec, (uint16_t)sizeof rec);
@@ -701,7 +749,7 @@ static void execute(app_t *a, uint32_t t_ms, uint32_t now_us)
     }
 }
 
-static void arming(app_t *a, uint32_t now_us)
+static void arming(app_t *a, uint32_t now_us, uint32_t t_ms)
 {
     if (fm_any(&a->fm) && (a->fm.dec.action >= SS_ACT_ZERO_TORQUE_DCL)) {
         return; /* the §6 decision owns the bridge */
@@ -722,7 +770,7 @@ static void arming(app_t *a, uint32_t now_us)
         }
         const bool cc_ready = a->isns.valid && a->rslv.valid && a->vdc.valid && a->gains_ok;
         const bool slow = a->speed_known && (ti_absf(a->speed_rpm) < a->n_x_rpm);
-        if (slow || (battery_present(a, now_us / 1000u) && cc_ready)) {
+        if (slow || (battery_present(a, t_ms) && cc_ready)) {
             if (br_exit_asc(&a->br, true)) { /* FW-06a: MCU-commanded exit */
                 a->asc_hold = false;
             }
@@ -777,11 +825,23 @@ static void torque_path(app_t *a, uint32_t t_ms)
     float id = 0.0f;
     float iq = 0.0f;
     const float i_max = TI_SQRT2 * a->tlim.i_limit_rms_a;
-    if (!torque_to_current(a->t_cmd_nm, motor_omega_e(a->speed_rpm, &a->cal.motor), a->vdc.vdc, i_max, &a->cal.motor,
-                           &a->cal.mtpa, p, &id, &iq)) {
+    const tq_res_t tr = torque_to_current(a->t_cmd_nm, motor_omega_e(a->speed_rpm, &a->cal.motor), a->vdc.vdc, i_max,
+                                          &a->cal.motor, &a->cal.mtpa, p, &id, &iq);
+    const bool relevant = armed && a->vdc.valid; /* the reference is used: not a blind link reading */
+    if (tr == TQ_NONFINITE) {
         dtc_set(DTC_CTRL_NONFINITE, t_ms);
         a->t_cmd_nm = 0.0f;
+    } else if (tr == TQ_INFEASIBLE) {
+        /* F23: not even iq = 0 fits the voltage inside the demagnetisation/current limits: zero
+         * torque at the least-voltage id, ask the VCU to limit the speed, record it */
+        a->t_cmd_nm = 0.0f;
+        if (relevant) {
+            dtc_set(DTC_TORQUE_INFEASIBLE, t_ms);
+        }
+    } else {
+        /* TQ_OK or TQ_LIMITED: the pair passed the voltage-feasibility witness */
     }
+    a->speed_limit_req = (tr == TQ_INFEASIBLE) && relevant;
     a->id_ref = id;
     a->iq_ref = a->zero_now ? 0.0f : iq;
 }
@@ -802,17 +862,49 @@ static void status_tx(app_t *a, uint32_t t_ms)
                             .precharge_refused = (a->pch.res >= PCH_REFUSE_PLATEAU), .speed_valid = a->rslv.valid,
                             .torque_nm = a->t_cmd_nm, .speed_rpm = a->speed_rpm, .vdc_v = a->vdc.vdc,
                             .vdc_valid = a->vdc.valid, .t_module_c = temp_module_max(&a->temp, &any, &all),
-                            .n_dtc = dtc_confirmed_count(), .first_dtc = (uint16_t)dtc_first_active()};
+                            .n_dtc = dtc_confirmed_count(), .first_dtc = (uint16_t)dtc_first_active(),
+                            .no_safe_state = a->fm.no_safe_state, .service_required = a->service_required,
+                            .open_contactors_req = a->service_required, .speed_limit_req = a->speed_limit_req,
+                            .evidence_missing = (uint8_t)(ARM_EV_ALL & (uint8_t)~a->evidence)};
     hal_can_frame_t f;
     can_status_encode(&s, a->tx_ctr++, &f);
     (void)hal_can_tx(HAL_CAN_VEHICLE, &f);
 }
 
+/* Item 9: an unexpected link discharge (stuck-on QDIS) latches "service required": no arming, the
+ * VCU is asked to open the contactors and not to re-energise; kept in NVM across key cycles. */
+static void service_lock(app_t *a)
+{
+    if (a->dis.stuck_on && !a->service_required) {
+        a->service_required = true;
+        forbid(a, DTC_QDIS_STUCK_ON);
+        const nv_service_t r = {.magic = NV_SERVICE_MAGIC, .dtc = (uint16_t)DTC_QDIS_STUCK_ON, .key_cycle = a->key_cycle};
+        (void)nv_queue(NV_REC_DTC, &r, (uint16_t)sizeof r);
+    }
+}
+
+/* Round 14: the platform evidence is read back every tick. A loss forbids arming; if the bridge is
+ * armed it is "control lost", so §6 (not a blind SPO) decides the bridge action. */
+static void evidence_watch(app_t *a, const fm_ctx_t *c)
+{
+    const uint8_t now = (uint8_t)(arm_evidence_platform() | (a->evidence & ARM_EV_VALIDATED));
+    const uint8_t lost = (uint8_t)(a->evidence & (uint8_t)~now);
+    a->evidence = (uint8_t)(a->evidence & now);
+    if (lost != 0u) {
+        forbid(a, ((lost & ARM_EV_ROUTE_BOUND) != 0u) ? DTC_ARM_EVIDENCE : DTC_PWM_LOCK);
+        if ((a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD) || (a->br.mode == BR_ASC)) {
+            fm_raise(&a->fm, SS_ROW_RESOLVER_INVALID, true, c, &a->cal.motor, a->p);
+        }
+    }
+}
+
 void app_task_1ms(app_t *a)
 {
-    const uint32_t now_us = hal_time_us();
-    const uint32_t t_ms = now_us / 1000u;
+    const uint64_t t64 = hal_time_us64(); /* A12-R06: one read per tick keeps the 64-bit extension */
+    const uint32_t now_us = (uint32_t)t64;
+    const uint32_t t_ms = ti_ms_from_us64(t64);
     hal_wdog_kick();
+    br_service(&a->br);
     sense_slow(a, t_ms);
     comms(a, t_ms);
     if (fs26_wd_due(&a->fs, now_us) && (fs26_wd_refresh(&a->fs) != FS26_OK)) {
@@ -823,13 +915,14 @@ void app_task_1ms(app_t *a)
     }
     fm_ctx_t c = ctx_now(a);
     detect(a, &c);
+    evidence_watch(a, &c);
     fm_update(&a->fm, &c, &a->cal.motor, a->p);
     fault_actions(a, &c, now_us);
     sm_in_t in;
     gather(a, &in, t_ms);
     sm_step(&a->sm, &in, &a->so, a->p);
     execute(a, t_ms, now_us);
-    arming(a, now_us);
+    arming(a, now_us, t_ms);
     if ((a->sm.st == SM_PRECHARGE_WAIT) || (a->pch.res == PCH_RUNNING)) {
         const pch_result_t pr = pch_step(&a->pch, a->can.contactors, &a->vdc, a->can.v_pack,
                                          can_bms_fresh(&a->can, t_ms, a->p), t_ms, a->p);
@@ -837,7 +930,8 @@ void app_task_1ms(app_t *a)
             a->no_arm = true; /* FW-19: refuse to arm (a shorted QDIS/string does not heal) */
         }
     }
-    dis_step(&a->dis, a->can.contactors, &a->vdc, t_ms, a->p);
+    dis_step(&a->dis, a->can.contactors, &a->vdc, a->br.mode == BR_MOD, t_ms, a->p);
+    service_lock(a);
     hal_gpio_write(HAL_DO_QDIS, dis_output(&a->dis));
     torque_path(a, t_ms);
     if (a->rslv.valid && (a->br.mode == BR_MOD)) {

@@ -1,7 +1,7 @@
 {
  "package": "289-MAPBGA (17 x 17, rows A-H J-N P R T U)",
  "source": "NXP EV-INVERTERGEN3 S32K396-HPWR-MC schematic SPF-91122 rev C, sheets 8-13 (MCU symbol ball numbers and pin functions); ball-to-name pairing anchored on the S32K39 DS supply balls J6 E7 B8 E9 G13 E11 F1 H5; FS26 48 pins verified against FS26 DS Table 3",
- "rev": "A.12",
+ "rev": "A.13",
  "balls": [
   {
    "ball": "A1",
@@ -217,11 +217,11 @@
    "ball": "B5",
    "pinname": "PTE0/GPIO[128]/LPSPI0_SIN/FXIO_D3/eTPU_A_CH[1]/eTPU_B_CH[4]/LCU0_OUT11/CMP0_OUT/LPUART3_RX/EIRQ[0]/ADC3_P0/ADC1_P4/WKPU[26]",
    "port": "PTE0",
-   "fn": "",
-   "label": null,
-   "net": null,
-   "role": "not used \u2014 no connection (pad left open)",
-   "cls": "nc"
+   "fn": "ADC3_P0",
+   "label": "B5_HWID",
+   "net": "HW_ID",
+   "role": "SKU identity (was PTB4: no ADC) \u2014 moved from C12 in round 14 (GEN3-netlist-confirmed ball)",
+   "cls": "signal"
   },
   {
    "ball": "B6",
@@ -457,11 +457,11 @@
    "ball": "C12",
    "pinname": "PTC6/GPI[70]/CAN2_RX/FXIO_D11/LPSPI0_PCS1/LPSPI1_PCS1/LPUART1_RX/EIRQ[6]/ADC3_P6/ADC5_P4/SDADC1_AN[2]/WKPU[3]",
    "port": "PTC6",
-   "fn": "ADC3_P6",
-   "label": "C12_HWID",
-   "net": "HW_ID",
-   "role": "SKU identity (was PTB4: no ADC)",
-   "cls": "signal"
+   "fn": null,
+   "label": null,
+   "net": null,
+   "role": null,
+   "cls": "nc"
   },
   {
    "ball": "C13",
@@ -477,11 +477,11 @@
    "ball": "C14",
    "pinname": "PTD29/GPI[125]/CAN0_RX/LPSPI5_PCS2/ADC5_P7/ADC6_P5/SDADC3_AN[2]/WKPU[52]",
    "port": "PTD29",
-   "fn": "ADC5_P7",
-   "label": "C14_NTCA",
-   "net": "NTC_A",
-   "role": "board NTC ambient (was PTA10 = JTAG_TDO)",
-   "cls": "signal"
+   "fn": null,
+   "label": null,
+   "net": null,
+   "role": null,
+   "cls": "nc"
   },
   {
    "ball": "C15",
@@ -557,11 +557,11 @@
    "ball": "D5",
    "pinname": "PTE26/GPIO[154]/LPSPI1_PCS5/LPSPI2_PCS3/eTPU_A_CH[0]/eTPU_B_CH[3]/LCU0_OUT10/eTPU_A_TCRCLK/ADC0_P6/ADC1_P0",
    "port": "PTE26",
-   "fn": "",
-   "label": null,
-   "net": null,
-   "role": "not used \u2014 no connection (pad left open)",
-   "cls": "nc"
+   "fn": "ADC1_P0",
+   "label": "D5_MT2",
+   "net": "MT2_SIG",
+   "role": "motor temp 2 (PTA13 absent) \u2014 moved from D11 in round 14",
+   "cls": "signal"
   },
   {
    "ball": "D6",
@@ -617,11 +617,11 @@
    "ball": "D11",
    "pinname": "PTE18/GPI[146]/FXIO_D4/ADC3_P5/SDADC0_AN[3]/ADC1_S12/WKPU[55]",
    "port": "PTE18",
-   "fn": "ADC3_P5",
-   "label": "D11_MT2",
-   "net": "MT2_SIG",
-   "role": "motor temp 2 (PTA13 absent)",
-   "cls": "signal"
+   "fn": null,
+   "label": null,
+   "net": null,
+   "role": null,
+   "cls": "nc"
   },
   {
    "ball": "D12",
@@ -1075,7 +1075,7 @@
   },
   {
    "ball": "G6",
-   "pinname": "PTE4/GPIO[132]/LPSPI0_PCS0/LPSPI1_PCS1/eMIOS_0_CH[18]_X/FXIO_D6/LCU0_OUT7/eTPU_B_CH[6]/eTPU_A_CH[12]/EIRQ[4]/ADC2_P2/ADC1_S9",
+   "pinname": "PTB30 \u2014 GEN3 netlist NET-91122_C names this ball PTB30; the SPF-91122 text read PTE4/GPIO[132]/... (the one parse exception of 165); left open",
    "port": "PTE4",
    "fn": "",
    "label": null,
@@ -1235,12 +1235,12 @@
   },
   {
    "ball": "H5",
-   "pinname": "VREFH_SAR_456",
+   "pinname": "V15",
    "port": "VREFH_SAR_456",
    "fn": "",
-   "label": "H5_VREFH_SAR_456",
-   "net": "VREF5",
-   "role": "ADC reference high (FS26 VREF 5 V)",
+   "label": "H5_V15",
+   "net": "V15S",
+   "role": "1.5 V core-regulator input/sense (GEN3 net VCORE; DS Fig. 6). Round 14 A12-R01: A.12 had it on VREF5",
    "cls": "supply"
   },
   {
@@ -1425,13 +1425,13 @@
   },
   {
    "ball": "J7",
-   "pinname": "VSS (DS figure)",
+   "pinname": "V25",
    "port": "VSS",
    "fn": "",
-   "label": "J7_VSS",
-   "net": "DGND",
-   "role": "DS PMIC figure lists J7 as a ground ball (\"V25\" in the figure text); grounded",
-   "cls": "ground"
+   "label": "J7_V25",
+   "net": "V25",
+   "role": "internal 2.5 V flash-regulator output \u2014 COUT_V25 220 nF (CV25). Round 14 A12-R02: A.12 had it grounded",
+   "cls": "supply"
   },
   {
    "ball": "J8",
@@ -2597,11 +2597,11 @@
    "ball": "T5",
    "pinname": "PTD6/GPIO[102]/EMAC_MII_TXD3/FXIO_D3/EMAC_MII_RMII_TX_CLK/EMAC_MII_TXD2/FXIO_D13/LPSPI0_PCS0/eTPU_A_CH[26]/eTPU_B_CH[15]/LPUART2_RX/EIRQ[14]/CMP0_IN7",
    "port": "PTD6",
-   "fn": "",
-   "label": "T5_ASCREQ",
-   "net": "ASC_REQ",
-   "role": "ASC request (latch clock)",
-   "cls": "signal"
+   "fn": null,
+   "label": null,
+   "net": null,
+   "role": null,
+   "cls": "nc"
   },
   {
    "ball": "T6",
@@ -2697,11 +2697,11 @@
    "ball": "T15",
    "pinname": "PTC11/GPIO[75]/LPUART0_DTR_B/FXIO_D15/LPSPI4_SOUT/FXIO_D19/LCU1_OUT10/eTPU_B_CH[19]/eTPU_B_CH[6]/CAN5_RX/PWM_1_FAULT[1]/LPUART3_RX/EIRQ[19]/TRGMUX_IN5/ADC5_S11/WKPU[18]",
    "port": "PTC11",
-   "fn": "",
-   "label": null,
-   "net": null,
-   "role": "not used \u2014 no connection (pad left open)",
-   "cls": "nc"
+   "fn": "ADC5_S11",
+   "label": "T15_NTCA",
+   "net": "NTC_A",
+   "role": "board NTC ambient (was PTA10 = JTAG_TDO) \u2014 moved from C14 in round 14",
+   "cls": "signal"
   },
   {
    "ball": "T16",
@@ -2758,10 +2758,10 @@
    "pinname": "PTD7/GPIO[103]/EMAC_MII_RMII_TXD[0]/LPUART2_TX/LPSPI3_PCS3/LPSPI0_PCS3/EMAC_MII_RMII_TXD[1]/TRACE_ETM_D0/QuadSPI_IOFA1/EIRQ[15]/CMP0_IN6",
    "port": "PTD7",
    "fn": "",
-   "label": null,
-   "net": null,
-   "role": "not used \u2014 no connection (pad left open)",
-   "cls": "nc"
+   "label": "U4_ASCREQ",
+   "net": "ASC_REQ",
+   "role": "ASC request (latch clock) \u2014 moved from T5 in round 14",
+   "cls": "signal"
   },
   {
    "ball": "U5",
@@ -2893,5 +2893,10 @@
    "role": "not used \u2014 no connection (pad left open)",
    "cls": "nc"
   }
- ]
+ ],
+ "validation": {
+  "gen3_netlist": "NET-91122_C.net (Allegro report, MCU refdes U513): 244 balls connected on the NXP GEN3 card; every one of the 165 port-named GEN3 nets equals the SPF-91122 text-parse port except G6 (GEN3 PTB30 vs text PTE4; unused here). All supply balls agree with the GEN3 nets (VCORE H5, V25 J7, V11 x11, VDD_HV_A x10, VDD_HV_B N4/R7/R10 + VDD_LVDS N5, VDD_DCDC L5, NMOS_CTRL F1, PMOS_CTRL K5 open, GND x33).",
+  "ds_power_figure": "S32K39 DS Rev.3 289-MAPBGA figure: H5 V15, J7 V25, E6 VREFH_SAR_456, E7 VREFL_SAR_456, F1 NMOS_CTRL, K5 PMOS_CTRL, J6 VREFL_SAR_0123 (the figure text also pairs J6 with VSS_DCDC \u2014 resolved by the GEN3 netlist: J5 VSS_DCDC).",
+  "signal_balls_without_gen3_cross_check": "none since round 14 (HW_ID, NTC_A, MT2_SIG, ASC_REQ moved from C12/C14/D11/T5 to B5/T15/D5/U4)"
+ }
 }

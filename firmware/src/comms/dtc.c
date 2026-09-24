@@ -20,12 +20,12 @@ void dtc_set(dtc_id_t id, uint32_t now_ms)
         return;
     }
     dtc_entry_t *e = &s_e[id];
+    if (e->occ == 0u) {
+        e->first_ms = now_ms; /* 0 is a valid time stamp: the occurrence count says "first" */
+    }
     if ((e->status & DTC_TF) == 0u) {
         e->occ = (e->occ < 255u) ? (uint8_t)(e->occ + 1u) : 255u;
         s_dirty = true;
-    }
-    if (e->first_ms == 0u) {
-        e->first_ms = now_ms;
     }
     e->last_ms = now_ms;
     e->status |= (uint8_t)(DTC_TF | DTC_TFTOC | DTC_PDTC | DTC_CDTC | DTC_TFSLC);
@@ -43,6 +43,16 @@ bool dtc_active(dtc_id_t id) { return ok_id(id) && ((s_e[id].status & DTC_TF) !=
 uint8_t dtc_status(dtc_id_t id) { return ok_id(id) ? s_e[id].status : 0u; }
 uint8_t dtc_occurrences(dtc_id_t id) { return ok_id(id) ? s_e[id].occ : 0u; }
 uint32_t dtc_code(dtc_id_t id) { return 0xD10000u | (uint32_t)id; }
+
+bool dtc_times(dtc_id_t id, uint32_t *first_ms, uint32_t *last_ms)
+{
+    if (!ok_id(id) || (s_e[id].occ == 0u)) {
+        return false;
+    }
+    *first_ms = s_e[id].first_ms;
+    *last_ms = s_e[id].last_ms;
+    return true;
+}
 
 uint16_t dtc_confirmed_count(void)
 {

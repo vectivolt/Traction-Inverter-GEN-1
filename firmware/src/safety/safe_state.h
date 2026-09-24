@@ -13,7 +13,12 @@
  * If SPO is refused and LS-ASC is available for the row, the decision becomes LS-ASC (the winding
  * current circulates and decays instead of charging the link, round 13); if LS-ASC is not
  * available (FLT_LS, V5GD loss, the FLT_HS reset interval) SPO is what the hardware does anyway
- * and the decision flags energy_dtc: that motor/vehicle combination was not releasable. */
+ * and the decision flags energy_dtc: that motor/vehicle combination was not releasable.
+ * keep_hv (FW-08b, A12-R08): the SPO the decision holds relies on the battery as the energy sink —
+ * rule (a) fails and the battery is present — at ANY speed, for every row whose premise is not a
+ * lost battery. It is re-evaluated with the present current and speed, so it clears once rule (a)
+ * holds; ASC (an independent sink) clears it in fault_mgr.c. With the battery absent there is
+ * nothing to keep: keep_hv is false and energy_dtc says that no safe state is proven. */
 #ifndef SAFE_STATE_H
 #define SAFE_STATE_H
 
@@ -59,9 +64,9 @@ typedef struct {
     bool rule_a;
     bool rule_b;
     bool spo_refused;     /* SPO wanted, neither rule holds */
-    bool energy_dtc;      /* SPO refused but no LS-ASC alternative */
+    bool energy_dtc;      /* SPO held with neither rule (a) nor (b): no safe state proven */
     bool asc_available;   /* LS-ASC may be (re-)entered for this row */
-    bool keep_hv;         /* FW-08b report */
+    bool keep_hv;         /* FW-08b report: the SPO relies on the battery (rule (a) fails) */
     bool spo_forced;      /* the hardware holds SPO (fault latch / supply) */
     float v_pk;           /* rule (a) bound, +inf when the screen does not apply */
 } ss_decision_t;

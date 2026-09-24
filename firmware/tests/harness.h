@@ -1,6 +1,10 @@
 /* harness.h — scenario harness: a VCU/BMS model on CAN, a link-voltage plant (precharge,
- * contactors, active and passive discharge), a speed/resolver model, and a scheduler that runs
- * the current-loop ISR at 2*f_sw, the 1 kHz task and the background loop in simulated time. */
+ * contactors, active and passive discharge), a speed/resolver model, phase currents per current-loop
+ * sample (an ideal current loop: the currents follow the FOC reference while the bridge modulates,
+ * or a fixed amplitude a test sets), and a scheduler that runs the current-loop ISR at 2*f_sw, the
+ * 1 kHz task and the background loop in simulated time. h_setup() also does what the EOL/HIL rig
+ * and a filled board configuration do (round 14): binds the FLT -> PWM fault route and stores a
+ * sealed validation record for this image and card, so the scenarios can arm. */
 #ifndef HARNESS_H
 #define HARNESS_H
 
@@ -40,6 +44,8 @@ typedef struct {
     float speed_rpm;
     float i_pk_a;        /* phase current amplitude the plant reports (A peak) */
     bool isns_u_open;    /* phase-U signal wire open: 0 V through the 100 k pull-down */
+    uint8_t isns_stuck;  /* bit k: phase k's sensor output stuck at its zero-current level (F24) */
+    bool qdis_stuck_on;  /* the QDIS path conducts whatever the command (item 9) */
     float rslv_amp;      /* resolver sin/cos amplitude scale (1 nominal) */
     float exc_scale;     /* SWG output vs EOL at the same code (1 nominal, 0 = 1) */
     uint32_t t_ms;
@@ -50,6 +56,9 @@ extern ti_params_t h_p; /* mutable copy of the SKU parameters with the FS26 PROG
 extern calib_t h_cal;
 
 void h_setup(ti_sku_t sku);
+void h_unprovision(void);               /* undo the EOL/HIL provisioning: no route, no record */
+void h_store_validation(const arm_validation_t *v); /* write a validation record into NVM */
+const uint8_t *h_serial(void);
 void h_boot(void);                      /* app_init + ISR hook; nothing advanced */
 void h_run_ms(uint32_t ms);
 bool h_run_until(sm_state_t st, uint32_t max_ms);

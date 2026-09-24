@@ -97,7 +97,8 @@ TEST(row_flt_ls_is_spo_only)
     const ss_decision_t lo = dec(SS_ROW_FLT_LS, LOW_RPM, I_SMALL, true, false);
     const ss_decision_t hi = dec(SS_ROW_FLT_LS, HIGH_RPM, I_RATED, false, false);
     CHECK(lo.action == SS_ACT_SPO && hi.action == SS_ACT_SPO);
-    CHECK(!hi.asc_available && hi.spo_forced && hi.keep_hv && hi.energy_dtc);
+    /* battery absent: nothing to keep (A12-R08), and no safe state is proven */
+    CHECK(!hi.asc_available && hi.spo_forced && !hi.keep_hv && hi.energy_dtc);
 }
 
 TEST(row_v5gd_and_vdc_invalid)
@@ -134,6 +135,46 @@ TEST(ranking)
     CHECK(ss_rank(SS_ACT_RAMP_THEN_SPO) > ss_rank(SS_ACT_RAMP_KEEP_CC));
 }
 
+/* A12-R08: keep_hv = the SPO relies on the battery (rule (a) fails, battery present) at ANY speed.
+ * Cross product speed {0, low, high} x current {small, rated} x {FLT_HS, FLT_LS} x rule (b)
+ * {not released, released} x battery {absent, present}. */
+TEST(keep_hv_follows_the_battery_as_the_sink_at_every_speed)
+{
+    /* the reviewer's reproduction: 0 rpm, 0.35 mH, 340 A rms, 8XX: rule_a 0, rule_b 1, SPO */
+    const ss_decision_t r = dec(SS_ROW_FLT_HS, 0.0f, I_RATED, true, true);
+    CHECK(!r.rule_a && r.rule_b && r.action == SS_ACT_SPO && r.keep_hv && !r.energy_dtc);
+    const float rpm[3] = {0.0f, LOW_RPM, HIGH_RPM};
+    const float amp[2] = {I_SMALL, I_RATED};
+    const ss_row_t rows[2] = {SS_ROW_FLT_HS, SS_ROW_FLT_LS};
+    unsigned n = 0u;
+    for (unsigned a = 0u; a < 3u; a++) {
+        for (unsigned b = 0u; b < 2u; b++) {
+            for (unsigned c = 0u; c < 2u; c++) {
+                for (unsigned rel = 0u; rel < 2u; rel++) {
+                    for (unsigned bat = 0u; bat < 2u; bat++) {
+                        const ss_decision_t d = dec(rows[c], rpm[a], amp[b], bat != 0u, rel != 0u);
+                        const bool high = (a == 2u);
+                        const bool rule_a = !high && (b == 0u); /* E >= V0 above n_x; 340 A rms fails */
+                        CHECK(d.rule_a == rule_a);
+                        CHECK(d.keep_hv == (!rule_a && (bat != 0u)));
+                        CHECK(d.energy_dtc == (!rule_a && !((rel != 0u) && (bat != 0u))));
+                        CHECK(d.action == (((c == 0u) && high) ? SS_ACT_SPO_THEN_PWM_ASC : SS_ACT_SPO));
+                        n++;
+                    }
+                }
+            }
+        }
+    }
+    CHECK(n == 48u);
+    /* the same for any row that ends in SPO; lost-battery rows never keep (nor borrow) a battery */
+    CHECK(dec(SS_ROW_V5GD_LOSS, 0.0f, I_RATED, true, true).keep_hv);
+    CHECK(!dec(SS_ROW_BATTERY_LOST, 0.0f, I_RATED, true, true).keep_hv);
+    CHECK(!dec(SS_ROW_OVERVOLTAGE, 0.0f, I_RATED, true, true).keep_hv);
+    /* where LS-ASC takes the energy nothing relies on the battery */
+    const ss_decision_t asc = dec(SS_ROW_RESOLVER_INVALID, 0.0f, I_RATED, true, false);
+    CHECK(asc.action == SS_ACT_LS_ASC && !asc.keep_hv && !asc.energy_dtc);
+}
+
 void suite_safe_state(void)
 {
     RUN(n_x_of_the_screening_motor);
@@ -148,4 +189,5 @@ void suite_safe_state(void)
     RUN(row_overvoltage_and_overcurrent);
     RUN(unknown_speed_takes_high_column);
     RUN(ranking);
+    RUN(keep_hv_follows_the_battery_as_the_sink_at_every_speed);
 }

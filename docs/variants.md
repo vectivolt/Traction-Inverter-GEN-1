@@ -34,6 +34,12 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | Discharge PCB, cap-bank busbar drawing, enclosure/coldplate footprint | 4XX: 16 × 50 µF/600 V cans (Faratronic C3D1U506KFAA382, bound A.12), discharge 4 × 220 Ω (SQP10-220RJB15) + 12 × 15 k |
 | Firmware codebase, EOL rig, SMT program | Identity resistor RHWID; firmware parameter set (§2 of the contract) |
 
+**What is common and what is not (round 14).** One control-card design serves both voltage classes; the
+power-stage population — module, gate resistors, dead time, DESAT blanking, switching and sampling
+frequency, capacitor cans, discharge resistors, thermal limits and protection thresholds — is qualified per
+SKU (the `SKUS` rows in `parts-db.mjs`, `loss-model.mjs`). Nothing electrical is forced common between 8XX
+and 4XX beyond the PCBs and the card.
+
 ## 2. The four SKUs (verified numbers, 65 °C coolant)
 
 | | **8XX SiC** | **8XX IGBT** | **4XX IGBT** | 4XX SiC |
@@ -47,7 +53,7 @@ blocks of [`verification-report.md`](verification-report.md), S3/S4/S9 of
 | Tj end of 30 s peak at V_max (S4, static junction path; IGBT and diode share the plate — RR07/R7-07; with no plate mass: 135 / 142 / 133 / 143 °C, R8X-11) | 125 °C (175 °C max) | 132 °C (150 °C Tvjop) | 125 °C (150 °C) | 133 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
 | Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04). The 6 µs is given at 800 V / 15 V / 175 °C; the design corner is 850 V / 16.7 V, so hiitio's statement covers that corner too (round 12) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹72,182** | **₹46,682** | **₹45,082** | ₹70,582 |
+| Electronics BOM @1k | **₹72,492** | **₹46,992** | **₹45,392** | ₹70,892 |
 | Ex-works cost (cost-rollup method) | ≈ ₹1.17 L | ≈ ₹0.91 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.16 L |
 | Cost per peak kW | ≈ ₹530/kW | **≈ ₹415/kW** | ≈ ₹610/kW | ≈ ₹775/kW |
 | Status | **launch** | **launch** | **launch** | on request |
@@ -86,6 +92,17 @@ Faratronic RFQ returns the MPN; its planning price equals the 8XX can.
 | Vendor data | module Ls, SC letter | — (SC published) | 4XX can MPN |
 | Bench | DPT at 850 V cold/hot sets RG_OFF (3.3–10 Ω); contained SC test | min-blank vs turn-on tail at 82 pF; contained SC test; bias bank at worst parts (72 %) | as 8XX IGBT at 500 V; can sharing/thermal |
 | Firmware | parameter set, §6 safe-state matrix with the motor's n_x | same | same, 530 V OV trip |
+
+- **4XX is not "220 kW at lower voltage" (round 14, §3).** With √(3/2)·0.95·0.85·V_DC·I_rms as the AC-power
+  screen, the 4XX at its 250 V minimum delivers ≈ 62 kW continuous / 99 kW peak and needs ≈ 364–379 V for
+  its 90/150 kW targets; 220 kW at 400 V would take ≈ 556 A rms (890 A at 250 V) — a different module,
+  sensor, conductor and cooling class. The 8XX contract is 500–850 V; an "800 V pack" fits only if its
+  full-charge voltage stays ≤ 850 V.
+- **750 V power stage for the 4XX (round 14, F22).** A qualified 750 V IGBT/SiC module could cut 4XX
+  conduction loss by ≈ 0.4–1.1 kW at 250–400 A rms (hot R 5.7 → 3.35 mΩ, illustrative); whether it wins
+  on lifetime cost needs matched RFQs. The 1200 V D3 hardware stays for the controlled prototypes.
+- **CAN termination is a vehicle-position population (round 14, F17).** RCT1A/B and RCT2A/B (split 60.4 Ω)
+  are fitted only where this inverter is a bus end; a variant label carries it.
 
 ## 5. Upgrade path — same PCBs, when a customer pays for it
 

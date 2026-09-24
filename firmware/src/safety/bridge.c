@@ -1,4 +1,4 @@
-/* bridge.c — actuator sequences (§4c, FW-06a, §7 / FW-15). */
+/* bridge.c — actuator sequences (§4c, FW-06a, §7 / FW-15) and the DESAT hold (A12-R05). */
 #include "bridge.h"
 
 #include "gpio.h"
@@ -6,9 +6,13 @@
 #include "timer.h"
 #include "ti_math.h"
 
-void br_init(bridge_t *b)
+#define FLT_HS_BIT 0x1u
+#define FLT_LS_BIT 0x2u
+
+void br_init(bridge_t *b, const ti_params_t *p)
 {
     *b = (bridge_t){0};
+    b->hold_us = p->cal_desat_en_hold_us;
     /* §9 step 1: every enable low; ASC_CLR's latch high (no clear) before anything else */
     hal_gpio_write(HAL_DO_ASC_CLR_N, true);
     hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
@@ -19,21 +23,67 @@ void br_init(bridge_t *b)
     b->mode = BR_DISARMED;
 }
 
-void br_spo(bridge_t *b, bool en_low)
+/* The FLT lines first, then the time: a line newly seen low starts the hold no earlier than the
+ * read that saw it, so the hold always ends >= cal_desat_en_hold_us after the FLT edge. */
+static void observe(bridge_t *b)
 {
-    hal_pwm_force_off();
-    if (en_low) {
-        hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
-        b->mode = BR_DISARMED;
-    } else {
-        b->mode = BR_IDLE;
+    const uint8_t low = (uint8_t)((hal_gpio_read(HAL_DI_FLT_HS_N) ? 0u : FLT_HS_BIT) |
+                                  (hal_gpio_read(HAL_DI_FLT_LS_N) ? 0u : FLT_LS_BIT));
+    const uint32_t now = hal_time_us();
+    if ((low & (uint8_t)~b->flt_seen) != 0u) {
+        b->hold_active = true;
+        b->t_hold_us = now;
     }
+    b->flt_seen = low;
+    if (b->hold_active && ti_elapsed(now, b->t_hold_us, b->hold_us)) {
+        b->hold_active = false;
+    }
+}
+
+/* The only software path that lowers MCU_GATE_EN. Inside a hold the drop is left pending (the
+ * fault latch takes DRV_EN low 22–53 us after the FLT; EN follows once the hold has run). The
+ * critical section keeps the look, the decision and the write together against the fault ISR. */
+static void en_low(bridge_t *b)
+{
+    hal_crit_enter();
+    observe(b);
+    if (b->hold_active && hal_gpio_out_state(HAL_DO_MCU_GATE_EN)) {
+        b->en_drop_pending = true;
+    } else {
+        hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
+        b->en_drop_pending = false;
+    }
+    hal_crit_exit();
+}
+
+void br_service(bridge_t *b)
+{
+    hal_crit_enter();
+    observe(b);
+    if (b->en_drop_pending && !b->hold_active) {
+        hal_pwm_force_off();
+        hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
+        b->en_drop_pending = false;
+        b->mode = BR_DISARMED;
+    }
+    hal_crit_exit();
+}
+
+bool br_en_drop_pending(const bridge_t *b) { return b->en_drop_pending; }
+
+void br_spo(bridge_t *b, bool en_low_req)
+{
+    hal_pwm_force_off(); /* never delayed: the FAULT0/2 input has already done it in hardware */
+    if (en_low_req) {
+        en_low(b);
+    }
+    b->mode = (en_low_req || b->en_drop_pending) ? BR_DISARMED : BR_IDLE;
 }
 
 bool br_arm_idle(bridge_t *b)
 {
-    if (b->mode == BR_ASC) {
-        return false; /* leave ASC only through br_exit_asc() */
+    if ((b->mode == BR_ASC) || b->en_drop_pending) {
+        return false; /* leave ASC only through br_exit_asc(); never arm inside a DESAT hold */
     }
     hal_pwm_force_off();
     hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
@@ -82,6 +132,9 @@ void br_flt_clear_pulse(void)
 
 void br_enter_pwm_asc(bridge_t *b, uint32_t t_hs_off_us, const ti_params_t *p)
 {
+    if (b->en_drop_pending) {
+        return; /* an SPO inside a DESAT hold stands: no PWM-ASC until it is carried out */
+    }
     /* 1) high sides off (the eFlexPWM fault did it in hardware on the FW-06 path) */
     if (hal_pwm_mode() == HAL_PWM_MOD) {
         hal_pwm_force_off();
@@ -121,7 +174,7 @@ bool br_exit_asc(bridge_t *b, bool allowed)
 void br_rec_start(bridge_t *b, uint32_t t_fault_us)
 {
     hal_pwm_force_off();
-    hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
+    en_low(b); /* inside the DESAT hold this only records the drop (br_service carries it out) */
     hal_gpio_write(HAL_DO_ASC_REQ, false);
     br_asc_clear_pulse(); /* always: a set latch would bring ASC back at the reset edge */
     b->rec = BR_REC_WAIT_LOW;
@@ -134,7 +187,8 @@ br_rec_t br_rec_step(bridge_t *b, uint32_t now_us, const ti_params_t *p)
     switch (b->rec) {
     case BR_REC_WAIT_LOW:
         hal_pwm_force_off();
-        if (ti_elapsed(now_us, b->rec_t_fault_us, p->fw15_low_us)) {
+        br_service(b); /* a drop still pending happens before the reset edge, never after it */
+        if (!b->en_drop_pending && ti_elapsed(now_us, b->rec_t_fault_us, p->fw15_low_us)) {
             hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
             br_flt_clear_pulse();
             b->rec_t_pulse_us = hal_time_us();
@@ -155,7 +209,9 @@ br_rec_t br_rec_step(bridge_t *b, uint32_t now_us, const ti_params_t *p)
             b->mode = BR_IDLE; /* EN high, PWM low: the caller decides the next state */
             b->rec = BR_REC_DONE;
         } else {
-            hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
+            /* a hard short re-tripped at the reset edge, >= cal_oneshot_wait_us - 46 us ago: its
+             * soft turn-off is over, and the hold still applies if a line is newly low */
+            en_low(b);
             b->rec = BR_REC_FAIL;
         }
         break;

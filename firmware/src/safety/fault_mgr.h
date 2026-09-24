@@ -9,7 +9,10 @@
  *  - Combination: a row that forces SPO in hardware wins; otherwise the highest-rank action.
  *  - asc_permitted (read by the fault ISR before any ASC_REQ): false with FLT_LS, V5GD loss, or an
  *    FLT_HS whose FW-15 reset has not completed.
- *  - keep_hv (FW-08b): after a DESAT at n >= n_x until ASC is re-established or n < n_x. */
+ *  - keep_hv (FW-08b, A12-R08): any active row whose SPO relies on the battery (rule (a) fails,
+ *    battery present), at any speed, re-evaluated every update with the present current and speed,
+ *    until rule (a) holds or ASC is active. no_safe_state: an active row holds SPO with neither
+ *    rule (a) nor (b) (e.g. the battery is gone) — reported on CAN; DTC_SPO_ENERGY records it. */
 #ifndef FAULT_MGR_H
 #define FAULT_MGR_H
 
@@ -36,6 +39,7 @@ typedef struct {
     ss_row_t dec_row;
     bool asc_permitted;
     bool keep_hv;
+    bool no_safe_state;
     bool hs_reset_done;
     uint8_t desat_count;
     bool retry_used;

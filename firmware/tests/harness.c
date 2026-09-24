@@ -33,6 +33,23 @@ void h_set_speed(float rpm)
     sim_resolver_set(&r);
 }
 
+const uint8_t *h_serial(void) { return SERIAL; }
+
+void h_store_validation(const arm_validation_t *v)
+{
+    nv_init();
+    (void)nv_queue(NV_REC_VALIDATION, v, (uint16_t)sizeof *v);
+    for (int k = 0; (k < 200) && !nv_idle(); k++) {
+        nv_service();
+    }
+}
+
+void h_unprovision(void)
+{
+    sim_pwm_fault_route_bind(false);
+    sim_nvm_wipe();
+}
+
 void h_setup(ti_sku_t sku)
 {
     (void)memset(&H, 0, sizeof H);
@@ -60,13 +77,19 @@ void h_setup(ti_sku_t sku)
     sim_set_hwid_ohm(h_p.hwid_r_ohm);
     sim_set_link_v(0.0f, 0.0f);
     h_set_speed(0.0f);
+    /* EOL/HIL: the board configuration binds the route; the rig validated this image on this card
+     * (pad -> PWM fault injection, FW-06 chain measured at 14.2 us of the 15.6 us budget) */
+    sim_pwm_fault_route_bind(true);
+    arm_validation_t v;
+    arm_validation_make(&v, SERIAL, h_p.sku, TI_FW_ID, ARM_EV_VALIDATED, 14200u);
+    h_store_validation(&v);
 }
 
 void h_boot(void)
 {
     app_init(&g_app, &h_p, &h_cal, SERIAL);
     sim_set_fault_isr(app_fault_isr_entry);
-    H.t_ms = hal_time_us() / 1000u;
+    H.t_ms = hal_time_ms();
 }
 
 static void vcu_tx(void)
@@ -100,16 +123,48 @@ static void plant_1ms(void)
         const float target = H.v_pack * H.plateau_frac;
         v += (target - v) * (dt / H.tau_pre_s);
     } else {
-        const bool qdis = hal_gpio_out_state(HAL_DO_QDIS) && !H.qdis_stuck_off;
+        const bool qdis = (hal_gpio_out_state(HAL_DO_QDIS) && !H.qdis_stuck_off) || H.qdis_stuck_on;
         const float tau = qdis ? H.tau_dis_s : (h_p.r_bleed_ohm * h_p.c_nom_f);
         v -= v * (dt / tau);
     }
     H.link_v = v;
     sim_set_link_v(v, v * (1.0f + H.ch2_err));
-    /* phase currents: a balanced set at the model amplitude (angle from the resolver model) */
-    const float th = s_theta0 + (H.speed_rpm / TI_RPM_PER_RAD_S) * (float)(int64_t)(sim_now_ns() - s_theta_t) * 1e-9f;
-    const float i = H.i_pk_a;
-    sim_set_phase_currents(i * cosf(th), i * cosf(th - 2.0944f), i * cosf(th + 2.0944f));
+}
+
+/* Phase currents for one current-loop sample: an ideal current loop (the FOC reference) while the
+ * bridge modulates, else none; a test that sets i_pk_a imposes that amplitude (along the reference,
+ * or the d axis without one). The loop is ideal in the controller's own dq frame (its resolver
+ * angle; the model's angle when that is invalid): this plant does not respond to voltage, so any
+ * frame error would leave a dq error the PI integrators walk after forever. */
+static void plant_currents(void)
+{
+    const float th_r = s_theta0 + (H.speed_rpm / TI_RPM_PER_RAD_S) * (float)(int64_t)(sim_now_ns() - s_theta_t) * 1e-9f;
+    const float th = g_app.rslv.valid ? rslv_theta_e_at(&g_app.rslv, &g_app.cal.rslv, hal_time_us(), g_app.p)
+                                      : ((th_r * (float)h_cal.rslv.motor_pp / (float)h_cal.rslv.resolver_pp) -
+                                         h_cal.rslv.zero_rad);
+    float d = 0.0f;
+    float q = 0.0f;
+    if (hal_pwm_mode() == HAL_PWM_MOD) {
+        d = g_app.foc.id_ref;
+        q = g_app.foc.iq_ref;
+    }
+    if (H.i_pk_a > 0.0f) {
+        const float m = sqrtf((d * d) + (q * q));
+        d = (m > 1.0f) ? (d * H.i_pk_a / m) : H.i_pk_a;
+        q = (m > 1.0f) ? (q * H.i_pk_a / m) : 0.0f;
+    }
+    float i[3];
+    for (uint32_t k = 0u; k < 3u; k++) {
+        const float a = th - (2.0943951f * (float)k);
+        i[k] = (d * cosf(a)) - (q * sinf(a));
+    }
+    sim_set_phase_currents(i[0], i[1], i[2]);
+    const hal_adc_sig_t ch[3] = {HAL_ADC_ISNS_U, HAL_ADC_ISNS_V, HAL_ADC_ISNS_W};
+    for (uint32_t k = 0u; k < 3u; k++) {
+        if ((H.isns_stuck & (1u << k)) != 0u) {
+            sim_adc_set_v(ch[k], 2.5f); /* the zero-current level: inside the 0.2–4.8 V window */
+        }
+    }
     if (H.isns_u_open) {
         sim_adc_set_v(HAL_ADC_ISNS_U, 0.0f);
     }
@@ -129,6 +184,7 @@ void h_isr_only_us(uint32_t us)
     const uint32_t per = app_isr_period_us(&g_app);
     for (uint32_t t = 0u; t < us; t += per) {
         sim_advance_us(per);
+        plant_currents();
         app_isr_current(&g_app);
     }
 }
@@ -144,6 +200,7 @@ void h_run_ms(uint32_t ms)
         plant_1ms();
         for (uint32_t i = 0u; i < n; i++) {
             sim_advance_us(per);
+            plant_currents();
             app_isr_current(&g_app);
         }
         app_task_1ms(&g_app);

@@ -152,6 +152,9 @@ void can_status_encode(const can_status_t *s, uint8_t ctr, hal_can_frame_t *f)
     f->data[10] = (uint8_t)ti_clampf(s->t_module_c + 40.0f, 0.0f, 254.0f);
     f->data[11] = (uint8_t)((s->n_dtc > 255u) ? 255u : s->n_dtc);
     put_u16(&f->data[12], s->first_dtc);
+    f->data[14] = (uint8_t)((s->no_safe_state ? 0x01u : 0u) | (s->service_required ? 0x02u : 0u) |
+                            (s->open_contactors_req ? 0x04u : 0u) | (s->speed_limit_req ? 0x08u : 0u));
+    f->data[15] = (uint8_t)(s->evidence_missing & 0x1Fu);
     finish(f, CAN_ID_INV_STATUS, 16u);
 }
 

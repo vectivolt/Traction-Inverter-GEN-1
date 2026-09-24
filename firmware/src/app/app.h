@@ -8,6 +8,7 @@
 #ifndef APP_H
 #define APP_H
 
+#include "arm_evidence.h"
 #include "bridge.h"
 #include "calib.h"
 #include "can_cmd.h"
@@ -23,6 +24,10 @@
 #include "hwid.h"
 #include "ign.h"
 #include "state_machine.h"
+
+/* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
+ * image needs a new validation. TODO(REL): the release process derives it from the build. */
+#define TI_FW_ID 0x0A0C000Eu /* rev A.12, round 14 */
 
 typedef struct {
     const ti_params_t *p;
@@ -72,6 +77,9 @@ typedef struct {
     bool rec_done_retry;    /* FW-15 reset done for the one VCU-authorised retry */
     uint32_t t_fault_us;
     bool v5gd_cleared;      /* §4c: the ASC latch cleared on this V5GD event */
+    uint8_t evidence;       /* ARM_EV_* present (round 14): anything missing forbids arming */
+    bool service_required;  /* stuck-on QDIS: do not re-energise, open the contactors (NVM-kept) */
+    bool speed_limit_req;   /* F23: no voltage-feasible current at this speed */
     /* torque path */
     float t_cmd_nm;
     volatile float id_ref;

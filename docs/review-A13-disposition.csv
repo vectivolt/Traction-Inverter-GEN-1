@@ -1,0 +1,45 @@
+Source,ID,Review statement,Class,Verification,Action / where
+Review 1,F01,CRITICAL — IMCR/SSS placeholders (0u) for PTC26/PTC25 → PWM_1 FAULT0/2; the fault hold is not demonstrated,Confirmed,"s32k396.h lines 89–92 literal 0u, written by lock_faults()",placeholder mappings are a build error; the host build reports the route unbound and arming is refused; the physical route test is an arming-evidence item. F150
+Review 1,F02,CRITICAL — hal_pwm_config_locked() returns true from a readback; REG_PROT/XRDC is a TODO,Confirmed,source,"config_matches() / protection_locked() separated; the lock witness reads the lock bits or returns false; arming-evidence record (route, config, lock, validated fault/OVP routes in NVM with CRC) gates gate-enable. F151"
+Review 1,F03,MAJOR — REXM 5.1 k lets 5.45–5.66 mA into the SDADC pads at a 35 V fault (3 mA limit),Confirmed,reproduced (5.45 mA at 5.3 V clamp; unpowered worse),"REXM1/3 18 k, REXM2 42.2 k, REXM4 84.5 k (1.96 mA at 35 V, 2.81 mA at 50 V, same ratios); verifier row; ERC values. F152"
+Review 1,F04,MAJOR — ALM2402 outputs reach the connector; a 24/35 V terminal fault exceeds the 18 V output rating whatever the supply does,Confirmed,schematic,"SMCJ8.5CA at each connector node (clamps at 10–11 V, below the 12.1 V rail + a diode: no back-drive) + MF-MSMF020 PTC (0.2 A, 30 V, AEC-Q200) per line; fault currents, pulse budget and amplitude loss in the register; bench gate ㉘. F153"
+Review 1,F05,MODERATE — the monitor pair has no C_AAF (180 pF min),Confirmed,schematic,CEXM 220 pF C0G across VREXM_P/N; Thevenin 12.6/14.8 k per leg ≤ 20 k; the 3.0° fixed reference offset is absorbed by FW-20. F152
+Review 1,F06,CRITICAL — the ADC-watchdog → PWM-fault OVP route is not demonstrated on the target; a sampled watchdog is not a comparator,Already Fixed (gate),target-integration item since A.12,the OVP route is an arming-evidence flag (OVP_ROUTE_VALIDATED from the EOL/HIL record); an external comparator only if the measured chain misses the 15.6 µs budget
+Review 1,F07,CRITICAL — no independently closed worst-case SC current-extinction budget,Improvement Recommended,the DESAT rows carried detection + soft-off only,"explicit budget row (detection + soft-off + fall/tail) per silicon, WARN against the 6 µs/800 V IGBT withstand and the unpublished SiC figure — gate ③ unchanged"
+Review 1,F08,CRITICAL — forced SPO / gate-power loss vs the real motor,Already Fixed (gate ⑥),contract §6 + energy rule present,"keep_hv now follows the energy dependence (R08); the motor dataset, ASC qualification and contactor retention stay the vehicle-level gate"
+Review 1,F09,MAJOR — discharge resistor pulse/fail-open behaviour not established; a shorted QDIS bypasses the timeout,Confirmed (detection missing),reproduced 96 W/part,firmware detects an unexpected discharge at the next contactor opening → latched no-re-energise DTC + contactor-open request; verifier rows per SKU; the benign-failure test stays gate ㉖. F157
+Review 1,F10,MAJOR — the 6.2 k divider suits a bounded 850 V contract only; tolerances must be frozen,Already Fixed / Improvement Recommended,"worst-corner row (893 V) existed; bottoms 0.1 %, tops 1 % thin-film in the BOM","INFO row: an extended 920 V variant is a separate release (5.1 k → 1108 V FS, thresholds, calibration, can hot-voltage)"
+Review 1,F11,MAJOR — LV clamp/PTC/semiconductor stress needs one source-impedance model,Already Fixed (gate ㉗),—,"unchanged; stale ""34 V / Ri ≥ 4 Ω covered"" BOM texts removed (N03)"
+Review 1,F12,MAJOR — production BOM/OTP configuration not fully frozen,Improvement Recommended,—,UCC12051QDVERQ1 promoted to the primary MPN (UCC12050 = proto fit); the FS26 OTP image remains §8a; AVL columns are the BOM
+Review 1,F13,MAJOR — sensor sleeve insulation system unreleased,Already Fixed (gate ⑩),—,unchanged
+Review 1,F14,MAJOR — capacitor hot-voltage/ripple/sharing qualification,Already Fixed (gate ④),—,unchanged; bank count kept
+Review 1,F15,MAJOR — cold-plate model unvalidated,Already Fixed (gate ④),—,unchanged
+Review 1,F16,MAJOR — gate-power transformer corner qualification,Already Fixed (gate ⑤/⑬),—,unchanged
+Review 1,F17,MODERATE — CAN termination must follow the vehicle position,Improvement Recommended,BOM already marked the endpoint option,variants.md states the population rule; ERC unchanged
+Review 1,F18,MAJOR — motor-temperature line fuse/clamp coordination,Confirmed,PESD5V0L1BA is ESD-class,SMAJ5.0A (400 W) carries the ≈ 16 A until FMT opens; fuse MPN bound (EXTRACTED §31); the 1 k limits the buffer to 3.9 mA. F154
+Review 1,F19,MODERATE — shared model inputs are not independent verification,Improvement Recommended,—,the ball map is now checked against NXP's netlist (a manufacturer-derived golden source); kicad5-verify fails on a mutated pin number; the mutation practice stays
+Review 1,F20,MAJOR — real-time timing not established,Already Fixed (target gate),—,WCET/jitter remain HIL items (firmware README)
+Review 1,F21,"MODERATE — safety readiness overstated (""paperwork"")",Confirmed (wording),cost-rollup §2,"wording corrected: the safety work products are engineering that can change requirements; ""ASIL-D-capable"" kept"
+Review 1,F22,MODERATE — common 1200 V module not proven lowest-cost for 4XX,Improvement Recommended,—,variants.md: 750 V RFQ item and the conduction-loss delta; D3 stays for prototypes
+Review 1,F23,MAJOR — torque_to_current() lacks a final voltage-feasibility witness,Confirmed,source order,final |v| check after the clamps; iq then id reduced; infeasible → zero torque + speed-limit request + DTC; motor-map sweep test. F155
+Review 1,F24,MODERATE — KCL does not detect a stuck-at-zero channel at zero current,Confirmed (wording + coverage),logical counter-example holds,per-channel activity check above a current threshold; coverage table per operating state in the firmware docs; no fourth sensor. F156
+Review 2,A12-R01,"CRITICAL — H5 is V15 (1.5 V, 2.75 V abs max), not a SAR reference; A.12 put VREF5 on it",Confirmed,DS figure: H5 V15; GEN3 net VCORE,"H5 → V15S; manifest, JSON, symbol, ERC lock. F143"
+Review 2,A12-R02,"CRITICAL — J7 is V25 (regulator output, 140–220 nF), A.12 grounded it",Confirmed,DS figure: J7 V25; GEN3 net V25 with C79/C80,J7 → V25 + CV25 220 nF X7R 10 V; ERC lock. F143
+Review 2,A12-R03,"MAJOR — the symbol's pin numbers are 65/77/94, the ball only in the name",Confirmed,traction-r1.lib X records,pages.mjs emits the ball as the pin number; kicad5-verify checks every MCU record against the manifest (mutation-detecting). F144
+Review 2,A12-R04,MODERATE — CNMOS (1 nF) missing from the ballast network,Confirmed,DS Table 13,CBAL 1 nF C0G. F145
+Review 2,A12-R05,"CRITICAL — the DESAT ISR drops MCU_GATE_EN at once, bypassing the 22–53 µs hardware delay",Confirmed,app.c:390 → br_spo(true),DESAT hold inside the bridge module for every caller (CAL 60 µs ≥ the RC upper corner + FLT); PWM inhibit immediate; regression tests. F146
+Review 2,A12-R06,MAJOR — now_ms = us/1000 of a wrapping counter,Confirmed,app.c:33,"64-bit monotonic clock, ms derived consistently; every /1000 producer audited; wrap tests. F147"
+Review 2,A12-R07,MAJOR — 76 mA does not cover the production UCC12051-Q1 (80 mA max no-load),Confirmed,SNVSBY2A §6.9,"96 mA budget; R5L 47 Ω ballast per LDO (LDO ≈ 0.5 W, Tj ≈ 116 °C); UCC12051-Q1 primary. F149"
+Review 2,A12-R08,MAJOR — keep_hv speed-only while rule (b) applies at every speed,Confirmed,safe_state.c:63,"keep_hv from actual reliance on rule (b), held until rule (a) or ASC; through the CAN status. F148"
+Review 2,N01,the UCC14141-Q1 VDE certificate is issued (40058888),Confirmed,archived (EXTRACTED §32),gate ㉔ residual closed at component level
+Review 2,N02,the 1 µs ASC-exit parameter alone is not a shoot-through defect,False Finding (agreed),br_exit_asc timestamps after the pulse,no change; physical non-overlap stays a measurement
+Review 2,N03,"stale DTVH/DTVL text (34 V, ""Ri ≥ 4 Ω covered"")",Confirmed (docs),BOM,texts corrected. F158
+Review 2,lock witness,"""everything left is measurement"" was too strong",Confirmed,—,arming criteria distinguish configured / protected / host-tested / hardware-validated (F151)
+Review 2,pin-map completeness,re-derive against an independent source; J6 label ambiguity,Confirmed,—,"GEN3 net report used as the oracle; J6 = VREFL_SAR_0123, J5 = VSS_DCDC per the netlist"
+Review 3,A12-R01,H5 wrong voltage domain,Confirmed,as above,F143
+Review 3,A12-R02,J7 is V25,Confirmed,as above,F143
+Review 3,A12-R03,CAD pin numbers not physical,Confirmed,as above,F144
+Review 3,A12-R04,DESAT ISR bypass; audit apply_decision/br_rec_start,Confirmed,all br_spo(true) callers listed,"hold enforced inside the bridge module, so every caller is covered. F146"
+Review 3,A12-R05,low-speed retention missing from keep_hv,Confirmed,as above,F148
+Review 3,A12-R06,timebase modulus mismatch,Confirmed,as above,F147
+Review 3,A12-R07,production bias current,Confirmed,as above,F149

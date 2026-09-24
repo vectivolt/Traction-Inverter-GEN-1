@@ -5,7 +5,14 @@
  *  - sum(Ia+Ib+Ic) plausibility every sample;
  *  - over-current at 1.25*sqrt(2)*I_pk,rms instantaneous, both polarities (601 A 8XX / 707 A 4XX):
  *    hardware = ADC analog watchdog codes from each channel's calibrated gain, offset and sign;
- *    software = the same threshold checked in the ISR as a backstop. */
+ *    software = the same threshold checked in the ISR as a backstop;
+ *  - latent stuck channel (F24): KCL cannot see a channel stuck at zero at zero current, a stuck
+ *    channel whose current stays inside cal_isum_tol_a, or all three stuck (they still sum to 0).
+ *    While modulating, a phase whose reference reaches cal_isns_act_min_a must read at least
+ *    cal_isns_act_frac of it; cal_isns_act_debounce such applicable samples in a row (per channel;
+ *    a sample where that phase is asked for less neither counts nor resets) latch stuck_fault.
+ *    Equal gain errors on all three channels stay unobservable in closed loop with three sensors:
+ *    the coverage table is in docs/traceability.md. */
 #ifndef CURRENT_H
 #define CURRENT_H
 
@@ -24,6 +31,8 @@ typedef struct {
     bool open_wire[3];
     bool sum_fault; /* latched until isns_init() */
     uint8_t sum_cnt;
+    bool stuck_fault; /* F24, latched until isns_init() */
+    uint8_t act_cnt[3];
     float sum_a;
     bool fresh;
     bool valid; /* three channels valid, fresh, sum plausible */
@@ -34,6 +43,8 @@ void isns_init(isns_t *s);
 void isns_update(isns_t *s, const uint16_t codes[3], uint32_t t_us, uint32_t now_us, const isns_cal_t cal[3],
                  const ti_params_t *p);
 bool isns_oc(const isns_t *s, const ti_params_t *p);
+/* F24: iref_abc = the phase currents the loop is tracking now (A); call once per modulated sample. */
+void isns_activity(isns_t *s, const float iref_abc[3], const ti_params_t *p);
 void isns_oc_codes(const isns_cal_t *c, float i_trip_a, uint16_t *lo_trip, uint16_t *hi_trip);
 /* Standstill zero-current check against the EOL offset (§9 step 3). mean_v = averaged pin volts. */
 bool isns_offset_ok(const float mean_v[3], const isns_cal_t cal[3], const ti_params_t *p);

@@ -128,6 +128,47 @@ TEST(offset_self_test)
     CHECK(!isns_offset_ok(bad, cal, p));
 }
 
+/* F24: a channel stuck at its zero-current level. KCL: at zero current there is nothing to see; below
+ * cal_isum_tol_a the sum stays in tolerance; with all three stuck the sum is 0. The activity check
+ * catches it where the reference asks that phase for current, and never flags a phase the reference
+ * leaves near zero (standstill at an angle where one phase carries nothing). */
+TEST(activity_catches_a_stuck_channel_where_current_is_asked)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const isns_cal_t cal[3] = {CAL_NOM, CAL_NOM, CAL_NOM};
+    isns_t s;
+    isns_init(&s);
+    const float zero[3] = {0.0f, 0.0f, 0.0f};
+    for (unsigned k = 0u; k < 200u; k++) { /* zero command, W stuck at 0 A: consistent, no verdict */
+        set3(&s, 0.0f, 0.0f, 0.0f, cal, p);
+        isns_activity(&s, zero, p);
+    }
+    CHECK(s.valid && !s.stuck_fault);
+    const float ref[3] = {20.0f, 20.0f, -40.0f}; /* 40 A asked of W: inside the 45 A KCL tolerance */
+    for (unsigned k = 0u; k < (unsigned)p->cal_isns_act_debounce - 1u; k++) {
+        set3(&s, 20.0f, 20.0f, 0.0f, cal, p); /* W stuck: the sum reads 40 A < 45 A */
+        isns_activity(&s, ref, p);
+    }
+    CHECK(!s.sum_fault && !s.stuck_fault && s.valid); /* not yet: debounced */
+    set3(&s, 20.0f, 20.0f, 0.0f, cal, p);
+    isns_activity(&s, ref, p);
+    CHECK(s.stuck_fault && !s.valid && !s.sum_fault);
+    set3(&s, 20.0f, 20.0f, -40.0f, cal, p); /* latched */
+    CHECK(!s.valid);
+    isns_init(&s); /* a phase with a small reference proves nothing either way */
+    const float edge[3] = {0.0f, 45.0f, -45.0f};
+    for (unsigned k = 0u; k < 200u; k++) {
+        set3(&s, 0.0f, 45.0f, -45.0f, cal, p);
+        isns_activity(&s, edge, p);
+    }
+    CHECK(s.valid && !s.stuck_fault);
+    for (unsigned k = 0u; k < 200u; k++) { /* all three stuck: the sum is 0, activity is not */
+        set3(&s, 0.0f, 0.0f, 0.0f, cal, p);
+        isns_activity(&s, edge, p);
+    }
+    CHECK(s.stuck_fault && !s.sum_fault);
+}
+
 void suite_current(void)
 {
     RUN(conversion_and_validity);
@@ -137,4 +178,5 @@ void suite_current(void)
     RUN(overcurrent_at_the_crest_8xx_both_polarities);
     RUN(overcurrent_4xx_threshold);
     RUN(offset_self_test);
+    RUN(activity_catches_a_stuck_channel_where_current_is_asked);
 }

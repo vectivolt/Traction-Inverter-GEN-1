@@ -90,9 +90,11 @@ static void witness(dis_t *d, const vdc_t *v, uint32_t now_ms, const ti_params_t
     }
 }
 
-static void stuck_on_watch(dis_t *d, ti_contactor_t contactors, const vdc_t *v, uint32_t now_ms, const ti_params_t *p)
+static void stuck_on_watch(dis_t *d, ti_contactor_t contactors, const vdc_t *v, bool bridge_mod, uint32_t now_ms,
+                           const ti_params_t *p)
 {
-    const bool eligible = !d->qdis && (contactors == TI_CONT_OPEN) && v->valid && (v->vdc >= WITNESS_MIN_V);
+    const bool eligible = !d->qdis && (contactors == TI_CONT_OPEN) && !bridge_mod && v->valid &&
+                          (v->vdc >= WITNESS_MIN_V);
     if (!eligible) {
         d->mon_active = false;
         return;
@@ -117,7 +119,8 @@ static void stuck_on_watch(dis_t *d, ti_contactor_t contactors, const vdc_t *v, 
     d->mon_v0 = v->vdc;
 }
 
-void dis_step(dis_t *d, ti_contactor_t contactors, const vdc_t *v, uint32_t now_ms, const ti_params_t *p)
+void dis_step(dis_t *d, ti_contactor_t contactors, const vdc_t *v, bool bridge_mod, uint32_t now_ms,
+              const ti_params_t *p)
 {
     if (d->st == DIS_ACTIVE) {
         if (contactors != TI_CONT_OPEN) {
@@ -134,7 +137,7 @@ void dis_step(dis_t *d, ti_contactor_t contactors, const vdc_t *v, uint32_t now_
             /* discharging */
         }
     }
-    stuck_on_watch(d, contactors, v, now_ms, p);
+    stuck_on_watch(d, contactors, v, bridge_mod, now_ms, p);
 }
 
 bool dis_output(const dis_t *d) { return d->qdis; }

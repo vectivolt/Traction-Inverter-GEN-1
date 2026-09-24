@@ -93,6 +93,25 @@ TEST(cal_value_out_of_range_rejected)
     CHECK(ti_params_validate(&p) >= 1u);
 }
 
+/* A12-R05: the DESAT hold is a range-checked CAL: default 60 us, never below the 53 us upper bound of
+ * the hardware latch path; the round-14 CAL rows carry their defaults. */
+TEST(round14_cal_defaults_and_ranges)
+{
+    for (int k = TI_SKU_8XX_SIC; k < TI_SKU_COUNT; k++) {
+        const ti_params_t *q = ti_params_get((ti_sku_t)k);
+        CHECK(q->cal_desat_en_hold_us == 60u && q->cal_vdyn_reserve_frac == 0.05f);
+        CHECK(q->cal_isns_act_min_a == 20.0f && q->cal_isns_act_frac == 0.2f && q->cal_isns_act_debounce == 20u);
+    }
+    ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_desat_en_hold_us = 53u; /* at the latch path's own upper bound: no margin */
+    CHECK(ti_params_validate(&p) >= 1u);
+    p.cal_desat_en_hold_us = 300u; /* beyond the range (the FW-15 1.5 ms low must follow it) */
+    CHECK(ti_params_validate(&p) >= 1u);
+    p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_vdyn_reserve_frac = 0.3f;
+    CHECK(ti_params_validate(&p) >= 1u);
+}
+
 void suite_params(void)
 {
     RUN(all_skus_validate);
@@ -102,4 +121,5 @@ void suite_params(void)
     RUN(section6_link_headroom_matches_contract);
     RUN(fw07_fw12_fw11_contract_constants);
     RUN(cal_value_out_of_range_rejected);
+    RUN(round14_cal_defaults_and_ranges);
 }

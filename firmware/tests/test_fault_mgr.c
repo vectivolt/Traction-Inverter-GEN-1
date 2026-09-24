@@ -158,6 +158,39 @@ TEST(latched_reset_only_below_n_x_and_never_for_desat)
     CHECK(fm_active(&f, SS_ROW_FLT_LS));
 }
 
+/* A12-R08: after a DESAT at standstill and 340 A rms the SPO relies on the battery: keep_hv is
+ * asserted, held while rule (a) fails, dropped (with "no safe state proven") when the battery goes,
+ * and released once the current has decayed so that rule (a) holds, or while ASC is active. */
+TEST(keep_hv_held_until_rule_a_and_no_safe_state_without_battery)
+{
+    motor_t m = motor_screening();
+    m.rule_b_released = true;
+    nv_init();
+    dtc_init();
+    fm_t f;
+    fm_init(&f, 10u);
+    fm_ctx_t c = ctx(0.0f, 480.8f, true, 100u);
+    fm_desat(&f, true, &c, &m, P());
+    CHECK(f.keep_hv && !f.no_safe_state && f.dec.action == SS_ACT_SPO);
+    c.now_ms = 150u;
+    fm_update(&f, &c, &m, P());
+    CHECK(f.keep_hv); /* held: the current is still there */
+    c.battery_present = false;
+    c.now_ms = 160u;
+    fm_update(&f, &c, &m, P());
+    CHECK(!f.keep_hv && f.no_safe_state && dtc_active(DTC_SPO_ENERGY)); /* nothing to keep, no proof */
+    c.battery_present = true;
+    fm_update(&f, &c, &m, P());
+    CHECK(f.keep_hv && !f.no_safe_state);
+    c.asc_active = true;
+    fm_update(&f, &c, &m, P());
+    CHECK(!f.keep_hv); /* ASC is a sink of its own */
+    c.asc_active = false;
+    c.iq_a = 20.0f; /* decayed: rule (a) holds */
+    fm_update(&f, &c, &m, P());
+    CHECK(!f.keep_hv && !f.no_safe_state);
+}
+
 void suite_fault_mgr(void)
 {
     RUN(forced_spo_wins_and_blocks_asc);
@@ -168,4 +201,5 @@ void suite_fault_mgr(void)
     RUN(uncommitted_retained_record_requeued_at_boot);
     RUN(keep_hv_until_asc_or_low_speed);
     RUN(latched_reset_only_below_n_x_and_never_for_desat);
+    RUN(keep_hv_held_until_rule_a_and_no_safe_state_without_battery);
 }

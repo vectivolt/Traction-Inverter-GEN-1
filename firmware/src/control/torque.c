@@ -120,21 +120,84 @@ static void mtpa(float t, const motor_t *m, const mtpa_lut_t *lut, float *id, fl
     *iq = q;
 }
 
-bool torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, const motor_t *m, const mtpa_lut_t *lut,
-                       const ti_params_t *p, float *id, float *iq)
+float torque_v_required(float id, float iq, float omega_e, const motor_t *m)
+{
+    const float vd = (m->rs_ohm * id) - (omega_e * m->lq_h * iq);
+    const float vq = (m->rs_ohm * iq) + (omega_e * ((m->ld_h * id) + m->psi_wb));
+    return sqrtf((vd * vd) + (vq * vq));
+}
+
+float torque_v_available(float vdc, const ti_params_t *p)
+{
+    return (1.0f - p->cal_vdyn_reserve_frac) * p->cal_mod_index_max * ti_maxf(vdc, 0.0f) * (1.0f / TI_SQRT3);
+}
+
+#define WITNESS_STEPS 24u /* bisection: 2^-24 of the interval */
+
+/* F23: the clamps above can leave a finite pair that the link cannot drive. |v|^2 is a convex
+ * quadratic along each search line below, so the feasible part of a line is one interval and a
+ * bisection from a feasible end finds its boundary; the result is checked once more at the end. */
+static tq_res_t witness(float *d, float *q, float omega_e, float v_av, float i_max_a, const motor_t *m)
+{
+    if (torque_v_required(*d, *q, omega_e, m) <= v_av) {
+        return TQ_OK;
+    }
+    if (torque_v_required(*d, 0.0f, omega_e, m) <= v_av) {
+        /* 1) keep id, reduce |iq|: scale 0 is feasible, scale 1 is not */
+        float lo = 0.0f;
+        float hi = 1.0f;
+        for (uint32_t k = 0u; k < WITNESS_STEPS; k++) {
+            const float mid = 0.5f * (lo + hi);
+            if (torque_v_required(*d, mid * *q, omega_e, m) <= v_av) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        *q *= lo;
+    } else {
+        /* 2) iq = 0, id toward the demagnetisation limit: d_best is the least-voltage id inside the
+         * demagnetisation and current limits; if even it fails, nothing with iq = 0 is feasible */
+        *q = 0.0f;
+        const float d_min = ti_maxf(-m->id_demag_a, -i_max_a);
+        const float w2 = omega_e * omega_e;
+        const float d_v = -(w2 * m->ld_h * m->psi_wb) / ((m->rs_ohm * m->rs_ohm) + (w2 * m->ld_h * m->ld_h));
+        const float d_best = ti_clampf(d_v, d_min, ti_maxf(i_max_a, d_min));
+        if (!(torque_v_required(d_best, 0.0f, omega_e, m) <= v_av)) {
+            *d = d_best;
+            return TQ_INFEASIBLE;
+        }
+        float lo = d_best; /* feasible */
+        float hi = *d;     /* not feasible: the boundary nearest the requested id */
+        for (uint32_t k = 0u; k < WITNESS_STEPS; k++) {
+            const float mid = 0.5f * (lo + hi);
+            if (torque_v_required(mid, 0.0f, omega_e, m) <= v_av) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        *d = lo;
+    }
+    return (torque_v_required(*d, *q, omega_e, m) <= v_av) ? TQ_LIMITED : TQ_INFEASIBLE;
+}
+
+tq_res_t torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, const motor_t *m, const mtpa_lut_t *lut,
+                           const ti_params_t *p, float *id, float *iq)
 {
     *id = 0.0f;
     *iq = 0.0f;
     if (!ti_finite(t_nm) || !ti_finite(omega_e) || !ti_finite(vdc) || !ti_finite(i_max_a)) {
-        return false;
+        return TQ_NONFINITE;
     }
     float d;
     float q;
     mtpa(t_nm, m, lut, &d, &q);
-    /* field weakening: (Ld id + psi)^2 + (Lq iq)^2 <= (V/w)^2 */
+    /* field weakening: (Ld id + psi)^2 + (Lq iq)^2 <= (V/w)^2, on the voltage the witness allows */
     const float w = ti_absf(omega_e);
+    const float v_av = torque_v_available(vdc, p);
     if (w > 1.0f) {
-        const float v_lim = p->cal_mod_index_max * ti_maxf(vdc, 0.0f) * (1.0f / TI_SQRT3);
+        const float v_lim = v_av;
         const float r2 = (v_lim / w) * (v_lim / w);
         const float lq_iq2 = (m->lq_h * q) * (m->lq_h * q);
         if (r2 > lq_iq2) {
@@ -150,9 +213,13 @@ bool torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, cons
     const float q_max = sqrtf(ti_maxf((i_max_a * i_max_a) - (d * d), 0.0f));
     q = ti_clampf(q, -q_max, q_max);
     if (!ti_finite(d) || !ti_finite(q)) {
-        return false;
+        return TQ_NONFINITE;
+    }
+    const tq_res_t r = witness(&d, &q, omega_e, v_av, i_max_a, m);
+    if (!ti_finite(d) || !ti_finite(q)) {
+        return TQ_NONFINITE;
     }
     *id = d;
     *iq = q;
-    return true;
+    return r;
 }

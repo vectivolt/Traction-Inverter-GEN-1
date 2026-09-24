@@ -2,7 +2,7 @@
  *
  * Every threshold of the firmware lives here. The four instances are GENERATED into
  * include/params_<sku>.h by tools/gen-params.mjs from the contract tables
- * (docs/firmware-contract.md rev A.11 + the design-verify SKU data); do not edit them by hand.
+ * (docs/firmware-contract.md rev A.12 + the design-verify SKU data); do not edit them by hand.
  * Fields named cal_* are calibration values the contract does not fix (hardware timings and
  * tolerances nobody can know before HIL/bench): each has a default and a [min, max] range in
  * include/cal_ranges.h, and params_validate() rejects a set that leaves its range. */
@@ -202,6 +202,11 @@ typedef struct {
     uint32_t cal_fw16_rdy_rise_ms;
     uint32_t cal_oneshot_wait_us;
     float cal_torque_max_nm;
+    uint32_t cal_desat_en_hold_us; /* A12-R05: MCU_GATE_EN held this long after a FLT is first seen */
+    float cal_vdyn_reserve_frac;   /* F23: dynamic voltage reserve of the torque->current witness */
+    float cal_isns_act_min_a;      /* F24: latent stuck-channel detector */
+    float cal_isns_act_frac;
+    uint8_t cal_isns_act_debounce;
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */

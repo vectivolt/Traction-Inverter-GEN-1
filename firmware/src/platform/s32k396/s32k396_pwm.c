@@ -1,8 +1,13 @@
 /* s32k396_pwm.c — hal/pwm.h on eFlexPWM_1 (FW-05, FW-06, FW-15, §4c).
  * Hardware first: the three FAULT inputs are set once here, in fail-safe + manual-clear mode, and
- * write-protected; software only confirms (hal_pwm_config_locked) and clears FFLAG in FW-15 step 4.
+ * write-protected; software only confirms and clears FFLAG in FW-15 step 4. Three separate pieces of
+ * arming evidence come from here (F01/F02, round 14), none assumed:
+ *   hal_pwm_fault_route_bound() : the board configuration binds PTC26/PTC25 to FAULT0/FAULT2 and the
+ *                                 two IMCRs read back so (placeholders cannot build for the target);
+ *   hal_pwm_config_matches()    : the lock-down image reads back;
+ *   hal_pwm_protection_locked() : the REG_PROT soft-lock bits and the hard lock read back set.
  * RTD: FlexPwm_Ip_Init() applies the generated submodule configuration; the lock-down registers
- * below are then written directly and read back. */
+ * below are then written directly, locked and read back. */
 #include <math.h>
 
 #include "pwm.h"
@@ -17,7 +22,45 @@ extern const FlexPwm_Ip_UserCfgType FlexPwm_Ip_UserCfg_1; /* TODO(RTD): Config T
 
 static pwm_counts_t s_cnt;
 static hal_pwm_mode_t s_mode = HAL_PWM_OFF;
-static bool s_locked;
+static bool s_cfg_ok;
+
+#define PROT_MAX (3u + (3u * PWM_NSUB))
+
+/* The registers REG_PROT must lock (the fault lock-down image), as module offsets. CTRL2 is not one
+ * of them: every mode change writes its FORCE bit (force_now), and a soft-locked CTRL2 would stop
+ * PWM-ASC entry. Its INDEP bit is read back instead (lock_readback, every 1 ms task through the
+ * arming-evidence watch). TODO(RM): if REG_PROT locks per byte and eFlexPWM takes byte writes, lock
+ * the upper byte (INDEP, INIT_SEL, DBGEN) and write FORCE as a byte. */
+static uint32_t prot_regs(regprot_reg_t r[PROT_MAX])
+{
+    uint32_t n = 0u;
+    r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_R(FCTRL) - TI_PWM_BASE), 2u};
+    r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_R(FCTRL2) - TI_PWM_BASE), 2u};
+    r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_R(FFILT) - TI_PWM_BASE), 2u};
+    for (uint32_t k = 0u; k < PWM_NSUB; k++) {
+        r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_SM(k, DISMAP0) - TI_PWM_BASE), 2u};
+        r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_SM(k, DISMAP1) - TI_PWM_BASE), 2u};
+        r[n++] = (regprot_reg_t){(uint32_t)((uintptr_t)&PWM_SM(k, OCTRL) - TI_PWM_BASE), 2u};
+    }
+    return n;
+}
+
+/* Sets the soft locks of the lock-down registers, then the hard lock (read-only until reset).
+ * TODO(RM): confirm REG_PROT covers eFlexPWM_1 on the S32K39; otherwise make these registers
+ * read-only for the application domain through XRDC (and make hal_pwm_protection_locked() read
+ * that instead). TODO(RM): the two IMCRs through the SIUL2 protection the same way. */
+static void prot_lock(void)
+{
+#ifdef TI_RTD_AVAILABLE
+    regprot_reg_t r[PROT_MAX];
+    const uint32_t n = prot_regs(r);
+    for (uint32_t i = 0u; i < n; i++) {
+        REGPROT_U8(TI_PWM_BASE, TI_REGPROT_SLBR_OFS + regprot_slbr_index(r[i].ofs)) =
+            regprot_slbr_lock_value(r[i].ofs, r[i].width);
+    }
+    REGPROT_U32(TI_PWM_BASE, TI_REGPROT_GCR_OFS) |= TI_REGPROT_GCR_HLB;
+#endif
+}
 
 static void force_now(void)
 {
@@ -49,16 +92,15 @@ static void lock_faults(void)
         PWM_SM(n, DISMAP1) = 0u;
         PWM_SM(n, OCTRL) = PWM_OCTRL_FAULT_LOW;
     }
-    /* SIUL2 input mux: PTC26 -> FAULT0, PTC25 -> FAULT2 (input buffer on, output buffer off) */
+    /* SIUL2 input mux: PTC26 -> FAULT0, PTC25 -> FAULT2 (input buffer on, output buffer off). An
+     * unbound board configuration writes no IMCR at all (never IMCR[0] = 0: another input's mux). */
     SIUL2_MSCR(BP_FLT_HS_N_MSCR) = TI_MSCR_IBE;
     SIUL2_MSCR(BP_FLT_LS_N_MSCR) = TI_MSCR_IBE;
+#if TI_IMCR_ROUTE_BOUND
     SIUL2_IMCR(TI_IMCR_PWM1_FAULT0) = TI_IMCR_SSS_PTC26;
     SIUL2_IMCR(TI_IMCR_PWM1_FAULT2) = TI_IMCR_SSS_PTC25;
-    /* Write protection. TODO(RTD/HW-RM): set the REG_PROT soft-lock bits (SLBRn) of eFlexPWM_1 for
-     * FCTRL, FCTRL2, FFILT, DISMAP0/1, OCTRL and CTRL2 of SM0..2, and of the two IMCRs, then the
-     * REG_PROT hard lock (GCR.HLB) so they stay read-only until reset. If REG_PROT does not cover
-     * these instances on the S32K39, make them read-only for the application domain through XRDC.
-     * lock_readback() confirms the image either way (hal_pwm_config_locked). */
+#endif
+    prot_lock();
 }
 
 static bool lock_readback(void)
@@ -74,7 +116,7 @@ static bool lock_readback(void)
 
 bool hal_pwm_init(uint32_t fsw_hz, uint32_t dead_time_ns)
 {
-    s_locked = false;
+    s_cfg_ok = false;
     s_cnt = pwm_counts(TI_PWM_CLK_HZ, fsw_hz, dead_time_ns);
     if (!s_cnt.ok) {
         return false;
@@ -104,11 +146,36 @@ bool hal_pwm_init(uint32_t fsw_hz, uint32_t dead_time_ns)
     apply_mode(HAL_PWM_OFF);
     PWM_R(OUTEN) = pwm_ab(PWM_FAULT_MASK3, PWM_FAULT_MASK3);
     PWM_R(MCTRL) = (uint16_t)(PWM_MCTRL_RUN3 | PWM_MCTRL_LDOK3);
-    s_locked = lock_readback();
-    return s_locked;
+    s_cfg_ok = lock_readback();
+    return s_cfg_ok;
 }
 
-bool hal_pwm_config_locked(void) { return s_locked && lock_readback(); }
+bool hal_pwm_config_matches(void) { return s_cfg_ok && lock_readback(); }
+
+bool hal_pwm_protection_locked(void)
+{
+    regprot_reg_t r[PROT_MAX];
+    const uint32_t n = prot_regs(r);
+    uint8_t slbr[PROT_MAX] = {0u};
+    uint32_t gcr = 0u; /* nothing read back => not locked */
+#ifdef TI_RTD_AVAILABLE
+    for (uint32_t i = 0u; i < n; i++) {
+        slbr[i] = REGPROT_U8(TI_PWM_BASE, TI_REGPROT_SLBR_OFS + regprot_slbr_index(r[i].ofs));
+    }
+    gcr = REGPROT_U32(TI_PWM_BASE, TI_REGPROT_GCR_OFS);
+#endif
+    return regprot_locked(gcr, slbr, r, n);
+}
+
+bool hal_pwm_fault_route_bound(void)
+{
+#if TI_IMCR_ROUTE_BOUND
+    return ((SIUL2_IMCR(TI_IMCR_PWM1_FAULT0) & TI_IMCR_SSS_MASK) == TI_IMCR_SSS_PTC26) &&
+           ((SIUL2_IMCR(TI_IMCR_PWM1_FAULT2) & TI_IMCR_SSS_MASK) == TI_IMCR_SSS_PTC25);
+#else
+    return false; /* UNBOUND: s32k396_board_cfg.h is still the TODO(RM) placeholder */
+#endif
+}
 
 void hal_pwm_force_off(void) { apply_mode(HAL_PWM_OFF); }
 

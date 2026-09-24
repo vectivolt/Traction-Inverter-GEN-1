@@ -293,7 +293,9 @@ E = 0 the link alone covers only ≈ 105 / 108 A rms, and back-EMF only raises V
 fails rule (a) by design and is released under Road rule (b):
 - the DC grid stays connected through the cell's pulse-off intervals (DESAT recovery, V5GD/feed loss,
   24 V loss, MCU hang) for every opening cause, the cell's own faults and the vessel's
-  fault-isolation logic included. Evidence: the IEC 61660 selectivity study (§11) and FAT;
+  fault-isolation logic included. Evidence: the IEC 61660 selectivity study (§11) and FAT — the
+  firmware's keep_hv CAN request that holds the battery connected now follows actual reliance on
+  this rule at any speed, not a speed-only heuristic (Road round 14/A.13, A12-R08);
 - if the DC path does open with current flowing, FW-06 LS-ASC keeps the energy in the winding
   (MFW-08).
 
@@ -337,9 +339,10 @@ is sized per project.
 
 Marine has no crash case: the target is IEC 61800-5-1's < 60 V within 5 s for accessible parts
 (both pass with margin). The QDIS-stuck-on case (384/515 W into 10 W parts with the battery
-connected) is bounded exactly as on the Road (fire only with the DC breaker reported open,
-precharge plausibility, fail-open flameproof wirewounds; the TE SQP10 candidate goes through the
-stuck-ON test, Road gate ㉖).
+connected) is bounded exactly as on the Road (fire only with the DC breaker reported open; a
+shorted QDIS is now detected at the next contactor opening → latched no-re-energise DTC +
+contactor-open request, round 14/A.13, replacing the earlier precharge-only check; fail-open
+flameproof wirewounds; the TE SQP10 candidate goes through the stuck-ON test, Road gate ㉖).
 
 Two Road rules carry over, re-derived at A.12 for the UCC14141-Q1 bias: the QDIS gate is fed
 through the kept 1.5 k/10 k divider, now **11.6–16.3 V** (low end set by the VOW3120's guaranteed
@@ -366,10 +369,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.12**.
-The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass; no Marine unit
-is built or type-approved yet, so neither move needed a class notification. M8 carries the Road
-fixes of review rounds 7–13 (`../docs/review-A7-disposition.md` … `../docs/review-A12-disposition.md`). It has the same PCBs and
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.13**.
+The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13 on
+2026-09-25; no Marine unit is built or type-approved yet, so none of these moves needed a class
+notification. M8 carries the Road fixes of review rounds 7–14 (`../docs/review-A7-disposition.md`
+… `../docs/review-A13-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -377,8 +381,8 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.12 brought** (Road `design-basis.md` §11i–§11k; A.12 = round 13,
-`review-A12-disposition.md`):
+**What A.9–A.13 brought** (Road `design-basis.md` §11i–§11m; A.12 = round 13,
+`review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -420,6 +424,42 @@ move with the automotive line.
   (Faratronic C3D1U506KFAA382) is bound on a different Road board from M8's 8XX bank and does not
   change the M8/M10 cap-bank gates.
 
+- **A.13.** Round 14 found the A.12 pin freeze was not actually closed, and hardened the shared
+  firmware and analog front end; all of it applies through the shared control card. **MCU pin
+  freeze, reopened and re-closed:** H5 is **V15** (the 1.5 V core input, now on V15S; A.12 had put
+  5 V on it) and J7 is **V25** (the 2.5 V flash-regulator output, now with a 220 nF cap; A.12
+  grounded it) — the whole ball map was re-derived against NXP's own GEN3 control-card net report
+  (`NET-91122_C.net`, MCU U513, 244 connected balls) as an independent oracle: every supply ball
+  and 164/165 port names agree, and the four signals that sat on GEN3-open balls moved to
+  netlist-confirmed ones (HW_ID → B5/PTE0, NTC_A → T15/PTC11, MT2_SIG → D5/PTE26, ASC_REQ →
+  U4/PTD7); the KiCad symbol's pin numbers are now the ball IDs, and a CBAL 1 nF was added at the
+  ballast gate. **Firmware** (shared base, Marine parameter sets apply): a DESAT hold (CAL, 60 µs
+  default) is now enforced inside the bridge module for every software caller, so the ISR can no
+  longer drop MCU_GATE_EN ahead of the hardware's 22–53 µs FLT→DRV_EN soft-off delay — it
+  comfortably clears both DESAT corners in §5/the report; the millisecond clock is now a 64-bit
+  monotonic counter (the old wrapping 32-bit µs/1000 clock gave false CAN/BMS staleness after
+  71.6 min, MFW-04); **keep_hv** now follows actual reliance on rule (b) at any speed instead of a
+  speed-only heuristic — the behaviour §6b already assumed, now actually requested of the BMS/PMS;
+  PWM fault-input routing left unbound is a build error, and gate-enable is fail-closed behind an
+  arming-evidence record (route bound, config matches, protection locked, fault-route and
+  OVP-route validated by an NVM EOL record); `torque_to_current` gained a final
+  voltage-feasibility witness (infeasible → zero torque + speed-limit request + DTC); the KCL
+  plausibility check gained a per-channel activity check; a stuck-on discharge (shorted QDIS,
+  battery connected) is now detected at the next contactor opening → latched no-re-energise DTC +
+  contactor-open request (§7, numbers unchanged). **Analog** (card, shared): the resolver
+  excitation-monitor divider is now **REXM1/3 18 k, REXM2 42.2 k, REXM4 84.5 k** (was
+  5.1 k/12 k/24 k) with a 220 pF C_AAF across the SDADC1 pair — a 35 V wire fault now injects
+  1.96 mA into an unpowered pad, inside the 3 mA limit (was 5.5 mA, over it); the exciter outputs
+  get an SMCJ8.5CA TVS at each connector node plus a 0.2 A PTC (MF-LSMF020) per line (the ALM2402
+  output abs max is 18 V; the clamp sits at 10–11 V, below its 12.1 V rail + a diode, so no
+  back-drive); the motor-temperature lines get SMAJ5.0A clamps and a bound fuse MPN. New bench
+  gate ㉘ (§12) covers terminal-fault tests on each line, MCU on/off/standby. **Power board**
+  (shared PCB): each V_DC-bias LDO (NCV4276C) now sits behind a 47 Ω 2512 ballast (R5LB/R5LC),
+  because the production **UCC12051-Q1** (now the primary MPN; UCC12050 stays the proto fit) draws
+  up to 80 mA at no load — a 96 mA budget puts the LDO at ≈ 0.5 W / Tj ≈ 116 °C, down from
+  0.96 W / 141 °C. **UCC14141-Q1:** TI's VDE certificate (40058888) is issued and archived — the
+  gate ㉔ component-level residual is closed (the opto and Y-cap certificates stay "planned", §12).
+
 | Change | M8 | M10 |
 |---|---|---|
 | Power PCB | Road, unchanged | **new** — 1100 V creepage/clearance (conformal coat + slots), same D3 footprint |
@@ -432,7 +472,7 @@ move with the automotive line.
 | Opto (UQD, UASC) | VOW3120-X017T, Road gate ⑪ (N8, A.12) | **same part** — V_IORM 1414 Vpk ≥ 1150 V |
 | Phase sensors | HC5FW 900-S + busbar sleeve (N7, Road gate ⑩) | same + sleeve rated for 1100 V, LEM sign-off |
 | Y-caps | VY1472M63Y5UQ6TV0 (Road gate ㉔, A.12) | **same part** — 1500 V DC ≥ 1150 V; Y1/500 VAC class is for the 690 V AC grid case |
-| Road A.9–A.12 power-side changes | included | carried into the new power and discharge PCBs: harness map (V5GD 1, HW_ID 2, VBAT_H 19/20, VBAT_L 39/40), UCC12050 V_DC bias, RASCG 0.33 W part (88 mW actual), 50 V CASC/CQD, TPSMC24CA-VR on both LV feeds, the QDIS gate divider (now 11.6–16.3 V), TPS55340-Q1 real ratings (38 V rec / 40 V abs) |
+| Road A.9–A.13 power-side changes | included | carried into the new power and discharge PCBs: harness map (V5GD 1, HW_ID 2, VBAT_H 19/20, VBAT_L 39/40), UCC12050 V_DC bias, RASCG 0.33 W part (88 mW actual), 50 V CASC/CQD, TPSMC24CA-VR on both LV feeds, the QDIS gate divider (now 11.6–16.3 V), TPS55340-Q1 real ratings (38 V rec / 40 V abs), 47 Ω 2512 ballast per V_DC-bias LDO for the production UCC12051-Q1 (A.13) |
 | Cap bank / discharge | Road | §7 values, new busbar drawing |
 | V_DC sense divider | 6 × 1206 per channel (142 V each at 850 V) | **8 × 1206** per channel (138 V each at 1100 V; 6 would put 183 V = 92 % of 200 V on each) |
 | Control card | Road (RHWID code only) | Road |
@@ -445,7 +485,9 @@ move with the automotive line.
 and 1150 V (M10). Round 13 bound gates ⑪ and ㉔ to orderable parts (Vishay VOW3120-X017T opto, TI
 UCC14141-Q1 bias, Vishay VY1472M63Y5UQ6TV0 Y-caps), all already rated ≥ 1150 V DC — so M10 needs no
 separate certified part for these, only their certificate status (VDE/UL/CQC, listed "planned")
-checked at PO. The register's remaining open gates ask for statements at the Road's 850 V DC:
+checked at PO. Round 14 (A.13) closed the UCC14141-Q1 half of that residual: TI's VDE certificate
+(40058888) is issued and archived; the opto and Y-cap certificates are still "planned," check at
+PO. The register's remaining open gates ask for statements at the Road's 850 V DC:
 - ⑤ VGT12EEM flyback transformer;
 - ⑩ HC5FW sleeve (N7).
 
@@ -465,10 +507,10 @@ adds:
 
 | # | Requirement | Source |
 |---|---|---|
-| MFW-01 | **Identity.** HW_ID codes: M8 IGBT 47 k (4.12 V), M8-SiC 30 k (3.75 V; 100 k sat at 4.55 V, inside the > 4.6 V open-pin fault window — round 13), M10 1 k (0.45 V). All are clear of the Road codes (0.90/1.60/2.50/3.44 V). A cross-series parameter set refuses to enable the gates. FW-02's τ check is only a plausibility check since Road A.11: M10's nominal τ (2350 Ω × 303 µF ≈ 0.71 s) equals the Road 4XX value, so the M10 cap-bank/discharge kit is proven by traceability and the EOL C/R measurement (Road `dfm.md` §4) | FW-01 mechanism; FW-02 |
+| MFW-01 | **Identity.** HW_ID codes: M8 IGBT 47 k (4.12 V), M8-SiC 30 k (3.75 V; 100 k sat at 4.55 V, inside the > 4.6 V open-pin fault window — round 13), M10 1 k (0.45 V). All are clear of the Road codes (0.90/1.60/2.50/3.44 V). A cross-series parameter set refuses to enable the gates. FW-02's τ check is only a plausibility check since Road A.11: M10's nominal τ (2350 Ω × 303 µF ≈ 0.71 s) equals the Road 4XX value, so the M10 cap-bank/discharge kit is proven by traceability and the EOL C/R measurement (Road `dfm.md` §4). HW_ID now lands on a netlist-confirmed MCU ball (B5/PTE0) instead of a GEN3-open one — the resistor codes and thresholds are unchanged (round 14/A.13) | FW-01 mechanism; FW-02 |
 | MFW-02 | **Duty class.** Each parameter set carries its ratings and its duty class: continuous (ferry) or tug. The 110 % / 60 s overload runs on an I²t budget | §3, §5 |
 | MFW-03 | **Reduce power instead of tripping.** Coolant temperature, leak, module NTC, DC-window edges, BMS and PMS limits reduce power, give a pre-warning and broadcast "power limitation". Trip only for damaging faults (DESAT, OV, hardware) | DNV/BV/ABS/LR (§2) |
-| MFW-04 | **BMS contract.** Obey the charge/discharge current and voltage limits; cap regeneration at the charge limit; raise an alarm on converter failure. A charge limit of 0 with the battery connected is not a lost DC path: regen ramps to zero with current control kept, and FW-06 stays armed as the backstop (Road §6, round 12). FW-06 runs the Road chain: ≤ 15.6 µs to the ASC request on a free-running V_DC slot, then ≤ 7.56 µs ASC entry (Road N9, round 7; timing re-derived round 13/A.12 for the UCC14141-Q1) | IRS battery guidelines Rev.3; §6c |
+| MFW-04 | **BMS contract.** Obey the charge/discharge current and voltage limits; cap regeneration at the charge limit; raise an alarm on converter failure. A charge limit of 0 with the battery connected is not a lost DC path: regen ramps to zero with current control kept, and FW-06 stays armed as the backstop (Road §6, round 12). FW-06 runs the Road chain: ≤ 15.6 µs to the ASC request on a free-running V_DC slot, then ≤ 7.56 µs ASC entry (Road N9, round 7; timing re-derived round 13/A.12 for the UCC14141-Q1). The millisecond clock behind every staleness/timeout check is now a 64-bit monotonic counter (round 14/A.13): the old wrapping 32-bit µs/1000 clock gave false staleness after 71.6 min, a runtime that a ferry or tug duty cycle reaches routinely | IRS battery guidelines Rev.3; §6c |
 | MFW-05 | **PMS contract.** Power-limit and ramp commands on CAN, plus a hardwired fast load-reduction input to protect gensets | §6b |
 | MFW-06 | **Standstill.** Switch at 1 kHz below 2 Hz. A stall timer (≥ 50 % current at < 1 % speed for more than 10 s) warns, then derates | §6b (verified) |
 | MFW-07 | **Flying start** from the resolver angle and speed | §6b |
@@ -567,7 +609,9 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    ⑤) and LEM sign-off on the 1100 V busbar sleeve. Round 13 bound the bias module (TI
    UCC14141-Q1), opto (Vishay VOW3120-X017T) and Y-caps (Vishay VY1472M63Y5UQ6TV0) to parts
    already rated ≥ 1150 V DC, so gates ⑪/㉔ close at the same working-voltage ask — the residual
-   is their certificate status (VDE/UL/CQC, listed "planned") at PO.
+   is their certificate status (VDE/UL/CQC, listed "planned") at PO. Round 14 (A.13) closed the
+   UCC14141-Q1 side (VDE certificate 40058888, archived); the opto and Y-cap certificates remain
+   "planned."
 4. **Class:**
    - current IRS Pt 4 Ch 8 and DNV texts;
    - HV test levels for 850–1200 V DC equipment;
@@ -582,6 +626,8 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - 1 kHz standstill ripple;
    - M10 double-pulse test at 1100 V (sets RG);
    - contained short-circuit test on the 1700 V IGBT (M8: the Road's, gate ③);
+   - terminal-fault test on the resolver excitation and motor-temperature lines, MCU
+     on/off/standby (Road gate ㉘, shared control card);
    - coldplate Rth (shared with Road).
 8. **Before the Road PCB layout (which M8 inherits):** decide the creepage strategy, PD2 sealed
    or PD3.

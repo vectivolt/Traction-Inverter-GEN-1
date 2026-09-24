@@ -60,7 +60,6 @@ ss_decision_t ss_decide(const ss_input_t *in, const motor_t *m, const ti_params_
     d.action = cell(in->row, d.high_speed, in->battery_present);
     d.asc_available = asc_available(in->row);
     d.spo_forced = (in->row == SS_ROW_FLT_LS) || (in->row == SS_ROW_V5GD_LOSS) || (in->row == SS_ROW_FLT_HS);
-    d.keep_hv = d.high_speed && ((in->row == SS_ROW_FLT_HS) || (in->row == SS_ROW_FLT_LS));
     /* an unknown speed cannot prove E < V0: evaluate rule (a) at n_max */
     const float rpm = in->speed_known ? in->speed_rpm : m->n_max_rpm;
     d.v_pk = ss_rule_a_vpk(motor_omega_e(rpm, m), in->id_a, in->iq_a, m, p);
@@ -78,6 +77,10 @@ ss_decision_t ss_decide(const ss_input_t *in, const motor_t *m, const ti_params_
     if ((d.action == SS_ACT_LS_ASC) && !d.asc_available) {
         d.action = SS_ACT_SPO;
     }
+    /* FW-08b / A12-R08: the final action holds SPO, rule (a) does not cover it, so the battery is
+     * the sink — whatever the speed; a lost-battery row never borrows it */
+    const bool spo_held = (d.action == SS_ACT_SPO) || (d.action == SS_ACT_SPO_THEN_PWM_ASC);
+    d.keep_hv = spo_held && !d.rule_a && in->battery_present && rule_b_applies(in->row);
     return d;
 }
 

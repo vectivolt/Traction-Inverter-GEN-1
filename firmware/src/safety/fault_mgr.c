@@ -51,12 +51,14 @@ static void combine(fm_t *f, const fm_ctx_t *c)
     ss_row_t best_row = SS_ROW_COUNT;
     bool forced = false;
     bool keep = false;
+    bool unproven = false;
     for (uint32_t r = 0u; r < (uint32_t)SS_ROW_COUNT; r++) {
         if ((f->active & bit((ss_row_t)r)) == 0u) {
             continue;
         }
         const ss_decision_t *d = &f->row_dec[r];
         keep = keep || d->keep_hv;
+        unproven = unproven || d->energy_dtc;
         if (forced) {
             continue;
         }
@@ -70,8 +72,9 @@ static void combine(fm_t *f, const fm_ctx_t *c)
     f->dec_row = best_row;
     f->asc_permitted = ((f->active & (bit(SS_ROW_FLT_LS) | bit(SS_ROW_V5GD_LOSS))) == 0u) &&
                        (((f->active & bit(SS_ROW_FLT_HS)) == 0u) || f->hs_reset_done);
-    /* FW-08b: until ASC is back or n < n_x */
+    /* FW-08b: while an SPO relies on the battery, until rule (a) holds or ASC (a sink of its own) */
     f->keep_hv = keep && !c->asc_active;
+    f->no_safe_state = unproven;
 }
 
 void fm_raise(fm_t *f, ss_row_t row, bool latching, const fm_ctx_t *c, const motor_t *m, const ti_params_t *p)
@@ -117,9 +120,12 @@ void fm_update(fm_t *f, const fm_ctx_t *c, const motor_t *m, const ti_params_t *
 {
     for (uint32_t r = 0u; r < (uint32_t)SS_ROW_COUNT; r++) {
         if ((f->active & bit((ss_row_t)r)) != 0u) {
-            const bool was_energy = f->row_dec[r].energy_dtc;
+            /* live: keep_hv and "no safe state proven" follow the present current, speed and
+             * battery; the DTC keeps the history */
             f->row_dec[r] = decide((ss_row_t)r, c, m, p);
-            f->row_dec[r].energy_dtc = f->row_dec[r].energy_dtc || was_energy;
+            if (f->row_dec[r].energy_dtc) {
+                dtc_set(DTC_SPO_ENERGY, c->now_ms);
+            }
         }
     }
     combine(f, c);

@@ -38,6 +38,7 @@ void t_run(const char *name, void (*fn)(void));
 
 /* suites (one per test file) */
 void suite_crc(void);
+void suite_time(void);
 void suite_params(void);
 void suite_board_map(void);
 void suite_platform_cfg(void);

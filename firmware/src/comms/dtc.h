@@ -72,6 +72,9 @@ typedef enum {
     DTC_NVM,
     DTC_SENSOR_SELFTEST,
     DTC_GAINS,              /* no gain set within the §2 ceiling */
+    DTC_ARM_EVIDENCE,       /* round 14: IMCR route unbound or no valid EOL/HIL validation record */
+    DTC_TORQUE_INFEASIBLE,  /* F23: no voltage-feasible current even at iq = 0: zero torque + speed limit */
+    DTC_ISNS_STUCK,         /* F24: a phase shows no current where its reference asks for it */
     DTC_COUNT
 } dtc_id_t;
 
@@ -91,11 +94,13 @@ typedef struct {
 } dtc_entry_t;
 
 void dtc_init(void);
-void dtc_set(dtc_id_t id, uint32_t now_ms);
+void dtc_set(dtc_id_t id, uint32_t now_ms); /* now_ms from hal_time_ms(): the one ms domain */
 void dtc_pass(dtc_id_t id);
 bool dtc_active(dtc_id_t id);
 uint8_t dtc_status(dtc_id_t id);
 uint8_t dtc_occurrences(dtc_id_t id);
+/* First and last failure time (ms) since the last clear; false if it never failed. */
+bool dtc_times(dtc_id_t id, uint32_t *first_ms, uint32_t *last_ms);
 uint32_t dtc_code(dtc_id_t id);
 uint16_t dtc_confirmed_count(void);
 dtc_id_t dtc_first_active(void);

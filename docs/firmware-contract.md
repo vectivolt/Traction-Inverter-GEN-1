@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.12)
+# Hardware → firmware contract (rev A.13)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -8,7 +8,8 @@ review finding dispositioned as *Firmware Handled* (round 6:
 [`review-A8-disposition.md`](review-A8-disposition.md), round 9:
 [`review-A9-disposition.md`](review-A9-disposition.md), round 10:
 [`review-A10-disposition.md`](review-A10-disposition.md), rounds 12–13:
-[`review-A11-disposition.md`](review-A11-disposition.md), [`review-A12-disposition.md`](review-A12-disposition.md)) points at a numbered requirement here
+[`review-A11-disposition.md`](review-A11-disposition.md), [`review-A12-disposition.md`](review-A12-disposition.md), round 14:
+[`review-A13-disposition.md`](review-A13-disposition.md)) points at a numbered requirement here
 (`FW-xx`). The traction application itself is a separate deliverable (review R-F08); nothing in
 this repository claims it exists. Verification of each requirement is HIL first, then bench.
 
@@ -73,6 +74,9 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
 | 8XX (SiC, IGBT) | 220 kW ≥ 654 V | 120 kW ≥ 656 V | 168 / 91 kW at 500 V |
 | 4XX (IGBT, SiC) | 150 kW ≥ 379 V | 90 kW ≥ 364 V | 99 / 62 kW at 250 V |
 
+  Round 14 (FW-25): when no voltage-feasible current exists inside the demagnetisation and current limits
+  (5 % dynamic voltage reserve), the request is refused explicitly — zero torque, a speed-limit request on CAN,
+  a DTC — never a finite but unattainable (i_d, i_q).
 - **FW-04** Thermal derating from the module NTCs and coolant temperature; the rated 30 s peak
   assumes 65 °C coolant and the (to-be-measured) 0.045 K/W coldplate. Peak is re-allowed only
   after the continuous state has recovered (S4 time constants).
@@ -91,6 +95,9 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
   firmware implementation):** the high sides are forced off by the PWM fault input and the event is
   treated as *control lost* — a latched fault, cleared only through FW-15; the low sides follow the §6
   matrix (SPO, or PWM-ASC where the matrix requires it), never a torque-producing PWM.
+  Round 14 (FW-05 addendum, §10a): a latent stuck-at-zero channel is caught by the per-channel activity
+  check once |i*| exceeds its threshold; an equal gain error on all three channels cannot be seen with three
+  sensors and stays an EOL calibration item.
 - **FW-06** DC overvoltage: both V_DC channels in hardware compare at the SKU OV trip; action =
   high sides forced off + zero torque request + ASC request, then PWM-ASC (§4c; if the §6 matrix
   allows). Round 7 (RR06/A6-R08) replaces the written "20 µs" with a budget that must be
@@ -115,6 +122,8 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
   phase current (up to 481 A) then rectifies into the link at ≈1.65 V/µs. The whole chain ends
   at 906 V (91 % of the cans' 1000 V U_N at 85 °C; 4XX: 542 V of 600 V). A 100 µs response would end at 962 V and a once-per-PWM-period sample
   at 5 kHz (200 µs) at 1038 V.
+  Round 14 (FW-24): the HIL-measured chain time is stored in the EOL/HIL validation record; without it the
+  OVP route counts as unvalidated and the firmware does not arm.
 - **FW-07** V_DC plausibility: |VDC1 − VDC2| > 5 % ⇒ fault; `VOFS` (the receivers' shared
   +0.5 V offset, now on an ADC pin) outside 0.475–0.525 V ⇒ **both channels invalid** (a failed
   offset buffer shifts both by up to 228 V and passes the 5 % check); with contactors closed,
@@ -127,7 +136,8 @@ ceiling is re-derived from the measured delay and the real L_d/L_q (round 12, R2
   enter DC-link voltage control (torque → 0 at the current-loop rate) and rely on FW-06 for
   the fast part; request the VCU/BMS protocol "zero torque before opening" for every
   non-emergency opening.
-- **FW-08b** After any DESAT at n ≥ n_x, report "fault recovery, keep HV connected" to the VCU/BMS
+- **FW-08b** After any DESAT at n ≥ n_x — and, since round 14, whenever an SPO relies on the battery at ANY
+  speed (rule (a) fails, battery present; see §6 keep_hv) — report "fault recovery, keep HV connected" to the VCU/BMS
   until ASC is re-established or n < n_x (round 8, R7-06). During the mandatory ≥ 1.5 ms driver
   reset the bridge is three-phase open, and the battery absorbs the rectified current.
   After an **FLT_LS** the bridge stays in SPO until n < n_x (§6), so the rectified charge flows for
@@ -234,7 +244,8 @@ FLT/RDY lines sit between logic thresholds:
 - DRV_EN and PWM, through the NSI6611 input clamps.
 
 The firmware therefore reads V5GD directly (PTD27; A.12 ball map). Outside 4.75–5.25 V it forces SPO: `ASC_CLR`,
-MCU_GATE_EN low, PWM low. That removes the second path. It also marks V_DC invalid (FW-07), sets a
+MCU_GATE_EN low, PWM low (with a FLT line reading low — V5GD below 1 V — the EN drop waits for the DESAT hold
+of FW-22). That removes the second path. It also marks V_DC invalid (FW-07), sets a
 supply DTC, and does not arm. The V5GD-off bench item covers both paths. If the NTC path alone can
 hold V5GD up, the NTC clamps move to a zener to ground.
 
@@ -311,6 +322,13 @@ peak phase current at ASC entry (n_max, cold magnets) must stay below the low-si
 with margin (SiC 7.2 V at the switch ≈ 1.3 kA hot; IGBT from its V_CE(sat) curve at the 4.2 V
 minimum, design-verify "DESAT trip"). Otherwise ASC entry alone trips DESAT and FW-06 lands in SPO
 exactly when the battery is gone.
+
+**keep_hv — the runtime side of rule (b) (round 14, A12-R08 / F148).** Whenever the chosen safe state relies
+on rule (b) — rule (a) fails and the battery is credited as the energy sink, at ANY speed — the firmware asserts
+`keep_hv` in the CAN status (the "keep the battery connected" request) and holds it until rule (a) holds
+again or ASC (an independent sink) is active. It is not derived from speed. Rows whose premise is the lost
+battery cannot borrow rule (b): they raise the energy DTC and report "no safe state proven". The request is
+not itself proof that the contactors stay closed — that is the vehicle-level rule (b) evidence.
 
 ## 7. Fault-latch recovery (review R-F06 — NSI6611 DS 1.2 §8.10/§9.4)
 
@@ -429,6 +447,9 @@ are DRV_EN, which the fault latch holds low. So:
   DTC; the passive bleeder still guarantees < 60 V in 65 s (8XX) / 89 s (4XX) worst case. With
   either witness invalid (FW-07: VOFS, V5GD or disagreement) the HV state is reported **unknown**,
   never safe; service isolation then follows the independent measurement (round 12, R1-F18).
+  Round 14 (FW-26): a stuck-ON QDIS (a shorted switch, the battery still connected) is detected at the next
+  contactor opening — V_DC decays at the active rate with no command — as a latched DTC, "service required /
+  do not re-energise" and "open the contactors" on CAN, kept in NVM; clearing it needs a UDS service routine.
 - **FW-19** Precharge plausibility: a link that plateaus ≈5 % below the pack or charges with a
   short time constant indicates a shorted QDIS/string ⇒ refuse to arm. (A stuck-ON QDIS with
   the battery connected dissipates 384 W / 284 W — the fail-open flameproof wirewound class
@@ -454,13 +475,18 @@ is (round-7 cross-check):
 5. ASC latch decision:
    - n < n_x (or the battery present and current control ready): `ASC_CLR`.
    - n ≥ n_x: `ASC_REQ` (idempotent). ASC is kept, and PWM-ASC takes over once armed.
+   Round 14 (FW-24): FW-16 itself, like every energisation, requires the five arming-evidence items — routing
+   bound, configuration matching its image, REG_PROT locked (CTRL2 excepted, INDEP read back), and the EOL/HIL
+   record of the pad-to-PWM-fault injection and of the FW-06 chain (≤ 15.6 µs) with CRC, firmware ID, SKU and
+   device UID. Missing evidence fails INIT: FS0B is never released and MCU_GATE_EN never rises.
 6. Enable the flybacks (S1: one burst, 73–240 ms to rails) and FS_GPIO1 high.
 7. RDY → **FW-16** if its measured conditions hold (no HV after the QDIS top-up when the link reads
    3–60 V, standstill; step a re-asserts FS0B by SPI), otherwise the stored pass (FW-16) → report
    "self-test done". A DESAT record in NVM from this or the previous key cycle blocks automatic
    arming (FW-15 one-retry rule), whatever FLT reads now. The VCU precharges only after
    that → precharge monitoring (FW-19).
-8. Arm with MCU_GATE_EN high: the FS0B edge has already settled, and RDY rises while MCU_GATE_EN
+8. Arm with MCU_GATE_EN high — only with the FW-24 evidence complete (status byte 15 names anything missing):
+   the FS0B edge has already settled, and RDY rises while MCU_GATE_EN
    is still low.
 9. Zero torque.
 
@@ -513,6 +539,44 @@ one-retry rule.
   hardware serial, SKU and motor ID; any failure ⇒ no torque.
 - **FW-21** Signed images, rollback, a no-torque update state; DRV_EN is hardware-inhibited
   through reset, erase/program and debug (pulldowns + FS0B — verified structurally).
+
+## 10a. Round-14 requirements (rev A.13 — reviews of cfd35a7)
+
+- **FW-22** DESAT / global-enable sequencing (A12-R05, F146). `MCU_GATE_EN` is an UNDELAYED input of the
+  DRV_EN AND gate; the hardware fault-latch path delays FLT → DRV_EN by 22–53 µs so the NSI6611 can complete
+  its local soft turn-off (RST/EN behaviour during soft-off is vendor-unspecified). While either FLT line is
+  low, no software path may lower `MCU_GATE_EN` (or change RST/EN) before `cal_desat_en_hold_us` has
+  elapsed — 60 µs default, ≥ the RC upper corner plus the FLT filter (verifier row); PWM inhibit stays
+  immediate (the hardware fault input already did it). The hold lives in the bridge module so every caller
+  is covered; non-DESAT emergencies (no FLT low) keep the immediate drop.
+- **FW-23** Single monotonic time base (A12-R06, F147). All timestamps derive from one 64-bit monotonic
+  microsecond clock (the 32-bit hardware counter extended on every read, read at least once per 71.6 min,
+  atomic across ISR/task); milliseconds are derived from it so that unsigned ages are valid across every
+  wrap. No timestamp producer divides the raw 32-bit counter.
+- **FW-24** Arming evidence — fail closed (F01/F02/F06, F150/F151). Gate enable, the FW-16 self-test
+  energisation and any torque are refused unless ALL of: PWM fault-input routing bound (IMCR/SSS values
+  from the reference manual — placeholders are a build error), the fault/complementary configuration
+  matches its image, the eFlexPWM protection is write-protected (REG_PROT/XRDC lock bits read back — a
+  readback of the image is NOT a lock witness), and the EOL/HIL record (NVM, CRC, tied to hardware and
+  firmware identity) certifies the physical PWM-fault route (PTC26/PTC25, CPU halted) and the ADC-watchdog
+  → PWM-fault OVP chain (≤ 15.6 µs). The CAN status names the missing evidence.
+- **FW-25** Torque-request feasibility (F23, F155). After the demagnetisation and current-circle clamps the
+  request carries a final voltage-magnitude witness (ω_e, ψ_f, L_d, L_q, R_s, the reserved dynamic
+  voltage); iq, then id, are reduced until feasible; if infeasible at iq = 0 the request is refused
+  explicitly — zero torque, a speed-limit request to the VCU and a DTC — never a finite but unattainable
+  current pair.
+- **FW-26** Unexpected-discharge detection (F09, F157). V_DC falling at the active-discharge rate while
+  discharge is not commanded (a shorted QDIS: 0.45 A / 96 W per resistor at 850 V) latches a
+  no-re-energise DTC, requests contactor opening and blocks the next precharge until service. The
+  resistor's benign failure at that power stays the hardware gate (㉖).
+- **Vehicle interface (round 14).** Status bytes 14–15 carry: no safe state proven, service required, open
+  the contactors, speed-limit request, and the missing arming evidence — to be added to the DBC. Clearing the
+  service lock is a UDS routine (not implemented); the EOL/HIL rig that writes the validation record is outside
+  this repository.
+- **FW-05 addendum** — KCL coverage (F24, F156). Σi = 0 does not detect a channel stuck at zero at zero
+  current nor an equal gain error on all channels; each channel must show activity when |i*| exceeds a
+  threshold, and the 0.2–4.8 V window, range and stale checks stay. Coverage per operating state is
+  tabulated in `firmware/docs`.
 
 ## 11. What this contract does not close
 

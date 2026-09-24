@@ -56,7 +56,7 @@ static bool expect_pin(hal_di_t pin, bool level, uint32_t max_us)
     return false;
 }
 
-static st_res_t fail(st_t *t)
+static st_res_t fail(st_t *t, bridge_t *br)
 {
     t->failed = t->s;
     t->s = ST_FAIL;
@@ -65,8 +65,7 @@ static st_res_t fail(st_t *t)
     (void)hal_gpio_flt_pad_drive_low(HAL_DI_FLT_LS_N, false);
     hal_gpio_write(HAL_DO_ASC_REQ, false);
     br_asc_clear_pulse();
-    hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
-    hal_pwm_force_off();
+    br_spo(br, true); /* PWM off; MCU_GATE_EN low (after the DESAT hold if a FLT is asserted) */
     return ST_RES_FAIL;
 }
 
@@ -91,7 +90,7 @@ static bool step_h_bank(hal_di_t pad, uint8_t fflag, const ti_params_t *p)
     return ok;
 }
 
-static st_res_t run_h(st_t *t, const ti_params_t *p)
+static st_res_t run_h(st_t *t, bridge_t *br, const ti_params_t *p)
 {
     t->in_h = true;
     hal_gpio_write(HAL_DO_ASC_REQ, false);
@@ -104,9 +103,9 @@ static st_res_t run_h(st_t *t, const ti_params_t *p)
     ok = ok && expect(true, false, p->fw16_asc_rb_us);
     t->in_h = false;
     if (!ok) {
-        return fail(t);
+        return fail(t, br);
     }
-    hal_gpio_write(HAL_DO_MCU_GATE_EN, false); /* not armed until §9 step 8 */
+    br_spo(br, true); /* not armed until §9 step 8 */
     t->s = ST_PASS;
     return ST_RES_PASS;
 }
@@ -135,8 +134,8 @@ static st_res_t start(st_t *t, const st_cond_t *c, dis_t *dis, const vdc_t *v, t
     return ST_RES_BUSY;
 }
 
-st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_t *v, ti_contactor_t cont,
-                 uint32_t now_ms, const ti_params_t *p)
+st_res_t st_step(st_t *t, const st_cond_t *c, bridge_t *br, fs26_t *fs, dis_t *dis, const vdc_t *v,
+                 ti_contactor_t cont, uint32_t now_ms, const ti_params_t *p)
 {
     const uint32_t dwell = ti_age(now_ms, t->t_ms);
     switch (t->s) {
@@ -156,30 +155,30 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
     case ST_A:
         hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
         if ((fs26_request_fs0b(fs) != FS26_OK) || !expect(false, true, p->fw16_asc_rb_us)) {
-            return fail(t);
+            return fail(t, br);
         }
         go(t, ST_B, now_ms);
         return ST_RES_BUSY;
     case ST_B: {
         const fs26_status_t s = fs26_release_safety_outputs(fs);
         if (s == FS26_BUSY) {
-            return (dwell > ST_RELEASE_TIMEOUT_MS) ? fail(t) : ST_RES_BUSY;
+            return (dwell > ST_RELEASE_TIMEOUT_MS) ? fail(t, br) : ST_RES_BUSY;
         }
         br_asc_clear_pulse();
         if ((s != FS26_OK) || !expect(true, false, p->fw16_asc_rb_us)) {
-            return fail(t);
+            return fail(t, br);
         }
         go(t, ST_C, now_ms);
         return ST_RES_BUSY;
     }
     case ST_C:
-        hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
+        br_spo(br, true);
         if (!expect_pin(HAL_DI_DRV_EN_RB, false, ST_GATE_EN_US)) {
-            return fail(t);
+            return fail(t, br);
         }
         hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
         if (!expect_pin(HAL_DI_DRV_EN_RB, true, ST_GATE_EN_US)) {
-            return fail(t);
+            return fail(t, br);
         }
         (void)fs26_set_gpio1(fs, false);
         hal_gpio_write(HAL_DO_EN_FLYBK_HS, false);
@@ -190,13 +189,13 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
         const bool hs = (t->s == ST_D_DROP);
         if (!hal_gpio_read(hs ? HAL_DI_RDY_HS : HAL_DI_RDY_LS)) {
             if (hal_gpio_read(HAL_DI_DRV_EN_RB)) {
-                return fail(t); /* RDY low must pull DRV_EN low: the term is not permissive */
+                return fail(t, br); /* RDY low must pull DRV_EN low: the term is not permissive */
             }
             *(hs ? &t->drop_hs_ms : &t->drop_ls_ms) = (dwell > 0u) ? dwell : 1u;
             hal_gpio_write(hs ? HAL_DO_EN_FLYBK_HS : HAL_DO_EN_FLYBK_LS, true);
             go(t, hs ? ST_D_RISE : ST_E_RISE, now_ms);
         } else if (dwell > p->cal_fw16_rdy_drop_ms) {
-            return fail(t); /* RDY did not follow: the path is stuck, or FS_GPIO1 still holds it */
+            return fail(t, br); /* RDY did not follow: the path is stuck, or FS_GPIO1 still holds it */
         } else {
             /* waiting for the rail to drop */
         }
@@ -207,7 +206,7 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
         const bool hs = (t->s == ST_D_RISE);
         if (hal_gpio_read(hs ? HAL_DI_RDY_HS : HAL_DI_RDY_LS)) {
             if (!expect_pin(HAL_DI_DRV_EN_RB, true, ST_GATE_EN_US)) {
-                return fail(t);
+                return fail(t, br);
             }
             if (hs) {
                 hal_gpio_write(HAL_DO_EN_FLYBK_LS, false);
@@ -216,7 +215,7 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
                 go(t, ST_F, now_ms);
             }
         } else if (dwell > p->cal_fw16_rdy_rise_ms) {
-            return fail(t);
+            return fail(t, br);
         } else {
             /* rails rising */
         }
@@ -226,12 +225,12 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
         hal_gpio_write(HAL_DO_ASC_REQ, false);
         hal_gpio_write(HAL_DO_ASC_REQ, true);
         if (!expect_pin(HAL_DI_ASC_CMD_RB, true, p->fw16_asc_rb_us)) {
-            return fail(t);
+            return fail(t, br);
         }
         hal_gpio_write(HAL_DO_ASC_REQ, false);
         br_asc_clear_pulse();
         if (!expect_pin(HAL_DI_ASC_CMD_RB, false, p->fw16_asc_rb_us)) {
-            return fail(t);
+            return fail(t, br);
         }
         (void)fs26_set_gpio1(fs, true);
         hal_gpio_write(HAL_DO_EN_FLYBK_HS, false);
@@ -240,7 +239,7 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
         return ST_RES_BUSY;
     case ST_G: {
         if (!hal_gpio_read(HAL_DI_RDY_HS) || !hal_gpio_read(HAL_DI_RDY_LS)) {
-            return fail(t); /* FS_GPIO1 must hold both banks alone */
+            return fail(t, br); /* FS_GPIO1 must hold both banks alone */
         }
         const uint32_t hold = 2u * ((t->drop_hs_ms > t->drop_ls_ms) ? t->drop_hs_ms : t->drop_ls_ms);
         if (dwell >= hold) {
@@ -251,7 +250,7 @@ st_res_t st_step(st_t *t, const st_cond_t *c, fs26_t *fs, dis_t *dis, const vdc_
         return ST_RES_BUSY;
     }
     case ST_H:
-        return run_h(t, p);
+        return run_h(t, br, p);
     case ST_PASS:
         return ST_RES_PASS;
     case ST_FAIL:

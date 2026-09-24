@@ -4,26 +4,26 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.12%20·%20F1–F142%20closed-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.13%20·%20F1–F158%20closed-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-8XX%20500–850%20V%20·%204XX%20250–500%20V-457b9d?style=for-the-badge"/>
 </p>
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/silicon-SiC%20or%20IGBT%20·%203×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-2027%2F2027%20·%20100%25-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-671%20·%20212%20BOM%20lines-0077b6?style=flat-square"/>
-  <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-SiC%20₹72.2k%20·%20IGBT%20₹46.7k-588157?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-2045%2F2045%20·%20100%25-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-680%20·%20221%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-SiC%20₹72.5k%20·%20IGBT%20₹47.0k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-933%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
-  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-123%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-945%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-130%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2023%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
 
 <h3 align="center">
-  A 220 kW-class, 800 V SiC traction inverter for passenger-EV / commercial drives —<br/>
+  A 220 kW-class SiC traction inverter for 500–850 V packs (800 V-class packs whose full-charge voltage stays ≤ 850 V) —<br/>
   engineered to be <b>economical</b>, <b>ASIL-D-capable</b>, and <b>buildable by any competent CEM</b>.
 </h3>
 
@@ -323,10 +323,10 @@ business case: [`docs/variants.md`](docs/variants.md):
 
 | SKU | Electronics BOM @1k | Ex-works unit | Per peak kW | Suggested price (35–40 % GM) |
 |---|---|---|---|---|
-| **8XX SiC** (HCS600) | **₹72,182** → [`bom.md`](docs/bom.md) | ≈ ₹1.17 L | ₹530/kW | ₹1.75–1.95 L |
-| **8XX IGBT** (HCG600) | **₹46,682** → [`bom-igbt.md`](docs/bom-igbt.md) | ≈ ₹0.91 L | ₹415/kW | ₹1.35–1.55 L |
-| **4XX IGBT** (HCG600, 150 kW) | **₹45,082** → [`bom-igbt4.md`](docs/bom-igbt4.md) | ≈ ₹0.92 L | ₹610/kW | per-kW for its segment |
-| 4XX SiC (on request) | ₹70,582 → [`bom-sic4.md`](docs/bom-sic4.md) | ≈ ₹1.16 L | ₹775/kW | — |
+| **8XX SiC** (HCS600) | **₹72,492** → [`bom.md`](docs/bom.md) | ≈ ₹1.17 L | ₹530/kW | ₹1.75–1.95 L |
+| **8XX IGBT** (HCG600) | **₹46,992** → [`bom-igbt.md`](docs/bom-igbt.md) | ≈ ₹0.91 L | ₹415/kW | ₹1.35–1.55 L |
+| **4XX IGBT** (HCG600, 150 kW) | **₹45,392** → [`bom-igbt4.md`](docs/bom-igbt4.md) | ≈ ₹0.92 L | ₹610/kW | per-kW for its segment |
+| 4XX SiC (on request) | ₹70,892 → [`bom-sic4.md`](docs/bom-sic4.md) | ≈ ₹1.16 L | ₹775/kW | — |
 
 602 components · 191 lines · zero unmatched · per-board CSVs alongside each BOM.
 
@@ -468,9 +468,9 @@ Four independent verification layers — each with its own tool, none trusting t
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **2027/2027 · 100 %** |
-| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats, a lock-in per fixed finding | **933 checks · 0 fail** |
-| Numbers ⇄ physics (worst case) | `design-verify.mjs` + `loss-model.mjs` | losses, thermal, envelope, discharge, protection timing, tolerances — **every SKU** | **123 PASS · 19 WARN · 0 FAIL** (each WARN names its bench/vendor gate) |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net | **2045/2045 · 100 %** (the MCU by physical ball since A.13) |
+| Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats, a lock-in per fixed finding | **945 checks · 0 fail** |
+| Numbers ⇄ physics (worst case) | `design-verify.mjs` + `loss-model.mjs` | losses, thermal, envelope, discharge, protection timing, tolerances — **every SKU** | **130 PASS · 23 WARN · 0 FAIL** (each WARN names its bench/vendor gate) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: flyback start-up (cycle-by-cycle), boost Bode, SVPWM ripple, 30 s thermal per SKU, discharge ODE, current-loop PM per f_sw, overshoot budget, DESAT timeline, ASC hold-up | **23 PASS · 6 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
 | BOM ⇄ netlist (values) | `bom-gen.mjs` | every class MPN encodes the value the BOM prints; nothing is published unless the whole set validates | **0 mismatches, 4 SKUs** |
 
@@ -489,7 +489,9 @@ in [`docs/review-A7-disposition.md`](docs/review-A7-disposition.md), round eight
 [`docs/review-A10-disposition.md`](docs/review-A10-disposition.md), round twelve (63 findings across two
 whole-system reviews) in [`docs/review-A11-disposition.md`](docs/review-A11-disposition.md), and the round-13
 rechecks with the production closure (MCU ball map, barrier parts, connector) in
-[`docs/review-A12-disposition.md`](docs/review-A12-disposition.md). Every contested number was
+[`docs/review-A12-disposition.md`](docs/review-A12-disposition.md), and round fourteen (three reviews of the A.12
+push: the pin-freeze errors, the firmware sequencing/clock/retention defects, the analog terminal-fault paths) in
+[`docs/review-A13-disposition.md`](docs/review-A13-disposition.md). Every contested number was
 recomputed by an independent second model.
 
 | Round | Release | Fixed | The headline catches |
@@ -506,6 +508,7 @@ recomputed by an independent second model.
 | Review 8 | A.8 | 16 (F90–F105, incl. its cross-check) | **a DESAT during latched ASC left the healthy low sides on** — the faulted driver holds itself off (NSI6611 Fig. 8.11) but only a ₹5 AND gate (ASC = latch AND no-FLT) guarantees SPO on every path; last slow latch preset buffered (FLT diode-OR now Schottky for the Schmitt threshold); discharge opto under-driven like the ASC one; boot self-test masked by RDY; FAULT_OUT battery-short clamp moved off the logic rail; atomic BOM publish; S4 junction path made static. Cross-check of the fixes: FW-15 always clears ASC, FW-16 on measured no-HV conditions with FS_GPIO1 and FLT-injection steps, dead-buffer pulls, 261 Ω LEDs inside 10–15 mA, B5V6 clamp, discharge header V15-GND-CMD-GND, ERC locks by net and MPN; +₹18/unit |
 | Review 9 | A.9 | 14 (F106–F119, incl. its cross-check) | **the ASC/discharge bias modules were modelled from the wrong datasheet** (QA01C-18 is +18/−3 V, not +20/−4 V) — timing re-derived, discharge gate given a 1.5 k divider; **FLT/RDY pulled above the drivers' VCC1 rating** — pull-ups moved to V5GD on a harness pin; self-test energy-limited; RFS4 made anti-surge; self-found **≈150 mA parking drain** removed with one card-side P-FET. Cross-check of the fixes: V5GD read on an ADC pin (a dead V5GD faked a 0 V bus), harness re-laid for both dual-row numberings, resolver LDO sleeps too, QLVS slew-limited, DESATs kept in NVM; +₹29/unit |
 | Review 10 | A.10 | 3 (F120–F122) | schematic-only rechecks of A.9 kept every correction; **RDY lines drove the AND gates at 20–100 ns/V against a 10 ns/V limit** — third Schmitt buffer (reverses a round-7/8 rejection); RASCG given a 0.33 W part; sheet and wording fixes; +₹11/unit |
+| Review 14 | A.13 | 16 (F143–F158) | three independent reviews of the A.12 push (24 + 8 + 7 findings) — all right: **the A.12 pin freeze had H5 (V15, 1.5 V) on the 5 V reference and J7 (the V25 regulator output) grounded**; the map is re-derived against NXP's own GEN3 net report (every supply ball and 164/165 ports agree; the four signals without a netlist cross-check moved to confirmed balls; the symbol now numbers pins by ball). **Firmware:** the DESAT ISR bypassed the 22–53 µs hardware delay (hold added for every caller), the ms clock wrapped wrongly after 71.6 min, keep_hv ignored the all-speed rule (b), placeholder fault routing and a readback posing as a lock — now an arming-evidence record keeps the gates inhibited until route, lock and validation records exist (fail closed); torque feasibility witness; stuck-on discharge detection. **Analog:** excitation monitor 18 k + C_AAF (3 mA unpowered), exciter TVS + PTC per line, motor-temp SMAJ5.0A + bound fuse, 47 Ω bias-LDO ballast for the production UCC12051-Q1 (80 mA). UCC14141-Q1 VDE certificate archived. Marine forked at A.13 (86 PASS · 22 WARN · 0 FAIL). Wording: 500–850 V, the 4XX AC-power envelope, safety work is engineering |
 | Review 13 | A.12 | 8 (F135–F142) | rechecks of A.11: **the energy rule now applies at every speed**; resolver input bound with the MCU unpowered (12 k) and the SDADC's 220 pF C_AAF restored; verifier counts distinct assemblies; the fitted TPS55340-Q1 is 40 V abs (the 34 V "upgrade" premise was false); LDO thermal on the datasheet pad. **Production closure:** MCU ball map bound (the fabrication blocker, with seven port errors of the old list fixed), FS26 pins verified, reinforced optos (VOW3120) and biases (UCC14141-Q1) in place of the uncertified TLP152/QA01C-18, 40-way connector, 4XX can, Y-caps and discharge resistors bound to orderable MPNs; Marine forked at A.12 (86 PASS · 22 WARN · 0 FAIL); firmware delivered in `firmware/`; +₹1,269 |
 | Review 12 | A.11 | 12 (F123–F134) | two whole-system reviews (28 + 35 findings): **SPO release rule missed the stored winding energy** (rule (a) now an energy inequality); **resolver exciter drawn with its MFB feedback swapped** (0.18 → 1.85 at 10 kHz); **the V_DC bias "MGJ2D150505SC" never existed** (UCC12050 per channel, V_IOWM 1697 VDC); Hall pull-downs drawn and the LEM drawn by terminal; resolver-pin short to KL30 limited to the MCU's 3 mA; **the LV-entry TVS as described conducted at a 24 V jump start** (24 V-stand-off -VR class bound, load-dump source resistance gated); ALM2402 package, NTC symbol, verifier guard, contract wording; −₹165/unit |
 | Review 11 | A.10 | 0 (closure) | schematic-only rechecks of A.10 closed A9-S01, S9-01 and S9-02 and asked for no circuit change; leftover "13.4–18.1 V" wording corrected; ESR03 terminal-temperature limits added to the layout rules |
@@ -540,7 +543,7 @@ can choice, a few values on existing pads, an identity resistor and a firmware p
 | Peak / continuous | 220 / 120 kW (from 654 V) | 220 / 120 kW (from 654 V) | 150 / 90 kW (from 379 V) |
 | Tj end of 30 s peak (S4; static-plate bound 135 / 142 / 133 °C) | 125 °C / 175 °C | 132 °C / 150 °C | 125 °C / 150 °C |
 | Deltas vs SiC | — | module, DESAT 4.7 k/82 pF, gate 1.0/1.0 Ω, RT 8.2 k | as IGBT + 16 × 50 µF/600 V cans, discharge 220 Ω / 15 k |
-| BOM @1k | ₹72,182 | ₹46,682 | ₹45,082 |
+| BOM @1k | ₹72,492 | ₹46,992 | ₹45,392 |
 
 Recommendation (business case in [`docs/variants.md`](docs/variants.md)): lead with 8XX (same
 hardware, best ₹/kW), make IGBT the volume SKU at both voltages, keep SiC as the premium 8XX,
@@ -555,7 +558,7 @@ module plus larger sensors and cap bank, not a new board. Generate: `npm run bom
 time and frequency domain on the shared loss model (`loss-model.mjs`). **23 PASS · 6 WARN ·
 0 FAIL** — full table with per-row modeling assumptions: [`docs/simulation-report.md`](docs/simulation-report.md).
 
-| # | Simulation | Key result (rev A.12) |
+| # | Simulation | Key result (rev A.13) |
 |---|---|---|
 | S1 | Gate-power flyback: drain stress + **cycle-by-cycle start-up** | one burst to the rails in **73–240 ms** at KL30 9–14 V, every corner (FB now on its own aux rectifier — A6-R07); the A.5 values never started at 9 V |
 | S2 | UB15 boost loop Bode (A.4.3 compensation) | f_c 1.9–2.5 kHz, **PM 72–75°** |
@@ -613,9 +616,10 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/dfm.md`](docs/dfm.md) | Manufacturability plan + sourcing tiers |
 | [`docs/bom.md`](docs/bom.md) · [`bom-igbt.md`](docs/bom-igbt.md) · [`bom-igbt4.md`](docs/bom-igbt4.md) · [`bom-sic4.md`](docs/bom-sic4.md) | Generated BOMs, all four SKUs, with subsystem Pareto |
 | [`docs/variants.md`](docs/variants.md) | The platform: four SKUs on one set of boards, economics, recommended launch path |
-| [`firmware/`](firmware/README.md) | **Production firmware (rev A.12)** against the contract: safety state machine, fault manager, FS26 SBC, sensing (currents, V_DC, resolver), FOC, CAN, discharge, NVM, four SKUs; host simulation + 178 tests / 1209 checks (`make test`), traceability FW-01…FW-20 → tests; what still needs the target/HIL and the NXP RTD |
+| [`firmware/`](firmware/README.md) | **Production firmware (rev A.13)** against the contract: safety state machine with fail-closed arming evidence, DESAT hold, monotonic clock, fault manager, FS26 SBC, sensing (currents with stuck-channel detection, V_DC, resolver), FOC with a torque-feasibility witness, CAN, discharge with stuck-on detection, NVM, four SKUs; host simulation + 214 tests / 1622 checks (`make test`, also ASan/UBSan and -O2), traceability FW-01…FW-26 → tests with the round-14 fail-before/pass-after table; what still needs the target/HIL and the NXP RTD |
 | [`docs/firmware-contract.md`](docs/firmware-contract.md) | Hardware → firmware contract: SKU identity, envelope, protection allocation, safe-state matrix, fault-latch recovery |
 | [`docs/mcu-pin-manifest.md`](docs/mcu-pin-manifest.md) · [`calculations/mcu-ballmap.json`](calculations/mcu-ballmap.json) | **Pin freeze (rev A.12)**: every S32K396 ball, its function, our net; the seven port corrections found |
+| [`docs/review-A13-disposition.md`](docs/review-A13-disposition.md) · [`.csv`](docs/review-A13-disposition.csv) | Review round 14 (three reviews of A.12): every finding classified, verified and dispositioned; the MCU map cross-checked against NXP's netlist |
 | [`docs/review-A12-disposition.md`](docs/review-A12-disposition.md) · [`.csv`](docs/review-A12-disposition.csv) | Review round 13 (rechecks of A.11) and the production-closure register: MCU ball map, VOW3120 / UCC14141-Q1, connector, can, Y-caps, SQP10, Marine A.12, firmware |
 | [`docs/review-A11-disposition.md`](docs/review-A11-disposition.md) · [`.csv`](docs/review-A11-disposition.csv) | Review round 12 (two whole-system reviews, 63 findings): every finding classified, verified and dispositioned |
 | [`docs/review-A10-disposition.md`](docs/review-A10-disposition.md) · [`.csv`](docs/review-A10-disposition.csv) | Review round 10 (schematic rechecks of A.9) and its round-11 closure: every finding classified, verified and dispositioned |
@@ -647,6 +651,7 @@ timeline
         Rev A.10 : Schematic rechecks of A.9 answered : F120–F122 · RDY Schmitt-buffered · RASCG 0.33 W
         Rev A.11 : System review round 12 answered (63 findings) : F123–F134 · SPO energy rule · resolver MFB · UCC12050 bias · Hall pull-downs
         Rev A.12 : Rechecks + production closure : F135–F142 · MCU ball map bound · VOW3120 / UCC14141-Q1 barrier parts · connector, can, Y-caps, SQP10 bound · firmware/
+        Rev A.13 : Round 14 (three reviews) : F143–F158 · H5/J7 fixed, map vs NXP netlist, ball pin numbers · firmware fail-closed arming, DESAT hold, clock, keep_hv · exciter/monitor/motor-temp protection · LDO ballast
     section Next 🔜
         Pin freeze : DONE in A.12 — S32K396 289 balls bound from SPF-91122 + DS anchors : FS26 pins verified : connector bound
         RFQ : hiitio Ls + SiC SC letter + module quotes : Faratronic 4XX can : NOVOSENSE soft-off vs EN
@@ -658,9 +663,10 @@ timeline
 ```
 
 > [!NOTE]
-> **⚠️ VERIFY-before-layout list (rev A.12)** — ① ~~S32K396 package and ball map~~ **closed in A.12**: all 289
-> balls bound from NXP's SPF-91122 rev C and the DS supply balls ([`docs/mcu-pin-manifest.md`](docs/mcu-pin-manifest.md)),
-> FS26 48 pins verified, connector bound · ② **SiC double-
+> **⚠️ VERIFY-before-layout list (rev A.13)** — ① ~~S32K396 package and ball map~~ **closed in A.13** — the A.12
+> freeze had two supply balls wrong (H5 = V15, J7 = V25; round 14); the map is now cross-checked ball by ball
+> against NXP's GEN3 net report and every signal sits on a netlist-confirmed ball, the KiCad symbol numbers pins
+> by ball ([`docs/mcu-pin-manifest.md`](docs/mcu-pin-manifest.md)); FS26 48 pins verified, connector bound · ② **SiC double-
 > pulse at 850 V/481 A, cold and hot** sets RG_OFF (3.3–10 Ω; module Ls unpublished) ·
 > ③ **short-circuit**: hiitio SiC letter, contained SC tests per silicon, NOVOSENSE statement on
 > RST/EN during soft turn-off + I_STO spread · ④ coldplate Rth (0.045 K/W assumed) and can
@@ -701,6 +707,11 @@ timeline
 > (R8X-02/03/17); motor commissioning: ASC-entry current vs the DESAT minimum (R8X-13).
 > ㉓ Bias and gate levels (A8-N01/N02): UCC14141-Q1 output at no load/start-up/ON, QDIS V_GS, ASC entry at the low end.
 > ㉔ Parking drain with the card in LPOFF (N17) and the self-test energy fixture at ≤ 13 V (A8-N03).
+> ㉘ Terminal-fault bench (round 14, F04/F18): each resolver excitation line and each motor-temperature line to
+> 24 V/60 s and 35 V/400 ms with the MCU on, off and in standby — PTC trip time, TVS temperature, amplifier
+> and buffer unharmed, excitation amplitude after the PTCs. **Target evidence for the arming record** (F01/F02/F06):
+> PWM-fault injection on PTC26/PTC25 with the CPU halted, the ADC-watchdog → PWM-fault chain ≤ 15.6 µs,
+> REG_PROT lock readback, WCET — the firmware refuses to arm without it.
 > Full list with owners: [`docs/review-A9-disposition.md`](docs/review-A9-disposition.md).
 
 ---
@@ -719,6 +730,6 @@ timeline
 <p align="center">
   <img alt="Vectivolt" src="https://img.shields.io/badge/⚡-VECTIVOLT-0d1b2a?style=for-the-badge"/>
   <br/>
-  <sub><b>Traction Inverter GEN-1</b> · rev A.12 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
+  <sub><b>Traction Inverter GEN-1</b> · rev A.13 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
   Proprietary — © Vectivolt. Reference designs cited remain property of their respective owners.</sub>
 </p>

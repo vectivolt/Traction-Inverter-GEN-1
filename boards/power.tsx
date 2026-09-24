@@ -130,9 +130,13 @@ export default () => (
         10-12 NC (isolated domain -> GNDS), 13 SEL, 14 VISO. 10 uF 16 V X7R on both sides. */}
     {[["B", "V5ISO"], ["C", "V5ISO2"]].map(([k, v]) => (
       <group key={k}>
+        {/* Round 14 (A12-R07): the production UCC12051-Q1 draws up to 80 mA at NO load (TI §6.9, 5 V select) + the AMC1311 —
+            96 mA; a 15 -> 5 V LDO alone would sit at 0.96 W / Tj ~141 C on the 58.5 K/W pad. R5L drops 4.5 V at 96 mA
+            (0.43 W in a 2512), so the LDO carries ~0.5 W (Tj ~115 C); worst-case LDO input 9.8 V >> the 5.5 V dropout. */}
+        <resistor name={`R5L${k}`} resistance="47" footprint="2512" {...gp()} connections={{ pin1: "net.V15", pin2: `net.V15L${k}` }} />
         <chip name={`U5L${k}`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "NC", pin5: "OUT" }}
-          connections={{ IN: "net.V15", INH: "net.V15", GND: "net.DGND", NC: `net.NC_U5L${k}4`, OUT: `net.V5S${k}` }} />
-        <capacitor name={`C5L${k}1`} capacitance="1uF" footprint="0805" {...gp()} connections={{ pin1: "net.V15", pin2: "net.DGND" }} />
+          connections={{ IN: `net.V15L${k}`, INH: `net.V15L${k}`, GND: "net.DGND", NC: `net.NC_U5L${k}4`, OUT: `net.V5S${k}` }} />
+        <capacitor name={`C5L${k}1`} capacitance="1uF" footprint="0805" {...gp()} connections={{ pin1: `net.V15L${k}`, pin2: "net.DGND" }} />
         <capacitor name={`C5L${k}2`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: `net.V5S${k}`, pin2: "net.DGND" }} />
         <chip name={`PS5${k}`} footprint={SmdFP(16)} {...gp()}
           pinLabels={{ pin1: "EN", pin2: "GNDP", pin3: "VINP", pin4: "SYNC", pin5: "SYNC_OK", pin6: "NC6", pin7: "NC7", pin8: "NC8", pin9: "GNDS9", pin10: "NC10", pin11: "NC11", pin12: "NC12", pin13: "SEL", pin14: "VISO", pin15: "GNDS", pin16: "GNDS16" }}

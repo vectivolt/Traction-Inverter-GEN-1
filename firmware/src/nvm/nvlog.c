@@ -9,6 +9,9 @@
 
 #define NV_MAGIC 0x54494E56u /* "TINV" */
 #define FAULT_SLOT0 10u
+#define VALID_SLOT0 (FAULT_SLOT0 + NV_FAULT_RING) /* after the fault ring */
+#define SLOTS_USED (VALID_SLOT0 + 2u)
+_Static_assert(SLOTS_USED <= HAL_NVM_SLOTS, "the NVM record layout exceeds the slots");
 
 typedef struct {
     uint32_t magic;
@@ -33,7 +36,10 @@ static uint8_t s_buf[HAL_NVM_SLOT_SIZE];
 /* latest valid seq per slot (0 = empty/invalid) */
 static uint32_t s_slot_seq[HAL_NVM_SLOTS];
 
-static uint16_t slot_a(nv_rec_t t) { return (uint16_t)((uint16_t)t * 2u); }
+static uint16_t slot_a(nv_rec_t t)
+{
+    return (t == NV_REC_VALIDATION) ? (uint16_t)VALID_SLOT0 : (uint16_t)((uint16_t)t * 2u);
+}
 
 static uint32_t rec_crc(const nv_hdr_t *h, const uint8_t *payload)
 {
@@ -66,6 +72,9 @@ static uint32_t slot_valid(uint16_t slot, nv_rec_t type, uint8_t *payload, uint1
 
 static nv_rec_t slot_type(uint16_t slot)
 {
+    if (slot >= VALID_SLOT0) {
+        return NV_REC_VALIDATION;
+    }
     return (slot >= FAULT_SLOT0) ? NV_REC_FAULT : (nv_rec_t)(slot / 2u);
 }
 
@@ -76,7 +85,7 @@ void nv_init(void)
     s_overflow = 0u;
     s_busy = false;
     s_seq = 0u;
-    for (uint16_t s = 0u; s < (uint16_t)(FAULT_SLOT0 + NV_FAULT_RING); s++) {
+    for (uint16_t s = 0u; s < (uint16_t)SLOTS_USED; s++) {
         s_slot_seq[s] = slot_valid(s, slot_type(s), NULL, 0u);
         s_seq = (s_slot_seq[s] > s_seq) ? s_slot_seq[s] : s_seq;
     }
@@ -150,7 +159,7 @@ void nv_service(void)
     if (st == HAL_NVM_DONE_OK) {
         s_slot_seq[s_busy_slot] = s_seq;
     } else {
-        dtc_set(DTC_NVM, hal_time_us() / 1000u);
+        dtc_set(DTC_NVM, hal_time_ms());
     }
     s_tail++; /* the job is consumed either way: no retry loop in front of anything */
 }

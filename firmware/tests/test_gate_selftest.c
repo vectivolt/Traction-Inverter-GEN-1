@@ -10,11 +10,15 @@
 static ti_params_t s_p;
 static fs26_t s_fs;
 static dis_t s_dis;
+static bridge_t s_br;
 
 static void ready(void)
 {
     sim_reset();
     s_p = *ti_params_get(TI_SKU_8XX_SIC);
+    br_init(&s_br, &s_p);
+    sim_pwm_fault_route_bind(true); /* step h proves this route: bind it as the board would */
+    (void)hal_pwm_init(10000u, s_p.dead_time_ns);
     CHECK(h_fs_ready(&s_fs, &s_p));
     hal_gpio_write(HAL_DO_EN_FLYBK_HS, true);
     hal_gpio_write(HAL_DO_EN_FLYBK_LS, true);
@@ -43,7 +47,7 @@ static st_res_t run(st_t *t, float v, st_cond_t *override)
     st_res_t r = ST_RES_BUSY;
     for (int k = 0; k < 3000 && r == ST_RES_BUSY; k++) {
         const st_cond_t c = (override != NULL) ? *override : cond(v);
-        r = st_step(t, &c, &s_fs, &s_dis, &link, TI_CONT_OPEN, hal_time_us() / 1000u, &s_p);
+        r = st_step(t, &c, &s_br, &s_fs, &s_dis, &link, TI_CONT_OPEN, hal_time_ms(), &s_p);
         h_wait_ms(&s_fs, 1u);
         if (t->s == ST_TOPUP) {
             v *= 0.995f; /* the top-up drains the link */
@@ -144,6 +148,37 @@ TEST(skipped_rather_than_run_on_assumption)
     CHECK(!hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
 }
 
+/* A12-R05 inside FW-16: a real DESAT during the test (EN high since step a). Step c's EN drop and the
+ * failed test's EN drop both wait for the DESAT hold, like every other software path. */
+TEST(failed_test_with_a_desat_drops_en_only_after_the_hold)
+{
+    ready();
+    st_t t;
+    st_init(&t);
+    vdc_t link;
+    vdc_init(&link);
+    link.valid = true;
+    link.ch_valid[0] = true;
+    link.ch_valid[1] = true;
+    for (int k = 0; (k < 50) && (t.s != ST_C); k++) {
+        const st_cond_t c = cond(1.0f);
+        (void)st_step(&t, &c, &s_br, &s_fs, &s_dis, &link, TI_CONT_OPEN, hal_time_ms(), &s_p);
+        h_wait_ms(&s_fs, 1u);
+    }
+    CHECK(t.s == ST_C && hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && hal_gpio_read(HAL_DI_DRV_EN_RB));
+    const uint64_t t_flt = sim_now_ns();
+    sim_chain_desat(false, false);
+    const st_cond_t c = cond(1.0f);
+    const st_res_t r = st_step(&t, &c, &s_br, &s_fs, &s_dis, &link, TI_CONT_OPEN, hal_time_ms(), &s_p);
+    CHECK(r == ST_RES_FAIL && t.failed == ST_C);
+    CHECK(hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && hal_pwm_mode() == HAL_PWM_OFF); /* held */
+    sim_advance_us(s_p.cal_desat_en_hold_us);
+    br_service(&s_br);
+    const uint64_t t_en = sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, false, t_flt);
+    CHECK(!hal_gpio_out_state(HAL_DO_MCU_GATE_EN) && t_en != UINT64_MAX &&
+          (t_en - t_flt) >= (uint64_t)s_p.cal_desat_en_hold_us * 1000u);
+}
+
 void suite_gate_selftest(void)
 {
     RUN(healthy_chain_passes_all_steps);
@@ -151,4 +186,5 @@ void suite_gate_selftest(void)
     RUN(energy_precondition);
     RUN(topup_then_run_and_not_counted);
     RUN(skipped_rather_than_run_on_assumption);
+    RUN(failed_test_with_a_desat_drops_en_only_after_the_hold);
 }

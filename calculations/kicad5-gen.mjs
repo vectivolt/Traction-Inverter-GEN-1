@@ -60,7 +60,7 @@ function groupPins(pins) {
   };
   const byFamily = (a, b) => {
     const [af, an] = famKey(a), [bf, bn] = famKey(b);
-    return af.localeCompare(bf) || an - bn || Number(a.pin_number) - Number(b.pin_number);
+    return af.localeCompare(bf) || an - bn || (Number(a.pin_number) - Number(b.pin_number)) || String(a.pin_number).localeCompare(String(b.pin_number), undefined, { numeric: true });
   };
   const g = { left: [], right: [], top: [], bottom: [] };
   for (const p of pins) g[pinSide(p.name)].push(p);
@@ -485,11 +485,11 @@ const HAND = {
   "CONTROL / MCU": [
     ["UMCU"],
     ["Y1", "CYA", "CYB", "RMRST", "CMA1", "CMA2"],
-    ["CMD1", "CMD2", "CMD3", "CMD4", "CMD5", "CMD6", "CMD7", "CMD8", "CMD9", "CMD10", "CMD11", "CMD12"],
+    ["CV25", "CMD1", "CMD2", "CMD3", "CMD4", "CMD5", "CMD6", "CMD7", "CMD8", "CMD9", "CMD10", "CMD11", "CMD12"],
   ],
   "SBC / FS26": [
     ["USBC"],
-    ["DBAT", "LSBC", "LCOR", "QBAL", "CBTP", "CBTC", "CVDIG", "CVBOS"],
+    ["DBAT", "LSBC", "LCOR", "QBAL", "CBAL", "CBTP", "CBTC", "CVDIG", "CVBOS"],
     ["RSB1", "RSB2", "RSB3", "RSB4", "RAGT", "RDBG"],
     ["CSB1", "CSB2", "CSB3", "CSB3B", "CSB4", "CSB5", "CSB6", "CSB7", "CSB8"],
   ],
@@ -518,7 +518,8 @@ const HAND = {
     ["CEXA4", "REXA1", "CEXA3", "REXA2", "CEXA2", "REXA3", "CEXA1", "REXA4", "UEXF"],
     ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD", "RSDN"],
     ["ULDOEX", "RLDE1", "RLDE2", "CLDEC", "CLDE"],
-    ["REXM1", "REXM2", "REXM3", "REXM4"],
+    ["REXM1", "REXM2", "REXM3", "REXM4", "CEXM"],
+    ["FEXP", "TVSEP", "FEXN", "TVSEN"],
   ],
   "RESOLVER / VMID": [
     ["RVM1", "RVM2", "CVM1", "UVMB1"],

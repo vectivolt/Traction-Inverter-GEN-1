@@ -1,6 +1,7 @@
 /* test_calib.c — FW-20: version, CRC, ranges, SKU / serial / motor binding. */
 #include <string.h>
 
+#include "arm_evidence.h"
 #include "calib.h"
 #include "test.h"
 
@@ -58,8 +59,34 @@ TEST(each_failure_detected)
     CHECK(calib_check(NULL, p, SN) == CAL_ERR_MISSING);
 }
 
+/* F06: the EOL/HIL validation record proves its two items only for this image, card and SKU, intact,
+ * with the FW-06 chain measured inside its budget. */
+TEST(validation_record_binds_image_card_and_crc)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const uint32_t fw = 0x0A0C000Eu;
+    arm_validation_t v;
+    arm_validation_make(&v, SN, p->sku, fw, ARM_EV_VALIDATED, 14200u);
+    CHECK(arm_validation_flags(&v, true, SN, p->sku, fw, p) == ARM_EV_VALIDATED);
+    CHECK(arm_validation_flags(&v, false, SN, p->sku, fw, p) == 0u); /* no record */
+    CHECK(arm_validation_flags(&v, true, SN, p->sku, fw + 1u, p) == 0u);
+    CHECK(arm_validation_flags(&v, true, SN, TI_SKU_4XX_SIC, fw, p) == 0u);
+    const uint8_t other[8] = {'T', 'I', '-', '0', '0', '0', '0', '2'};
+    CHECK(arm_validation_flags(&v, true, other, p->sku, fw, p) == 0u);
+    arm_validation_t c = v;
+    c.flags = ARM_EV_ALL; /* not resealed */
+    CHECK(arm_validation_flags(&c, true, SN, p->sku, fw, p) == 0u);
+    arm_validation_make(&c, SN, p->sku, fw, ARM_EV_VALIDATED, 15700u); /* 15.7 us > 15.6 us */
+    CHECK(arm_validation_flags(&c, true, SN, p->sku, fw, p) == ARM_EV_FAULT_ROUTE_VALIDATED);
+    arm_validation_make(&c, SN, p->sku, fw, ARM_EV_VALIDATED, 0u); /* flag without a measurement */
+    CHECK(arm_validation_flags(&c, true, SN, p->sku, fw, p) == ARM_EV_FAULT_ROUTE_VALIDATED);
+    arm_validation_make(&c, SN, p->sku, fw, ARM_EV_ALL, 14200u); /* platform bits cannot be stored */
+    CHECK(arm_validation_flags(&c, true, SN, p->sku, fw, p) == ARM_EV_VALIDATED);
+}
+
 void suite_calib(void)
 {
     RUN(nominal_needs_a_motor);
     RUN(each_failure_detected);
+    RUN(validation_record_binds_image_card_and_crc);
 }

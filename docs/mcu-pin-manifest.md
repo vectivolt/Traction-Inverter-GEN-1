@@ -7,6 +7,19 @@ balls are left open (pads unconnected in layout). The ERC (`erc-audit.mjs`, roun
 `UMCU` pin label starts with a ball listed here, sits on the net listed here, and — for signal balls — that
 the required peripheral function is in that ball's alternate-function list.
 
+## Round 14 (rev A.13): the map re-derived against NXP's own GEN3 netlist
+
+`NET-91122_C.net` (Allegro net report of the GEN3 control card, MCU refdes U513) lists 244 connected balls. Its
+165 port-named nets equal the SPF-91122 text-parse port on every ball but one (G6: GEN3 `PTB30`, the text read
+`PTE4` — left open here), and every supply ball agrees with the GEN3 net (VCORE, V25, V11 ×11, VDD_HV_A ×10,
+VDD_HV_B, VDD_LVDS, VDD_DCDC, NMOS_CTRL, GND ×33). Two supply balls of the A.12 map were wrong and are fixed —
+**H5 is V15 (1.5 V, → `V15S`; A.12 had 5 V on it) and J7 is V25 (regulator output, 220 nF; A.12 grounded it)**
+(A12-R01/R02). The four signals that sat on balls the GEN3 board leaves open (no netlist cross-check) moved to
+netlist-confirmed balls: HW_ID C12 → **B5** (PTE0, ADC3_P0), NTC_A C14 → **T15** (PTC11, ADC5_S11), MT2_SIG
+D11 → **D5** (PTE26, ADC1_P0), ASC_REQ T5 → **U4** (PTD7). Every signal ball is now confirmed by NXP's netlist;
+the KiCad symbol carries the ball IDs as its pin NUMBERS (A12-R03). GEN3 runs VDD_HV_B at 3.3 V (its LDO1);
+ours is 5 V, which the DS allows with VDD_HV_A = 5 V (Table 5), and VDD_LVDS (N5) stays on 3.3 V.
+
 ## Corrections to the A.4 "GEN3-exact" port list found by the freeze
 
 | Signal | A.4 port | Problem | Frozen ball / port | Function |
@@ -58,9 +71,9 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | B16 | VSS6 | `DGND` | — | ground |
 | C2 | PTE16 | `FCCU_ERR1` | FCCU_ERR1 | FCCU error out 1 |
 | C3 | PTA22 | `CAN1_RX` | CAN1_RX | FlexCAN1 RX |
-| C12 | PTC6 | `HW_ID` | ADC3_P6 | SKU identity (was PTB4: no ADC) |
+| B5 | PTE0 | `HW_ID` | ADC3_P0 | SKU identity — moved from C12 (PTC6) in round 14: B5 is GEN3-netlist-confirmed |
 | C13 | PTD31 | `MCU_EN_FLYBK_LS` | — | flyback LS enable (OR) |
-| C14 | PTD29 | `NTC_A` | ADC5_P7 | board NTC ambient (was PTA10 = JTAG_TDO) |
+| T15 | PTC11 | `NTC_A` | ADC5_S11 | board NTC ambient — moved from C14 (PTD29) in round 14 |
 | C15 | PTB9 | `SIN_P` | SDADC2_AN[0] | resolver SIN+ (SDADC2 AN0) |
 | C17 | PTB11 | `SBC_AMUX` | ADC0_S14 | FS26 AMUX (was a named ADC0_S12 pin) |
 | D2 | PTE15 | `FCCU_ERR0` | FCCU_ERR0 | FCCU error out 0 |
@@ -68,7 +81,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | D4 | VSS4 | `DGND` | — | ground |
 | D8 | PTE23 | `INTRLOK_N` | ADC1_P7 | HVIL signature (was PTF5: no ADC) |
 | D9 | VSS10 | `DGND` | — | ground |
-| D11 | PTE18 | `MT2_SIG` | ADC3_P5 | motor temp 2 (PTA13 absent) |
+| D5 | PTE26 | `MT2_SIG` | ADC1_P0 | motor temp 2 — moved from D11 (PTE18) in round 14 |
 | D12 | PTE17 | `VREXM_N` | SDADC1_AN[1] | excitation monitor - (SDADC1 AN1) |
 | D13 | PTD30 | `MCU_EN_FLYBK_HS` | — | flyback HS enable (OR) |
 | D14 | VDD_HV_A_6 | `V5A` | — | 5 V I/O and analog domain A |
@@ -97,7 +110,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | G13 | VREFL_SDADC_23 | `AGND` | — | ADC reference low |
 | G15 | PTF16 | `SBC_CS` | LPSPI3_PCS0 | LPSPI3 PCS0 |
 | H1 | PTA25 | `IGN_SNS` | ADC0_S8 | KL15 sense |
-| H5 | VREFH_SAR_456 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| H5 | V15 | `V15S` | — | 1.5 V core-regulator input/sense — GEN3 net VCORE; DS 289-MAPBGA figure. **Round 14 (A12-R01): A.12 had this ball on VREF5** |
 | H6 | VREFH_SAR_0123 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
 | H7 | VDD_HV_A_4 | `V5A` | — | 5 V I/O and analog domain A |
 | H8 | V11_3 | `V11` | — | 1.1 V core (from the external NMOS ballast) |
@@ -109,7 +122,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | J4 | VSS15 | `DGND` | — | ground |
 | J5 | VSS_DCDC | `DGND` | — | internal DC/DC ground (PMIC option) |
 | J6 | VREFL_SAR_0123 | `AGND` | — | ADC reference low |
-| J7 | VSS (DS figure) | `DGND` | — | DS PMIC figure lists J7 as a ground ball ("V25" in the figure text); grounded |
+| J7 | V25 | `V25` | — | internal 2.5 V flash-regulator output, COUT_V25 220 nF (CV25) — GEN3 net V25 (C79/C80). **Round 14 (A12-R02): A.12 had it grounded** |
 | J8 | V11_8 | `V11` | — | 1.1 V core (from the external NMOS ballast) |
 | J9 | VSS7 | `DGND` | — | ground |
 | J10 | V11_5 | `V11` | — | 1.1 V core (from the external NMOS ballast) |
@@ -153,7 +166,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | R14 | PTC25 | `FLT_LS_N` | PWM_1_FAULT[2] | driver fault LS bank -> eFlexPWM1 FAULT2 |
 | R17 | PTB1 | `VOFS` | ADC4_S11 | receiver offset monitor |
 | T2 | VSS5 | `DGND` | — | ground |
-| T5 | PTD6 | `ASC_REQ` | — | ASC request (latch clock) |
+| U4 | PTD7 | `ASC_REQ` | — | ASC request (latch clock) — moved from T5 (PTD6) in round 14 |
 | T6 | PTD10 | `DRV_EN_RB` | — | DRV_EN read-back |
 | T7 | VSS13 | `DGND` | — | ground |
 | T10 | VSS14 | `DGND` | — | ground |

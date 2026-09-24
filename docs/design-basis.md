@@ -159,6 +159,14 @@ target at the R+5 %/C+10 % worst case — 2.19 s).
   shorted QDIS is caught at the next precharge (FW-19), and the wirewounds are specified
   fail-open/flameproof. Resistor spec: ≥ 3 × 32 J pulses per 5 min.
 
+**Stuck-ON QDIS with the battery connected (round 14, F09).** A shorted discharge switch bypasses the software
+timeout: 0.45 A / 96 W per resistor at 850 V (0.57 A / 71 W at 500 V) until the SQP10 fails open — its benign
+failure at this power is gate ㉖, not a claim. The firmware sees it as an unexpected link discharge at the next
+contactor opening (V_DC falling at the active rate with no command) and latches a no-re-energise DTC with a
+contactor-open request; the enclosure NTCs see the heat only slowly. A HV-rated thermal cut-off does not exist
+at this voltage, so the resistor's own failure mode is the interruption — the reason the SQP10 stays a
+flameproof ceramic-cased wirewound.
+
 ## 5. Phase current sensing (torque path, ASIL D)
 
 3 × **LEM HC5FW 900-S** open-loop hall transducers on the output busbars (the GEN3 chain,
@@ -184,7 +192,8 @@ Card-side conditioning per phase: supply bead + 47 nF/4.7 nF, 100 Ω + 3.3 nF in
 2 × (6 × 470 kΩ series top + 6.2 kΩ bottom → 850 V ≈ 1.87 V; full-scale 2 V = **911 V**, so
 the OV witness never saturates — rev A.3 / F27) into **AMC1311B** (0–2 V input) isolated
 amps, **each with its own reinforced bias supply** (F4; since A.11 a TI UCC12050 per channel, V_IOWM
-1200 Vrms / 1697 VDC, behind its own 5 V LDO from V15), read on different ADCs.
+1200 Vrms / 1697 VDC, behind a 47 Ω ballast and its own 5 V LDO from V15 — A.13, sized for the production
+UCC12051-Q1's 80 mA no-load maximum), read on different ADCs.
 - 142 V and 43 mW per top resistor (1206 thin-film, 200 V rated) ✓; uncalibrated error
   **±2.1 % worst case** (correlated top string — rev A.6, R-F37; the old ±0.7 % was an RSS),
   ≈±0.3 % after EOL calibration; worst-corner linear FS 902 V vs the 880 V OV trip
@@ -271,8 +280,12 @@ HV-fed backup-bias option (TI TIDM-02014 pattern) is required for that motor.*
 ## 8. Control card (ASIL D brain)
 
 - **S32K396** (lockstep M7, ASIL-D capable, on-chip resolver interface + SDADC — the
-  EV-INVERTERGEN3 architecture), 289-MAPBGA — **every ball bound in rev A.12** from NXP's SPF-91122 rev C
-  anchored on the DS supply balls (`docs/mcu-pin-manifest.md`): eFlexPWM1 A/B pairs with FAULT0/FAULT2,
+  EV-INVERTERGEN3 architecture), 289-MAPBGA — every ball bound in rev A.12 from NXP's SPF-91122 rev C and
+  **re-derived in rev A.13 against NXP's GEN3 net report (NET-91122_C, U513)**: two supply balls of the A.12
+  map were wrong (H5 is V15 → V15S, J7 is V25 → 220 nF; round 14 A12-R01/R02), every other supply ball and
+  164 of 165 port names agree, and the four signals on balls the GEN3 board leaves open moved to
+  netlist-confirmed balls; the KiCad symbol now carries the ball IDs as its pin numbers
+  (`docs/mcu-pin-manifest.md`): eFlexPWM1 A/B pairs with FAULT0/FAULT2,
   three ADC instances for the currents, two for V_DC, SDADC1/2/3 pairs for the resolver, SWG1, LPSPI3 to
   the FS26, FlexCAN0/1, FCCU, JTAG. The freeze corrected seven ports of the A.4 list that had no such
   function on this package (round 12 had removed the stale "LQFP-176").
@@ -344,7 +357,8 @@ guarantee it (review round 3/5 item):
   **TPS55340-Q1 boost → 15.4 V (V15B) → NCV4276C-ADJ post-regulator → V15 = 15.0 V**
   (F51 — a boost passes its input through above the setpoint; the LDO clamps jump-start/
   load-dump pass-through away from the bias modules) feeding the four isolated bias
-  supplies (TI UCC12050 ×2 for the V_DC senses since A.11, each behind its own 5 V LDO, and the
+  supplies (TI UCC12051-Q1 ×2 for the V_DC senses — production part since A.13, UCC12050 the proto fit —
+  each behind a 47 Ω ballast and its own 5 V LDO, and the
   ASC/discharge biases — TI UCC14141-Q1 since A.12, 8–18 V in, regulated **18.0 V** out, 17.4–18.6 V over
   reference, divider and hysteresis; see §6a. The Mornsun QA01C-18 they replace had no working-voltage
   figure and a 16.9–20.9 V envelope at these light loads — round 9, A8-N01: F61 had read the base QA01C's
@@ -397,15 +411,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.12)
+## 11. Verification status (current release: rev A.13)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **2027/2027 (100 %)** (21 pages; the 289-ball MCU and the 36-pin biases since A.12);
-- structural ERC **933 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **2045/2045 (100 %)** (21 pages; the MCU numbered by physical ball since A.13, mutation-tested);
+- structural ERC **945 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **123 PASS / 19 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **130 PASS / 23 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -420,6 +434,26 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11m. Rev A.13 — round 14: three independent reviews of cfd35a7 (summary)
+
+Two rechecks and a whole-system review of the A.12 push found real defects and were right on all of them
+([`review-A13-disposition.md`](review-A13-disposition.md), F143–F158). **The A.12 pin freeze had two supply
+balls wrong** — H5 is V15 (1.5 V; it carried 5 V) and J7 is V25 (regulator output; it was grounded). The map
+was re-derived against NXP's own GEN3 net report: every supply ball and 164/165 port names agree, the four
+signals without a netlist cross-check moved to confirmed balls, and the exported symbol now numbers its pins
+by ball. The **firmware** had three safety defects — the DESAT ISR dropped MCU_GATE_EN at once, bypassing the
+22–53 µs hardware delay that protects the driver's soft turn-off; the ms clock was derived from the wrapping
+µs counter (false CAN staleness after 71.6 min); keep_hv was speed-only while §6 credits the battery at every
+speed — plus placeholder fault routing and a lock witness that was only a readback: fixed, with an
+arming-evidence record that keeps the gates inhibited until route, lock and validation evidence exist (fail
+closed). **Analog:** the excitation monitor now holds the 3 mA injection limit unpowered (18 k, + the missing
+C_AAF), the exciter outputs get a TVS + PTC per line against harness faults, the motor-temperature lines a real
+clamp and a bound fuse, and the bias LDOs a 47 Ω ballast for the production UCC12051-Q1's 80 mA. Torque
+requests now carry a final voltage-feasibility witness; a stuck-on discharge is detected at the next
+contactor opening. Wording: 500–850 V (not "800 V"), the 4XX AC-power envelope, safety work is engineering,
+not paperwork. Marine forks at A.13 (`npm run marine` 86 PASS · 22 WARN · 0 FAIL). Everything else the
+reviews list is measurement, vendor data or vehicle allocation — the gates in the README.
 
 ## 11l. Rev A.12 — rechecks of A.11 and the production closure (summary)
 

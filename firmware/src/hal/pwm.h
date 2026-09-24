@@ -21,11 +21,22 @@ typedef enum {
 } hal_pwm_mode_t;
 
 /* Configure period (centre-aligned, double update: reload at half and full cycle), dead time,
- * the fault map above and the write protection. Outputs start OFF. */
+ * the fault map above, the FLT pad routing (only when bound) and the write protection. Outputs
+ * start OFF. Returns hal_pwm_config_matches(). */
 bool hal_pwm_init(uint32_t fsw_hz, uint32_t dead_time_ns);
 
-/* True when the init lock-down is verified by read-back (FSAFE/manual clear/DISMAP/protection). */
-bool hal_pwm_config_locked(void);
+/* Three separate pieces of arming evidence (safety/arm_evidence.h); none is ever assumed:
+ *  - route bound: the board configuration gives the SIUL2 IMCR routing of FLT_HS_N/FLT_LS_N to
+ *    FAULT0/FAULT2 (distinct, non-zero values) and those IMCRs read back so. Placeholders are a
+ *    build error on the target; the host build is UNBOUND (false) unless a test binds it;
+ *  - config matches: the fault lock-down image reads back (FCTRL, FCTRL2, FFILT, DISMAP0/1, OCTRL,
+ *    CTRL2 of SM0..2). A matching image is NOT a locked one;
+ *  - protection locked: the REG_PROT soft-lock bits of those registers (CTRL2 excepted: its FORCE
+ *    bit is written at every mode change, so its INDEP bit is only read back) and the hard lock
+ *    read back set. False whenever that cannot be read, never true by default. */
+bool hal_pwm_fault_route_bound(void);
+bool hal_pwm_config_matches(void);
+bool hal_pwm_protection_locked(void);
 
 void hal_pwm_force_off(void);
 void hal_pwm_set_asc(void);

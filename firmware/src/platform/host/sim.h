@@ -22,6 +22,10 @@
 
 /* ---------------- time and ISR hook ---------------- */
 void sim_reset(void); /* power-on reset of every model (retained RAM is the caller's business) */
+/* The same with the clock starting at t_us: e.g. just below the 32-bit microsecond wrap
+ * (4294.967296 s) to run the firmware across it (A12-R06). hal_time_us64() starts from the raw
+ * counter, as on the target. */
+void sim_reset_at_us(uint64_t t_us);
 void sim_advance_ns(uint64_t ns);
 void sim_advance_us(uint32_t us);
 uint64_t sim_now_ns(void);
@@ -92,10 +96,44 @@ void sim_chain_rdy_timing(uint32_t rise_ms, uint32_t fall_ms);
 uint64_t sim_gpio_edge_ns(hal_do_t pin, bool rising, uint64_t t_from_ns);
 uint32_t sim_gpio_edge_count(hal_do_t pin, bool rising);
 
+/* ---------------- eFlexPWM lock-down + REG_PROT model (F01/F02) ---------------- */
+typedef enum {
+    SIM_PWM_FCTRL = 0,
+    SIM_PWM_FCTRL2,
+    SIM_PWM_FFILT,
+    SIM_PWM_DISMAP0_SM0,
+    SIM_PWM_DISMAP0_SM1,
+    SIM_PWM_DISMAP0_SM2,
+    SIM_PWM_DISMAP1_SM0,
+    SIM_PWM_DISMAP1_SM1,
+    SIM_PWM_DISMAP1_SM2,
+    SIM_PWM_OCTRL_SM0,
+    SIM_PWM_OCTRL_SM1,
+    SIM_PWM_OCTRL_SM2,
+    SIM_PWM_CTRL2_SM0,
+    SIM_PWM_CTRL2_SM1,
+    SIM_PWM_CTRL2_SM2,
+    SIM_PWM_NREG
+} sim_pwm_reg_t;
+typedef enum { SIM_MASTER_CPU = 0, SIM_MASTER_DMA } sim_master_t;
+/* A write by a bus master (a stray application pointer, an eDMA descriptor): false = rejected by
+ * REG_PROT, the register keeps its value. */
+bool sim_pwm_reg_write(sim_pwm_reg_t r, uint16_t v, sim_master_t m);
+uint16_t sim_pwm_reg_read(sim_pwm_reg_t r);
+bool sim_pwm_prot_locked(void);
+/* The board configuration binds FLT_HS_N/FLT_LS_N to FAULT0/FAULT2 (the TODO(RM) values filled).
+ * Host default: UNBOUND — the FLT pins do not reach the PWM fault inputs and
+ * hal_pwm_fault_route_bound() is false. */
+void sim_pwm_fault_route_bind(bool bound);
+/* MCU functional reset (the FS26 RSTB): PWM registers and the REG_PROT lock back to reset values,
+ * outputs released to the board pulls, until the firmware initialises them again. */
+void sim_mcu_reset(void);
+
 /* ---------------- PWM ---------------- */
 hal_pwm_mode_t sim_pwm_mode_raw(void);
 float sim_pwm_duty(uint32_t phase);
-bool sim_pwm_hs_forced_off(void);
+bool sim_pwm_hs_forced_off(void); /* a latched fault holds the high sides off (DISMAP A) */
+bool sim_pwm_ls_forced_off(void); /* ... the low sides (DISMAP B) */
 uint64_t sim_pwm_hs_off_ns(void); /* last time the high sides were forced/turned off */
 uint64_t sim_pwm_asc_set_ns(void); /* last time PWM-ASC was applied */
 uint32_t sim_pwm_nan_writes(void);  /* duty writes rejected as non-finite (must stay 0) */
@@ -149,6 +187,7 @@ bool sim_pwm_hs_cmd(void);
 bool sim_pwm_ls_cmd(void);
 bool sim_fs26_fs1b_pin_low(void);
 uint8_t sim_chain_pwm_fault_pins(void);
+bool sim_pwm_route_active(void);
 void sim_chain_set_v5gd(float v);
 
 #endif /* SIM_H */

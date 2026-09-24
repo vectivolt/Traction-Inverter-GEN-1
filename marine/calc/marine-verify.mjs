@@ -5,7 +5,7 @@
 // sinusoidal-PWM averages (calculations/loss-model.mjs igbtLoss — re-checked below, not edited),
 // with two marine additions for continuous duty: switching energy ∝ V^1.3 instead of linear, and
 // the transistor/diode heat sharing one coldplate footprint. Road-mirrored protection numbers (FW-05/06/16, ASC entry,
-// DESAT corners, §6 release rule, barrier register) follow Road rev A.12 (marine/design-basis.md §9).
+// DESAT corners, §6 release rule, barrier register) follow Road rev A.13 (marine/design-basis.md §9).
 // Run: node marine/calc/marine-verify.mjs
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -215,7 +215,7 @@ for (const [id, s] of LAUNCH) {
     const [tTyp, tLo] = drv.isto.map((i) => tDet + m.cies * (drv.vcc2Hi - 10) / i), tscDer = m.tsc * s.tscDer;
     add(sec, `DESAT worst detection + soft-off (${f(cBlank * 1e12, 0)} pF blank)`, `${f(tTyp * 1e6, 2)} µs @400 mA typ · ${f(tLo * 1e6, 2)} µs @100 mA DS min (detect ${f(tDet * 1e6, 2)} µs)`,
       `${f(m.tsc * 1e6, 0)} µs @${m.tscV} V → ${f(tscDer * 1e6, 1)} µs at ${s.vMax} V`, "WARN",
-      `RELEASE GATE (Road RR04/③): typ is ${f(100 * tTyp / tscDer, 0)} % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at ${s.vMax} V and the ${drv.vcc2Hi} V gate-rail corner + contained SC test (Cies ${f(m.cies * 1e9, 0)} nF from ${drv.vcc2Hi} to 10 V)`);
+      `RELEASE GATE (Road RR04/③): typ is ${f(100 * tTyp / tscDer, 0)} % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at ${s.vMax} V and the ${drv.vcc2Hi} V gate-rail corner + contained SC test (Cies ${f(m.cies * 1e9, 0)} nF from ${drv.vcc2Hi} to 10 V); firmware now holds MCU_GATE_EN for a CAL 60 µs minimum before a software caller can drop it (Road round 14/A.13), so the ISR can no longer race this soft-off — clears both corners above with margin`);
     // DESAT trip at the collector (Road method: V_th − n·0.6 V − I_chg·4.7 k) vs VCEsat at the overload peak, hot
     const tripMin = 8.5 - s.nDiode * 0.6 - 650e-6 * 4.7e3, tripMax = 10 - s.nDiode * 0.6 - 350e-6 * 4.7e3;
     const vce = m.v0 + m.r * die(s, RATING[id].I * OPM.ovl) * Math.SQRT2;
@@ -245,7 +245,7 @@ for (const [id, s] of LAUNCH) {
   add(sec, "QDIS switch", `${f(s.vMax / ra, 2)} A pk at ${s.vMax} V`, d.qdis, "PASS",
     `fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V)${id === "m10" ? " — same bias module, already rated ≥ 1150 V DC" : ""}`);
   add(sec, "QDIS stuck ON with the battery connected", `${f(s.vMax ** 2 / ra, 0)} W continuous`, "not survivable by 10 W parts", "WARN",
-    `bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds — candidate TE SQP10 (700 V, ${f(s.vMax / d.raN, 0)} V here) through the stuck-ON test (Road gate ㉖)`);
+    `bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); fail-open flameproof wirewounds — candidate TE SQP10 (700 V, ${f(s.vMax / d.raN, 0)} V here) through the stuck-ON test (Road gate ㉖)`);
   // Road FW-16 (round 9, A8-N03/R9X-07): the boot self-test runs only at ≤ 0.1 J — both channels read < 3 V (≤ 12 V true),
   // or QDIS for 2 τ from a < 60 V reading (≤ 69 V true); τ at R+5 % and C_max
   const tau = ra * 1.05 * cMax, eRead = 0.5 * cMax * 12 ** 2, eTop = 0.5 * cMax * (69 * Math.exp(-2)) ** 2;
@@ -412,7 +412,7 @@ for (const [id, s] of LAUNCH) {
     ["AMC1311B V_DC amplifier", "reinforced IEC 60747-17, V_IOWM 2120 V DC, CPG 8.5 mm, CTI ≥ 600", "reinforced ≥ V_max", "PASS", "keep"],
     ["UCC12050 V_DC-channel bias ×2 (Road A.11; the earlier \"MGJ2D150505SC\" code never existed; production AVL part UCC12051QDVERQ1, AEC-Q100, A.12)", "reinforced VDE 0884-11, V_IOWM 1200 Vrms / 1697 V DC, CPG > 8 mm, CTI > 600", "reinforced ≥ V_max", "PASS", "keep (1697 V DC ≥ 1150 V)"],
     ["VOW3120-X017T opto (UQD, UASC) — replaces TLP152 (Road gate ⑪, A.12)", "DIN EN 60747-5-5 (VDE 0884-5) opt.1 reinforced, V_IORM 1414 Vpk, V_ISO 5.3 kVrms, CPG/CLR ≥ 10 mm", "reinforced ≥ V_max", "PASS", "keep (1414 Vpk ≥ 1150 V; VDE/UL/CQC certificates listed \"planned\" in the DS — check at PO)"],
-    ["UCC14141-Q1 isolated bias (PSASC, PSQD) — replaces QA01C-18 (Road gate ㉔, A.12)", "DIN EN IEC 60747-17 reinforced, V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 V DC", "reinforced ≥ V_max", "PASS", "keep (1414 V DC ≥ 1150 V; VDE/UL/CQC certificates listed \"planned\" in the DS — check at PO)"],
+    ["UCC14141-Q1 isolated bias (PSASC, PSQD) — replaces QA01C-18 (Road gate ㉔, A.12)", "DIN EN IEC 60747-17 reinforced, V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 V DC", "reinforced ≥ V_max", "PASS", "keep (1414 V DC ≥ 1150 V; VDE certificate 40058888 issued and archived, round 14/A.13 — UL/CQC still listed \"planned\" in the DS, check at PO)"],
     ["VGT12EEM flyback transformer", "2.6 kVrms/1 min NP–NS, 1.3 kVrms coil–core, no working rating", "reinforced ≥ V_max", "WARN", "transformer certified for ≥ 1150 V DC working (Road gate ⑤)"],
     ["HC5FW 900-S/SP1 hall sensor", "reduced insulation (no sleeve): 2.5 kV/1 min, CPG 3.6 / CLR 2.7 mm", "insulation completed by the busbar", "WARN", "busbar sleeve rated for 1150 V + LEM sign-off (Road gate ⑩ / N7)"],
     ["Y-caps CY1/CY2 — Vishay VY1472M63Y5UQ6TV0 (Road gate ㉔, A.12)", "Y1 500 VAC / 1500 VDC (X1 760 VAC)", "DC working rating ≥ V_max (a first earth fault on the IT network leaves the whole link across one)", "PASS", "keep (1500 V DC ≥ 1150 V; the Y1 / 500 VAC class is sized for the 690 V AC grid case, not the DC bus)"],

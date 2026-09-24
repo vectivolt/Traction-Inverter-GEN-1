@@ -82,7 +82,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 
 | Check | Value | Limit | Verdict | Note |
 |---|---|---|---|---|
-| DESAT worst detection + soft-off (82 pF blank) | 4.81 µs @400 mA typ · 10.29 µs @100 mA DS min (detect 2.98 µs) | 6 µs @800 V → 5 µs at 850 V | 🟡 WARN | RELEASE GATE (Road RR04/③): typ is 96 % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at 850 V and the 16.9 V gate-rail corner + contained SC test (Cies 106 nF from 16.9 to 10 V) |
+| DESAT worst detection + soft-off (82 pF blank) | 4.81 µs @400 mA typ · 10.29 µs @100 mA DS min (detect 2.98 µs) | 6 µs @800 V → 5 µs at 850 V | 🟡 WARN | RELEASE GATE (Road RR04/③): typ is 96 % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at 850 V and the 16.9 V gate-rail corner + contained SC test (Cies 106 nF from 16.9 to 10 V); firmware now holds MCU_GATE_EN for a CAL 60 µs minimum before a software caller can drop it (Road round 14/A.13), so the ISR can no longer race this soft-off — clears both corners above with margin |
 | DESAT trip at the switch (2 × US1M, 4.7 k) | 4.25–7.16 V | > VCEsat 1.62 V at the 110 % peak, hot | ✅ PASS | 38% of limit · no nuisance trip at the worst-low corner; short circuit drives V_CE to the bus |
 | Gate-power demand per bank @5 kHz | 2.01 W | 2.81 W worst-part capacity (RT 8.2 k) | ✅ PASS | 72% of limit · Qg 4.36 µC full-swing, Road method |
 
@@ -90,7 +90,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 
 | Check | Value | Limit | Verdict | Note |
 |---|---|---|---|---|
-| DESAT worst detection + soft-off (82 pF blank) | 4.35 µs @400 mA typ · 8.44 µs @100 mA DS min (detect 2.98 µs) | 6 µs @1000 V → 4.8 µs at 1100 V | 🟡 WARN | RELEASE GATE (Road RR04/③): typ is 91 % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at 1100 V and the 16.9 V gate-rail corner + contained SC test (Cies 79 nF from 16.9 to 10 V) |
+| DESAT worst detection + soft-off (82 pF blank) | 4.35 µs @400 mA typ · 8.44 µs @100 mA DS min (detect 2.98 µs) | 6 µs @1000 V → 4.8 µs at 1100 V | 🟡 WARN | RELEASE GATE (Road RR04/③): typ is 91 % of the derated rating, the 100 mA corner does not close — NOVOSENSE I_STO distribution + hiitio's SC statement at 1100 V and the 16.9 V gate-rail corner + contained SC test (Cies 79 nF from 16.9 to 10 V); firmware now holds MCU_GATE_EN for a CAL 60 µs minimum before a software caller can drop it (Road round 14/A.13), so the ISR can no longer race this soft-off — clears both corners above with margin |
 | DESAT trip at the switch (3 × US1M, 4.7 k) | 3.65–6.55 V | > VCEsat 1.92 V at the 110 % peak, hot | ✅ PASS | 53% of limit · no nuisance trip at the worst-low corner; short circuit drives V_CE to the bus |
 | Gate-power demand per bank @3 kHz | 1.59 W | 2.81 W worst-part capacity (RT 8.2 k) | ✅ PASS | 57% of limit · Qg 5.01 µC full-swing, Road method |
 
@@ -112,7 +112,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 | Energy per 10 W wirewound (C+10 %) | 32.1 J | 100 J single-pulse | ✅ PASS | 32% of limit · firmware ≤ 3 discharges / 5 min |
 | V per wirewound | 212.5 V | ≥350 V axial class | ✅ PASS | 61% of limit |
 | QDIS switch | 0.45 A pk at 850 V | 1200 V / 42 A (Road part) | ✅ PASS | fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V) |
-| QDIS stuck ON with the battery connected | 384 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 213 V here) through the stuck-ON test (Road gate ㉖) |
+| QDIS stuck ON with the battery connected | 384 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 213 V here) through the stuck-ON test (Road gate ㉖) |
 | FW-16 self-test residual energy (read < 3 V, or QDIS for 2 τ from < 60 V) | ≤ 26 mJ (read) · ≤ 15 mJ (QDIS 2 τ = 1.4 s) | 0.1 J design limit | ✅ PASS | 26% of limit · Road round 9 (A8-N03, R9X-07); the 2 τ top-up time is a Marine parameter-set value |
 
 ### Discharge — M10 IGBT (bleeder 2 × 8 × 22 k · active 5 × 470 Ω)
@@ -126,7 +126,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 | Energy per 10 W wirewound (C+10 %) | 40.3 J | 100 J single-pulse | ✅ PASS | 40% of limit · firmware ≤ 3 discharges / 5 min |
 | V per wirewound | 220 V | ≥350 V axial class | ✅ PASS | 63% of limit |
 | QDIS switch | 0.47 A pk at 1100 V | ≥ 1700 V class switch | ✅ PASS | fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V) — same bias module, already rated ≥ 1150 V DC |
-| QDIS stuck ON with the battery connected | 515 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 220 V here) through the stuck-ON test (Road gate ㉖) |
+| QDIS stuck ON with the battery connected | 515 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 220 V here) through the stuck-ON test (Road gate ㉖) |
 | FW-16 self-test residual energy (read < 3 V, or QDIS for 2 τ from < 60 V) | ≤ 24 mJ (read) · ≤ 15 mJ (QDIS 2 τ = 1.64 s) | 0.1 J design limit | ✅ PASS | 24% of limit · Road round 9 (A8-N03, R9X-07); the 2 τ top-up time is a Marine parameter-set value |
 
 ### Discharge — M8-SiC (small craft) (bleeder 2 × 6 × 22 k · active 4 × 470 Ω)
@@ -140,7 +140,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 | Energy per 10 W wirewound (C+10 %) | 32.1 J | 100 J single-pulse | ✅ PASS | 32% of limit · firmware ≤ 3 discharges / 5 min |
 | V per wirewound | 212.5 V | ≥350 V axial class | ✅ PASS | 61% of limit |
 | QDIS switch | 0.45 A pk at 850 V | 1200 V / 42 A (Road part) | ✅ PASS | fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V) |
-| QDIS stuck ON with the battery connected | 384 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN + timeout; a shorted QDIS shows at the next precharge; fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 213 V here) through the stuck-ON test (Road gate ㉖) |
+| QDIS stuck ON with the battery connected | 384 W continuous | not survivable by 10 W parts | 🟡 WARN | bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); fail-open flameproof wirewounds — candidate TE SQP10 (700 V, 213 V here) through the stuck-ON test (Road gate ㉖) |
 | FW-16 self-test residual energy (read < 3 V, or QDIS for 2 τ from < 60 V) | ≤ 26 mJ (read) · ≤ 15 mJ (QDIS 2 τ = 1.4 s) | 0.1 J design limit | ✅ PASS | 26% of limit · Road round 9 (A8-N03, R9X-07); the 2 τ top-up time is a Marine parameter-set value |
 
 ### Battery windows — M8 IGBT (500–850 V)
@@ -271,7 +271,7 @@ PF 0.85 at modulation 1.1 · power cycling ≥ 2× a 20-year ferry mission. See 
 | AMC1311B V_DC amplifier | reinforced IEC 60747-17, V_IOWM 2120 V DC, CPG 8.5 mm, CTI ≥ 600 | reinforced ≥ V_max | ✅ PASS | M10: keep |
 | UCC12050 V_DC-channel bias ×2 (Road A.11; the earlier "MGJ2D150505SC" code never existed; production AVL part UCC12051QDVERQ1, AEC-Q100, A.12) | reinforced VDE 0884-11, V_IOWM 1200 Vrms / 1697 V DC, CPG > 8 mm, CTI > 600 | reinforced ≥ V_max | ✅ PASS | M10: keep (1697 V DC ≥ 1150 V) |
 | VOW3120-X017T opto (UQD, UASC) — replaces TLP152 (Road gate ⑪, A.12) | DIN EN 60747-5-5 (VDE 0884-5) opt.1 reinforced, V_IORM 1414 Vpk, V_ISO 5.3 kVrms, CPG/CLR ≥ 10 mm | reinforced ≥ V_max | ✅ PASS | M10: keep (1414 Vpk ≥ 1150 V; VDE/UL/CQC certificates listed "planned" in the DS — check at PO) |
-| UCC14141-Q1 isolated bias (PSASC, PSQD) — replaces QA01C-18 (Road gate ㉔, A.12) | DIN EN IEC 60747-17 reinforced, V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 V DC | reinforced ≥ V_max | ✅ PASS | M10: keep (1414 V DC ≥ 1150 V; VDE/UL/CQC certificates listed "planned" in the DS — check at PO) |
+| UCC14141-Q1 isolated bias (PSASC, PSQD) — replaces QA01C-18 (Road gate ㉔, A.12) | DIN EN IEC 60747-17 reinforced, V_IORM 1414 Vpk, V_IOWM 1000 Vrms / 1414 V DC | reinforced ≥ V_max | ✅ PASS | M10: keep (1414 V DC ≥ 1150 V; VDE certificate 40058888 issued and archived, round 14/A.13 — UL/CQC still listed "planned" in the DS, check at PO) |
 | VGT12EEM flyback transformer | 2.6 kVrms/1 min NP–NS, 1.3 kVrms coil–core, no working rating | reinforced ≥ V_max | 🟡 WARN | M10: transformer certified for ≥ 1150 V DC working (Road gate ⑤) |
 | HC5FW 900-S/SP1 hall sensor | reduced insulation (no sleeve): 2.5 kV/1 min, CPG 3.6 / CLR 2.7 mm | insulation completed by the busbar | 🟡 WARN | M10: busbar sleeve rated for 1150 V + LEM sign-off (Road gate ⑩ / N7) |
 | Y-caps CY1/CY2 — Vishay VY1472M63Y5UQ6TV0 (Road gate ㉔, A.12) | Y1 500 VAC / 1500 VDC (X1 760 VAC) | DC working rating ≥ V_max (a first earth fault on the IT network leaves the whole link across one) | ✅ PASS | M10: keep (1500 V DC ≥ 1150 V; the Y1 / 500 VAC class is sized for the 690 V AC grid case, not the DC bus) |

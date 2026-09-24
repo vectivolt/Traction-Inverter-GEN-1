@@ -101,6 +101,16 @@ test on back-to-back rig).
   primary/secondary copper split under the package (≥ 10 mm barrier, matching the VOW3120's ≥ 10 mm
   creepage on the same net pair). TI recommends 4 layers / 2 oz outer copper for its thermal path
   (RθJA 52.3 K/W at 1 W; ours carries a few mW).
+- **MCU supply pins (A.13)** — CV25 (220 nF) within 2 mm of ball J7 on the MCU side; CBAL (1 nF) at the
+  QBAL gate next to F1; H5 (V15) is fed from the V15S plane, never from the 15 V bias rail of the same name
+  on the power board (the two nets are V15S and V15 — keep the labels).
+- **Bias-LDO ballast R5LB/R5LC (A.13)** — 2512, 0.45 W each: on the same 2 oz copper as the LDO, ≥ 5 mm from
+  the UCC12051-Q1 and the AMC1311; the LDO input cap C5Lx1 sits between the ballast and the LDO IN pin.
+- **Resolver excitation protection (A.13)** — TVSEP/TVSEN (SMC) and FEXP/FEXN (1812 PTC) at the vehicle
+  connector, TVS return to the AGND star with a wide short trace; the feedback resistors REXB and the monitor
+  REXM stay on the amplifier side of the PTCs. The PTCs need ~2 mm of free air (they self-heat when tripped).
+- **Motor-temperature protection (A.13)** — FMT (0603 fuse) first from the connector, then TVSM (SMA) to AGND,
+  then the 1 k into the buffer; keep the fuse away from the LDO heat so its rating holds.
 - **JIC/JICC (Samtec IPL1, A.12)** — confirm the header's pin-1 corner and the odd/even row numbering
   against the Samtec print before the footprint is placed; the HARNESS40 map keeps VBAT/V5GD next to
   ground under either scheme, but the silkscreen and the cable drawing must agree.

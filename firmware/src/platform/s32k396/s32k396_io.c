@@ -150,6 +150,18 @@ bool s32k_timer_init(void)
 
 uint32_t hal_time_us(void) { return STM_CNT(); }
 
+/* A12-R06: the STM counter extended to 64 bits (timer.h). Read at least once per 71.6 min: the
+ * 1 ms task reads it every tick. PRIMASK makes the read-and-extend atomic for every caller. */
+static ti_time64_t s_t64;
+
+uint64_t hal_time_us64(void)
+{
+    hal_crit_enter();
+    const uint64_t t = ti_time64_extend(&s_t64, STM_CNT());
+    hal_crit_exit();
+    return t;
+}
+
 void hal_delay_us(uint32_t us)
 {
     const uint32_t t0 = hal_time_us();

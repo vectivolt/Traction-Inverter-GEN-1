@@ -10,7 +10,18 @@
 #include "nvm.h"
 #include "ti_types.h"
 
-typedef enum { NV_REC_CALIB = 0, NV_REC_SELFTEST, NV_REC_KEYCYCLE, NV_REC_DESAT, NV_REC_DTC, NV_REC_FAULT, NV_REC_COUNT } nv_rec_t;
+/* Slots: CALIB 0/1, SELFTEST 2/3, KEYCYCLE 4/5, DESAT 6/7, DTC 8/9, FAULT ring 10..25,
+ * VALIDATION 26/27 (the EOL/HIL arming-evidence record, safety/arm_evidence.h). */
+typedef enum {
+    NV_REC_CALIB = 0,
+    NV_REC_SELFTEST,
+    NV_REC_KEYCYCLE,
+    NV_REC_DESAT,
+    NV_REC_DTC,       /* the service lock (nv_service_t) */
+    NV_REC_FAULT,
+    NV_REC_VALIDATION,
+    NV_REC_COUNT
+} nv_rec_t;
 
 #define NV_HDR_SIZE 16u
 #define NV_PAYLOAD_MAX (HAL_NVM_SLOT_SIZE - NV_HDR_SIZE)
@@ -32,6 +43,16 @@ typedef struct {
     uint16_t pad;
     float speed_rpm;
 } nv_desat_t;
+
+/* "Service required, do not re-energise" (a stuck-on QDIS): survives key cycles until a service
+ * tool rewrites it; read at every boot. */
+#define NV_SERVICE_MAGIC 0x53455256u /* "SERV" */
+typedef struct {
+    uint32_t magic;
+    uint16_t dtc;
+    uint16_t pad;
+    uint32_t key_cycle;
+} nv_service_t;
 
 typedef struct {
     uint32_t key_cycle;

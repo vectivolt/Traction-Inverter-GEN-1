@@ -64,7 +64,7 @@ TEST(field_weakening_holds_voltage_ellipse_and_demag_clamp)
     CHECK(lhs <= (v_lim / w) * (v_lim / w) * 1.001f);
     CHECK(id < 0.0f);
     m.id_demag_a = 100.0f;
-    CHECK(torque_to_current(60.0f, w, vdc, 480.0f, &m, NULL, p, &id, &iq));
+    CHECK(torque_to_current(60.0f, w, vdc, 480.0f, &m, NULL, p, &id, &iq) == TQ_INFEASIBLE); /* F23 */
     CHECK(id >= -100.0f - 1e-3f); /* never below the demagnetisation limit */
 }
 
@@ -167,6 +167,81 @@ TEST(bms_limits_and_timeout_zero_regen)
     CHECK(torque_clamp(&l, -50.0f, w) == 0.0f);
 }
 
+/* |v| of a dq pair in double, independent of the firmware's own helper */
+static double v_need(double id, double iq, double w, const motor_t *m)
+{
+    const double vd = m->rs_ohm * id - w * m->lq_h * iq;
+    const double vq = m->rs_ohm * iq + w * (m->ld_h * id + m->psi_wb);
+    return sqrt(vd * vd + vq * vq);
+}
+
+/* F23: a motor-map sweep (low bus, high speed, hot magnets, a salient motor, a restrictive
+ * demagnetisation limit). Every result the firmware may use passes the voltage witness and the
+ * limits; every TQ_INFEASIBLE is really infeasible at iq = 0 anywhere inside the limits and comes
+ * back as iq = 0. */
+TEST(witness_motor_map_sweep_never_returns_an_infeasible_pair)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const float vdc[3] = {250.0f, 500.0f, 750.0f};
+    const float rpm[6] = {0.0f, 2000.0f, 6000.0f, 9000.0f, 12000.0f, 16000.0f};
+    const float tq[5] = {-300.0f, -100.0f, 0.0f, 100.0f, 300.0f};
+    unsigned n_ok = 0u;
+    unsigned n_lim = 0u;
+    unsigned n_inf = 0u;
+    unsigned bad = 0u;
+    for (unsigned mv = 0u; mv < 4u; mv++) {
+        motor_t m = motor_screening();
+        if (mv == 1u) {
+            m.psi_wb = 0.12f; /* hot magnets */
+        } else if (mv == 2u) {
+            m.ld_h = 0.2e-3f; /* salient (IPM) */
+            m.lq_h = 0.5e-3f;
+        } else if (mv == 3u) {
+            m.id_demag_a = 100.0f; /* restrictive demagnetisation limit */
+        } else {
+            /* the screening motor */
+        }
+        for (unsigned a = 0u; a < 3u; a++) {
+            for (unsigned b = 0u; b < 6u; b++) {
+                for (unsigned c = 0u; c < 5u; c++) {
+                    const float w = motor_omega_e(rpm[b], &m);
+                    float id = 0.0f;
+                    float iq = 0.0f;
+                    const tq_res_t r = torque_to_current(tq[c], w, vdc[a], 480.0f, &m, NULL, p, &id, &iq);
+                    const double v_av = torque_v_available(vdc[a], p);
+                    if ((r == TQ_OK) || (r == TQ_LIMITED)) {
+                        bad += (v_need(id, iq, w, &m) <= v_av * 1.0001) ? 0u : 1u;
+                        bad += ((id * id + iq * iq) <= 480.0 * 480.0 * 1.0001) ? 0u : 1u;
+                        bad += (id >= -m.id_demag_a - 1e-3f) ? 0u : 1u;
+                        n_ok += (r == TQ_OK) ? 1u : 0u;
+                        n_lim += (r == TQ_LIMITED) ? 1u : 0u;
+                    } else if (r == TQ_INFEASIBLE) {
+                        n_inf++;
+                        bad += (iq == 0.0f) ? 0u : 1u;
+                        const double d_min = fmax(-m.id_demag_a, -480.0);
+                        for (int k = 0; k <= 400; k++) { /* brute force over every allowed id */
+                            const double d = d_min + (480.0 - d_min) * k / 400.0;
+                            bad += (v_need(d, 0.0, w, &m) > v_av) ? 0u : 1u;
+                        }
+                    } else {
+                        bad++;
+                    }
+                }
+            }
+        }
+    }
+    CHECK(bad == 0u);
+    CHECK(n_ok > 0u && n_lim > 0u && n_inf > 0u); /* the sweep reaches all three outcomes */
+    /* the review case: 9000 rpm at 600 V with the demagnetisation limit at 100 A */
+    motor_t m = motor_screening();
+    m.id_demag_a = 100.0f;
+    float id = 0.0f;
+    float iq = 0.0f;
+    const float w = motor_omega_e(9000.0f, &m);
+    CHECK(torque_to_current(60.0f, w, 600.0f, 480.0f, &m, NULL, p, &id, &iq) == TQ_INFEASIBLE);
+    CHECK(iq == 0.0f && id >= -100.0f - 1e-3f && v_need(id, iq, w, &m) > torque_v_available(600.0f, p));
+}
+
 void suite_torque(void)
 {
     RUN(fw03_envelope_matches_contract_table);
@@ -179,4 +254,5 @@ void suite_torque(void)
     RUN(peak_budget_30s_and_full_recovery);
     RUN(coolant_above_assumption_removes_peak);
     RUN(bms_limits_and_timeout_zero_regen);
+    RUN(witness_motor_map_sweep_never_returns_an_infeasible_pair);
 }

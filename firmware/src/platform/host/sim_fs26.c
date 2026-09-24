@@ -61,6 +61,7 @@ void sim_fs26_reset(void)
  * configuration, its window timing and FS_GPIO1; FS0B/FS1B are asserted. */
 void sim_fs26_mcu_reset(void)
 {
+    sim_mcu_reset(); /* RSTB resets the MCU: its peripherals come back unlocked, at reset values */
     assert_fs0b_event();
     F.fs1b_timed = false; /* held until the MCU releases it */
     F.flt_err = (uint8_t)((F.flt_err < 12u) ? (F.flt_err + 1u) : 12u);

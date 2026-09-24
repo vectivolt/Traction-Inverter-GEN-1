@@ -35,7 +35,26 @@ void isns_update(isns_t *s, const uint16_t codes[3], uint32_t t_us, uint32_t now
             s->sum_fault = true;
         }
     }
-    s->valid = all && s->fresh && !s->sum_fault;
+    s->valid = all && s->fresh && !s->sum_fault && !s->stuck_fault;
+}
+
+void isns_activity(isns_t *s, const float iref_abc[3], const ti_params_t *p)
+{
+    for (uint32_t i = 0u; i < 3u; i++) {
+        const float e = ti_absf(iref_abc[i]);
+        if (e < p->cal_isns_act_min_a) {
+            continue; /* this phase is not asked for current now: no evidence either way */
+        }
+        if (s->ch_valid[i] && (ti_absf(s->i_a[i]) >= (p->cal_isns_act_frac * e))) {
+            s->act_cnt[i] = 0u;
+        } else {
+            s->act_cnt[i] = (s->act_cnt[i] < 255u) ? (uint8_t)(s->act_cnt[i] + 1u) : 255u;
+            if (s->act_cnt[i] >= p->cal_isns_act_debounce) {
+                s->stuck_fault = true;
+                s->valid = false;
+            }
+        }
+    }
 }
 
 bool isns_oc(const isns_t *s, const ti_params_t *p)

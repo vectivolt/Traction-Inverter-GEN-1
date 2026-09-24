@@ -139,8 +139,18 @@ full ball ↔ port/function table was taken from NXP's own GEN3 control-card sch
 text layer pairs a ball with the function string 2.4 px below it (the string 1.1 px above belongs to the
 previous pin); all eight datasheet balls confirm that rule, and it reproduces GEN3's resolver as matched
 SDADC AN[0]/AN[1] pairs. Result: `calculations/mcu-ballmap.json` (289 balls: 63 signal, 67 supply/ground,
-159 open) and `docs/mcu-pin-manifest.md`. Two balls have no text in SPF-91122: J7 (the DS figure lists it as
-a ground ball — grounded) and K5 (PMOS_CTRL — open in the PMIC option).
+159 open) and `docs/mcu-pin-manifest.md`.
+
+**Round 14 correction (A12-R01/R02, rev A.13).** The A.12 map had two supply balls wrong: **H5 is V15** (the
+1.5 V core-regulator input; GEN3 net `VCORE`) — A.12 had put the 5 V VREF5 on it (2.75 V abs max); **J7 is V25**
+(the internal 2.5 V flash-regulator output, COUT_V25 140 nF min / 220 nF typ, DS Table 11) — A.12 had grounded
+it. Both are now bound (H5 → V15S, J7 → V25 + CV25 220 nF) and the whole map was re-derived against NXP's own
+GEN3 net report `NET-91122_C.net` (MCU refdes U513, 244 connected balls): every supply ball matches a GEN3 net
+and all 165 port-named GEN3 nets equal the text-parse port except G6 (GEN3 `PTB30`, text `PTE4`; unused). The
+four signals that sat on balls the GEN3 board leaves open moved to netlist-confirmed balls (HW_ID → B5/PTE0,
+NTC_A → T15/PTC11, MT2_SIG → D5/PTE26, ASC_REQ → U4/PTD7). K5 (PMOS_CTRL) stays open in the PMIC option; the DS
+NMOS ballast network gets its 1 nF CNMOS (CBAL, Table 13). GEN3 runs VDD_HV_B at 3.3 V (LDO1); ours is 5 V,
+allowed with VDD_HV_A = 5 V (DS Table 5); VDD_LVDS (N5) stays 3.3 V.
 
 ### 10b. FS26 pin map — verified (rev A.12)
 
@@ -281,7 +291,7 @@ rejected on the same criterion: Murata MGJ1 (250 Vrms), NXE1 (125 Vrms), NXJ1 (2
 | UCC12050 (TI DS SNVSB38D) | Value | Citation |
 |---|---|---|
 | Input / output | 4.5–5.5 V in → VISO 5.0 V (SEL tied to VISO), 3.3/3.7/5.4 V selectable; I_ISO ≤ 100 mA | §6.9, §8.2.1 |
-| No-load input current | **50 mA typ** (EN high, 5.0 V select); ≤ 100 µA disabled | §6.9 (I_VINO, I_VINQ) |
+| No-load input current | **50 mA typ** (EN high, 5.0 V select); ≤ 100 µA disabled — **production UCC12051-Q1 (SNVSBY2A §6.9): 52 mA typ / 80 mA MAX at the 5 V select** (96 typ / 140 max at 3.3 V), the round-14 basis of the 96 mA bias budget and the 47 Ω LDO ballast | §6.9 (I_VINO, I_VINQ) |
 | Barrier | V_ISO 5 kVrms (UL 1577), **V_IORM 1697 Vpk, V_IOWM 1200 Vrms / 1697 VDC**, V_IOSM 6250 Vpk, DTI > 120 µm, creepage/clearance > 8 mm, CTI > 600 (Group I); DIN V VDE V 0884-11 reinforced, UL/IEC 62368-1 | §6.6 |
 | Pins (SOIC-16 DVE, Table 5-1) | 1 EN · 2 GNDP · 3 VINP · 4 SYNC · 5 SYNC_OK (open drain) · 6/7/8 NC (primary domain → GNDP) · 9/15/16 GNDS (15 = bypass return) · 10/11/12 NC (isolated domain → GNDS) · 13 SEL · 14 VISO | §5 |
 | Caps | 10 µF 16 V X7R ±10 % VINP–GNDP and VISO–GNDS; optional 100 nF | Table 8-1 |
@@ -428,6 +438,31 @@ Design use: 270 Ω 1 % LED series from the 5 V LVC outputs (10.8–15.8 mA, veri
 | Class / rating | **Y1 500 VAC, X1 760 VAC, 1500 VDC** | Y1 300 VAC, X1 440 VAC, 1500 VDC |
 | Body | D 16.0 mm max, T 5.0 mm, leads 0.6 mm, 30 ± 5 mm | D 12.0 mm, T 5.0 mm, F 10.0 mm |
 | Dielectric | Y5U (size code 63) | RA |
+
+## 31. Round-14 protection parts (rev A.13): SMCJ8.5CA, MF-MSMF020, 0438.375WRA, ALM2402 output stage
+
+| Part | Parameter | Value | Where |
+|---|---|---|---|
+| Littelfuse SMCJ8.5CA (TVSEP/TVSEN) | V_RWM / V_BR / V_C at I_PP | 8.5 V / 9.44–10.40 V / 14.4 V at 104.2 A (10/1000 µs); I_R 20 µA | `SMCJ-series.pdf` p.2 |
+| | P_PP / P_D | 1500 W at 1 ms (Table 1); ≈ 550 W at 10 ms (Fig. 2, read graphically; the axis stops at 10 ms); 6.5 W steady at T_L 50 °C | p.1, p.3 |
+| | AEC-Q101 | not stated on the commercial sheet — the automotive-line variant if the OEM requires it | all pages |
+| Vishay SMAJ8.5CA (comparison) | V_BR / V_C / I_PP | 9.44–10.4 V / 14.4 V / 27.8 A (400 W) | `SMAJ-series.pdf` p.2 |
+| Bourns MF-MSMF020 (FEXP/FEXN) | I_hold / I_trip / V_max / I_max | 0.20 A / 0.40 A / 30 V / 80 A | `MF-MSMF.pdf` |
+| | R_min / R_1max · time-to-trip · P_trip | 0.40 Ω / 6.0 Ω (1 h after a trip) · 0.06 s at 6.0 A (30 × I_hold) · 0.8 W typ; −40…85 °C; cUL, TÜV, **AEC-Q200** | |
+| | why not MF-LSMF | the family has no 0.2 A part (lowest MF-LSMF030X); MF-LSMF050X is 60 V / 0.5 A (4 s at 2.5 A), MF-LSMF075X 30 V / 0.75 A | `MF-LSMF.pdf` |
+| Littelfuse 0438.375WRA (FMT1/FMT2) | rating / V / I²t / R | 375 mA, 63 V DC, 0.0041 A²s melting, 1.247 Ω, 0.488 V drop at rating, −55…150 °C, **AEC-Q200** (438A series, 0603) | `Littelfuse-438A.pdf` p.1, p.3 |
+| | alternates evaluated | Bourns SF-0603FP0375F-2 (65 V, I²t 0.0041, cUL only); Littelfuse 0466.375 (1206, 125 V, I²t 0.0045, UL/CSA only) | archived |
+| TI ALM2402-Q1 (UEXD) | output abs max / current / limits | V_OUT −0.3…18 V; 400 mA source/sink continuous; internal limits ≈ 750 mA (short to GND) / ≈ 550 mA (short to supply) | `ALM2402-Q1.pdf` §7.1, §7.4, §8.3.3 |
+| | reverse current | the output transistors' body diodes conduct if an output is forced above the supply — "limit to pulsed operation"; the current limit does not act in reverse (§8.3.6) → the round-14 clamp sits BELOW the rail + a diode so the case never arises | p.12 |
+
+## 32. TI UCC14141-Q1 VDE certificate 40058888 (`UCC14141-Q1-VDE-40058888.pdf`)
+
+Issued 2024-07-24, updated 2024-11-28; DIN EN IEC 60747-17 (VDE 0884-17):2021-10 / EN IEC 60747-17:2020+AC:2021;
+lists six types including **UCC14141QDWNRQ1** (item 2 of 6). The cover certificate does not print V_IORM/V_IOWM
+(they are in annexes 200K1/200K2/300M1 not in the download); the datasheet's §7.5 values (V_IORM 1414 Vpk,
+V_IOWM 1000 Vrms / 1414 VDC, V_IOTM 7071 Vpk) stand, and the datasheet's "planned" wording (SLUSF10B, 2023)
+simply predates the certificate. UL 1577 recognition is still listed as planned by TI — no UL file found.
+This closes the gate ㉔ component residual on the VDE basis (round 14, N01).
 
 ## 30. Discharge resistors: TT/Welwyn SQP10 (`SQP.pdf`) and Yageo SQP (`Yageo-SQP.pdf`) — RDIS since rev A.12
 
@@ -617,3 +652,9 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | VY1-series.pdf | 265,078 | Vishay VY1 Y1 disc series (CY1/CY2 since A.12; doc 28537) |
 | DE1-RA.pdf | 527,564 | Murata DE1 Y1 series — CY alternate (lower AC class) |
 | Yageo-SQP.pdf | 620,597 | Yageo SQP/NSP — RDIS alternate (SQP10AJB-470R / -220R) |
+| UCC14141-Q1-VDE-40058888.pdf | 396,961 | TI's issued VDE certificate 40058888 (2024-07-24, updated 2024-11-28) listing UCC14141QDWNRQ1 — round 14 (N01) |
+| SMCJ-series.pdf | 840,472 | Littelfuse SMCJ 1.5 kW TVS (TVSEP/TVSEN SMCJ8.5CA since A.13; Wayback copy of the Littelfuse asset) |
+| MF-MSMF.pdf | 1,327,051 | Bourns MF-MSMF PTC (FEXP/FEXN MF-MSMF020 since A.13) |
+| Littelfuse-438A.pdf | 360,460 | Littelfuse 438A 0603 fuse (FMT1/FMT2 0438.375WRA since A.13) |
+| Littelfuse-0466.pdf | 566,688 | Littelfuse 466 1206 fuse — FMT alternate evaluated (125 V, no AEC-Q200) |
+| SF-0603FP-F.pdf | 188,435 | Bourns SF-0603FP — FMT alternate evaluated (65 V, no AEC-Q200) |

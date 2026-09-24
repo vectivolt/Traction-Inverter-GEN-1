@@ -134,6 +134,29 @@ console.log(`\n== ${sheets} pages · ${totPins} connected pins · ${totLabels} l
 console.log(`correct ${totOk} · wrong ${totWrong} · unconnected ${totAbsent} → ${(100 * totOk / totPins).toFixed(2)}%`);
 console.log(`floating labels ${floating} · overlapping symbols ${overlaps} · unclosed frames ${openFrames}`);
 if (problems.length) { console.log("\nfirst problems:"); problems.slice(0, 20).forEach((p) => console.log("  " + p)); }
+// Round 14 (A12-R03): the emitted MCU symbol must carry PHYSICAL ball IDs as its pin numbers, one record per
+// connected ball of calculations/mcu-ballmap.json, number == the ball in the manifest label (a mutated number
+// with an unchanged label fails here; a label without its ball fails here).
+{
+  const man = JSON.parse(readFileSync(join(SRC, "..", "..", "mcu-ballmap.json"), "utf8"));
+  const want = new Map(man.balls.filter((r) => r.net).map((r) => [r.label, r.ball]));
+  const mcu = [...LIB.entries()].find(([n]) => /^S32K396/.test(n));
+  const recs = mcu ? mcu[1].pins : [];
+  const names = mcu ? libText.split(/^DEF /m).slice(1).find((b) => b.startsWith(mcu[0])).split("\n").filter((l) => l.startsWith("X ")).map((l) => l.split(/\s+/)[1]) : [];
+  let bad = 0;
+  recs.forEach((p, i) => {
+    const label = names[i];
+    const ball = want.get(label);
+    if (!/^[A-U]\d{1,2}$/.test(p.num)) { bad++; if (bad <= 5) problems.push(`MCU pin number not a ball ID: ${label} = ${p.num}`); }
+    else if (ball !== p.num) { bad++; if (bad <= 5) problems.push(`MCU pin number ${p.num} does not match manifest ball for ${label} (${ball})`); }
+  });
+  if (!mcu || recs.length !== want.size || bad) {
+    console.log(`FAIL: MCU symbol ball numbering — ${recs.length} records vs ${want.size} manifest balls, ${bad} mismatches`);
+    problems.slice(0, 8).forEach((p) => console.log("  " + p));
+    process.exit(1);
+  }
+  console.log(`MCU symbol: ${recs.length} pins numbered by physical ball, all match the manifest`);
+}
 // Round 12 (R2-F29): an empty expected-page set left every counter at zero and exited 0. Round 13
 // (A11-R05): count DISTINCT assemblies, not JSON pages — the exact set must be present, each with pins.
 const WANT = ["traction-power", "traction-capbank", "traction-disch", "traction-card"];
