@@ -27,7 +27,8 @@
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0C000Eu /* rev A.12, round 14 */
+#define TI_FW_ID 0x0A0D000Fu /* rev A.13, round 15: ADC1 now runs its injected chain next to V_DC ch2, so a
+                              * round-14 FW-06 chain measurement does not cover this image */
 
 typedef struct {
     const ti_params_t *p;

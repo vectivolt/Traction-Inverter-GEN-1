@@ -30,16 +30,16 @@ stateDiagram-v2
         VEHICLE_HANDSHAKE --> PRECHARGE_WAIT: fresh VCU command, self-test done
         GATE_SELFTEST --> PRECHARGE_WAIT: FW-16 pass or stored pass
         PRECHARGE_WAIT --> ARMED_ZERO_TORQUE: contactors closed, link at pack, FW-19 OK
-        ARMED_ZERO_TORQUE --> RUN: fresh command, enable, torque request, contactors closed
+        ARMED_ZERO_TORQUE --> RUN: fresh command, enable, torque request, contactors closed,<br/>no battery-path row
         ARMED_ZERO_TORQUE --> PRECHARGE_WAIT: contactors open below n_x
         RUN --> DERATE: derate active
         DERATE --> RUN: derate cleared (hysteresis)
         RUN --> ARMED_ZERO_TORQUE: stale or disabled command, after the ramp to zero (FW-11)
         DERATE --> ARMED_ZERO_TORQUE: stale or disabled command, after the ramp to zero
-        RUN --> ARMED_ZERO_TORQUE: contactors not closed
+        RUN --> ARMED_ZERO_TORQUE: contactors not closed, or the battery-path row<br/>(stale report, V_DC off the pack): no torque in that invocation
     }
 
-    Operating --> FAULT: a §6 row or a no-arm failure (FW-16 fail, FW-19 refusal, ...)
+    Operating --> FAULT: a §6 row or a no-arm failure (FW-16 fail, FW-19 refusal, ...);<br/>a battery-path loss only while its §6 response holds energy (current control, ASC)
     Operating --> DISCHARGE: VCU discharge request (edge), contactors open
     Operating --> SAFE_POWERDOWN: KL15 off or shutdown request
 
@@ -65,8 +65,8 @@ stateDiagram-v2
 | GATE_SELFTEST | per FW-16 step | no | Runs only under its measured no-HV, standstill conditions (≤ 0.1 J). Otherwise it uses the stored pass or refuses. |
 | PRECHARGE_WAIT | no | no | FW-19 watches the precharge curve. A refusal forbids arming for the key cycle. |
 | ARMED_ZERO_TORQUE | yes | zero | |
-| RUN / DERATE | yes | yes | DERATE is FW-04 with hysteresis. The retry after a DESAT runs at reduced torque. |
-| FAULT | no | no | The §6 action is applied by the fault manager. Exit is only through the rows clearing or the FW-15 retry path. A failure that forbids arming (evidence, service lock, FW-16/FW-19 refusal) keeps it here for the key cycle. |
+| RUN / DERATE | yes | yes | DERATE is FW-04 with hysteresis. The retry after a DESAT runs at reduced torque. The outputs describe the state an invocation ends in (round 15): the step that leaves RUN/DERATE grants no torque, and on the way to FAULT, DISCHARGE or SAFE_POWERDOWN no arm either. |
+| FAULT | no | no | The §6 action is applied by the fault manager; the only modulation is its own (zero-torque current control after a battery-path loss below n_x while winding current remains, round 15). Exit is only through the rows clearing or the FW-15 retry path. A failure that forbids arming (evidence, service lock, FW-16/FW-19 refusal) keeps it here for the key cycle. |
 | DISCHARGE | no | no | QDIS is fired only while the contactors are reported open (FW-17/18). |
 | SAFE_POWERDOWN | no | no | Discharges if the contactors are open, flushes NVM, then LPOFF. |
 
@@ -74,6 +74,7 @@ stateDiagram-v2
 
 - `state_machine`: `boot_order_follows_section_9`, `init_and_sensor_failures_never_arm`,
   `selftest_and_precharge_refusals`, `stale_command_ramps_then_zero_torque`,
-  `derate_hysteresis_states`, `faults_and_contactor_opening`, `discharge_only_with_contactors_open`,
+  `derate_hysteresis_states`, `faults_and_contactor_opening`, `leaving_run_grants_no_torque_in_the_same_invocation`,
+  `battery_path_row_leaves_run_and_blocks_reentry`, `discharge_only_with_contactors_open`,
   `key_off_powerdown_to_lpoff`, `desat_retry_runs_at_reduced_torque`.
 - `scenarios: boot_to_run_follows_section_9` runs the same path on the simulated card.

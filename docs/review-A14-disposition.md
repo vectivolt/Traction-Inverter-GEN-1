@@ -9,7 +9,8 @@ against the unchanged state-machine functions.
 **Method.** Every claim verified against the source first (the exciter nets, the BOM package field, the ADC
 `MAP[]` macro, the `mirrorLibY()` workaround and the verifier's placement formula, the `cont_lost` expression).
 Fixes: schematic, ERC, BOM, verifier, exporter and docs by this session; the ADC triple and the contactor-loss
-policy by an Opus agent with fail-before/pass-after tests.
+policy by an Opus agent with fail-before/pass-after tests (`make test` 214/1622 → **223 tests / 1882 checks / 0 failed**,
+ASan/UBSan and −O2 clean, target-check OK; 222 tests run on the old tree with 100 failing checks, all in the new rows).
 
 ## Verdict
 
@@ -61,6 +62,8 @@ complete.
 | Item | Fix |
 |---|---|
 | The register-row splice defect of round 14 recurred once during this round (an escaped newline in an edit script) and was caught by the per-row count check | rows relocated; the check is in memory |
+| Firmware (found while deriving the ADC schedule from the ball map): ADC1's injected chain was never started — MT2_SIG, INTRLOK_N and TMOD_W were never converted on the target; the pre-fix driver read out of bounds for a standard-class channel | schedule derived from the generated map (ADC0/3/4/5 normal, ADC1 injected), chain masks read back at init and refused if stale; FW-06 sample wait includes the injected conversions. **F165** |
+| Firmware: HW_ID was classified before any slow conversion had run — a false "HW_ID short" on the target, never arming | init_identity() starts the slow list before each sample; TI_FW_ID bumped — a new EOL/HIL record is needed before the image arms. **F166** |
 
 ## Marine
 
@@ -76,4 +79,4 @@ instance — do that once at layout kickoff.
 
 ## Register
 
-F159–F164 in `calculations/design-verify.mjs`; the CSV beside this file lists every review ID with its class.
+F159–F166 in `calculations/design-verify.mjs`; the CSV beside this file lists every review ID with its class.

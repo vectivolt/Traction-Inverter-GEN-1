@@ -3,8 +3,9 @@
 This is the application firmware for the 220 kW / 850 V traction inverter. It covers four SKUs:
 8XX SiC, 8XX IGBT, 4XX IGBT and 4XX SiC. It implements `docs/firmware-contract.md` (rev A.13),
 §8/§8a of `docs/design-basis.md`, the round-12 disposition, the ball map
-`calculations/mcu-ballmap.json`, and the round-14 review of commit cfd35a7 (see "Round 14"). It is C11 with no dynamic memory and no recursion, and every
-loop is bounded. It uses fixed-width types and single-precision float only.
+`calculations/mcu-ballmap.json`, the round-14 review of commit cfd35a7 (see "Round 14") and the
+round-15 rechecks of commit a8c75eb (see "Round 15"). It is C11 with no dynamic memory and no
+recursion, and every loop is bounded. It uses fixed-width types and single-precision float only.
 
 The Wolfspeed CRD200 package was used only to check which structure is usual for such a
 firmware. No code was taken from it.
@@ -23,7 +24,7 @@ make clean
 `make test` compiles with `-std=c11 -Wall -Wextra -Werror -Wshadow -Wdouble-promotion
 -Wmissing-prototypes -Wstrict-prototypes -Wundef -Wpointer-arith -Wcast-qual -Wvla`. Test files
 alone get `-Wno-double-promotion`, because their reference arithmetic is done in double. Current
-result: **214 tests, 1622 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
+result: **223 tests, 1882 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
 `-O2` (`make BUILD=build/asan test CFLAGS="-O1 -g -fsanitize=address,undefined"`,
 `make BUILD=build/o2 test CFLAGS=-O2`).
 
@@ -119,15 +120,15 @@ These rules shape the code:
 | `src/hal/` | 300 | the 10 HAL interfaces (timer: the 64-bit time base) |
 | `src/sense/` | 611 | current (FW-05, stuck-channel check), V_DC (FW-07/18), temperatures (FW-13), HVIL (FW-09), HW_ID (FW-01/02), IGN |
 | `src/control/` | 854 | resolver (FW-10), FOC/SVPWM, MTPA/field weakening/limits and the voltage witness (FW-03/04), gains, DC-link (FW-08) |
-| `src/safety/` | 2067 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12), bridge sequences + DESAT hold, gate power (FW-14), self-test (FW-16), arming evidence |
+| `src/safety/` | 2077 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12), bridge sequences + DESAT hold, gate power (FW-14), self-test (FW-16), arming evidence |
 | `src/comms/` | 494 | CAN command/status with E2E (FW-11), UDS DTC store |
 | `src/discharge/` | 279 | FW-17/18/19, FW-02 τ, unexpected discharge |
 | `src/nvm/` | 506 | parameter sets, calibration (FW-20), NVM log and queue (validation and service records) |
-| `src/app/` | 1075 | integration |
-| `src/platform/s32k396/` | 1745 | generated ball-map tables, register images, REG_PROT layout, TODO(RM) board configuration, drivers with RTD bodies |
-| `src/platform/host/` | 1635 | simulation of the card, FS26 and MCU peripherals (REG_PROT, route binding, MCU reset) |
-| `tests/` | 4992 | 29 suites (one file per module + time + scenarios), 214 tests, harness |
-| `tools/` | 330 | parameter and board-map generators |
+| `src/app/` | 1091 | integration |
+| `src/platform/s32k396/` | 1880 | generated ball-map tables, the ADC map and its derived schedule, register images, REG_PROT layout, TODO(RM) board configuration, drivers with RTD bodies |
+| `src/platform/host/` | 1664 | simulation of the card, FS26 and MCU peripherals (REG_PROT, route binding, MCU reset) |
+| `tests/` | 5358 | 29 suites (one file per module + time + scenarios), 223 tests, harness |
+| `tools/` | 337 | parameter and board-map generators |
 
 ## What is verified where
 
@@ -149,7 +150,11 @@ These rules shape the code:
   across the 32-bit µs wrap (freshness, dwell timers, DTC stamps, the 1 s retry), keep-HV and
   "no safe state proven" at every speed, the host REG_PROT model (CPU and DMA writes rejected, a
   watchdog reset re-locks), the arming-evidence refusals, the torque→current voltage witness on a
-  motor-map sweep, the stuck-channel check, and the stuck-on QDIS service lock.
+  motor-map sweep, the stuck-channel check, and the stuck-on QDIS service lock;
+- round 15: every ADC input's instance/subtype/channel against the ball map and the conversion schedule
+  derived from it (the chain of every slow input, ADC1's injected chain, the V_DC ch2 gap), HW_ID read
+  from a started conversion, and a battery-path loss while armed at zero/low/high/unknown speed ×
+  OPEN/INVALID/stale report (row, same-invocation outputs, targets, PWM/ASC, CAN status).
 
 **Needs the target, HIL or the bench:**
 
@@ -157,6 +162,8 @@ These rules shape the code:
   REG_PROT covers eFlexPWM_1 and the SIUL2 IMCRs on the S32K39 (else XRDC);
 - the IMCR values of PTC26/PTC25 → FAULT0/2 (`s32k396_board_cfg.h`, `TODO(RM)`), and the ADC
   watchdog → TRGMUX/LCU → FAULT1 path; the EOL/HIL rig that writes the validation record;
+- the ADC chain read-back at init (NCMR/JCMR names `TODO(RTD)`), the BCTU list read-back (`TODO(RM)`), and
+  the V_DC ch2 sample gap with ADC1's three injected conversions (round 15);
 - real latencies and WCET (`docs/timing.md`);
 - FS26 behaviour on silicon: OTP image, watchdog answer width, FS0B release after an RSTB,
   INIT_FS re-entry after an MCU reset;
@@ -171,12 +178,12 @@ It also maps every edge case from the task to its test.
 
 | FW | Code | Tests | Host | Target item left |
 |---|---|---|---|---|
-| 01, 02 | sense/hwid.c, app.c, discharge.c (τ) | hwid, discharge, scenarios | yes | divider tolerance |
+| 01, 02 | sense/hwid.c, app.c (slow list before HW_ID), discharge.c (τ) | hwid, discharge, scenarios | yes | divider tolerance |
 | 03, 04 | control/torque.c (+ voltage witness), sense/temp.c | torque, state_machine, scenarios | yes | dyno, thermal |
 | 05 | sense/current.c (+ stuck channel), app.c, s32k396_adc/pwm.c | current, params, platform_cfg, scenarios | logic + modelled compare | ADC WD → FAULT1 route |
 | 06, 06a | sense/vdc.c, app.c, safety/bridge.c | vdc, bridge, scenarios | yes, modelled timing | 15.6 µs on HIL |
 | 07 | sense/vdc.c | vdc, scenarios | yes | EOL gains |
-| 08, 08b | control/dclink.c, safe_state.c, fault_mgr.c, can_cmd.c | dclink, safe_state, fault_mgr, scenarios | yes | bank tuning |
+| 08, 08b | control/dclink.c, safe_state.c, fault_mgr.c, can_cmd.c, app.c (battery path at every speed), state_machine.c | dclink, safe_state, fault_mgr, state_machine, scenarios | yes | bank tuning |
 | 09 | sense/hvil.c | hvil, scenarios | yes | harness |
 | 10 | control/resolver.c | resolver, scenarios | yes | SDADC/SWG config, latency |
 | 11 | comms/can_cmd.c, torque.c | can_cmd, torque, scenarios | yes | vehicle DBC |
@@ -220,6 +227,24 @@ never reached), provisions the route binding and the validation record, and INV_
 14–15 (`can_cmd.h`). Existing tests changed only in signatures (`br_init`, `st_step`, `dis_step`,
 `hal_time_ms`) except `row_flt_ls_is_spo_only` and `field_weakening_holds_voltage_ellipse_and_demag_clamp`,
 whose expectations follow A12-R08 and F23.
+
+## Round 15 (rechecks of commit a8c75eb)
+
+Two confirmed defects, same rule: **fail closed**. Each change has regression tests that fail on the
+pre-fix source and pass now (method and per-test results: `docs/traceability.md`, "Round 15").
+
+| ID | Defect | Change | Tests |
+|---|---|---|---|
+| A13-R04 | ADC channel class not propagated. Round 14 moved NTC_A to T15 = PTC11 = ADC5_S11 (a standard input), but `s32k396_adc.c` MAP[] kept a hand-written `'P'`: `S32K3_ADC_CH('P', 11)` = 11 selected PCDR11 of an 8-entry array (UBSan: out of bounds; the read returned the register after PCDR7) instead of ICDR11 (= 43). The schedule was hand-listed too: `hal_adc_start_slow()` started the normal chains of ADC0/3/4/5, so ADC1's injected chain — INTRLOK_N, TMOD_W and now MT2_SIG (moved to ADC1_P0, next to the continuous V_DC ch2) — never ran; and HW_ID (ADC3_P0, slow list) was classified in `app_init` before any slow list had run, from a "never converted" 0 (a false "HW_ID short" on the target). | `gen-board-map.mjs` emits the full triple `BP_<NET>_INST/_SUB/_CHAN` for every peripheral signal and refuses an ADC input that does not exist (P8+, S24+). MAP[] = `TI_ADC_MAP_INIT` (`s32k396.h`), one `TI_ADC_ROW(net, group)` per HAL input with all three from `board_pins.h`: no per-pin letter left. `S32K3_ADC_CH()` is strict (any other pair is `TI_ADC_CH_INVALID`), and `cdr()` reads only PCDR0–7 / ICDR0–23 (else "never converted"). The schedule is derived from MAP (`s32k396_cfg.h`: `adc_slow_chain`, `adc_chain_mask`): the 1 ms list starts each instance's chain (normal on ADC0/3/4/5, injected on ADC1); `hal_adc_init()` reads every chain's NCMR/JCMR back against the ball map and refuses a mismatch (a stale Config Tools project) or a mapped input on an instance it leaves off. `init_identity()` starts the slow list before each HW_ID sample. ADC1's ch2 gap is (1 + 3) conversions ≤ the 5 µs FW-06 allocation (checked from the params). `TI_FW_ID` 0x0A0D000F: a round-14 validation record measured the FW-06 chain with the old ADC1 schedule. | platform_cfg: `adc_map_matches_the_ball_map`, `adc_schedule_follows_the_ball_map`; scenarios: `hw_id_is_converted_before_it_is_classified` |
+| A13-R02 (review 3) | Low-speed contactor loss. `detect()` raised the battery-lost row only for `(contactors != CLOSED) && (ti_absf(speed) >= n_x)`: at a known low speed or standstill an OPEN or INVALID report — and at any speed a stale one, which keeps the last CLOSED — raised nothing unless V_DC disagreed with the pack. `st_run()` set `arm` and `torque_enable` before its exits, so the invocation that left RUN still permitted the requested torque; the next ticks disarmed through PRECHARGE_WAIT with EN low: all gates off with whatever current the winding held. | Armed (ARMED_ZERO_TORQUE/RUN/DERATE) the battery path must be proven at every speed: contactors reported CLOSED in a fresh VCU frame; OPEN, PRECHARGE, INVALID and a stale report are all "lost" (and V_DC off the pack, as before). The §6 row decides: below n_x zero torque at the current-loop rate under current control while the winding current is ≥ `cal_spo_release_a` — a §6 permission that does not depend on the state's arm; FW-06 stays the OV backstop — then SPO with EN low; at n ≥ n_x or unknown speed LS-ASC; without current control or ASC the other rows and the energy rule apply as before. The row holds while that response energises the bridge, then clears: unarmed, open contactors are the precharge sequence. It is the FAULT state while the response has energy to manage; a loss met with nothing to manage (SPO at once, V_DC at the pack: the FW-08 zero-torque opening) is not (`fm_needs_fault_state(f, done)`). State-machine outputs describe the state an invocation ends in: leaving RUN/DERATE grants no torque (to FAULT, DISCHARGE or SAFE_POWERDOWN no arm either); an active battery-path row (`sm_in_t.battery_lost`) leaves RUN like an open contactor and blocks re-entry. | scenarios: `low_speed_open_contactor_is_a_battery_path_loss` (the reviewer's reproduction), `battery_path_loss_while_armed_at_every_speed` (zero/low/high/unknown × OPEN/INVALID/stale, 340 A rms, regenerating), `zero_torque_opening_at_standstill_disarms_without_fault` (guard), `stale_can_takes_torque_to_zero_not_held`; state_machine: `leaving_run_grants_no_torque_in_the_same_invocation`, `battery_path_row_leaves_run_and_blocks_reentry`; fault_mgr: `battery_lost_is_a_fault_until_its_response_is_done`; safe_state: `unknown_speed_takes_high_column` (battery row added) |
+
+Test infrastructure: the host sim can model the target's slow list (`sim_adc_require_slow_start()`: only
+the phase currents and V_DC are converted before the list is first started; off by default). Existing
+tests changed: `stale_can_ramps_to_zero_not_held` became `stale_can_takes_torque_to_zero_not_held` (a stale
+report under torque is now a battery-path loss: zero torque at the current-loop rate instead of the FW-11
+ramp; it also checks the re-arm through precharge); `dtc_time_stamps_across_the_microsecond_wrap_in_the_application`
+runs at zero torque (under torque the loss disarms and the timeout DTC stops being re-stamped); the
+`fm_needs_fault_state()` call sites (signature).
 
 ## Contract contradictions and open items (not silently changed)
 
@@ -280,3 +305,25 @@ whose expectations follow A12-R08 and F23.
     FW-06 chain and writes `NV_REC_VALIDATION` (`arm_validation_t`) is not in this repository.
 23. **Equal gain errors on all three current channels** are not observable with three sensors in
     closed loop (F24); the coverage table in `docs/traceability.md` says what bounds them.
+24. **FW-11 vs §6 (round 15).** FW-11 ramps a stale command to zero. A stale report also leaves the
+    contactor state unknown, so while armed it is the §6 battery-lost row ("contactor/precharge feedback
+    invalid"), and that row wins: zero torque at the current-loop rate below n_x, LS-ASC above. The FW-11
+    ramp remains for a command lost with the battery path still proven (HVIL open). The contract should
+    say so.
+25. **When the battery-lost row applies (round 15).** §6 names the row but not when it is evaluated.
+    The firmware evaluates it whenever armed, at every speed, with OPEN, PRECHARGE, INVALID and a stale
+    report as "lost"; it is a FAULT only while its response still holds energy (current control or
+    ASC); the FW-08 zero-torque opening below n_x with no winding current is a normal disarm.
+26. **DC-link trim (FW-08), observed, not changed.** Under that row below n_x, `zero_now` holds iq at 0
+    at the current-loop rate while `t_cmd_nm` carries the DC-link PI output (`dcl_step`, V_ref = the
+    normal-range maximum): the trim never reaches the current references, and INV_STATUS reports it as
+    the torque (−50 Nm with the link at a 750 V pack) while zero torque is applied. Either the trim is
+    meant to act (then its V_ref must not drive the isolated link toward the OV trip) or the status and
+    `t_cmd_nm` should read zero; FW-08's wording decides.
+27. **ADC1 injected chain (round 15).** The FW-06 sample wait (≤ 5 µs) now includes ADC1's three
+    injected conversions (MT2_SIG, INTRLOK_N, TMOD_W): (1 + 3) × 1 µs = 4 µs at the allocated
+    conversion time — to be measured on the target (or MT2_SIG moved off ADC1).
+28. **BCTU list read-back.** The ADC chain masks are read back at init; the BCTU list is not yet
+    (LISTCHR layout, `TODO(RM)`).
+29. **Image identity.** `TI_FW_ID` is 0x0A0D000F: a new EOL/HIL validation record is needed for this
+    image before it arms.

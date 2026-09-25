@@ -20,6 +20,10 @@ at full load, and an NVM job in flight.
 The V_DC channels (ADC6_P4, ADC1_P6) run free at ≥ 200 kS/s per channel with **no ISR**. The
 ADC analog watchdog acts in hardware through TRGMUX/LCU on eFlexPWM FAULT1, which takes the high
 sides off. The only software involved is the fault ISR above.
+ADC1 also converts its slow inputs (MT2_SIG P0, INTRLOK_N P7, TMOD_W S8) as injected conversions the
+1 ms task starts (round 15: before, nothing started them): V_DC ch2 waits at most (1 + 3) conversions,
+4 µs at the allocated 1 µs, inside the 5 µs sample wait below (`platform_cfg:
+adc_schedule_follows_the_ball_map` checks it from the parameters; measure it on the target).
 
 ### Double-update current loop, not 10 kHz
 

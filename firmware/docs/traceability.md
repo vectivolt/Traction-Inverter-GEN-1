@@ -1,6 +1,7 @@
 # Traceability: FW-xx → code → test
 
-Requirements from `docs/firmware-contract.md` (rev A.12) and the round-14 review of commit cfd35a7.
+Requirements from `docs/firmware-contract.md` (rev A.13), the round-14 review of commit cfd35a7 and the
+round-15 rechecks of commit a8c75eb.
 Paths are relative to `firmware/`.
 Tests are `tests/test_<file>.c:<test name>`, and `make test` runs all of them.
 
@@ -10,7 +11,7 @@ The last column says what the host run proves and what only the target can prove
 
 | FW | Requirement (short) | Code (file: function) | Host tests | Target / HIL still needed |
 |---|---|---|---|---|
-| FW-01 | Read HW_ID, classify the SKU resistor, reject open/short/unstable | `sense/hwid.c: hwid_classify, hwid_classify_stable`; `app/app.c: init_identity` | `hwid: each_sku_resistor, open_short_and_between_windows, unstable_reading_rejected`; `params: fw01_hwid_nominal_voltages`; `scenarios: hwid_wrong_open_short_never_arm` | Divider tolerance on real cards |
+| FW-01 | Read HW_ID, classify the SKU resistor, reject open/short/unstable; (A13-R04) from a conversion the slow list was started for | `sense/hwid.c: hwid_classify, hwid_classify_stable`; `app/app.c: init_identity` (slow list started before each sample) | `hwid: each_sku_resistor, open_short_and_between_windows, unstable_reading_rejected`; `params: fw01_hwid_nominal_voltages`; `scenarios: hwid_wrong_open_short_never_arm, hw_id_is_converted_before_it_is_classified` | Divider tolerance on real cards |
 | FW-02 | Parameter set carries its SKU; mismatch refuses MCU_GATE_EN; discharge τ plausibility | `sense/hwid.c: hwid_identity_ok`; `app/app.c: init_identity` (forbid); `discharge/discharge.c: witness` (τ) | `hwid: fw02_identity_binding`; `discharge: wrong_bank_tau_is_a_dtc, normal_discharge_auto_release_and_tau_ok`; `scenarios: hwid_wrong_open_short_never_arm` | Measured τ per bank |
 | FW-03 | P_max(V_DC) envelope; (F23) every current reference voltage-feasible, else zero torque + speed-limit request | `control/torque.c: torque_p_max_w, torque_limits, torque_to_current` (witness), `torque_v_required, torque_v_available`; `app/app.c: torque_path` | `torque: fw03_envelope_matches_contract_table, witness_motor_map_sweep_never_returns_an_infeasible_pair, field_weakening_holds_voltage_ellipse_and_demag_clamp`; `scenarios: infeasible_current_gives_zero_torque_speed_limit_and_dtc` | Dyno; `cal_vdyn_reserve_frac` |
 | FW-04 | Thermal derating, 30 s peak, recovery | `control/torque.c: torque_derate_update`; `sense/temp.c: temp_module_max` | `torque: derate_hysteresis, peak_budget_30s_and_full_recovery, coolant_above_assumption_removes_peak`; `state_machine: derate_hysteresis_states` | Thermal model vs coldplate; peak recovery CAL |
@@ -18,11 +19,11 @@ The last column says what the host run proves and what only the target can prove
 | FW-06 | DC overvoltage: both channels in hardware compare; ADC watchdog → PWM-ASC request within 15.6 µs | `sense/vdc.c: vdc_ov_code`; `app/app.c: set_watchdogs, app_isr_fault`; `safety/bridge.c: br_enter_pwm_asc` | `vdc: ov_compare_code`; `scenarios: fw06_ov_to_asc_request_within_15p6us, flt_ls_at_speed_is_spo_only_even_on_overvoltage`; `bridge: pwm_asc_entry_is_break_before_make`; `safe_state: row_overvoltage_and_overcurrent` | HIL timing of the whole chain (host models the analog, sampling and ISR delays) |
 | FW-06a | ASC exit only by MCU command, ASC_CLR first, first HS pulse ≥ 1 µs later | `safety/bridge.c: br_exit_asc, br_modulate`; `app/app.c: apply_decision` | `bridge: asc_exit_only_when_allowed_and_hs_after_1us`; `scenarios: asc_exit_only_below_n_x_by_mcu_command, mcu_reset_at_speed_keeps_asc_then_exits_with_battery` | Scope capture of the exit edge |
 | FW-07 | V_DC plausibility: 5 % disagreement, VOFS window, V5GD window, fail-safe < 0.25 V | `sense/vdc.c: vdc_update, vdc_bms_check` | `vdc:` all 8 tests; `scenarios: vdc_disagreement_spo_and_unknown_hv, v5gd_out_of_window_forces_spo_and_unknown_hv`; `safe_state: row_v5gd_and_vdc_invalid` | Receiver offsets and gains at EOL |
-| FW-08 | Regeneration with the battery lost: DC-link voltage control | `control/dclink.c: dcl_step`; `safety/safe_state.c: ss_decide` (BATTERY_LOST, BMS_LIMIT_ZERO rows); `app/app.c: torque_path` | `dclink: sign_and_bounds`; `safe_state: row_battery_lost_never_released_by_rule_b, row_bms_limit_zero_with_battery_is_never_asc`; `scenarios: bms_limit_zero_connected_is_not_asc_but_contactor_open_is` | DC-link controller gains on the real bank |
+| FW-08 | Regeneration with the battery lost: DC-link voltage control; (A13-R02) the battery-path loss detected whenever armed at every speed — OPEN, PRECHARGE, INVALID or stale report, V_DC off the pack — §6 response from speed, winding current, V_DC and the actuators; no torque permission in the invocation that processes it | `control/dclink.c: dcl_step`; `safety/safe_state.c: ss_decide` (BATTERY_LOST, BMS_LIMIT_ZERO rows); `app/app.c: detect` (battery path), `apply_decision` (zero torque, then SPO once the current is gone), `torque_path` (the §6 current-control permission), `gather`; `safety/fault_mgr.c: fm_needs_fault_state`; `safety/state_machine.c: st_run` | `dclink: sign_and_bounds`; `safe_state: row_battery_lost_never_released_by_rule_b, row_bms_limit_zero_with_battery_is_never_asc, unknown_speed_takes_high_column`; `fault_mgr: battery_lost_is_a_fault_until_its_response_is_done`; `state_machine: leaving_run_grants_no_torque_in_the_same_invocation, battery_path_row_leaves_run_and_blocks_reentry`; `scenarios: bms_limit_zero_connected_is_not_asc_but_contactor_open_is, low_speed_open_contactor_is_a_battery_path_loss, battery_path_loss_while_armed_at_every_speed, zero_torque_opening_at_standstill_disarms_without_fault` | DC-link controller gains on the real bank |
 | FW-08b | "Keep HV connected" while an SPO relies on the battery (rule (a) fails, battery present) at any speed, until rule (a) holds or ASC; battery absent ⇒ "no safe state proven" (A12-R08) | `safety/safe_state.c: ss_decide` (keep_hv, energy_dtc); `safety/fault_mgr.c: combine, fm_update` (keep_hv, no_safe_state); `app/app.c: status_tx`; `comms/can_cmd.c: can_status_encode` (b1.5, b14.0) | `safe_state: keep_hv_follows_the_battery_as_the_sink_at_every_speed, row_flt_hs, row_flt_ls_is_spo_only`; `fault_mgr: keep_hv_until_asc_or_low_speed, keep_hv_held_until_rule_a_and_no_safe_state_without_battery`; `scenarios: standstill_desat_at_rated_current_reports_keep_hv_on_can, flt_hs_at_speed_spo_then_reset_then_pwm_asc`; `can_cmd: status_frame_round14_fields` | Vehicle integration |
 | FW-09 | HVIL ladder signature; open ⇒ ramp to zero ≤ 100 ms | `sense/hvil.c: hvil_classify, hvil_step`; `app/app.c: detect` | `hvil: signatures, open_detected_within_100ms, short_to_ground_detected`; `scenarios: hvil_open_ramps_torque_within_100ms` | Harness signatures |
 | FW-10 | Resolver: amplitude window, tracking error, rate vs model, excitation monitor, −24° compensation | `control/resolver.c: rslv_update` (observer), `rslv_rate_check, rslv_theta_e_at, rslv_swg_trim`; `app/app.c: sense_fast, sense_slow` | `resolver:` all 10 tests; `scenarios: resolver_amplitude_low_asc_at_speed_spo_below, mcu_reset_at_speed_keeps_asc_then_exits_with_battery, swg_trim_is_written_to_the_generator` | SDADC/SWG configuration, `cal_rslv_latency_us`, EOL phase trim |
-| FW-11 | CAN command: E2E CRC + alive counter, ≤ 20 ms stale ⇒ ramp to zero, BMS timeout ⇒ zero regen; (A12-R06) the same across the 32-bit µs wrap | `comms/can_cmd.c: can_cmd_rx, can_e2e_crc, can_cmd_fresh, can_bms_fresh, can_dir_interlock`; `control/torque.c: torque_limits, torque_clamp`; `safety/state_machine.c: st_run`; `hal/timer.h: hal_time_us64, hal_time_ms, ti_time64_extend`; `app/app.c: app_task_1ms` | `can_cmd: valid_frame_decoded, crc_bad_rejected, frozen_counter_goes_stale_after_20ms, counter_jump_rejected_then_resynced, bms_has_its_own_timeout, direction_interlock`; `torque: bms_limits_and_timeout_zero_regen, nan_torque_command_zeroed`; `time: can_freshness_across_the_microsecond_wrap`; `scenarios: stale_can_ramps_to_zero_not_held, frozen_alive_counter_is_stale, nan_reference_never_reaches_pwm, running_across_the_microsecond_wrap_keeps_fresh_frames_fresh`; `state_machine: stale_command_ramps_then_zero_torque` | Vehicle DBC / DataID agreement |
+| FW-11 | CAN command: E2E CRC + alive counter, ≤ 20 ms stale ⇒ ramp to zero, BMS timeout ⇒ zero regen; (A12-R06) the same across the 32-bit µs wrap | `comms/can_cmd.c: can_cmd_rx, can_e2e_crc, can_cmd_fresh, can_bms_fresh, can_dir_interlock`; `control/torque.c: torque_limits, torque_clamp`; `safety/state_machine.c: st_run`; `hal/timer.h: hal_time_us64, hal_time_ms, ti_time64_extend`; `app/app.c: app_task_1ms` | `can_cmd: valid_frame_decoded, crc_bad_rejected, frozen_counter_goes_stale_after_20ms, counter_jump_rejected_then_resynced, bms_has_its_own_timeout, direction_interlock`; `torque: bms_limits_and_timeout_zero_regen, nan_torque_command_zeroed`; `time: can_freshness_across_the_microsecond_wrap`; `scenarios: stale_can_takes_torque_to_zero_not_held` (round 15: armed, a stale report is also a battery-path loss), `frozen_alive_counter_is_stale, nan_reference_never_reaches_pwm, running_across_the_microsecond_wrap_keeps_fresh_frames_fresh`; `state_machine: stale_command_ramps_then_zero_torque` | Vehicle DBC / DataID agreement |
 | FW-12 | FS26: OTP/INIT readback at boot, Q&A watchdog (ERR_LIMIT 2, ≤ 3 ms window) before FS0B release, FS1B policy, GPIO1, LPOFF | `safety/fs26.c: fs26_init, fs26_wd_refresh, fs26_release_safety_outputs, fs26_request_fs0b, fs26_set_gpio1, fs26_goto_lpoff` | `fs26:` all 12 tests; `scenarios: watchdog_missed_drops_drv_en` | Real FS26 OTP image, watchdog answer width, FS0B release after RSTB, SPI timing |
 | FW-13 | Temperatures: module NTC open/short/rate, motor sensors, board NTCs | `sense/temp.c: temp_ntc_c, temp_pt1000_c, temp_update` | `temp:` all 4 tests | Sensor curves of the chosen parts |
 | FW-14 | Gate power: RDY low ⇒ no PWM; flyback before DRV_EN | `safety/gate_power.c: gp_request_on, gp_step, gp_rdy_both` | `gate_power: refused_while_fs1b_asserted, start_ready_loss_and_recovery, start_timeout` | RDY rise/fall times (CAL) |
@@ -45,7 +46,7 @@ The last column says what the host run proves and what only the target can prove
 | MTPA (LUT and closed form), field weakening (voltage ellipse), demagnetisation clamp, current circle | `control/torque.c: torque_mtpa_id, torque_to_current` | `torque: mtpa_spm_and_ipm, mtpa_lut_interpolates, field_weakening_holds_voltage_ellipse_and_demag_clamp, current_circle` |
 | IGN (KL15) | `sense/ign.c` | `ign: hysteresis_and_debounce`; `state_machine: key_off_powerdown_to_lpoff` |
 | UDS DTC store | `comms/dtc.c` | `dtc: status_bits_and_occurrences` |
-| Ball-map binding, S32K396 register images, REG_PROT layout | `platform/s32k396/board_pins.h` (generated), `s32k396_cfg.h` | `board_map:` 5 tests; `platform_cfg:` 8 tests |
+| Ball-map binding, S32K396 register images, REG_PROT layout; (A13-R04) every ADC input's instance/subtype/channel from the generated triple, the conversion schedule derived from it | `tools/gen-board-map.mjs`; `platform/s32k396/board_pins.h` (generated), `s32k396.h: TI_ADC_MAP_INIT`, `s32k396_cfg.h: S32K3_ADC_CH, adc_slow_chain, adc_chain_mask`; `s32k396_adc.c: cdr, hal_adc_init` (chain read-back), `hal_adc_start_slow` | `board_map:` 5 tests; `platform_cfg:` 10 tests (`adc_map_matches_the_ball_map, adc_schedule_follows_the_ball_map`) |
 | One time domain (A12-R06): 64-bit µs, ms = us64/1000 | `hal/timer.h`; `platform/host/sim_hal.c, platform/s32k396/s32k396_io.c: hal_time_us64`; `app/app.c`; `nvm/nvlog.c`; `comms/dtc.c: dtc_set, dtc_times` | `time:` 4 tests; `scenarios: running_across_the_microsecond_wrap_keeps_fresh_frames_fresh, boot_across_the_microsecond_wrap_reaches_armed, desat_retry_waits_1s_across_the_microsecond_wrap, dtc_time_stamps_across_the_microsecond_wrap_in_the_application` |
 | INV_STATUS round-14 fields (b14 flags, b15 missing evidence) | `comms/can_cmd.c: can_status_encode`; `app/app.c: status_tx` | `can_cmd: status_frame_round14_fields`; scenarios above |
 
@@ -53,7 +54,7 @@ The last column says what the host run proves and what only the target can prove
 
 | Edge case | Test(s) |
 |---|---|
-| Stale, frozen and CRC-bad CAN frames | `can_cmd: crc_bad_rejected, frozen_counter_goes_stale_after_20ms, counter_jump_rejected_then_resynced`; `scenarios: stale_can_ramps_to_zero_not_held, frozen_alive_counter_is_stale` |
+| Stale, frozen and CRC-bad CAN frames | `can_cmd: crc_bad_rejected, frozen_counter_goes_stale_after_20ms, counter_jump_rejected_then_resynced`; `scenarios: stale_can_takes_torque_to_zero_not_held, frozen_alive_counter_is_stale` |
 | BMS limit 0 with the contactors closed (no ASC) vs a contactor open | `safe_state: row_bms_limit_zero_with_battery_is_never_asc, row_battery_lost_never_released_by_rule_b`; `scenarios: bms_limit_zero_connected_is_not_asc_but_contactor_open_is` |
 | §6 rows at n < n_x and n ≥ n_x, energy rule from the screening motor (0.35 mH, 25 mΩ): SPO refused or allowed | `safe_state: n_x_of_the_screening_motor, rule_a_winding_energy_at_standstill, row_cmd_lost, row_resolver_invalid_with_energy_rule, row_flt_hs, row_v5gd_and_vdc_invalid, unknown_speed_takes_high_column` |
 | FW-06 OV → ASC request timing budget | `scenarios: fw06_ov_to_asc_request_within_15p6us` |
@@ -82,6 +83,9 @@ The last column says what the host run proves and what only the target can prove
 | Infeasible current (low bus, high speed, hot magnets, restrictive demag limit) | `torque: witness_motor_map_sweep_never_returns_an_infeasible_pair`; `scenarios: infeasible_current_gives_zero_torque_speed_limit_and_dtc` |
 | Current channel stuck at zero (below the KCL tolerance; all three) | `current: activity_catches_a_stuck_channel_where_current_is_asked`; `scenarios: all_three_current_channels_stuck_detected_under_command, one_current_channel_stuck_below_the_kcl_tolerance_detected` |
 | Shorted QDIS seen at the next contactor opening | `discharge: unexpected_discharge_judged_only_with_nothing_drawing_on_the_link`; `scenarios: stuck_on_qdis_latches_service_required_and_never_rearms` |
+| Battery path lost while armed at zero, low, high and unknown speed, contactors OPEN / INVALID / stale report, 340 A rms and regenerating (A13-R02) | `scenarios: low_speed_open_contactor_is_a_battery_path_loss, battery_path_loss_while_armed_at_every_speed`; `state_machine: leaving_run_grants_no_torque_in_the_same_invocation, battery_path_row_leaves_run_and_blocks_reentry`; `fault_mgr: battery_lost_is_a_fault_until_its_response_is_done` |
+| The FW-08 zero-torque opening at standstill stays a normal disarm (no FAULT) | `scenarios: zero_torque_opening_at_standstill_disarms_without_fault` |
+| A relocated ADC input keeps its generated subtype (NTC_A = ADC5_S11); relocated slow inputs are in a started chain (MT2_SIG ADC1_P0, HW_ID ADC3_P0) (A13-R04) | `platform_cfg: adc_map_matches_the_ball_map, adc_schedule_follows_the_ball_map`; `scenarios: hw_id_is_converted_before_it_is_classified` |
 
 ## Phase-current diagnostic coverage per operating state (F24)
 
@@ -158,3 +162,42 @@ with the new harness (212 run there, 128 checks failed, all in the tests below).
 | scenarios: one_current_channel_stuck_below_the_kcl_tolerance_detected | F24 | FAIL: currents stayed valid (the harness later reported a resolver-rate fault instead) | pass |
 | discharge: unexpected_discharge_judged_only_with_nothing_drawing_on_the_link | 9 | FAIL: stuck-on verdict while the motor drew the link | pass |
 | scenarios: stuck_on_qdis_latches_service_required_and_never_rearms | 9 | FAIL: DTC only, re-armed, no status bits | pass |
+
+## Round 15: before/after on the pre-fix source
+
+Method, as in round 14: the pre-fix `firmware/` was extracted from commit a8c75eb into a scratch
+directory and the round-15 `tests/` copied over it. The old tree also received the one new test hook of
+the host simulation (`sim_adc_require_slow_start`: test infrastructure, not firmware), and a compatibility
+header force-included into the test files only mapped each new interface onto what the old code did:
+`fm_needs_fault_state(f, done)` = the old one-argument function (every battery-lost row a FAULT);
+`TI_ADC_MAP_INIT` = the old private MAP[] of `s32k396_adc.c`, translated row by row by `sed`
+(`{I, S32K3_ADC_CH('X', C), G_g}` → `{I, 'X', C, g}`); `adc_slow_chain` = the old hand-written start list
+(normal chains of ADC0/3/4/5, nothing else); `adc_chain_mask` = what the old MAP implies through the old,
+non-strict `S32K3_ADC_CH()` (the old firmware derived no masks). One new test reads a new state-machine
+input with no old counterpart and was not compiled there (`state_machine:
+battery_path_row_leaves_run_and_blocks_reentry`). Every pre-existing test still passed on the pre-fix
+source with the new tests (222 run there, 100 checks failed, all in the tests below); this tree: 223
+tests, 1882 checks, 0 failed (also under ASan/UBSan and at `-O2`).
+
+| Suite: test | Item | Pre-fix (a8c75eb) | This tree |
+|---|---|---|---|
+| platform_cfg: adc_map_matches_the_ball_map | A13-R04 | FAIL (3): NTC_A mapped ADC5 **P**11 against the ball map's ADC5_S11 (RTD channel 11, not 43); `S32K3_ADC_CH()` accepted 'P' 11, 'N' 0 | pass |
+| platform_cfg: adc_schedule_follows_the_ball_map | A13-R04 | FAIL (5): INTRLOK_N (ADC1 P7), TMOD_W (ADC1 S8) and MT2_SIG (ADC1 P0) in no started chain; ADC5's chain without S11 | pass |
+| scenarios: hw_id_is_converted_before_it_is_classified | A13-R04 | FAIL (2): HW_ID read "never converted" at init ⇒ DTC_HWID_SHORT, init FAIL, never armed | pass |
+| scenarios: low_speed_open_contactor_is_a_battery_path_loss | A13-R02 | FAIL (3): the reviewer's reproduction — no row (cont_lost = 0), ARMED_ZERO_TORQUE with arm = 1 and torque_enable = 1, iq_ref of the 100 Nm request | pass |
+| scenarios: battery_path_loss_while_armed_at_every_speed | A13-R02 | FAIL (70), all 12 cases: zero/low × OPEN/INVALID (8 each): no row, ARMED_ZERO_TORQUE with arm/torque_enable, the request still the target, then all gates off at 480 A (PRECHARGE_WAIT's SPO) instead of zero-torque current control, status not FAULT; zero/low × stale (11 each): the same plus torque kept on the FW-11 ramp and no release; high × OPEN/INVALID (1 each): arm = 1 and torque_enable = 1 on the way to FAULT; high × stale (5): no row (only the command row's ASC), RUN with torque permission; unknown × all (3 each): no row (last speed low), arm/torque_enable | pass |
+| scenarios: stale_can_takes_torque_to_zero_not_held (rewritten) | A13-R02 | FAIL (5): no battery-path row, the FW-11 ramp, no release to SPO | pass |
+| state_machine: leaving_run_grants_no_torque_in_the_same_invocation | A13-R02 | FAIL (11): torque_enable = 1 in every exit from RUN/DERATE, arm = 1 on the way to FAULT and PRECHARGE_WAIT | pass |
+| state_machine: battery_path_row_leaves_run_and_blocks_reentry | A13-R02 | not compiled (new input) | pass |
+| fault_mgr: battery_lost_is_a_fault_until_its_response_is_done | A13-R02 | FAIL (1): no "done" | pass |
+| scenarios: zero_torque_opening_at_standstill_disarms_without_fault | A13-R02 guard | pass | pass |
+| scenarios: dtc_time_stamps_across_the_microsecond_wrap_in_the_application (zero torque) | A12-R06 | pass | pass |
+| safe_state: unknown_speed_takes_high_column (battery row added) | A13-R02 guard | pass | pass |
+
+Two more runs outside the suite. A mutation of this tree forcing NTC_A's subtype back to `'P'` in
+`TI_ADC_MAP_INIT` fails `adc_map_matches_the_ball_map` (and `adc_schedule_follows_the_ball_map`: the pair is
+invalid, so the input is in no chain). And both versions of `s32k396_adc.c` were compiled with
+`TI_RTD_AVAILABLE` against stand-in RTD headers and fake ADC registers (UBSan on): the pre-fix driver read
+NTC_A from `PCDR[11]` (UBSan: index 11 out of bounds for `uint32_t[8]`; it returned ICDR3's value), started
+`0N 3N 4N 5N` and accepted a chain configuration without S11; this tree reads ICDR11, starts
+`0N 1J 3N 4N 5N` and refuses that configuration.
