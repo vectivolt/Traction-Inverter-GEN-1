@@ -1,7 +1,7 @@
-# Traction Inverter — Full unit cost @1,000 units (rev A.13)
+# Traction Inverter — Full unit cost @1,000 units (rev A.14)
 
 Complete ex-works build cost per inverter at a 1,000-unit run (India assembly, India+China
-supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹72,492 @1k** across
+supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹72,495 @1k** across
 the four assemblies). Figures are planning numbers (RFQ ±25 %); the two lines that move the
 answer are flagged in §3.
 
@@ -9,7 +9,7 @@ answer are flagged in §3.
 
 | # | Block | Low | Baseline | High | Notes |
 |---|---|---|---|---|---|
-| 1 | Electronics BOM (power + cap bank + discharge + card) | 66,000 | 72,492 | 96,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
+| 1 | Electronics BOM (power + cap bank + discharge + card) | 66,000 | 72,495 | 96,000 | `bom.md`; low/high = module + film-cap quote swing (§3) |
 | 2 | PCBs (power 6L 2–3 oz ~0.12 m² + card 6L + discharge 2L) | 4,500 | 5,300 | 6,100 | India/China fab @1k |
 | 3 | PCBA (SMT ~750 placements + TH + AOI, 3 boards) | 2,500 | 3,300 | 4,100 | discharge board panelized 4-up |
 | 4 | Liquid coldplate (FSW/gun-drilled Al, 3× EconoDUAL footprint, fittings) | 4,500 | 6,000 | 8,000 | ~360×160 mm, ≤0.05 K/W per switch to coolant (the S4 thermal-sim assumption — verify at thermal test) |
@@ -27,7 +27,7 @@ answer are flagged in §3.
 ### IGBT and 4XX SKUs (same boards — full comparison in [`variants.md`](variants.md))
 
 Swapping to the HCG600FH120D3E1EA IGBT (₹9.5k/module planning vs ₹18k SiC) drops line 1 to
-**₹46,992** and the ex-works baseline to **≈ ₹91k/unit (≈ ₹415/kW at 220 kW)** — at ≈0.45 pt
+**₹46,995** and the ex-works baseline to **≈ ₹91k/unit (≈ ₹415/kW at 220 kW)** — at ≈0.45 pt
 efficiency at the continuous point and 5 kHz switching. The 4XX IGBT SKU has the same
 electronics BOM (600 V cans at the same planning price) plus ≈₹1.5k of heavier DC busbar and
 HV connector for its ≈400 A DC peak: ≈ ₹0.92 L, **≈ ₹610/kW** at its 150 kW rating. Rev A.12

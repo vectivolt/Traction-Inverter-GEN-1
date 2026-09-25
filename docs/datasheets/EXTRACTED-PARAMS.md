@@ -447,8 +447,10 @@ Design use: 270 Ω 1 % LED series from the 5 V LVC outputs (10.8–15.8 mA, veri
 | | P_PP / P_D | 1500 W at 1 ms (Table 1); ≈ 550 W at 10 ms (Fig. 2, read graphically; the axis stops at 10 ms); 6.5 W steady at T_L 50 °C | p.1, p.3 |
 | | AEC-Q101 | not stated on the commercial sheet — the automotive-line variant if the OEM requires it | all pages |
 | Vishay SMAJ8.5CA (comparison) | V_BR / V_C / I_PP | 9.44–10.4 V / 14.4 V / 27.8 A (400 W) | `SMAJ-series.pdf` p.2 |
-| Bourns MF-MSMF020 (FEXP/FEXN) | I_hold / I_trip / V_max / I_max | 0.20 A / 0.40 A / 30 V / 80 A | `MF-MSMF.pdf` |
-| | R_min / R_1max · time-to-trip · P_trip | 0.40 Ω / 6.0 Ω (1 h after a trip) · 0.06 s at 6.0 A (30 × I_hold) · 0.8 W typ; −40…85 °C; cUL, TÜV, **AEC-Q200** | |
+| Bourns MF-MSMF020/33X (FEXP/FEXN since A.14; A.13 had the unsuffixed 020) | I_hold / I_trip / V_max / I_max | 0.20 A / 0.40 A / **33 V** / 40 A; package **1812** (4.37 × 3.07 mm — the A.13 BOM had said 1206, A13-R03) | `MF-MSMF.pdf` p.1 |
+| | R_min / R_1max · time-to-trip · P_trip | 0.35 Ω / 5.0 Ω (1 h after a trip) · **0.02 s at 8 A** · 0.8 W typ; −40…85 °C | |
+| | hold-current derating | **0.09 A at 85 °C** (0.13 A is the 60 °C figure — A13-R06) against the 40–60 mA rms excitation | p.9 |
+| | unsuffixed MF-MSMF020 | 30 V, 80 A, 0.40/6.0 Ω, 0.06 s at 6 A; flagged not-for-new-designs — hence the /33X | |
 | | why not MF-LSMF | the family has no 0.2 A part (lowest MF-LSMF030X); MF-LSMF050X is 60 V / 0.5 A (4 s at 2.5 A), MF-LSMF075X 30 V / 0.75 A | `MF-LSMF.pdf` |
 | Littelfuse 0438.375WRA (FMT1/FMT2) | rating / V / I²t / R | 375 mA, 63 V DC, 0.0041 A²s melting, 1.247 Ω, 0.488 V drop at rating, −55…150 °C, **AEC-Q200** (438A series, 0603) | `Littelfuse-438A.pdf` p.1, p.3 |
 | | alternates evaluated | Bourns SF-0603FP0375F-2 (65 V, I²t 0.0041, cUL only); Littelfuse 0466.375 (1206, 125 V, I²t 0.0045, UL/CSA only) | archived |

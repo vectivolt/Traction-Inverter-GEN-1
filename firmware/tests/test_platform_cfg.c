@@ -1,10 +1,13 @@
 /* test_platform_cfg.c — the S32K396 register images the platform layer writes (s32k396_cfg.h):
  * the FW-15/§4c fault lock-down, the PWM counts/edges/mode images, ADC channel indices and
  * watchdog thresholds, CAN-FD lengths. The hardware effect of these values is a target item. */
+#include <string.h>
+
 #include "../src/platform/s32k396/s32k396.h" /* s32k396_cfg.h + the board configuration */
 #include "pwm.h"
 #include "sim.h"
 #include "test.h"
+#include "ti_params.h"
 #include "timer.h"
 
 TEST(fault_lock_image)
@@ -58,6 +61,103 @@ TEST(adc_indices_and_thresholds)
     CHECK(S32K3_ADC_CH('P', 1u) == 1u && S32K3_ADC_CH('S', 19u) == 51u);
     CHECK(adc_thrh(3000u) == 2999u); /* strict compare: data > 2999 <=> code >= 3000 */
     CHECK(adc_thrl(0u) == 0u && adc_thrl(100u) == 101u);
+}
+
+/* A13-R04: hal_adc_sig_t order and each input's net (the test's own statement of both). */
+static const char *const ADC_NET[HAL_ADC_COUNT] = {"ISNS_U",  "ISNS_V",    "ISNS_W", "VDC1_SE", "VDC2_SE", "VOFS",
+                                                   "V5GD_SNS", "HW_ID",    "IGN_SNS", "INTRLOK_N", "TMOD_U", "TMOD_V",
+                                                   "TMOD_W",  "NTC_H",     "NTC_A",  "MT1_SIG",   "MT2_SIG", "SBC_AMUX"};
+static const ti_adc_map_t ADC_MAP[HAL_ADC_COUNT] = TI_ADC_MAP_INIT; /* what s32k396_adc.c's MAP[] is */
+
+/* A13-R04: every MAP[] entry — instance, subtype, channel — is the one board_pins.h generated from the
+ * manifest (and the manifest's own "ADCi_Xn" string, parsed here), and selects that input's data
+ * register: NTC_A (T15 = ADC5_S11) is RTD channel 43 = ICDR11; the old 'P' pair picked PCDR11. */
+TEST(adc_map_matches_the_ball_map)
+{
+    static const bp_entry_t PINS[] = BOARD_PINS_INIT;
+    for (unsigned s = 0u; s < (unsigned)HAL_ADC_COUNT; s++) {
+        const bp_entry_t *b = NULL;
+        for (unsigned i = 0u; i < BOARD_PIN_COUNT; i++) {
+            b = (strcmp(PINS[i].net, ADC_NET[s]) == 0) ? &PINS[i] : b;
+        }
+        unsigned inst = 99u;
+        unsigned chan = 99u;
+        char sub = '?';
+        const bool row = (b != NULL) && (b->kind == BP_ADC) && (sscanf(b->fn, "ADC%u_%c%u", &inst, &sub, &chan) == 3);
+        const ti_adc_map_t *m = &ADC_MAP[s];
+        const bool ok = row && (m->inst == b->inst) && (m->sub == b->sub) && (m->chan == b->chan) &&
+                        (m->inst == inst) && (m->sub == sub) && (m->chan == chan) &&
+                        (S32K3_ADC_CH(m->sub, m->chan) != TI_ADC_CH_INVALID);
+        CHECK(ok);
+        if (!ok) {
+            printf("    %s: map ADC%u %c%u, ball map %s\n", ADC_NET[s], m->inst, m->sub, m->chan, row ? b->fn : "?");
+        }
+    }
+    const ti_adc_map_t *a = &ADC_MAP[HAL_ADC_NTC_A];
+    CHECK(a->inst == 5u && a->sub == 'S' && a->chan == 11u && S32K3_ADC_CH(a->sub, a->chan) == 43u);
+    CHECK(S32K3_ADC_CH('P', 11u) == TI_ADC_CH_INVALID && S32K3_ADC_CH('S', 24u) == TI_ADC_CH_INVALID &&
+          S32K3_ADC_CH('N', 0u) == TI_ADC_CH_INVALID && S32K3_ADC_CH('P', 7u) == 7u && S32K3_ADC_CH('S', 0u) == 32u);
+}
+
+static unsigned bits(uint32_t v)
+{
+    unsigned n = 0u;
+    for (; v != 0u; v &= v - 1u) {
+        n++;
+    }
+    return n;
+}
+
+/* A13-R04: the conversion schedule is derived from the same map. Every slow input sits in exactly one
+ * chain that hal_adc_start_slow() starts — MT2_SIG, moved to ADC1_P0 next to the continuous V_DC ch2,
+ * in ADC1's injected chain with INTRLOK_N/TMOD_W; HW_ID (ADC3_P0) in ADC3's normal chain, not the BCTU
+ * channel P1 — the injected conversions keep the V_DC sample gap inside the FW-06 allocation, and the
+ * BCTU list is the three phase currents on three instances. */
+TEST(adc_schedule_follows_the_ball_map)
+{
+    const ti_adc_map_t *m = ADC_MAP;
+    const uint32_t n = HAL_ADC_COUNT;
+    for (unsigned s = 0u; s < n; s++) {
+        if (m[s].grp != TI_ADC_G_SLOW) {
+            continue;
+        }
+        const ti_adc_chain_t c = adc_slow_chain(m, n, m[s].inst);
+        const ti_adc_chain_t other = (c == TI_ADC_CHAIN_NORMAL) ? TI_ADC_CHAIN_INJECTED : TI_ADC_CHAIN_NORMAL;
+        const uint8_t ch = S32K3_ADC_CH(m[s].sub, m[s].chan);
+        const uint32_t w = (ch >= 32u) ? 1u : 0u;
+        const uint32_t bit = 1uL << (ch % 32u);
+        const bool ok = (c != TI_ADC_CHAIN_NONE) && ((adc_chain_mask(m, n, m[s].inst, c, w) & bit) != 0u) &&
+                        ((adc_chain_mask(m, n, m[s].inst, other, w) & bit) == 0u);
+        CHECK(ok);
+        if (!ok) {
+            printf("    %s (ADC%u %c%u) is converted by no started chain\n", ADC_NET[s], m[s].inst, m[s].sub, m[s].chan);
+        }
+    }
+    CHECK(BP_MT2_SIG_INST == BP_VDC2_SE_INST && adc_slow_chain(m, n, BP_MT2_SIG_INST) == TI_ADC_CHAIN_INJECTED);
+    CHECK(adc_chain_mask(m, n, 1u, TI_ADC_CHAIN_INJECTED, 0u) == 0x81u);   /* MT2_SIG P0, INTRLOK_N P7 */
+    CHECK(adc_chain_mask(m, n, 1u, TI_ADC_CHAIN_INJECTED, 1u) == 0x100u);  /* TMOD_W S8 */
+    CHECK(adc_chain_mask(m, n, 1u, TI_ADC_CHAIN_NORMAL, 0u) == 0x40u && adc_chain_mask(m, n, 1u, TI_ADC_CHAIN_NORMAL, 1u) == 0u);
+    CHECK(adc_slow_chain(m, n, BP_HW_ID_INST) == TI_ADC_CHAIN_NORMAL);
+    CHECK(adc_chain_mask(m, n, 3u, TI_ADC_CHAIN_NORMAL, 0u) == 0x1Du);    /* HW_ID P0, P2, P3, P4; not ISNS_U P1 */
+    CHECK(adc_chain_mask(m, n, 5u, TI_ADC_CHAIN_NORMAL, 1u) == 0x800u);   /* NTC_A S11 */
+    CHECK(adc_slow_chain(m, n, 2u) == TI_ADC_CHAIN_NONE && adc_slow_chain(m, n, 6u) == TI_ADC_CHAIN_NONE);
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    for (uint32_t k = 0u; k < TI_ADC_NINST; k++) {
+        if (adc_chain_mask(m, n, k, TI_ADC_CHAIN_INJECTED, 0u) | adc_chain_mask(m, n, k, TI_ADC_CHAIN_INJECTED, 1u)) {
+            const unsigned inj = bits(adc_chain_mask(m, n, k, TI_ADC_CHAIN_INJECTED, 0u)) +
+                                 bits(adc_chain_mask(m, n, k, TI_ADC_CHAIN_INJECTED, 1u));
+            CHECK((float)(1u + inj) * p->fw06_conv_us <= 1.0e6f / p->fw06_sample_hz); /* 4 us <= 5 us */
+        }
+    }
+    unsigned ph = 0u;
+    uint32_t inst_seen = 0u;
+    for (unsigned s = 0u; s < n; s++) {
+        if (m[s].grp == TI_ADC_G_PHASE) {
+            ph++;
+            inst_seen |= 1uL << m[s].inst;
+        }
+    }
+    CHECK(ph == 3u && bits(inst_seen) == 3u);
 }
 
 TEST(can_fd_lengths)
@@ -140,6 +240,8 @@ void suite_platform_cfg(void)
     RUN(pwm_counts_and_edges);
     RUN(pwm_mode_images);
     RUN(adc_indices_and_thresholds);
+    RUN(adc_map_matches_the_ball_map);
+    RUN(adc_schedule_follows_the_ball_map);
     RUN(can_fd_lengths);
     RUN(regprot_lock_decision_needs_every_bit_read_back);
     RUN(fault_route_unbound_by_default);

@@ -38,6 +38,8 @@ static struct {
 } s_wd[HAL_ADC_COUNT];
 static uint32_t s_wd_status;
 static bool s_wd_level;
+static bool s_slow_model;   /* the target's slow list: nothing converted before its first start */
+static bool s_slow_started;
 
 typedef enum { HVIL_M_CLOSED = 0, HVIL_M_OPEN, HVIL_M_SHORT_GND, HVIL_M_SHORT_BAT } hvil_mode_t;
 static hvil_mode_t s_hvil;
@@ -402,7 +404,21 @@ uint64_t sim_pwm_asc_set_ns(void) { return P.asc_ns; }
 uint32_t sim_pwm_nan_writes(void) { return P.nan_writes; }
 
 /* ================= ADC HAL ================= */
-bool hal_adc_init(void) { return true; }
+bool hal_adc_init(void)
+{
+    s_slow_started = false;
+    return true;
+}
+
+void sim_adc_require_slow_start(bool on) { s_slow_model = on; }
+
+/* The phase currents (BCTU) and V_DC (continuous) convert on hardware triggers; the rest only once
+ * software has started the slow list. */
+static bool slow_unconverted(hal_adc_sig_t sig)
+{
+    return s_slow_model && !s_slow_started && (sig != HAL_ADC_ISNS_U) && (sig != HAL_ADC_ISNS_V) &&
+           (sig != HAL_ADC_ISNS_W) && (sig != HAL_ADC_VDC1) && (sig != HAL_ADC_VDC2);
+}
 
 static float hvil_v(void)
 {
@@ -419,6 +435,11 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
     if (sig >= HAL_ADC_COUNT) {
         return false;
     }
+    if (slow_unconverted(sig)) {
+        *code = 0u;
+        *t_us = 0u;
+        return false; /* never converted */
+    }
     *code = (sig == HAL_ADC_INTRLOK_N) ? v_to_code(hvil_v()) : s_code[sig];
     *t_us = (uint32_t)((s_frozen[sig] ? s_frozen_t[sig] : s_now) / 1000u);
     return true;
@@ -433,7 +454,7 @@ bool hal_adc_read_phase(uint16_t codes[3], uint32_t *t_us)
     return true;
 }
 
-void hal_adc_start_slow(void) {}
+void hal_adc_start_slow(void) { s_slow_started = true; }
 
 bool hal_adc_set_watchdog(hal_adc_sig_t sig, uint16_t lo_trip, uint16_t hi_trip)
 {
@@ -766,6 +787,8 @@ void sim_reset_at_us(uint64_t t_us)
     (void)memset(&s_ramp, 0, sizeof s_ramp);
     s_wd_status = 0u;
     s_wd_level = false;
+    s_slow_model = false;
+    s_slow_started = false;
     s_hvil = HVIL_M_CLOSED;
     (void)memset(&P, 0, sizeof P);
     pwm_regs_reset();

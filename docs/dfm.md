@@ -106,9 +106,12 @@ test on back-to-back rig).
   on the power board (the two nets are V15S and V15 — keep the labels).
 - **Bias-LDO ballast R5LB/R5LC (A.13)** — 2512, 0.45 W each: on the same 2 oz copper as the LDO, ≥ 5 mm from
   the UCC12051-Q1 and the AMC1311; the LDO input cap C5Lx1 sits between the ballast and the LDO IN pin.
-- **Resolver excitation protection (A.13)** — TVSEP/TVSEN (SMC) and FEXP/FEXN (1812 PTC) at the vehicle
-  connector, TVS return to the AGND star with a wide short trace; the feedback resistors REXB and the monitor
-  REXM stay on the amplifier side of the PTCs. The PTCs need ~2 mm of free air (they self-heat when tripped).
+- **Resolver excitation protection (A.13, topology corrected A.14)** — from the amplifier outwards: RSXP/RSXN
+  (2.2 Ω 1206) → protected node (TVSEP/TVSEN SMC to the AGND star with a wide short trace; the REXM monitor
+  taps here) → FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
+  amplifier side of the PTC — a fault from the connector reaches the clamp only through the PTC (A13-R01). The
+  feedback resistors REXB stay at the amplifier outputs. The PTCs need ~2 mm of free air (they self-heat when
+  tripped).
 - **Motor-temperature protection (A.13)** — FMT (0603 fuse) first from the connector, then TVSM (SMA) to AGND,
   then the 1 k into the buffer; keep the fuse away from the LDO heat so its rating holds.
 - **JIC/JICC (Samtec IPL1, A.12)** — confirm the header's pin-1 corner and the odd/even row numbering

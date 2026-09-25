@@ -114,12 +114,13 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.13** (review rounds 7–14: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.14** (review rounds 7–15: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
 V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
 re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,
-excitation-monitor and exciter/motor-temperature line hardening, V_DC-bias LDO ballast,
-UCC14141-Q1 certificate; list in design-basis §9). It adds:
+excitation-monitor and exciter/motor-temperature line hardening (exciter TVS now behind the PTC
+per line, corrected PTC part, round 15/A.14), ADC-map and any-speed contactor-loss firmware,
+V_DC-bias LDO ballast, UCC14141-Q1 certificate; list in design-basis §9). It adds:
 
 - the marine kit, about ₹27–56k per cell:
   - IP54 enclosure;

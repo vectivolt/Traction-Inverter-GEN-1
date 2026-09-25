@@ -191,8 +191,9 @@ void fm_retry_consumed(fm_t *f, const fm_ctx_t *c)
 bool fm_active(const fm_t *f, ss_row_t row) { return (row < SS_ROW_COUNT) && ((f->active & bit(row)) != 0u); }
 bool fm_any(const fm_t *f) { return f->active != 0u; }
 
-bool fm_needs_fault_state(const fm_t *f)
+bool fm_needs_fault_state(const fm_t *f, bool battery_lost_done)
 {
-    const uint32_t soft = bit(SS_ROW_CMD_LOST) | bit(SS_ROW_BMS_LIMIT_ZERO);
+    const uint32_t soft = bit(SS_ROW_CMD_LOST) | bit(SS_ROW_BMS_LIMIT_ZERO) |
+                          (battery_lost_done ? bit(SS_ROW_BATTERY_LOST) : 0u);
     return ((f->active & ~soft) != 0u) || f->desat_blocked;
 }

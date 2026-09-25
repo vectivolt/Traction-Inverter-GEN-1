@@ -204,8 +204,65 @@ static inline bool regprot_locked(uint32_t gcr, const uint8_t *slbr_read, const 
 }
 
 /* ---------------- ADC_SAR ---------------- */
-/* RTD/RM channel index: precision inputs Pn = n (0..7), standard inputs Sn = 32 + n (0..23). */
-#define S32K3_ADC_CH(sub, n) ((uint8_t)(((sub) == 'S') ? (32u + (uint32_t)(n)) : (uint32_t)(n)))
+/* RTD/RM channel index: precision inputs Pn = n (0..7, data register PCDRn), standard inputs
+ * Sn = 32 + n (0..23, ICDRn). Any other pair — another subtype, or P8+/S24+ — is TI_ADC_CH_INVALID,
+ * which reads as "never converted" (round 15, A13-R04: 'P' with S11's number used to select PCDR11). */
+#define TI_ADC_CH_INVALID 0xFFu
+#define S32K3_ADC_CH(sub, n)                                                                              \
+    ((uint8_t)((((sub) == 'P') && ((uint32_t)(n) < 8u))    ? (uint32_t)(n)                                \
+               : ((((sub) == 'S') && ((uint32_t)(n) < 24u)) ? (32u + (uint32_t)(n)) : TI_ADC_CH_INVALID)))
+
+/* The conversion schedule (round 15): one row per HAL ADC input, instance/subtype/channel from the
+ * ball map (s32k396.h TI_ADC_MAP_INIT). PHASE = the BCTU list on the eFlexPWM trigger; VDC = the
+ * instance converts this channel continuously (FW-06); SLOW = the 1 kHz list: injected conversions on
+ * an instance that runs a V_DC channel (its sampling is interrupted, never stopped), else the normal
+ * chain. ADC_2 is not used on this card. */
+#define TI_ADC_NINST 7u
+typedef enum { TI_ADC_G_PHASE = 0, TI_ADC_G_VDC, TI_ADC_G_SLOW } ti_adc_grp_t;
+typedef enum { TI_ADC_CHAIN_NONE = 0, TI_ADC_CHAIN_NORMAL, TI_ADC_CHAIN_INJECTED } ti_adc_chain_t;
+typedef struct {
+    uint8_t inst;
+    char sub; /* 'P' precision, 'S' standard */
+    uint8_t chan;
+    ti_adc_grp_t grp;
+} ti_adc_map_t;
+
+static inline bool adc_has(const ti_adc_map_t *m, uint32_t n, uint32_t inst, ti_adc_grp_t grp)
+{
+    bool f = false;
+    for (uint32_t i = 0u; i < n; i++) {
+        f = f || ((m[i].inst == inst) && (m[i].grp == grp));
+    }
+    return f;
+}
+
+/* The chain hal_adc_start_slow() starts on an instance every 1 ms. */
+static inline ti_adc_chain_t adc_slow_chain(const ti_adc_map_t *m, uint32_t n, uint32_t inst)
+{
+    if (!adc_has(m, n, inst, TI_ADC_G_SLOW)) {
+        return TI_ADC_CHAIN_NONE;
+    }
+    return adc_has(m, n, inst, TI_ADC_G_VDC) ? TI_ADC_CHAIN_INJECTED : TI_ADC_CHAIN_NORMAL;
+}
+
+/* The channels a chain of an instance must convert, in the NCMRx/JCMRx layout: word 0 = P0..P7,
+ * word 1 = S0..S23. Normal chain: the V_DC channel of a continuous instance, else its slow signals;
+ * injected chain: the slow signals of a continuous instance. An invalid pair is in no mask. */
+static inline uint32_t adc_chain_mask(const ti_adc_map_t *m, uint32_t n, uint32_t inst, ti_adc_chain_t chain,
+                                      uint32_t word)
+{
+    const bool vdc = adc_has(m, n, inst, TI_ADC_G_VDC);
+    const ti_adc_grp_t g = ((chain == TI_ADC_CHAIN_NORMAL) && vdc) ? TI_ADC_G_VDC : TI_ADC_G_SLOW;
+    const bool used = (chain == TI_ADC_CHAIN_NORMAL) || ((chain == TI_ADC_CHAIN_INJECTED) && vdc);
+    uint32_t mask = 0u;
+    for (uint32_t i = 0u; used && (i < n); i++) {
+        const uint8_t ch = S32K3_ADC_CH(m[i].sub, m[i].chan);
+        if ((m[i].inst == inst) && (m[i].grp == g) && (ch != TI_ADC_CH_INVALID) && ((ch >= 32u) == (word == 1u))) {
+            mask |= 1uL << (ch % 32u);
+        }
+    }
+    return mask;
+}
 /* Analog watchdog: the RM compares strictly (flag when data > THRH or data < THRL). The HAL trips
  * at code >= hi and code <= lo (lo = 0: low compare off). */
 static inline uint16_t adc_thrh(uint16_t hi_trip) { return (hi_trip > 0u) ? (uint16_t)(hi_trip - 1u) : 0u; }

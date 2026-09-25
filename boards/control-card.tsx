@@ -551,17 +551,26 @@ export default () => (
       pinLabels={{ pin1: "IN1N", pin2: "IN1P", pin3: "SDN", pin4: "IN2P", pin5: "IN2N", pin6: "GND1", pin7: "NC7", pin8: "NC8", pin9: "OUT2", pin10: "VCCO2", pin11: "VCC", pin12: "VCCO1", pin13: "OUT1", pin14: "GND2" }}
       connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VEXD", VCC: "net.VEXD", VCCO1: "net.VEXD", OUT1: "net.VREX_P", GND2: "net.AGND" }} />
     <resistor name="RSDN" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.EXSD" }} />
-    {/* Round 14 (F04): the ALM2402 outputs reach the vehicle connector directly and its 12.1 V rail does not
-        protect an output pin forced to 24/35 V by a harness fault (output abs max 18 V). Per line: a 1.5 kW
-        bidirectional TVS at the connector node (SMCJ8.5CA — V_BR >= 9.4 V clears the 4-8 V excitation swing;
-        it clamps a fault at ~10-13 V, BELOW the 12.1 V rail + a diode, so the amplifier output is not back-driven)
-        and a series PTC (0.2 A hold, >= 33 V) that trips within tens of ms and then holds the TVS at ~1 W. The
-        amplifier's own short-circuit limit covers a line shorted to ground. design-verify §7c carries the
-        fault currents and the PTC/TVS pulse budget; bench (gate): terminal fault on both lines, MCU on/off. */}
-    <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_P", B: "net.VREX_PC" }} />
-    <chip name="FEXN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_N", B: "net.VREX_NC" }} />
-    <chip name="TVSEP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_PC", A: "net.AGND" }} />
-    <chip name="TVSEN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_NC", A: "net.AGND" }} />
+    {/* Round 14 (F04) / round 15 (A13-R01, R02): terminal-fault protection of the ALM2402 outputs (abs max 18 V;
+        reverse output diodes are pulse-rated only, DS 8.3.6). Per line, from the amplifier outwards:
+          OUT --RSX 2.2R-- VREX_xX --FEXP (PTC 0.2 A, 33 V)-- VREX_xC (vehicle connector)
+                             |
+                           TVSEx (SMCJ8.5CA) to AGND
+        The TVS sits on the PROTECTED (amplifier) side of the PTC, so an external battery fault can reach
+        the clamp only THROUGH the PTC — the round-14 drawing had the TVS on the connector node, where the
+        fault current bypassed the PTC (A13-R01). The clamp (~10.4-11.5 V) is below the 12.1 V rail + a diode
+        while VEXD is up; with VEXD absent/cranking the amplifier's reverse diode charges the rail through
+        RSX — a ~5 A, ~50 us pulse into CLDE, then the rail sits at ~10.8 V (under the 18 V abs max) until the
+        PTC trips (A13-R02, bench gate 28, VEXD off/low/on, both polarities). RSX also bounds the negative-fault
+        pulse through the lower diode. The monitor (REXM) taps the protected node so FW-10 sees what the
+        resolver gets; the feedback (REXB) stays at the amplifier output. design-verify §7c: fault currents,
+        TVS energy, back-drive pulse, amplitude at the resolver (>= 6.5 V pp). */}
+    <resistor name="RSXP" resistance="2.2" footprint="1206" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREX_PX" }} />
+    <resistor name="RSXN" resistance="2.2" footprint="1206" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREX_NX" }} />
+    <chip name="TVSEP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_PX", A: "net.AGND" }} />
+    <chip name="TVSEN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_NX", A: "net.AGND" }} />
+    <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_PX", B: "net.VREX_PC" }} />
+    <chip name="FEXN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_NX", B: "net.VREX_NC" }} />
     <resistor name="REXB1" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.EXN1" }} />
     <resistor name="REXB2" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN1" }} />
     <resistor name="REXB3" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.EXN2" }} />
@@ -573,9 +582,9 @@ export default () => (
         same ratios as before (42.2/60.2 = 0.701, 84.5/102.5 = 0.824); Thevenin 12.6 k / 14.8 k per leg (<= 20 k R_AAF, Table 38)
         with the 220 pF C_AAF across the pair: corner ~26 kHz, -21 deg at 10 kHz vs -24 deg on SIN/COS — a fixed 3 deg
         demodulation-reference offset, calibrated with the channel matching (FW-20). */}
-    <resistor name="REXM1" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREXM_P" }} />
+    <resistor name="REXM1" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_PX", pin2: "net.VREXM_P" }} />
     <resistor name="REXM2" resistance="42.2k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.AGND" }} />
-    <resistor name="REXM3" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREXM_N" }} />
+    <resistor name="REXM3" resistance="18k" footprint="0603" {...gp()} connections={{ pin1: "net.VREX_NX", pin2: "net.VREXM_N" }} />
     <resistor name="REXM4" resistance="84.5k" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_N", pin2: "net.AGND" }} />
     <capacitor name="CEXM" capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: "net.VREXM_P", pin2: "net.VREXM_N" }} />
     {/* sin/cos conditioning: 12 k bias pair to VMID + 12 k series + clamps + RC to SDADC.

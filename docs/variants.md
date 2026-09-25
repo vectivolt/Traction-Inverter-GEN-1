@@ -53,7 +53,7 @@ and 4XX beyond the PCBs and the card.
 | Tj end of 30 s peak at V_max (S4, static junction path; IGBT and diode share the plate — RR07/R7-07; with no plate mass: 135 / 142 / 133 / 143 °C, R8X-11) | 125 °C (175 °C max) | 132 °C (150 °C Tvjop) | 125 °C (150 °C) | 133 °C (175 °C) |
 | Semiconductor efficiency, continuous point | 99.0 % | 98.6 % | 98.1 % | 98.3 % |
 | Short-circuit protection | 3.1 µs reaction; SiC tSC unpublished → vendor letter | 4.8 µs at 400 mA soft-off vs the 6 µs rating (82 pF); 10.1 µs at the 100 mA DS minimum → release gate (RR04). The 6 µs is given at 800 V / 15 V / 175 °C; the design corner is 850 V / 16.7 V, so hiitio's statement covers that corner too (round 12) | same as 8XX IGBT | as 8XX SiC |
-| Electronics BOM @1k | **₹72,492** | **₹46,992** | **₹45,392** | ₹70,892 |
+| Electronics BOM @1k | **₹72,495** | **₹46,995** | **₹45,395** | ₹70,895 |
 | Ex-works cost (cost-rollup method) | ≈ ₹1.17 L | ≈ ₹0.91 L | ≈ ₹0.92 L (heavier DC busbar/connector) | ≈ ₹1.16 L |
 | Cost per peak kW | ≈ ₹530/kW | **≈ ₹415/kW** | ≈ ₹610/kW | ≈ ₹775/kW |
 | Status | **launch** | **launch** | **launch** | on request |

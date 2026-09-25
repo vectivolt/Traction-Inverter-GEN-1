@@ -61,6 +61,26 @@ static bool last_status(hal_can_frame_t *out)
     return got;
 }
 
+/* ---- round 15 (A13-R02) helpers ---- */
+/* One 1 ms tick in which the task is the first to see what the test just changed (no VCU frame, no
+ * link update of the harness in between). */
+static void tick_1ms(void)
+{
+    h_isr_only_us(1000u);
+    app_task_1ms(&g_app);
+    app_idle(&g_app);
+}
+
+/* The next VCU command frame at once, with the harness state (keeps its alive counter in sequence). */
+static void vcu_frame_now(void)
+{
+    hal_can_frame_t f;
+    can_encode_vcu_cmd(&f, H.ctr, H.gear, H.enable, H.fault_reset, H.torque_nm, H.contactors, H.retry_auth,
+                       H.discharge, H.shutdown, H.coolant_c);
+    sim_can_inject(HAL_CAN_VEHICLE, &f);
+    H.ctr = (uint8_t)((H.ctr + 1u) & 0x0Fu);
+}
+
 TEST(boot_to_run_follows_section_9)
 {
     h_setup(TI_SKU_8XX_SIC);
@@ -92,18 +112,26 @@ TEST(boot_to_run_follows_section_9)
     CHECK(dtc_first_active() == DTC_NONE); /* a clean boot leaves no DTC (FW-16's RDY drops included) */
 }
 
-TEST(stale_can_ramps_to_zero_not_held)
+/* FW-11 + round 15 (A13-R02): a silent VCU is never held. Armed, its stale report also leaves the
+ * contactor state unknown — a battery-path loss: at standstill with 200 Nm the §6 row takes the torque
+ * to zero at the current-loop rate (not the slower FW-11 ramp), releases the bridge to SPO once the
+ * current is gone and waits for a fresh command; the returning VCU re-arms it through precharge. */
+TEST(stale_can_takes_torque_to_zero_not_held)
 {
     CHECK(run_at(0.0f, 200.0f));
     CHECK_NEAR(g_app.t_cmd_nm, 200.0, 1.0);
     H.send_cmd = false; /* the VCU goes silent */
-    h_run_ms(21u);
-    const float t_stale = g_app.t_cmd_nm;
+    while (can_cmd_fresh(&g_app.can, hal_time_ms() + 1u, g_app.p)) {
+        h_run_ms(1u);
+    }
+    h_run_ms(1u); /* the first stale tick */
+    CHECK(fm_active(&g_app.fm, SS_ROW_CMD_LOST) && fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
+    CHECK(dtc_active(DTC_CAN_TIMEOUT) && !g_app.so.torque_enable && g_app.iq_ref == 0.0f);
     h_run_ms(30u);
-    CHECK(g_app.t_cmd_nm < t_stale - 50.0f); /* decreasing, not held */
-    CHECK(g_app.t_cmd_nm > t_stale - 70.0f); /* at the calibrated ramp rate */
-    CHECK(h_run_until(SM_ARMED_ZERO_TORQUE, 200u));
-    CHECK(g_app.t_cmd_nm == 0.0f && dtc_active(DTC_CAN_TIMEOUT));
+    CHECK(g_app.t_cmd_nm == 0.0f && hal_pwm_mode() == HAL_PWM_OFF && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+    CHECK(g_app.sm.st == SM_VEHICLE_HANDSHAKE && !fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
+    H.send_cmd = true;
+    CHECK(h_run_until(SM_ARMED_ZERO_TORQUE, 300u) && h_run_until(SM_RUN, 100u));
 }
 
 TEST(frozen_alive_counter_is_stale)
@@ -577,10 +605,12 @@ TEST(desat_retry_waits_1s_across_the_microsecond_wrap)
     CHECK(t_clr != UINT64_MAX && (t_clr - t_fault) >= 1000000000u);
 }
 
-/* A12-R06: DTC time stamps the application takes across the wrap keep their distance. */
+/* A12-R06: DTC time stamps the application takes across the wrap keep their distance. Armed at zero
+ * torque (round 15: a stale report under torque is a battery-path loss that disarms, after which the
+ * timeout DTC is no longer re-stamped; at zero torque the inverter stays armed and it is). */
 TEST(dtc_time_stamps_across_the_microsecond_wrap_in_the_application)
 {
-    CHECK(run_at_epoch(LOW_RPM, 20.0f, WRAP_US - 3000000u));
+    CHECK(run_at_epoch(LOW_RPM, 0.0f, WRAP_US - 3000000u));
     run_until_wrap_minus(60000u);
     H.send_cmd = false; /* silent from 60 ms before the wrap to 60 ms after */
     h_run_ms(120u);
@@ -825,10 +855,161 @@ TEST(stuck_on_qdis_latches_service_required_and_never_rearms)
     CHECK(!ever_armed && last_status(&f) && ((f.data[14] & 0x06u) == 0x06u));
 }
 
+/* ======================= round 15 ======================= */
+
+/* A13-R04 schedule: on the target the slow list converts nothing before it is first started, and
+ * app_init classifies HW_ID (ADC3_P0, slow list) before the first 1 ms tick. The identity must come
+ * from a real conversion: no false "HW_ID short", arming as usual. */
+TEST(hw_id_is_converted_before_it_is_classified)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    sim_adc_require_slow_start(true);
+    h_boot();
+    CHECK(g_app.init == SM_OK && g_app.hw_sku == TI_SKU_8XX_SIC && !dtc_active(DTC_HWID_SHORT));
+    CHECK(h_to_armed());
+}
+
+/* A13-R02, the reviewer's reproduction: a known low speed and the VCU reporting the contactors OPEN
+ * while running. Before round 15 the detector needed n >= n_x (cont_lost = 0) and RUN moved to
+ * ARMED_ZERO_TORQUE with arm = 1 and torque_enable = 1 in that same invocation: the request was still
+ * applied. Now the row is dispatched and that invocation grants no torque. */
+TEST(low_speed_open_contactor_is_a_battery_path_loss)
+{
+    CHECK(run_at(LOW_RPM, 100.0f));
+    H.contactors = TI_CONT_OPEN;
+    vcu_frame_now();
+    tick_1ms();
+    CHECK(fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
+    CHECK(!(g_app.sm.st == SM_ARMED_ZERO_TORQUE && g_app.so.arm && g_app.so.torque_enable));
+    CHECK(!g_app.so.torque_enable && g_app.iq_ref == 0.0f);
+}
+
+typedef enum { LOSS_OPEN = 0, LOSS_INVALID, LOSS_STALE } loss_t;
+typedef enum { SPD_ZERO = 0, SPD_LOW, SPD_HIGH, SPD_UNKNOWN } spd_t;
+
+/* One case of the matrix below, up to and including the task invocation that processes the loss. */
+static bool loss_case(spd_t sp, loss_t l, float *t_before)
+{
+    sim_reset();
+    sim_nvm_wipe();
+    dtc_init();
+    (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
+    (void)memset(&g_app_session, 0, sizeof g_app_session);
+    h_setup(TI_SKU_8XX_SIC);
+    if (sp == SPD_UNKNOWN) {
+        h_p.cal_speed_hold_ms = 0u; /* no held speed: a resolver fault makes the speed unknown at once */
+    }
+    h_boot();
+    if (!h_to_run(50.0f)) {
+        return false;
+    }
+    if (sp != SPD_ZERO) {
+        h_ramp_speed((sp == SPD_HIGH) ? HIGH_RPM : LOW_RPM, 600u);
+    }
+    H.torque_nm = (sp == SPD_ZERO) ? 200.0f : -150.0f; /* holding at standstill, else regenerating */
+    h_run_ms(30u);
+    *t_before = g_app.t_cmd_nm;
+    if (l == LOSS_STALE) {
+        H.send_cmd = false;
+        while (can_cmd_fresh(&g_app.can, hal_time_ms() + 1u, g_app.p)) {
+            h_run_ms(1u);
+        }
+    } else {
+        H.contactors = (l == LOSS_OPEN) ? TI_CONT_OPEN : TI_CONT_INVALID;
+        vcu_frame_now();
+    }
+    H.i_pk_a = 480.0f; /* 340 A rms in the winding at the loss */
+    if (sp == SPD_UNKNOWN) {
+        H.rslv_amp = 0.6f; /* resolver lost in the same tick: last valid speed LOW_RPM, now unknown */
+        h_set_speed(H.speed_rpm);
+    }
+    tick_1ms();
+    return true;
+}
+
+/* A13-R02: armed, a lost battery path — contactors reported OPEN, INVALID, or no fresh report — is the
+ * §6 battery-lost row at zero, low, high and unknown speed, with 340 A rms in the winding and the
+ * motor regenerating. In the invocation that processes it: the row is dispatched (with the command
+ * row when stale), the state machine grants neither torque nor arm, the torque/current target is
+ * the §6 one (zero at the current-loop rate below n_x, LS-ASC above or unknown), never the request.
+ * Then: below n_x zero-torque current control keeps the energy under control (not all gates off)
+ * until the current has decayed, then SPO and back to the unarmed sequence; above n_x or at unknown
+ * speed PWM-ASC holds. The VCU sees FAULT, the bridge mode, no "keep HV" and no "no safe state". */
+TEST(battery_path_loss_while_armed_at_every_speed)
+{
+    static const char *const SP[4] = {"zero", "low", "high", "unknown"};
+    static const char *const LS[3] = {"OPEN", "INVALID", "stale"};
+    for (unsigned sp = 0u; sp < 4u; sp++) {
+        for (unsigned l = 0u; l < 3u; l++) {
+            const unsigned before = t_fails;
+            float t_before = 0.0f;
+            CHECK(loss_case((spd_t)sp, (loss_t)l, &t_before));
+            const bool slow = (sp == SPD_ZERO) || (sp == SPD_LOW);
+            const ss_decision_t *d = &g_app.fm.row_dec[SS_ROW_BATTERY_LOST];
+            /* the invocation that processed the loss */
+            CHECK(fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
+            CHECK((l != LOSS_STALE) || fm_active(&g_app.fm, SS_ROW_CMD_LOST));
+            CHECK(d->action == (slow ? SS_ACT_ZERO_TORQUE_DCL : SS_ACT_LS_ASC) && d->high_speed == !slow);
+            CHECK(g_app.sm.st == SM_FAULT && !g_app.so.arm && !g_app.so.torque_enable);
+            CHECK(ti_absf(t_before) > 90.0f && g_app.iq_ref == 0.0f);
+            CHECK(ti_absf(g_app.t_cmd_nm) <= g_app.p->cal_dcl_tmax_nm); /* not the request */
+            CHECK(slow ? (g_app.mod_req && g_app.br.mode == BR_MOD && hal_gpio_out_state(HAL_DO_MCU_GATE_EN))
+                       : (!g_app.mod_req && g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC));
+            /* afterwards */
+            if (slow) {
+                h_isr_only_us(500u); /* zero-torque current control, not all gates off */
+                CHECK(hal_pwm_mode() == HAL_PWM_MOD && g_app.foc.iq_ref == 0.0f);
+            }
+            bool torque = false;
+            for (uint32_t k = 0u; k < 12u; k++) {
+                h_run_ms(1u);
+                torque = torque || g_app.so.torque_enable || (g_app.iq_ref != 0.0f);
+            }
+            CHECK(!torque);
+            hal_can_frame_t f;
+            CHECK(last_status(&f) && (f.data[2] == (uint8_t)SM_FAULT) && ((f.data[1] & 0x80u) != 0u));
+            CHECK((f.data[3] & 0x03u) == (slow ? 2u : 3u));                           /* modulating / PWM-ASC */
+            CHECK(((f.data[1] & 0x20u) == 0u) && ((f.data[14] & 0x01u) == 0u)); /* keep HV 0, no safe state 0 */
+            CHECK(slow || (sim_chain_ls_on() && !sim_chain_hs_on() && hal_gpio_read(HAL_DI_ASC_CMD_RB)));
+            if (slow) {
+                H.i_pk_a = 4.0f; /* the winding current has decayed */
+                h_run_ms(5u);
+                CHECK(hal_pwm_mode() == HAL_PWM_OFF && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN)); /* SPO */
+                CHECK(h_run_until((l == LOSS_STALE) ? SM_VEHICLE_HANDSHAKE : SM_PRECHARGE_WAIT, 50u));
+                CHECK(!fm_active(&g_app.fm, SS_ROW_BATTERY_LOST) && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+            }
+            if (t_fails != before) {
+                printf("    ^ speed %s, contactors %s\n", SP[sp], LS[l]);
+            }
+        }
+    }
+}
+
+/* Round 15 guard: the FW-08 zero-torque opening at standstill stays a normal disarm. The row is
+ * dispatched, §6 finds nothing to manage (SPO at once), no FAULT is ever entered or reported, and the
+ * inverter waits in PRECHARGE_WAIT; closing again re-arms. */
+TEST(zero_torque_opening_at_standstill_disarms_without_fault)
+{
+    CHECK(run_at(0.0f, 0.0f));
+    H.enable = false;
+    H.contactors = TI_CONT_OPEN;
+    bool fault = false;
+    for (uint32_t k = 0u; k < 60u; k++) {
+        h_run_ms(1u);
+        fault = fault || (g_app.sm.st == SM_FAULT);
+    }
+    hal_can_frame_t f;
+    CHECK(!fault && g_app.sm.st == SM_PRECHARGE_WAIT && !fm_any(&g_app.fm));
+    CHECK(hal_pwm_mode() == HAL_PWM_OFF && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+    CHECK(last_status(&f) && ((f.data[1] & 0x80u) == 0u));
+    H.contactors = TI_CONT_CLOSED;
+    CHECK(h_run_until(SM_ARMED_ZERO_TORQUE, 200u));
+}
+
 void suite_scenarios(void)
 {
     RUN(boot_to_run_follows_section_9);
-    RUN(stale_can_ramps_to_zero_not_held);
+    RUN(stale_can_takes_torque_to_zero_not_held);
     RUN(frozen_alive_counter_is_stale);
     RUN(bms_limit_zero_connected_is_not_asc_but_contactor_open_is);
     RUN(fw06_ov_to_asc_request_within_15p6us);
@@ -868,4 +1049,8 @@ void suite_scenarios(void)
     RUN(all_three_current_channels_stuck_detected_under_command);
     RUN(one_current_channel_stuck_below_the_kcl_tolerance_detected);
     RUN(stuck_on_qdis_latches_service_required_and_never_rearms);
+    RUN(hw_id_is_converted_before_it_is_classified);
+    RUN(low_speed_open_contactor_is_a_battery_path_loss);
+    RUN(battery_path_loss_while_armed_at_every_speed);
+    RUN(zero_torque_opening_at_standstill_disarms_without_fault);
 }

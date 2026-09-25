@@ -51,6 +51,7 @@ typedef struct {
     sm_tri_t selftest;          /* FW-16 run or stored pass */
     sm_tri_t precharge;         /* FW-19 */
     bool fault_needed;          /* a fault row, or a failure that forbids arming this key cycle */
+    bool battery_lost;          /* the §6 battery-path row is active (round 15: OPEN, INVALID, stale, V_DC) */
     bool retry_allowed;         /* FW-15: VCU-authorised, >= 1 s, once per key cycle */
     bool recovery_done;         /* FW-15 steps 2–4 completed */
     bool derate_active;

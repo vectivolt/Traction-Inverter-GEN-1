@@ -35,11 +35,11 @@ TEST(highest_rank_wins)
     fm_raise(&f, SS_ROW_VDC_INVALID, true, &c, &m, P());      /* SPO */
     fm_raise(&f, SS_ROW_RESOLVER_INVALID, true, &c, &m, P()); /* LS-ASC at speed */
     CHECK(f.dec.action == SS_ACT_LS_ASC && f.dec_row == SS_ROW_RESOLVER_INVALID);
-    CHECK(fm_needs_fault_state(&f));
+    CHECK(fm_needs_fault_state(&f, false));
     fm_t g;
     fm_init(&g, 10u);
     fm_raise(&g, SS_ROW_CMD_LOST, false, &c, &m, P());
-    CHECK(!fm_needs_fault_state(&g)); /* command loss ramps, it is not the FAULT state */
+    CHECK(!fm_needs_fault_state(&g, false)); /* command loss ramps, it is not the FAULT state */
     fm_clear(&g, SS_ROW_CMD_LOST);
     CHECK(!fm_any(&g));
 }
@@ -87,7 +87,7 @@ TEST(boot_blocks_on_recent_desat_record)
     fm_init(&f, 10u);
     const nv_desat_t prev = {.key_cycle = 9u, .bank = 2u};
     fm_boot(&f, &prev, true);
-    CHECK(f.desat_blocked && fm_needs_fault_state(&f));
+    CHECK(f.desat_blocked && fm_needs_fault_state(&f, false));
     fm_init(&f, 10u);
     const nv_desat_t old = {.key_cycle = 8u, .bank = 2u};
     fm_boot(&f, &old, true);
@@ -191,6 +191,21 @@ TEST(keep_hv_held_until_rule_a_and_no_safe_state_without_battery)
     CHECK(!f.keep_hv && !f.no_safe_state);
 }
 
+/* A13-R02: a battery-path row is a FAULT while its §6 response still has something to manage; the
+ * caller's "done" (bridge SPO with nothing left, V_DC at the pack) makes that row alone soft. */
+TEST(battery_lost_is_a_fault_until_its_response_is_done)
+{
+    const motor_t m = motor_screening();
+    fm_t f;
+    fm_init(&f, 10u);
+    fm_ctx_t c = ctx(0.0f, 480.0f, false, 0u);
+    fm_raise(&f, SS_ROW_BATTERY_LOST, false, &c, &m, P());
+    CHECK(f.dec.action == SS_ACT_ZERO_TORQUE_DCL && !f.dec.keep_hv && !f.no_safe_state);
+    CHECK(fm_needs_fault_state(&f, false) && !fm_needs_fault_state(&f, true));
+    fm_raise(&f, SS_ROW_VDC_INVALID, true, &c, &m, P());
+    CHECK(fm_needs_fault_state(&f, true)); /* any other row still needs it */
+}
+
 void suite_fault_mgr(void)
 {
     RUN(forced_spo_wins_and_blocks_asc);
@@ -202,4 +217,5 @@ void suite_fault_mgr(void)
     RUN(keep_hv_until_asc_or_low_speed);
     RUN(latched_reset_only_below_n_x_and_never_for_desat);
     RUN(keep_hv_held_until_rule_a_and_no_safe_state_without_battery);
+    RUN(battery_lost_is_a_fault_until_its_response_is_done);
 }

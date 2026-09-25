@@ -369,11 +369,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.13**.
-The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13 on
-2026-09-25; no Marine unit is built or type-approved yet, so none of these moves needed a class
-notification. M8 carries the Road fixes of review rounds 7–14 (`../docs/review-A7-disposition.md`
-… `../docs/review-A13-disposition.md`). It has the same PCBs and
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.14**.
+The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
+then A.14 in the same pass, on 2026-09-25; no Marine unit is built or type-approved yet, so none
+of these moves needed a class notification. M8 carries the Road fixes of review rounds 7–15
+(`../docs/review-A7-disposition.md` … `../docs/review-A14-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -381,8 +381,9 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.13 brought** (Road `design-basis.md` §11i–§11m; A.12 = round 13,
-`review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`):
+**What A.9–A.14 brought** (Road `design-basis.md` §11i–§11n; A.12 = round 13,
+`review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
+`review-A14-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -460,6 +461,29 @@ move with the automotive line.
   0.96 W / 141 °C. **UCC14141-Q1:** TI's VDE certificate (40058888) is issued and archived — the
   gate ㉔ component-level residual is closed (the opto and Y-cap certificates stay "planned", §12).
 
+- **A.14.** Round 15 rechecked the A.13 push and found two defects its own round-14 verifier
+  could not see, plus one firmware residual (`review-A14-disposition.md`, F159–F164); all apply
+  through the shared control card. **Exciter terminal-fault protection, corrected:** the round-14
+  TVS sat on the connector node, so an external battery fault fed it without passing through the
+  PTC; each line is now amplifier output → **2.2 Ω (RSXP/RSXN)** → protected node (**SMCJ8.5CA**
+  TVS to AGND, plus the excitation-monitor tap) → PTC → vehicle connector, and the PTC itself is
+  **Bourns MF-MSMF020/33X, 1812** (the bullet above called it a 1206-package 0.2 A MF-LSMF020;
+  33 V, 40 A, 0.02 s at 8 A, hot hold 0.09 A at 85 °C). With the PTC now in the fault path: 15.3 A
+  at 24 V / 27.7 A at 35 V (≤ 40 A), TVS energy ≈ 3.4 / 3.2 J vs ≈ 8 J capability; with VEXD absent
+  or cranking, the ≈11 V clamp back-drives the ALM2402's reverse output diode through the 2.2 Ω
+  (≈ 5 A for ≈ 50 µs until the 22 µF rail cap charges, rail then ≈ 10.8 V, under the 18 V abs max)
+  — a negative fault is an OEM allocation. Bench gate ㉘ widened to VEXD off/cranking/on × both
+  polarities, PTC/TVS/reverse-rail currents measured separately (§12); resolver excitation
+  7.0 V pp cold (≥ 6.5 V pp floor). **Firmware** (shared base): the target ADC map now carries the
+  instance/subtype/channel triple from the generated board map instead of a single letter+number
+  (NTC_A is a standard-class input, ADC5_S11); the contactor-loss detector — previously gated to
+  n ≥ n_x, so a low-speed OPEN/INVALID contactor report never reached the MFW-08 battery-path-lost
+  row — now fires at **any speed while armed** and clears ordinary torque permission in the same
+  invocation; the §6 policy still picks zero-torque/current-control or ASC (not an unconditional
+  all-gates-off). No power-stage change. **KiCad:** Road now also generates a native-KiCad5 zip
+  (`kicad5/traction-native/`) beside the EasyEDA-import one; M8/M10 fabrication keeps using the
+  EasyEDA-import folder unless a native-KiCad flow is wanted.
+
 | Change | M8 | M10 |
 |---|---|---|
 | Power PCB | Road, unchanged | **new** — 1100 V creepage/clearance (conformal coat + slots), same D3 footprint |
@@ -514,7 +538,7 @@ adds:
 | MFW-05 | **PMS contract.** Power-limit and ramp commands on CAN, plus a hardwired fast load-reduction input to protect gensets | §6b |
 | MFW-06 | **Standstill.** Switch at 1 kHz below 2 Hz. A stall timer (≥ 50 % current at < 1 % speed for more than 10 s) warns, then derates | §6b (verified) |
 | MFW-07 | **Flying start** from the resolver angle and speed | §6b |
-| MFW-08 | **Safe state per set.** Pulse-off at every speed with the DC grid connected, relying on the §6b motor rule (back-EMF, and the winding energy under Road rule (b)); the cell never opens its own DC entry while its set carries current. ASC for a switch fault in that cell follows the Road matrix: LS-ASC for a shorted low-side switch; a shorted high-side switch gets pulse-off plus **automatic opening of the set's disconnector**. LS-ASC also when FW-06 finds the DC path lost with current flowing, **at any speed** — the Road matrix itself now fires this at n < n_x too (round 13/A.12, F135: the energy condition applies in both columns, so the battery-path-lost row below n_x also uses FW-06 LS-ASC as the sink), matching what Marine already required because its motor never reaches n_x under the back-EMF rule; release to pulse-off once the current is gone. Healthy sets clamp to their N−1 limits and do not trip. Towing/windmilling raises no alarm from regenerated power. Shaft-lock interlock | DNV, KR (§2), §6, §6b |
+| MFW-08 | **Safe state per set.** Pulse-off at every speed with the DC grid connected, relying on the §6b motor rule (back-EMF, and the winding energy under Road rule (b)); the cell never opens its own DC entry while its set carries current. ASC for a switch fault in that cell follows the Road matrix: LS-ASC for a shorted low-side switch; a shorted high-side switch gets pulse-off plus **automatic opening of the set's disconnector**. LS-ASC also when FW-06 finds the DC path lost with current flowing, **at any speed** — the Road matrix itself now fires this at n < n_x too (round 13/A.12, F135: the energy condition applies in both columns, so the battery-path-lost row below n_x also uses FW-06 LS-ASC as the sink), matching what Marine already required because its motor never reaches n_x under the back-EMF rule; the contactor-loss detector feeding this row was itself gated to n ≥ n_x until round 15/A.14 (F164), which now flags an OPEN/INVALID/stale contactor report at any speed and clears ordinary torque permission in the same invocation; release to pulse-off once the current is gone. Healthy sets clamp to their N−1 limits and do not trip. Towing/windmilling raises no alarm from regenerated power. Shaft-lock interlock | DNV, KR (§2), §6, §6b |
 | MFW-09 | **Multi-set control.** Angle offset per set, auto-calibrated at commissioning from back-EMF zero crossings. 6ω (plus 12ω for N ≥ 3) resonant loops, dead-time compensation, coupling feed-forward, sharing weights, N−1 limits. A backup master takes over; a cell holds its last reference for 50 ms, then ramps to zero | §6 |
 | MFW-10 | **Shaft bus.** CAN-FD at 1/5 Mbit/s, 1 kHz (500 Hz for N = 8). PWM sync from time-stamped frames; loss of sync gives an alarm | §6 |
 | MFW-11 | **Speed feedback.** One resolver per set (motor spec), with a back-EMF observer for plausibility. A set without its own resolver runs as a **follower**: I/f below ≈10 % speed, then the observer (VACON practice). On resolver loss: alarm, then limp-home above 10 % speed. Losing the reference must never increase thrust | BV, ABS, DNV; multiphase brief §4 |
@@ -626,8 +650,9 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - 1 kHz standstill ripple;
    - M10 double-pulse test at 1100 V (sets RG);
    - contained short-circuit test on the 1700 V IGBT (M8: the Road's, gate ③);
-   - terminal-fault test on the resolver excitation and motor-temperature lines, MCU
-     on/off/standby (Road gate ㉘, shared control card);
+   - terminal-fault test on the resolver excitation and motor-temperature lines, VEXD
+     off/cranking/on and both polarities, PTC/TVS/reverse-rail currents measured separately
+     (Road gate ㉘, shared control card, widened round 15/A.14);
    - coldplate Rth (shared with Road).
 8. **Before the Road PCB layout (which M8 inherits):** decide the creepage strategy, PD2 sealed
    or PD3.

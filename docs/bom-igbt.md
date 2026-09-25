@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · IGBT (HCG600FH120D3E1EA), 500–850 V bus — BOM (rev A.13, generated 2026-09-24)
+# Traction Inverter — 8XX · IGBT (HCG600FH120D3E1EA), 500–850 V bus — BOM (rev A.14, generated 2026-09-25)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -58,7 +58,7 @@ CSV: [`docs/bom-discharge-igbt.csv`](bom-discharge-igbt.csv). Top cost lines:
 | 2 | R0603-10k | UCC14141-Q1 ENA divider top from V15 | 1 | any |
 | 1 | R0603-62k-1% | UCC14141-Q1 FBVDD divider top: 2.5 V x | 0 | any 1 % |
 
-## control-card — 295 components, 104 BOM lines, ≈ ₹6,211 @1k
+## control-card — 297 components, 105 BOM lines, ≈ ₹6,214 @1k
 
 CSV: [`docs/bom-control-card-igbt.csv`](bom-control-card-igbt.csv). Top cost lines:
 
@@ -97,7 +97,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | FS26 SBC + LV input + wake | 608 | 1.3% | 94.7% | 38 |
 | Module snubbers | 540 | 1.1% | 95.9% | 3 |
 | Harness + pulldowns | 495 | 1.1% | 96.9% | 17 |
-| misc | 308 | 0.7% | 97.6% | 52 |
+| misc | 311 | 0.7% | 97.6% | 54 |
 | Resolver AFE | 274 | 0.6% | 98.2% | 54 |
 | LV power (prot+LDO+boost) | 274 | 0.6% | 98.7% | 28 |
 | HV entry/Y-caps/HVIL/studs | 208 | 0.4% | 99.2% | 14 |
@@ -112,15 +112,15 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 30,502 | 64.9% |
-| drive + control ICs | 7,214 | 15.4% |
+| drive + control ICs | 7,229 | 15.4% |
 | capacitors | 4,945 | 10.5% |
 | magnetics | 2,183 | 4.6% |
 | connectors + sensors | 1,282 | 2.7% |
 | misc | 435 | 0.9% |
 | isolation | 231 | 0.5% |
 | protection + diodes | 143 | 0.3% |
-| resistors | 59 | 0.1% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **46,992** | 100% |
+| resistors | 47 | 0.1% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **46,995** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.

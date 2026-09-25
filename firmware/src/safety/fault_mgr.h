@@ -74,7 +74,10 @@ bool fm_retry_allowed(const fm_t *f, bool vcu_auth, uint32_t now_ms, const ti_pa
 void fm_retry_consumed(fm_t *f, const fm_ctx_t *c);
 bool fm_active(const fm_t *f, ss_row_t row);
 bool fm_any(const fm_t *f);
-bool fm_needs_fault_state(const fm_t *f);
+/* Any active row but the soft ones (command loss, BMS limit 0) needs the FAULT state. Round 15
+ * (A13-R02): a battery-path loss too, unless its §6 response is done (the caller saw the bridge SPO
+ * with nothing left to manage and V_DC at the pack): the FW-08 zero-torque opening is not a fault. */
+bool fm_needs_fault_state(const fm_t *f, bool battery_lost_done);
 void fm_retained_commit(void);
 
 #endif /* FAULT_MGR_H */

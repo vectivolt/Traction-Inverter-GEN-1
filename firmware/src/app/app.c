@@ -88,8 +88,9 @@ static void init_identity(app_t *a)
     uint16_t codes[8];
     uint32_t t;
     for (uint32_t i = 0u; i < 8u; i++) {
-        (void)hal_adc_read(HAL_ADC_HW_ID, &codes[i], &t);
+        hal_adc_start_slow(); /* round 15: HW_ID (ADC3_P0) is on the slow list, which nothing has run yet */
         hal_delay_us(100u);
+        (void)hal_adc_read(HAL_ADC_HW_ID, &codes[i], &t);
     }
     const hwid_result_t r = hwid_classify_stable(codes, 8u, &a->hw_sku);
     static const dtc_id_t MAP[] = {DTC_NONE, DTC_HWID_OPEN, DTC_HWID_SHORT, DTC_HWID_UNKNOWN, DTC_HWID_UNKNOWN};
@@ -287,11 +288,11 @@ static void apply_decision(app_t *a, uint32_t now_us)
             if (br_exit_asc(&a->br, release)) {
                 br_spo(&a->br, true);
             }
-        } else if (d->action == SS_ACT_SPO) {
-            a->mod_req = false;
+        } else if ((d->action == SS_ACT_SPO) || (i_mag(a) < a->p->cal_spo_release_a)) {
+            a->mod_req = false; /* SPO, or §6 battery lost below n_x with the current gone (round 15) */
             br_spo(&a->br, true);
         } else {
-            a->zero_now = true; /* FW-08: zero torque at the current-loop rate */
+            a->zero_now = true; /* FW-08: zero torque at the current-loop rate while the current decays */
         }
         break;
     default:
@@ -542,10 +543,17 @@ static void detect(app_t *a, const fm_ctx_t *c)
             flag(a, true, SS_ROW_RESOLVER_INVALID, true, id, c); /* control lost: same §6 row */
         }
     }
+    /* Round 15 (A13-R02): armed, the battery path must be proven at every speed — contactors reported
+     * CLOSED in a fresh VCU frame; OPEN, PRECHARGE, INVALID and a stale report (unknown) are all
+     * "lost", as is V_DC leaving the pack. §6 picks the response from speed, winding current, V_DC and
+     * the actuators left; the row stays while that response still energises the bridge (zero-torque
+     * current control or PWM-ASC), then clears — unarmed, open contactors are the precharge sequence. */
+    const bool path_ok = (a->can.contactors == TI_CONT_CLOSED) && can_cmd_fresh(&a->can, c->now_ms, a->p);
+    const bool lost = armed_states && (!path_ok || a->vdc.bms_mismatch);
+    const bool energised = (a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD) || (a->br.mode == BR_ASC);
+    flag(a, lost || (fm_active(&a->fm, SS_ROW_BATTERY_LOST) && energised), SS_ROW_BATTERY_LOST, false,
+         (lost && a->vdc.bms_mismatch) ? DTC_VDC_BMS : DTC_NONE, c);
     if (armed_states) {
-        const bool cont_lost = (a->can.contactors != TI_CONT_CLOSED) && (ti_absf(a->speed_rpm) >= a->n_x_rpm);
-        flag(a, cont_lost || a->vdc.bms_mismatch, SS_ROW_BATTERY_LOST, false,
-             a->vdc.bms_mismatch ? DTC_VDC_BMS : DTC_NONE, c);
         const bool hvil_bad = (a->hvil.status != HVIL_CLOSED) && (a->hvil.status != HVIL_UNKNOWN);
         if (hvil_bad) {
             dtc_set((a->hvil.status == HVIL_OPEN) ? DTC_HVIL_OPEN : DTC_HVIL_SHORT, c->now_ms);
@@ -633,12 +641,16 @@ static bool sensors_ok(const app_t *a)
 static void gather(app_t *a, sm_in_t *in, uint32_t t_ms)
 {
     const bool fresh = can_cmd_fresh(&a->can, t_ms, a->p);
+    /* Round 15: a battery-path loss met with nothing to manage — its §6 response already SPO (the
+     * FW-08 zero-torque opening) and V_DC at the pack — is not a FAULT; the state machine disarms */
+    const bool bl_done = (a->br.mode == BR_DISARMED) && !a->vdc.bms_mismatch;
     *in = (sm_in_t){.now_ms = t_ms, .ign_on = a->ign.on, .init = a->init, .sensors_ok = sensors_ok(a),
                     .v5gd_ok = a->vdc.v5gd_ok, .fs0b_released = a->fs0b_released,
                     .gate_power_ready = (a->gp.st == GP_READY), .gate_power_failed = a->gp.timeout_dtc,
                     .cmd_fresh = fresh, .enable_req = a->can.enable_req, .contactors = a->can.contactors,
                     .shutdown_req = fresh && a->can.shutdown_req, .discharge_req = fresh && a->can.discharge_req,
-                    .selftest = a->selftest, .fault_needed = fm_needs_fault_state(&a->fm) || a->no_arm,
+                    .selftest = a->selftest, .fault_needed = fm_needs_fault_state(&a->fm, bl_done) || a->no_arm,
+                    .battery_lost = fm_active(&a->fm, SS_ROW_BATTERY_LOST),
                     .derate_active = a->tlim.derate_active,
                     .discharge_done = (a->dis.st == DIS_DONE) || (a->dis.st == DIS_ABORTED) ||
                                       (a->vdc.valid && (a->vdc.hv == TI_HV_SAFE)),
@@ -815,9 +827,12 @@ static void torque_path(app_t *a, uint32_t t_ms)
     }
     const bool armed = (a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD);
     const bool fw_needed = !a->speed_known || (ti_absf(a->speed_rpm) >= a->n_x_rpm);
+    /* Round 15: while a §6 decision owns the bridge the only modulation is its own — zero-torque
+     * current control while winding current remains after a battery-path loss below n_x — and it
+     * does not depend on the operating state's arm (FAULT included). Ordinary modulation needs it. */
     const bool dcl = (act == SS_ACT_ZERO_TORQUE_DCL) && (i_mag(a) >= p->cal_spo_release_a);
-    a->mod_req = armed && a->so.arm && !a->no_arm &&
-                 ((ti_absf(a->t_cmd_nm) >= MOD_TORQUE_NM) || fw_needed || dcl || (act == SS_ACT_RAMP_KEEP_CC));
+    const bool ordinary = a->so.arm && ((ti_absf(a->t_cmd_nm) >= MOD_TORQUE_NM) || fw_needed || (act == SS_ACT_RAMP_KEEP_CC));
+    a->mod_req = armed && !a->no_arm && ((act >= SS_ACT_ZERO_TORQUE_DCL) ? dcl : ordinary);
     if (!a->mod_req) {
         a->foc.xi_d = 0.0f;
         a->foc.xi_q = 0.0f;

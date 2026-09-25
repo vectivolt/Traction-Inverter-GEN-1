@@ -519,7 +519,7 @@ const HAND = {
     ["UEXD", "REXB1", "REXB2", "REXB3", "REXB4", "CEXD", "RSDN"],
     ["ULDOEX", "RLDE1", "RLDE2", "CLDEC", "CLDE"],
     ["REXM1", "REXM2", "REXM3", "REXM4", "CEXM"],
-    ["FEXP", "TVSEP", "FEXN", "TVSEN"],
+    ["RSXP", "TVSEP", "FEXP", "RSXN", "TVSEN", "FEXN"],
   ],
   "RESOLVER / VMID": [
     ["RVM1", "RVM2", "CVM1", "UVMB1"],
@@ -1042,11 +1042,24 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
   writeFileSync(join(OUT, "traction.sch"), rootSch);
 }
 
-writeFileSync(join(OUT, `${LIB_NAME}.lib`),
-  mirrorLibY(`EESchema-LIBRARY Version 2.4\n#encoding utf-8\n${[...lib.values()].join("")}#\n#End Library\n`));
+const rawLib = `EESchema-LIBRARY Version 2.4\n#encoding utf-8\n${[...lib.values()].join("")}#\n#End Library\n`;
+const proText = `update=Date\nversion=1\nlast_client=eeschema\n[general]\nversion=1\n[eeschema]\nversion=1\nLibDir=\n[eeschema/libraries]\nLibName1=${LIB_NAME}\n`;
+writeFileSync(join(OUT, `${LIB_NAME}.lib`), mirrorLibY(rawLib));
 writeFileSync(join(OUT, `${LIB_NAME}.dcm`), `EESchema-DOCLIB  Version 2.0\n#\n#End Doc Library\n`);
-writeFileSync(join(OUT, "traction.pro"),
-  `update=Date\nversion=1\nlast_client=eeschema\n[general]\nversion=1\n[eeschema]\nversion=1\nLibDir=\n[eeschema/libraries]\nLibName1=${LIB_NAME}\n`);
+writeFileSync(join(OUT, "traction.pro"), proText);
+writeFileSync(join(OUT, "README.txt"),
+  `EASYEDA-IMPORT VARIANT (round 15, A13-R05). The symbol library is pre-mirrored about Y because EasyEDA's\nKiCad-legacy importer places pins at (ux+px, uy+py) and ignores the "1 0 0 -1" orientation matrix.\nDo NOT open this folder in native KiCad: use ../traction-native/ (same sheets, un-mirrored library).\nBoth variants are verified pin-by-pin with their consumer's placement rule (calculations/kicad5-verify.mjs).\n`);
+// Round 15 (A13-R05): native KiCad 5 applies the orientation matrix itself, so it needs the UN-mirrored library
+// with the very same sheets; ship it as a separate, clearly named folder and zip.
+const OUT_NATIVE = join(ROOT, "kicad5/traction-native");
+mkdirSync(OUT_NATIVE, { recursive: true });
+for (const f of files) writeFileSync(join(OUT_NATIVE, `${f}.sch`), readFileSync(join(OUT, `${f}.sch`)));
+writeFileSync(join(OUT_NATIVE, "traction.sch"), readFileSync(join(OUT, "traction.sch")));
+writeFileSync(join(OUT_NATIVE, `${LIB_NAME}.lib`), rawLib);
+writeFileSync(join(OUT_NATIVE, `${LIB_NAME}.dcm`), `EESchema-DOCLIB  Version 2.0\n#\n#End Doc Library\n`);
+writeFileSync(join(OUT_NATIVE, "traction.pro"), proText);
+writeFileSync(join(OUT_NATIVE, "README.txt"),
+  `NATIVE KICAD 5 VARIANT (round 15, A13-R05). Same sheets as ../traction/, un-mirrored symbol library: KiCad 5\napplies each component's orientation matrix to the library pin before adding its position. Open traction.sch\nin KiCad 5.1.x. For EasyEDA import use ../traction/ instead. Both are verified by calculations/kicad5-verify.mjs.\n`);
 // Package for EasyEDA import as part of GENERATING (zips must not drift behind the sheets).
 {
   const { execFileSync } = await import("node:child_process");
@@ -1056,7 +1069,14 @@ writeFileSync(join(OUT, "traction.pro"),
     join(OUT, `${LIB_NAME}.lib`), join(OUT, `${LIB_NAME}.dcm`),
     join(OUT, "traction.pro"), join(OUT, "traction.sch")];
   execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members]);
-  execFileSync("zip", ["-qX", "-j", zip, ...members]);
-  console.log("   packaged → kicad5/Traction-Inverter-SHIP.zip");
+  execFileSync("zip", ["-qX", "-j", zip, ...members, join(OUT, "README.txt")]);
+  console.log("   packaged → kicad5/Traction-Inverter-SHIP.zip (EasyEDA-import variant)");
+  const zipN = join(ROOT, "kicad5", "Traction-Inverter-KiCad5-native.zip");
+  try { unlinkSync(zipN); } catch {}
+  const membersN = [...files.map((f) => join(OUT_NATIVE, `${f}.sch`)), join(OUT_NATIVE, `${LIB_NAME}.lib`), join(OUT_NATIVE, `${LIB_NAME}.dcm`),
+    join(OUT_NATIVE, "traction.pro"), join(OUT_NATIVE, "traction.sch"), join(OUT_NATIVE, "README.txt")];
+  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN]);
+  execFileSync("zip", ["-qX", "-j", zipN, ...membersN]);
+  console.log("   packaged → kicad5/Traction-Inverter-KiCad5-native.zip (native KiCad 5 variant)");
 }
 console.log(`\n${files.length} sheets · ${totalComps} components · ${totalLabels} labels · ${lib.size} symbols → kicad5/traction/`);

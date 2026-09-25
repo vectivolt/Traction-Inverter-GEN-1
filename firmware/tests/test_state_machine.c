@@ -183,6 +183,60 @@ TEST(faults_and_contactor_opening)
     CHECK(s.st == SM_PRECHARGE_WAIT); /* normal opening at zero torque */
 }
 
+/* A13-R02: the invocation that leaves RUN/DERATE grants nothing of it. A contactor report that is not
+ * CLOSED (OPEN, PRECHARGE, INVALID) goes to ARMED_ZERO_TORQUE with no torque permission; a fault row
+ * goes to FAULT with neither torque nor arm; the normal opening from ARMED_ZERO_TORQUE disarms at once. */
+TEST(leaving_run_grants_no_torque_in_the_same_invocation)
+{
+    const ti_contactor_t lost[3] = {TI_CONT_OPEN, TI_CONT_PRECHARGE, TI_CONT_INVALID};
+    const sm_state_t from[2] = {SM_RUN, SM_DERATE};
+    for (unsigned f = 0u; f < 2u; f++) {
+        for (unsigned k = 0u; k <= 3u; k++) {
+            sm_t s = at(from[f]);
+            sm_in_t in = healthy(0u);
+            in.contactors = (k < 3u) ? lost[k] : TI_CONT_CLOSED;
+            in.fault_needed = (k == 3u);
+            in.enable_req = true;
+            in.torque_req_nm = -150.0f; /* regenerating */
+            in.torque_ramped_out = false;
+            in.speed_rpm = (k == 0u) ? 0.0f : 1000.0f;
+            in.derate_active = (from[f] == SM_DERATE);
+            const sm_out_t o = step(&s, &in);
+            CHECK(!o.torque_enable);
+            CHECK((k < 3u) ? (s.st == SM_ARMED_ZERO_TORQUE && o.arm) : (s.st == SM_FAULT && !o.arm));
+        }
+    }
+    sm_t s = at(SM_ARMED_ZERO_TORQUE);
+    sm_in_t in = healthy(0u);
+    in.speed_rpm = 100.0f;
+    const sm_out_t o = step(&s, &in);
+    CHECK(s.st == SM_PRECHARGE_WAIT && !o.arm && !o.torque_enable);
+}
+
+/* A13-R02: an active battery-path row with the report still CLOSED (a stale frame, V_DC off the pack)
+ * leaves RUN the same way, and ARMED_ZERO_TORQUE does not re-enter RUN until the row has cleared. */
+TEST(battery_path_row_leaves_run_and_blocks_reentry)
+{
+    sm_t s = at(SM_RUN);
+    sm_in_t in = healthy(0u);
+    in.contactors = TI_CONT_CLOSED;
+    in.enable_req = true;
+    in.torque_req_nm = 150.0f;
+    in.torque_ramped_out = false;
+    in.cmd_fresh = false;
+    in.battery_lost = true;
+    sm_out_t o = step(&s, &in);
+    CHECK(s.st == SM_ARMED_ZERO_TORQUE && o.arm && !o.torque_enable);
+    in.cmd_fresh = true;
+    o = step(&s, &in);
+    CHECK(s.st == SM_ARMED_ZERO_TORQUE && !o.torque_enable);
+    in.battery_lost = false;
+    (void)step(&s, &in);
+    CHECK(s.st == SM_RUN);
+    o = step(&s, &in);
+    CHECK(o.arm && o.torque_enable);
+}
+
 TEST(discharge_only_with_contactors_open)
 {
     sm_t s = at(SM_ARMED_ZERO_TORQUE);
@@ -257,6 +311,8 @@ void suite_state_machine(void)
     RUN(stale_command_ramps_then_zero_torque);
     RUN(derate_hysteresis_states);
     RUN(faults_and_contactor_opening);
+    RUN(leaving_run_grants_no_torque_in_the_same_invocation);
+    RUN(battery_path_row_leaves_run_and_blocks_reentry);
     RUN(discharge_only_with_contactors_open);
     RUN(key_off_powerdown_to_lpoff);
     RUN(desat_retry_runs_at_reduced_torque);

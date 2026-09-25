@@ -125,6 +125,8 @@ TEST(unknown_speed_takes_high_column)
     const ss_input_t in = {.row = SS_ROW_RESOLVER_INVALID, .speed_rpm = 0.0f, .speed_known = false, .iq_a = I_SMALL};
     const ss_decision_t d = ss_decide(&in, &m, P());
     CHECK(d.high_speed && d.action == SS_ACT_LS_ASC);
+    const ss_input_t b = {.row = SS_ROW_BATTERY_LOST, .speed_rpm = 0.0f, .speed_known = false, .iq_a = I_RATED};
+    CHECK(ss_decide(&b, &m, P()).action == SS_ACT_LS_ASC); /* round 15: a lost battery at unknown speed */
 }
 
 TEST(ranking)

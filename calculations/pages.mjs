@@ -98,7 +98,7 @@ const PAGES = {
     ], ["CH-1", "CH-2"]],
     ["RESOLVER", [
       ["VMID", [/^RVM[1-4]$/, /^CVM[12]$/, /^UVMB[12]$/]],
-      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/, /^CEXM$/, /^FEX[PN]$/, /^TVSE[PN]$/]],
+      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/, /^CEXM$/, /^RSX[PN]$/, /^FEX[PN]$/, /^TVSE[PN]$/]],
       ["SIN", [/^RSIN(1|2|F1|F2|R1|R2)$/, /^DSINP$/, /^CSIN[DFA]\d?$/]],
       ["COS", [/^RCOS(1|2|F1|F2|R1|R2)$/, /^DCOSP$/, /^CCOS[DFA]\d?$/]],
     ], ["VMID", "EXCITER", "SIN", "COS"]],

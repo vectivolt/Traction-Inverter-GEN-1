@@ -411,15 +411,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.13)
+## 11. Verification status (current release: rev A.14)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **2045/2045 (100 %)** (21 pages; the MCU numbered by physical ball since A.13, mutation-tested);
-- structural ERC **945 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- geometric pin-verify **2049/2049 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
+- structural ERC **954 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **130 PASS / 23 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **132 PASS / 24 WARN / 0 FAIL** across all four SKUs;
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -434,6 +434,22 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11n. Rev A.14 — round 15: three rechecks of a8c75eb (summary)
+
+All three rechecks were right ([`review-A14-disposition.md`](review-A14-disposition.md), F159–F164). **The
+round-14 exciter TVS sat on the connector node**, so a harness fault fed it 25/46 A without passing through
+the PTC while the verifier had modelled the PTC in the path (F159): the TVS is now on the protected node behind
+the PTC, with a 2.2 Ω series resistor to the amplifier and the monitor tapping the protected node; the ERC holds
+the topology as a graph cut. The back-drive argument did not cover an absent or cranking VEXD or a negative
+fault (F160 — modelled, bench gate ㉘ widened). The PTC was bound to a 1206 package (the family is 1812; the
+/33X variant, 0.09 A hold at 85 °C — F161). NTC_A's new ball is a standard-class ADC input but the target map
+said precision (F162, generator emits the full triple). **The shipped KiCad files were the EasyEDA-import
+variant only**: native KiCad applies the orientation matrix that EasyEDA's importer ignores, so read natively the
+pre-mirrored library put H5 on FLT_CLR_M and J7 on ASC_CLR_M (F163) — a `traction-native/` variant is now
+generated beside it and `kicad5-verify` checks both with their consumer's placement rule (a flipped matrix is a
+detected mutation). The contactor-loss detector ignored low speed and left torque permission for the same
+invocation (F164, firmware). Marine forks at A.14 (86 PASS · 22 WARN · 0 FAIL). No power-stage change.
 
 ## 11m. Rev A.13 — round 14: three independent reviews of cfd35a7 (summary)
 

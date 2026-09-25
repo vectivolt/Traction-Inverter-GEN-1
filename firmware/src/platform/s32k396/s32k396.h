@@ -28,6 +28,19 @@
 #define TI_CAN_VEH 0u    /* FlexCAN0 */
 #define TI_CAN_DIAG 1u   /* FlexCAN1 */
 
+/* ---------------- SAR ADC inputs (hal/adc.h hal_adc_sig_t order) ----------------
+ * Instance, subtype and channel all come from board_pins.h (generated from the ball map): nothing
+ * here is written per pin, so a relocated ball cannot leave a stale 'P'/'S' behind (round 15,
+ * A13-R04). The group picks the conversion schedule (s32k396_cfg.h). */
+#define TI_ADC_ROW(sig, grp) {BP_##sig##_INST, BP_##sig##_SUB, BP_##sig##_CHAN, (grp)}
+#define TI_ADC_MAP_INIT                                                                                     \
+    {TI_ADC_ROW(ISNS_U, TI_ADC_G_PHASE),  TI_ADC_ROW(ISNS_V, TI_ADC_G_PHASE),    TI_ADC_ROW(ISNS_W, TI_ADC_G_PHASE), \
+     TI_ADC_ROW(VDC1_SE, TI_ADC_G_VDC),   TI_ADC_ROW(VDC2_SE, TI_ADC_G_VDC),     TI_ADC_ROW(VOFS, TI_ADC_G_SLOW),    \
+     TI_ADC_ROW(V5GD_SNS, TI_ADC_G_SLOW), TI_ADC_ROW(HW_ID, TI_ADC_G_SLOW),      TI_ADC_ROW(IGN_SNS, TI_ADC_G_SLOW), \
+     TI_ADC_ROW(INTRLOK_N, TI_ADC_G_SLOW), TI_ADC_ROW(TMOD_U, TI_ADC_G_SLOW),    TI_ADC_ROW(TMOD_V, TI_ADC_G_SLOW),  \
+     TI_ADC_ROW(TMOD_W, TI_ADC_G_SLOW),   TI_ADC_ROW(NTC_H, TI_ADC_G_SLOW),      TI_ADC_ROW(NTC_A, TI_ADC_G_SLOW),   \
+     TI_ADC_ROW(MT1_SIG, TI_ADC_G_SLOW),  TI_ADC_ROW(MT2_SIG, TI_ADC_G_SLOW),    TI_ADC_ROW(SBC_AMUX, TI_ADC_G_SLOW)}
+
 /* ---------------- clocks (the Clock_Ip configuration fixes these) ---------------- */
 #ifndef TI_PWM_CLK_HZ
 #define TI_PWM_CLK_HZ 160000000u /* TODO(RTD): eFlexPWM_1 functional clock of the chosen Clock_Ip config */

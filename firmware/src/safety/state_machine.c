@@ -105,23 +105,26 @@ static void st_fault(sm_t *s, const sm_in_t *in, sm_out_t *o)
     }
 }
 
+/* Outputs describe the state the invocation ends in (round 15, A13-R02): an exit decided here grants
+ * nothing of the state it leaves — no torque on the way to ARMED_ZERO_TORQUE, no arm on the way to
+ * FAULT, DISCHARGE or SAFE_POWERDOWN. */
 static void st_run(sm_t *s, const sm_in_t *in, sm_out_t *o)
 {
-    o->arm = true;
-    o->self_test_done = true;
-    o->torque_enable = true;
-    o->torque_reduced = s->retry_mode;
     if (common_exits(s, in)) {
         return;
     }
-    if (in->contactors != TI_CONT_CLOSED) {
-        go(s, SM_ARMED_ZERO_TORQUE, in->now_ms);
+    o->arm = true;
+    o->self_test_done = true;
+    o->torque_reduced = s->retry_mode;
+    if ((in->contactors != TI_CONT_CLOSED) || in->battery_lost) {
+        go(s, SM_ARMED_ZERO_TORQUE, in->now_ms); /* the §6 decision manages what the winding holds */
         return;
     }
     if ((!in->cmd_fresh || !in->enable_req) && in->torque_ramped_out) {
         go(s, SM_ARMED_ZERO_TORQUE, in->now_ms); /* FW-11: ramped to zero, not held */
         return;
     }
+    o->torque_enable = true;
     if ((s->st == SM_RUN) && in->derate_active) {
         go(s, SM_DERATE, in->now_ms);
     } else if ((s->st == SM_DERATE) && !in->derate_active) {
@@ -200,19 +203,19 @@ void sm_step(sm_t *s, const sm_in_t *in, sm_out_t *o, const ti_params_t *p)
         }
         break;
     case SM_ARMED_ZERO_TORQUE:
-        o->arm = true;
-        o->self_test_done = true;
-        o->torque_reduced = s->retry_mode;
         if (common_exits(s, in)) {
             break;
         }
+        o->self_test_done = true;
+        o->torque_reduced = s->retry_mode;
         if ((in->contactors != TI_CONT_CLOSED) && (ti_absf(in->speed_rpm) < in->n_x_rpm)) {
-            go(s, SM_PRECHARGE_WAIT, in->now_ms); /* normal opening at zero torque */
-        } else if (in->cmd_fresh && in->enable_req && (ti_absf(in->torque_req_nm) > TORQUE_ACTIVE_NM) &&
-                   (in->contactors == TI_CONT_CLOSED)) {
+            go(s, SM_PRECHARGE_WAIT, in->now_ms); /* normal opening at zero torque: disarmed */
+            break;
+        }
+        o->arm = true;
+        if (in->cmd_fresh && in->enable_req && (ti_absf(in->torque_req_nm) > TORQUE_ACTIVE_NM) &&
+            (in->contactors == TI_CONT_CLOSED) && !in->battery_lost) {
             go(s, SM_RUN, in->now_ms);
-        } else {
-            /* armed */
         }
         break;
     case SM_RUN:

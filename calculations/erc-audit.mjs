@@ -362,12 +362,25 @@ for (const k of ["1", "2"]) {
 ok(same(C("UMCU.A5_VDC2"), "VDC2_SE"), "MCU reads VDC2 on a second ADC");
 ok(same(C("UEXF.INN"), C("CEXA1.pin2")) && same(C("UEXF.OUT"), "REX_F"), "exciter MFB closes (feedback cap to the inverting input)");
 ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H-bridge outputs");
-// Round 14 (F04): the drive reaches the connector through a PTC per line, with a TVS at the connector node
-ok(same(C("FEXP.A"), "VREX_P") && same(C("FEXP.B"), "VREX_PC") && same(C("FEXN.A"), "VREX_N") && same(C("FEXN.B"), "VREX_NC")
-  && same(C("JVEH.R1"), "VREX_PC") && same(C("JVEH.R2"), "VREX_NC") && same(C("TVSEP.K"), "VREX_PC") && same(C("TVSEN.K"), "VREX_NC")
-  && same(C("TVSEP.A"), "AGND") && same(C("TVSEN.A"), "AGND") && same(C("TVSM1.K"), "MT1_F") && same(C("TVSM1.A"), "AGND") && same(C("TVSM2.K"), "MT2_F") && same(C("TVSM2.A"), "AGND"), "resolver drive reaches the vehicle connector through FEXP/FEXN with TVSEP/TVSEN at the connector node (terminal-fault protection, F04)");
-// Round 14: the feedback/monitor networks sense the amplifier side of the PTCs
-ok(same(C("REXB2.pin1"), "VREX_P") && same(C("REXM1.pin1"), "VREX_P") && same(C("REXM3.pin1"), "VREX_N"), "exciter feedback and monitor stay on the amplifier side of the PTCs");
+// Round 15 (A13-R01): the TVS sits on the PROTECTED side of the PTC — an external fault reaches the clamp only through
+// FEXP/FEXN. Graph-cut form: the connector node carries exactly the connector pin and the PTC's outer terminal.
+{
+  const members = (net) => (CARD.netPins.get(net) ?? []).map((p) => p.replace(/\.(pin)?/, ".")).sort();
+  for (const [x, c, tvs, ptc, rsx, amp, mon] of [["VREX_PX", "VREX_PC", "TVSEP", "FEXP", "RSXP", "VREX_P", "REXM1"], ["VREX_NX", "VREX_NC", "TVSEN", "FEXN", "RSXN", "VREX_N", "REXM3"]]) {
+    ok(same(C(`${rsx}.pin1`), amp) && same(C(`${rsx}.pin2`), x) && same(C(`${tvs}.K`), x) && same(C(`${tvs}.A`), "AGND")
+      && same(C(`${ptc}.A`), x) && same(C(`${ptc}.B`), c) && same(C(`${mon}.pin1`), x),
+      `${tvs}: TVS on the protected node ${x} (amplifier side of ${ptc}); ${rsx} 2.2 R from the amplifier; monitor ${mon} taps the protected node`);
+    const m = members(c);
+    ok(m.length === 2 && m.some((p) => p.startsWith("JVEH.")) && m.some((p) => p.startsWith(`${ptc}.`)),
+      `${c}: the connector node carries only JVEH and ${ptc} — no clamp reachable without the PTC (A13-R01 graph cut)`, m.join(","));
+    ok(C(`${tvs}.K`) !== C("JVEH.R1") && C(`${tvs}.K`) !== C("JVEH.R2"), `${tvs} is not on a connector node`);
+  }
+  ok(same(C("JVEH.R1"), "VREX_PC") && same(C("JVEH.R2"), "VREX_NC") && same(C("TVSM1.K"), "MT1_F") && same(C("TVSM1.A"), "AGND") && same(C("TVSM2.K"), "MT2_F") && same(C("TVSM2.A"), "AGND"),
+    "resolver drive reaches the vehicle connector on VREX_PC/NC; motor-temp clamps K on the line, A on AGND");
+  ok(near(V(CARD, "RSXP"), 2.2) && near(V(CARD, "RSXN"), 2.2), "RSX 2.2 R (amplitude at the resolver >= 6.5 V pp with the PTCs, back-drive pulse bounded)");
+}
+// the feedback network senses the amplifier output (loop stability), the monitor the protected node
+ok(same(C("REXB2.pin1"), "VREX_P") && same(C("REXB3.pin1"), "VREX_P") && same(C("REXB4.pin1"), "VREX_N"), "exciter feedback stays on the amplifier outputs");
 ok(near(V(CARD, "REXM1"), 18e3) && near(V(CARD, "REXM3"), 18e3) && near(V(CARD, "REXM2"), 42.2e3) && near(V(CARD, "REXM4"), 84.5e3)
   && same(C("CEXM.pin1"), "VREXM_P") && same(C("CEXM.pin2"), "VREXM_N") && near(V(CARD, "CEXM"), 220e-12),
   "excitation monitor 18 k / 42.2 k / 84.5 k (<= 3 mA unpowered injection at 50 V) with 220 pF C_AAF across the SDADC1 pair (F03/F05)");
@@ -558,7 +571,7 @@ ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "C
 // round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 24 V-stand-off TVS (-VR) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMCJ8\.5CA/, FEXP: /^MF-MSMF020$/, FMT1: /^0438\.375WRA$/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMCJ8\.5CA/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMCJ8.5CA + MF-MSMF020)`, bad.join(", "));
 }

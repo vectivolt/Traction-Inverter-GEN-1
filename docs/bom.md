@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.13, generated 2026-09-24)
+# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.14, generated 2026-09-25)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -58,7 +58,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 | 2 | R0603-10k | UCC14141-Q1 ENA divider top from V15 | 1 | any |
 | 1 | R0603-62k-1% | UCC14141-Q1 FBVDD divider top: 2.5 V x | 0 | any 1 % |
 
-## control-card — 295 components, 104 BOM lines, ≈ ₹6,211 @1k
+## control-card — 297 components, 105 BOM lines, ≈ ₹6,214 @1k
 
 CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
 
@@ -90,14 +90,14 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Gate-power flybacks | 2,252 | 3.1% | 87.4% | 77 |
 | MCU + clock + debug | 1,494 | 2.1% | 89.5% | 22 |
 | VDC iso sensing + bias | 1,296 | 1.8% | 91.3% | 30 |
-| Discharge (active+passive) | 1,146 | 1.6% | 92.9% | 33 |
+| Discharge (active+passive) | 1,146 | 1.6% | 92.8% | 33 |
 | Vehicle connector + prot | 785 | 1.1% | 93.9% | 6 |
 | Gate drivers + networks | 659 | 0.9% | 94.8% | 129 |
 | ASC buffer | 650 | 0.9% | 95.7% | 18 |
 | FS26 SBC + LV input + wake | 608 | 0.8% | 96.6% | 38 |
 | Module snubbers | 540 | 0.7% | 97.3% | 3 |
 | Harness + pulldowns | 495 | 0.7% | 98.0% | 17 |
-| misc | 308 | 0.4% | 98.4% | 52 |
+| misc | 311 | 0.4% | 98.4% | 54 |
 | Resolver AFE | 274 | 0.4% | 98.8% | 54 |
 | LV power (prot+LDO+boost) | 274 | 0.4% | 99.2% | 28 |
 | HV entry/Y-caps/HVIL/studs | 208 | 0.3% | 99.5% | 14 |
@@ -112,15 +112,15 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 56,004 | 77.3% |
-| drive + control ICs | 7,166 | 9.9% |
+| drive + control ICs | 7,181 | 9.9% |
 | capacitors | 4,943 | 6.8% |
 | magnetics | 2,183 | 3.0% |
 | connectors + sensors | 1,282 | 1.8% |
 | misc | 433 | 0.6% |
 | isolation | 231 | 0.3% |
 | protection + diodes | 143 | 0.2% |
-| resistors | 109 | 0.1% |
-| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **72,492** | 100% |
+| resistors | 97 | 0.1% |
+| **TOTAL (electronics, ex-PCB/mech/busbar/coldplate)** | **72,495** | 100% |
 
 The three HCS600FH120D3C1 modules dominate (as they should at this power class); every
 other line is distributor-standard. Swapping the module vendor swaps one BOM line.
