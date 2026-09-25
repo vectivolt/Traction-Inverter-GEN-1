@@ -112,6 +112,67 @@ TEST(round14_cal_defaults_and_ranges)
     CHECK(ti_params_validate(&p) >= 1u);
 }
 
+/* Round 16: the CAL rows' defaults and ranges. The hold (A14-R01) is at least two carrier periods plus
+ * jitter (a normal empty read never faults) and at most the observer's re-acquisition gap. */
+TEST(round16_cal_defaults_and_ranges)
+{
+    for (int k = TI_SKU_8XX_SIC; k < TI_SKU_COUNT; k++) {
+        const ti_params_t *q = ti_params_get((ti_sku_t)k);
+        CHECK(q->cal_rslv_hold_us == 500u && q->cal_rslv_exc_target_vpp == 7.2f && q->cal_swg_code_init == 8u);
+        CHECK_NEAR(q->cal_rslv_wind_per_mon, 70.0 / 72.6, 1e-6);
+    }
+    ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_rslv_hold_us = 200u; /* one missed frame at a 10 kHz current loop would fault */
+    CHECK(ti_params_validate(&p) >= 1u);
+    p.cal_rslv_hold_us = 900u; /* past the observer's 8-block re-acquisition gap */
+    CHECK(ti_params_validate(&p) >= 1u);
+    p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_swg_code_init = 15u; /* the register maximum: the untrimmed max corner slew-limits */
+    CHECK(ti_params_validate(&p) >= 1u);
+    /* the hold's derivation: extrapolating e_w t + alpha t^2 / 2 with e_w = alpha / (e wn) reaches the
+     * observer's own lag alpha / wn^2 at t = 1.09 / wn, whatever alpha; 500 us stays inside it */
+    const double wn = 2.0 * 3.14159265358979 * p.cal_rslv_bw_hz;
+    const double a = p.cal_rslv_accel_max_rad_s2;
+    const double t = p.cal_rslv_hold_us * 1e-6;
+    CHECK_NEAR(1.0934 / wn, 580e-6, 5e-6);
+    CHECK((a / (exp(1.0) * wn)) * t + 0.5 * a * t * t < a / (wn * wn));
+    CHECK_NEAR(((a / (exp(1.0) * wn)) * t + 0.5 * a * t * t) * 180.0 / 3.14159265358979, 0.255, 0.01); /* deg el */
+}
+
+/* A14-N01: the planes and the trim headroom. From the design (13 k / 28 k / 10 k, 1.5 nF, 220 pF MFB;
+ * RSX 2.2 ohm, PTC 1.3 ohm cold / 5 ohm post-trip per line, 70 ohm primary): the 7.2 V pp monitor setpoint
+ * is 7.64 V pp at the amplifier (1.91 V pk per output, under the 2.07 V pk -40 degC slew ceiling), needs
+ * 1.843 V pp from the SWG (2.2 % under the 1.884 V pp low corner: no saturation there), and gives the
+ * winding 6.94 V pp cold, 6.3 V pp post-trip (under the 6.5 V pp floor: FW-10 flags it). The validation
+ * refuses a set whose setpoint the low corner cannot reach, that would slew-limit, or that starves the
+ * cold winding. */
+TEST(exciter_planes_and_trim_headroom)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    CHECK_NEAR(p->exc_amp_per_mon, 77.0 / 72.6, 1e-5);
+    CHECK_NEAR(p->exc_gain / 2.0, 2.072, 0.001);
+    CHECK_NEAR(p->exc_slew_max_vpp, 4.0 * 0.13e6 / (2.0 * 3.14159265358979 * 10e3), 1e-4);
+    const double amp = p->cal_rslv_exc_target_vpp * p->exc_amp_per_mon;
+    CHECK_NEAR(amp, 7.636, 0.001);
+    CHECK_NEAR(amp / 4.0, 1.909, 0.001); /* V pk per output */
+    CHECK_NEAR(amp / p->exc_gain, 1.843, 0.001);
+    CHECK_NEAR(p->swg_maxapp_min_vpp / (amp / p->exc_gain), 1.022, 0.001); /* headroom at the low corner */
+    CHECK_NEAR(p->cal_rslv_exc_target_vpp * p->cal_rslv_wind_per_mon, 6.942, 0.001);
+    CHECK_NEAR(p->cal_rslv_exc_target_vpp * 70.0 / 80.0, 6.3, 1e-6);
+    CHECK(p->cal_rslv_exc_target_vpp * 70.0 / 80.0 < p->rslv_floor_vpp);
+    CHECK(ti_params_validate(p) == 0u);
+    ti_params_t q = *p;
+    q.cal_rslv_exc_target_vpp = 7.4f; /* 1.894 V pp from the SWG: beyond the low corner */
+    CHECK(ti_params_validate(&q) == 1u);
+    q.cal_rslv_exc_target_vpp = 8.0f; /* the round-15 figure: beyond the corner AND the slew ceiling */
+    CHECK(ti_params_validate(&q) == 2u);
+    q.cal_rslv_exc_target_vpp = 6.7f; /* 6.46 V pp at the cold winding */
+    CHECK(ti_params_validate(&q) == 1u);
+    q = *p;
+    q.cal_rslv_wind_per_mon = 0.875f; /* crediting a tripped PTC's 5 ohm */
+    CHECK(ti_params_validate(&q) == 1u);
+}
+
 void suite_params(void)
 {
     RUN(all_skus_validate);
@@ -122,4 +183,6 @@ void suite_params(void)
     RUN(fw07_fw12_fw11_contract_constants);
     RUN(cal_value_out_of_range_rejected);
     RUN(round14_cal_defaults_and_ranges);
+    RUN(round16_cal_defaults_and_ranges);
+    RUN(exciter_planes_and_trim_headroom);
 }

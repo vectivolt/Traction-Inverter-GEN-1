@@ -219,13 +219,25 @@ export default () => (
     <net name="DGND" isGround />
     <net name="AGND" isGround />
 
-    {/* ---- LV INPUT: fuse + reverse + TVS + bead (GEN3 exact parts) ---- */}
+    {/* ---- LV INPUT: fuse -> pin-side TVS pair -> reverse Schottky -> bulk + bead ----
+        Round 17 (F185-F189), ISO 16750-2 test B by LET-THROUGH: no TVS on a KL30-derived net conducts at the
+        35 V suppressed load dump (knee >= 36.95 V at 18 C), so the result no longer depends on the generator's
+        R_i or on how its central clamp is built; everything downstream is rated for 35 V. FLVC is a 5 A
+        slow-blow fuse (the 3 A polyfuse held 1.50 A at 85 C against the inverter's 2.54 A at 9 V).
+        DTVSC (33 V stand-off, cathode on FCO) + DTVSC2 (18 V stand-off, cathode on DGND) in anti-series AHEAD of
+        DREVC: positive surges clamp at V_BR(33) + V_F(18); negative ones (pulse 1 / 3a) at V_BR(18) + V_F(33)
+        ~ 25 V, so DREVC (60 V) sees <= 38 V — with the TVS behind it, pulse 1 avalanched DREVC (~654 W vs
+        P_ARM 144 W). DTVSC2 stays dark at the -14 V reverse battery. CLVC3 (100 uF hybrid polymer, POLARISED:
+        pin1 + on NRC) holds pulse 2a (+112 V / 2 ohm) on NRC below the TVS knee and the 40 V FS26 / TPS55340-Q1
+        ratings; the bead + MLCCs alone let it through. */}
     <chip name="FLVC" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.KL30", B: "net.FCO" }} />
+    <diode name="DTVSC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.TVSM", cathode: "net.FCO" }} />
+    <diode name="DTVSC2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.TVSM", cathode: "net.DGND" }} />
     <diode name="DREVC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FCO", cathode: "net.NRC" }} />
-    <diode name="DTVSC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.NRC" }} />
     <inductor name="LFC" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.VBATC" }} />
     <capacitor name="CLVC1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
+    <capacitor name="CLVC3" capacitance="100uF" footprint={SmdFP(2)} {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
     <capacitor name="CLVC2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.VBATC", pin2: "net.DGND" }} />
     {/* gate-power feeds to the power board: sourced HERE from the reverse-protected node,
         one polyfuse per bank, out over harness pins 19/20 (H) and 39/40 (L).
@@ -235,7 +247,7 @@ export default () => (
         on only while V5A is up, i.e. while the FS26 is awake (MCU resets included). 4.7 k/10 k set
         V_GS -7.9 V at 12 V KL30 (-5.8 V at 9 V; NRC is ~0.5 V below KL30), and keep a hot
         2N7002's off-state leakage (tens of uA at 85 C) under 0.5 V of gate drive. ZLVS holds V_GS
-        <= 15.6 V up to the 39 V TVS clamp. CLVSM + RLVSM (drain-gate) set the turn-on slew to
+        <= 15.6 V up to the ~42 V pin-side clamp. CLVSM + RLVSM (drain-gate) set the turn-on slew to
         ~15 V/ms, so the ~45 uF of power-board input charges at <= ~1 A, not a 10-30 A spike
         at every wake (round 9 cross-check R9X-04/R9X-10). */}
     <chip name="QLVS" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "G", pin2: "D", pin3: "S", pin4: "TAB" }}
@@ -292,8 +304,11 @@ export default () => (
     <resistor name="RSB3" resistance="220" footprint="0603" {...gp()} connections={{ pin1: "net.AMUXO", pin2: "net.SBC_AMUX" }} />
     <resistor name="RSB4" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.SBC_INTB" }} />
     <resistor name="RMRST" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.RESET_B" }} />
-    {/* ignition wake divider + steering */}
-    <resistor name="RIGN1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.KL15", pin2: "net.WAKE1" }} />
+    {/* ignition wake divider + steering. Round 17 (F188): RIGN1 hangs BEHIND DIGN (US1M, 1000 V), so ISO 7637-2
+        pulse 1 (-150 V) and a reversed KL15 are blocked before the FS26 WAKE1 pin (-0.3 V abs min, -5 mA
+        reverse DC max) — straight from KL15 through 5.1 k it took ~29 mA at pulse 1. WAKE1 still reads
+        (6 - 0.6) x 10/15.1 = 3.6 V at a 6 V KL15 (V_IH 0.7 x VBOS = 3.5 V worst) */}
+    <resistor name="RIGN1" resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.IGN_D", pin2: "net.WAKE1" }} />
     <resistor name="RIGN2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.WAKE1", pin2: "net.DGND" }} />
     {/* IGN sense: 14 V -> 2.33 V at the ADC pin; 47k series limits load-dump injection to
         <1 mA (S32K39 spec 3 mA); reads as analog, thresholds in firmware (rev A.4) */}
@@ -458,7 +473,7 @@ export default () => (
     <resistor name="RFS1" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.ASC_SET_N" }} />
     <resistor name="RFS2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.ASC_SET_N" }} />
     <resistor name="RFS3" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CLR_M", pin2: "net.ASC_CLR_N" }} />
-    <resistor name="RFS4" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.FOUT_K" }} />
+    <resistor name="RFS4" resistance="1k" footprint="1206" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.FOUT_K" }} />  {/* round 17: 1206 anti-surge (ESR18, 0.5 W) so the 24 V/60 s jump start with FS1B held (0.48 W) sits inside the rating */}
     <diode name="DFO" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FAULT_OUT", cathode: "net.FOUT_K" }} />
     <diode name="ZSET" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.ASC_SET_N" }} />
     {/* RASCP on the latch output (round 8 cross-check): behind UASCG a dead/unpowered ULAT (Hi-Z) would
@@ -520,10 +535,9 @@ export default () => (
         into the resolver instead of 8 V pp. Now a textbook MFB: REXA2 in, REXA4 output->summing node,
         CEXA2 summing node->ground, REXA3 to the inverting input, CEXA1 output->inverting input.
         At 10 kHz the 100 nF is a short, so the input resistance is REXA1 + REXA2 = 13 k: passband
-        gain -1.85, f0 17.9 kHz, Q 0.77, |H(10 kHz)| 1.85 (+/-6 % over +/-10 % caps and 1 % resistors):
-        SWG 2.09 V pp -> 3.9 V pp at REX_F -> 7.7 V pp differential (7.0-8.5 over the SWG range).
-        24 k is the ceiling: the ALM2402's ~0.13 V/us slew at -40 C caps each output near 2.07 V pk
-        (8.3 V pp differential). The SWG amplitude register is the firmware knob against the
+        gain -1.85 with the round-12 24 k (round 16: 28 k, gain -2.15, |H(10 kHz)| ~2.09 — see REXA4);
+        the ALM2402's ~0.13 V/us slew at -40 C caps each output near 2.07 V pk (8.3 V pp differential),
+        which the firmware trim respects by ramping the SWG amplitude up to the monitor target. The SWG amplitude register is the firmware knob against the
         excitation monitor (REXM). CEXA4 gives the SWG its specified 25-100 pF load (Table 40).
         OPA348: +0.15 % / -2.3 deg at 10 kHz from its 1 MHz GBW (Opus check, round 12). */}
     <capacitor name="CEXA4" capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: "net.SWG1", pin2: "net.AGND" }} />
@@ -533,11 +547,19 @@ export default () => (
     <capacitor name="CEXA2" capacitance="1.5nF" footprint="0603" {...gp()} connections={{ pin1: "net.NEX3", pin2: "net.AGND" }} />
     <resistor name="REXA3" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.NEX3", pin2: "net.NEX4" }} />
     <capacitor name="CEXA1" capacitance="220pF" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX4" }} />
-    <resistor name="REXA4" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX3" }} />
+    {/* Round 16 (A14-R04, review 3): with the series RSX + PTC losses (x0.909 to the winding) the SWG's LOW
+        corner (MAXAPP 1.884 V pp) delivered only 6.34 V pp at the winding through the 24 k (gain 1.85) —
+        under the 6.5 V pp resolver floor. 28 k: gain 2.15 (|H(10 kHz)| ~2.09, f0 16.6 kHz): low corner
+        7.9 V pp at the amplifier -> 7.2 V pp at the winding. The firmware SWG trim (FW-10) holds 7.2 V pp
+        at the MONITOR plane (needs SWG ~1.83 V pp <= 1.884 low corner, 3 % headroom), i.e. 7.64 V pp at the amplifier
+        (1.9 V pk per output, under the -40 C slew ceiling) and 6.94 V pp at the winding cold; the untrimmed
+        SWG max corner would slew-limit, so the trim ramps up from ~1.5 V pp — the register never starts at
+        its maximum. Post-trip (PTC 5 R) the winding sees ~6.3 V pp and the FW-10 window flags the line. */}
+    <resistor name="REXA4" resistance="28k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.NEX3" }} />
     <chip name="UEXF" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
       connections={{ OUT: "net.REX_F", VN: "net.AGND", INP: "net.VMID_REX", INN: "net.NEX4", VP: "net.V5A" }} />
     {/* resolver-amp supply: ALM2402 abs max is 18 V (rec 16 V) — VBATC can see 24 V jump
-        start and ~33 V clamped transients, and TPSMC24CA clamps far above 18 V. ULDOEX
+        start and ~33 V clamped transients, and the KL30 clamp (TPSMC24CA then; the 33 V let-through pair since A.16, dark at 35 V) sits far above 18 V. ULDOEX
         (same 40 V ADJ LDO family as ULDO15) makes a protected 12.1 V VEXD rail; in dropout
         at crank it degrades exactly like the old direct feed (rev A.4.2). INH follows V5A (round 9
         cross-check R9X-03): tied to VBATC it kept the exciter drawing ~0.9 mA in FS26 LPOFF. */}
@@ -558,17 +580,30 @@ export default () => (
                            TVSEx (SMCJ8.5CA) to AGND
         The TVS sits on the PROTECTED (amplifier) side of the PTC, so an external battery fault can reach
         the clamp only THROUGH the PTC — the round-14 drawing had the TVS on the connector node, where the
-        fault current bypassed the PTC (A13-R01). The clamp (~10.4-11.5 V) is below the 12.1 V rail + a diode
-        while VEXD is up; with VEXD absent/cranking the amplifier's reverse diode charges the rail through
-        RSX — a ~5 A, ~50 us pulse into CLDE, then the rail sits at ~10.8 V (under the 18 V abs max) until the
-        PTC trips (A13-R02, bench gate 28, VEXD off/low/on, both polarities). RSX also bounds the negative-fault
-        pulse through the lower diode. The monitor (REXM) taps the protected node so FW-10 sees what the
-        resolver gets; the feedback (REXB) stays at the amplifier output. design-verify §7c: fault currents,
-        TVS energy, back-drive pulse, amplitude at the resolver (>= 6.5 V pp). */}
+        fault current bypassed the PTC (A13-R01). Round 16: the TVS is UNIDIRECTIONAL (SMCJ8.5A, cathode on
+        the node): the excitation never goes below ground (4-8 V around VMID), so a negative harness fault is
+        carried by the TVS forward diode at -0.7...-1.2 V (I_FSM 200 A) and the amplifier's lower output diode
+        sees < 0.3 A through RSX instead of 4.4 A (A14-R02). Positive clamp ~10.4-11.5 V: below the 12.1 V
+        rail + a diode while VEXD is up; with VEXD absent/cranking the amplifier's reverse diode charges the
+        26.7 uF rail (CLDE + CEXD) through RSX — 4.9 A peak decaying with tau = 59 us (0.19 mJ in the diode,
+        rail then ~10.8 V, under the 18 V abs max) until the PTC trips; the diode's pulse envelope is not
+        published (DS 8.3.6: pulsed use) — bench gate 28 measures it with VEXD off/cranking/on. The monitor
+        (REXM) taps the protected node — the winding sees that minus the PTC/harness drop (x0.964 cold,
+        x0.875 for an hour after a trip); the feedback (REXB) stays at the amplifier output. design-verify §7c:
+        fault currents, TVS energy (conditional on the PTC clearing time), back-drive, amplitude planes. */}
     <resistor name="RSXP" resistance="2.2" footprint="1206" {...gp()} connections={{ pin1: "net.VREX_P", pin2: "net.VREX_PX" }} />
     <resistor name="RSXN" resistance="2.2" footprint="1206" {...gp()} connections={{ pin1: "net.VREX_N", pin2: "net.VREX_NX" }} />
     <chip name="TVSEP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_PX", A: "net.AGND" }} />
     <chip name="TVSEN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }} connections={{ K: "net.VREX_NX", A: "net.AGND" }} />
+    {/* Round 17 (gap closure of the A.15 OPEN back-drive row): with VEXD absent or cranking, a positive harness fault
+        clamped by the TVS above the rail charges the 26.7 uF rail through the amplifier's internal reverse diodes
+        (ALM2402 DS 8.3.6: pulsed use only, no energy envelope published). DEXP/DEXN give that charge a RATED path:
+        a Schottky from each protected node to VEXD conducts at ~0.45 V, a good 0.3 V below the internal diodes, so
+        the 4.9 A / 59 us exponential (0.29 mC) is carried by a part with a datasheet I_FSM; NCV4276C output abs max
+        40 V tolerates the rail sitting at the clamp with its input at 0 V. Dark in normal operation: the node swings
+        0.6-4.4 V, the rail is 12.1 V; dark during a rail-present fault too (SMCJ8.5A clamps below 12.8 V up to ~40 A). */}
+    <diode name="DEXP" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VREX_PX", cathode: "net.VEXD" }} />
+    <diode name="DEXN" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VREX_NX", cathode: "net.VEXD" }} />
     <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_PX", B: "net.VREX_PC" }} />
     <chip name="FEXN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_NX", B: "net.VREX_NC" }} />
     <resistor name="REXB1" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.EXN1" }} />

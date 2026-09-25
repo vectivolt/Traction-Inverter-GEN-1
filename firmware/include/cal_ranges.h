@@ -70,11 +70,19 @@
     {"cal_torque_max_nm", offsetof(ti_params_t, cal_torque_max_nm), TI_CAL_F32, 50.0f, 2000.0f}, \
     {"cal_desat_en_hold_us", offsetof(ti_params_t, cal_desat_en_hold_us), TI_CAL_U32, 55.0f, 250.0f}, \
     {"cal_vdyn_reserve_frac", offsetof(ti_params_t, cal_vdyn_reserve_frac), TI_CAL_F32, 0.0f, 0.2f}, \
+    {"cal_vsup_ld_ms", offsetof(ti_params_t, cal_vsup_ld_ms), TI_CAL_U32, 400.0f, 1000.0f}, \
+    {"cal_vsup_jump_ms", offsetof(ti_params_t, cal_vsup_jump_ms), TI_CAL_U32, 60000.0f, 120000.0f}, \
+    {"cal_vsup_jump_max_v", offsetof(ti_params_t, cal_vsup_jump_max_v), TI_CAL_F32, 24.5f, 30.0f}, \
+    {"cal_asc_release_ns", offsetof(ti_params_t, cal_asc_release_ns), TI_CAL_U32, 1070.0f, 5000.0f}, \
     {"cal_isns_act_min_a", offsetof(ti_params_t, cal_isns_act_min_a), TI_CAL_F32, 5.0f, 100.0f}, \
     {"cal_isns_act_frac", offsetof(ti_params_t, cal_isns_act_frac), TI_CAL_F32, 0.05f, 0.5f}, \
     {"cal_isns_act_debounce", offsetof(ti_params_t, cal_isns_act_debounce), TI_CAL_U8, 4.0f, 100.0f}, \
+    {"cal_rslv_hold_us", offsetof(ti_params_t, cal_rslv_hold_us), TI_CAL_U32, 250.0f, 800.0f}, \
+    {"cal_rslv_exc_target_vpp", offsetof(ti_params_t, cal_rslv_exc_target_vpp), TI_CAL_F32, 6.5f, 8.3f}, \
+    {"cal_rslv_wind_per_mon", offsetof(ti_params_t, cal_rslv_wind_per_mon), TI_CAL_F32, 0.8f, 1.0f}, \
+    {"cal_swg_code_init", offsetof(ti_params_t, cal_swg_code_init), TI_CAL_U8, 0.0f, 12.0f}, \
 }
 
-#define TI_CAL_RANGE_COUNT 67u
+#define TI_CAL_RANGE_COUNT 75u
 
 #endif /* CAL_RANGES_H */

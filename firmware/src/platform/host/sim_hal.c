@@ -40,6 +40,7 @@ static uint32_t s_wd_status;
 static bool s_wd_level;
 static bool s_slow_model;   /* the target's slow list: nothing converted before its first start */
 static bool s_slow_started;
+static uint8_t s_phase_stop; /* bit k: phase channel k delivers no new conversion (round 16 injection) */
 
 typedef enum { HVIL_M_CLOSED = 0, HVIL_M_OPEN, HVIL_M_SHORT_GND, HVIL_M_SHORT_BAT } hvil_mode_t;
 static hvil_mode_t s_hvil;
@@ -94,7 +95,7 @@ static struct {
     uint16_t reg[SIM_PWM_NREG];
     bool prot_locked;
     bool route_bound; /* board configuration: FLT pads -> FAULT0/FAULT2 */
-    uint64_t hs_off_ns, asc_ns;
+    uint64_t hs_off_ns, asc_ns, mod_ns;
     uint32_t nan_writes;
 } P;
 
@@ -210,6 +211,7 @@ uint64_t sim_vdc_ramp_crossing_ns(float v_link)
 
 /* ================= clock stepping ================= */
 static uint64_t min_u64(uint64_t a, uint64_t b) { return (a < b) ? a : b; }
+static void sd_run(uint64_t until_ns); /* the resolver DMA model (below) */
 
 void sim_advance_ns(uint64_t ns)
 {
@@ -243,6 +245,7 @@ void sim_advance_ns(uint64_t ns)
             break;
         }
     }
+    sd_run(s_now); /* DMA completions and their interrupts up to now */
 }
 
 void sim_advance_us(uint32_t us) { sim_advance_ns((uint64_t)us * 1000u); }
@@ -377,6 +380,9 @@ void hal_pwm_set_duty(const float duty[3])
             return;
         }
     }
+    if (P.mode != HAL_PWM_MOD) {
+        P.mod_ns = s_now; /* modulation (re)starts: the first high-side pulse can come at once */
+    }
     P.mode = HAL_PWM_MOD;
     for (uint32_t i = 0u; i < 3u; i++) {
         P.duty[i] = duty[i];
@@ -401,6 +407,7 @@ bool sim_pwm_hs_forced_off(void) { return (P.fflag & dis_hs()) != 0u; }
 bool sim_pwm_ls_forced_off(void) { return (P.fflag & dis_ls()) != 0u; }
 uint64_t sim_pwm_hs_off_ns(void) { return P.hs_off_ns; }
 uint64_t sim_pwm_asc_set_ns(void) { return P.asc_ns; }
+uint64_t sim_pwm_mod_ns(void) { return P.mod_ns; }
 uint32_t sim_pwm_nan_writes(void) { return P.nan_writes; }
 
 /* ================= ADC HAL ================= */
@@ -411,6 +418,7 @@ bool hal_adc_init(void)
 }
 
 void sim_adc_require_slow_start(bool on) { s_slow_model = on; }
+void sim_adc_phase_stop(uint8_t mask) { s_phase_stop = (uint8_t)(mask & 0x7u); }
 
 /* The phase currents (BCTU) and V_DC (continuous) convert on hardware triggers; the rest only once
  * software has started the slow list. */
@@ -447,6 +455,9 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
 
 bool hal_adc_read_phase(uint16_t codes[3], uint32_t *t_us)
 {
+    if (s_phase_stop != 0u) {
+        return false; /* hal/adc.h round 16: no complete triplet, nothing written */
+    }
     codes[0] = s_code[HAL_ADC_ISNS_U];
     codes[1] = s_code[HAL_ADC_ISNS_V];
     codes[2] = s_code[HAL_ADC_ISNS_W];
@@ -526,69 +537,268 @@ void sim_set_v5gd(float v5gd)
 
 void sim_hvil_set(uint8_t mode) { s_hvil = (hvil_mode_t)mode; }
 
-/* ================= SDADC + SWG ================= */
+/* ================= SDADC + eDMA + SWG ================= */
+/* The resolver excitation chain of the card (round 16, the planes of A14-N01): SWG (IOAMPL code; the
+ * part's MAXAPP corner, linear down to MINAPP = 0.209 MAXAPP) -> MFB |H(10 kHz)| 2.072 x 2 (ALM2402
+ * bridge) -> RSX 2.2 ohm per line -> monitor tap (the protected node) -> PTC per line -> primary.
+ * The monitor chain gives 2500 codes of carrier amplitude per V pp at its plane, the sin/cos chains
+ * 2074 codes per V pp at the winding (ratio_nom 0.8 at the cold EOL condition: 0.8 x 2500 x 72.6 / 70). */
+#define SIM_EXC_GAIN 4.14348f
+#define SIM_RSX_OHM 2.2f
+#define SIM_SWG_MIN_FRAC 0.2093f /* MINAPP / MAXAPP: 0.394 / 1.884 = 0.438 / 2.093 = 0.482 / 2.302 */
+#define SIM_MON_CODE_PER_VPP 2500.0f
+#define SIM_SC_CODE_PER_VPP 2074.2857f
+
 static sim_resolver_t s_rs;
 static bool s_rs_set;
 static uint64_t s_rs_t;
 static float s_rs_glitch;
-static int64_t s_blk_last[HAL_SD_COUNT];
 static uint32_t s_carrier_hz = 10000u;
 static bool s_swg_run, s_swg_fail;
-static uint8_t s_swg_code = 12u; /* the SWG output scales with the amplitude code (12 = nominal) */
+static uint8_t s_swg_code = 12u;
+static float s_swg_maxapp = 2.093f; /* DS Table 40 typical; corners 1.884 / 2.302 */
+static float s_r_pri = 70.0f;       /* resolver primary */
+static float s_r_ptc = 1.3f;        /* each line's PTC (cold; up to 5 ohm for an hour after a trip) */
+static float s_amp_max;             /* largest amplifier amplitude commanded (V pp) */
 
-bool hal_sdadc_init(uint32_t carrier_hz)
+/* eDMA: per channel a ring of HAL_SD_NBUF blocks, its own completion and its own interrupt. */
+static int16_t s_sdbuf[HAL_SD_COUNT][HAL_SD_NBUF][HAL_SDADC_BLOCK_N];
+static hal_sd_ring_t s_ring;
+static bool s_sd_on, s_sd_tag;
+static uint32_t s_sd_base;
+static uint32_t s_irq_lat_ns;
+static sim_sd_hook_fn s_sd_hook;
+static struct {
+    uint32_t hw;      /* blocks this DMA completed (hardware); it is writing slot hw % NBUF */
+    uint64_t blk;     /* carrier period of the block it is acquiring (starts at blk x period) */
+    uint64_t next_ns; /* hardware completion of that block */
+    bool pend;        /* completion interrupt pending (one flag: two completions make one interrupt) */
+    uint64_t irq_ns;
+    bool frozen;
+    uint32_t delay_ns;
+} s_dma[HAL_SD_COUNT];
+
+static uint64_t sd_period_ns(void) { return 1000000000ull / s_carrier_hz; }
+
+static float swg_vpp(void)
 {
-    s_carrier_hz = carrier_hz;
-    return true;
+    return s_swg_maxapp * (SIM_SWG_MIN_FRAC + ((1.0f - SIM_SWG_MIN_FRAC) * (float)s_swg_code / 15.0f));
 }
 
-void sim_resolver_set(const sim_resolver_t *r)
+void sim_exc_planes(float *amp_vpp, float *mon_vpp, float *wind_vpp)
 {
-    s_rs = *r;
-    s_rs_set = true;
-    s_rs_t = s_now;
-    s_rs_glitch = 0.0f;
+    const float load = s_r_pri + (2.0f * s_r_ptc);
+    const float amp = swg_vpp() * SIM_EXC_GAIN;
+    const float mon = amp * load / (load + (2.0f * SIM_RSX_OHM));
+    *amp_vpp = amp;
+    *mon_vpp = mon;
+    *wind_vpp = mon * s_r_pri / load;
 }
 
-void sim_resolver_glitch(float delta_rad) { s_rs_glitch += delta_rad; }
-
-bool hal_sdadc_read_block(hal_sd_ch_t ch, int16_t out[HAL_SDADC_BLOCK_N], uint32_t *t_us)
+static void dma_fill(hal_sd_ch_t ch, uint64_t blk, int16_t out[HAL_SDADC_BLOCK_N])
 {
-    const uint64_t period = 1000000000u / s_carrier_hz;
-    const int64_t idx = (int64_t)(s_now / period) - 1;
-    if ((ch >= HAL_SD_COUNT) || (idx <= s_blk_last[ch])) {
-        return false;
-    }
-    s_blk_last[ch] = idx;
-    const uint64_t tb = (uint64_t)idx * period;
-    *t_us = (uint32_t)(tb / 1000u);
+    const uint64_t period = sd_period_ns();
+    const uint64_t tb = blk * period;
     const bool live = s_rs_set && s_swg_run && !s_swg_fail;
-    const float exc_k = (float)s_swg_code / 12.0f; /* windings follow the excitation */
+    float amp = 0.0f;
+    float mon = 0.0f;
+    float wind = 0.0f;
+    sim_exc_planes(&amp, &mon, &wind);
+    if (live && (amp > s_amp_max)) {
+        s_amp_max = amp;
+    }
+    const float a = (ch == HAL_SD_EXC) ? (mon * SIM_MON_CODE_PER_VPP) : (wind * SIM_SC_CODE_PER_VPP * s_rs.out_gain);
     const float th = s_rs.theta0_rad + s_rs.omega_rad_s * ((float)(int64_t)(tb - s_rs_t) * 1e-9f) + s_rs_glitch;
     const float lag = s_rs.lag_deg * (3.14159265f / 180.0f);
     for (uint32_t k = 0u; k < HAL_SDADC_BLOCK_N; k++) {
         const float ph = 6.28318531f * (float)k / (float)HAL_SDADC_BLOCK_N;
-        const float n = s_rs.noise_code * sinf(1.7f * (float)k + 0.37f * (float)idx);
+        const float n = s_rs.noise_code * sinf(1.7f * (float)k + 0.37f * (float)(blk % 100000u));
         const float thk = th + (s_rs.omega_rad_s * (float)((period / HAL_SDADC_BLOCK_N) * k) * 1e-9f); /* moves within the block */
         float v = 0.0f;
         if (live) {
             if (ch == HAL_SD_EXC) {
-                v = exc_k * s_rs.exc_amp * sinf(ph);
+                v = a * sinf(ph);
             } else if (ch == HAL_SD_SIN) {
-                v = exc_k * s_rs.sincos_amp * s_rs.sin_gain * sinf(thk) * sinf(ph - lag);
+                v = a * s_rs.sin_gain * sinf(thk) * sinf(ph - lag);
             } else {
-                v = exc_k * s_rs.sincos_amp * s_rs.cos_gain * cosf(thk) * sinf(ph - lag);
+                v = a * s_rs.cos_gain * cosf(thk) * sinf(ph - lag);
             }
         }
         v += n;
         v = (v > 32767.0f) ? 32767.0f : ((v < -32767.0f) ? -32767.0f : v);
         out[k] = (int16_t)lrintf(v);
     }
+    if (s_sd_tag) {
+        out[0] = (int16_t)(blk & 0x3FFFu); /* test tag: which carrier period this block holds */
+    }
+}
+
+/* The DMA of ch completes the block it is acquiring (hardware): the block lands in its slot, the
+ * interrupt becomes pending (a pending one absorbs it). */
+static void dma_complete(uint32_t ch, uint64_t t_ns)
+{
+    dma_fill((hal_sd_ch_t)ch, s_dma[ch].blk, s_sdbuf[ch][s_dma[ch].hw % HAL_SD_NBUF]);
+    s_dma[ch].hw++;
+    s_dma[ch].blk++;
+    s_dma[ch].next_ns = ((s_dma[ch].blk + 1u) * sd_period_ns()) + s_dma[ch].delay_ns;
+    if (!s_dma[ch].pend) {
+        s_dma[ch].pend = true;
+        s_dma[ch].irq_ns = t_ns + s_irq_lat_ns;
+    }
+}
+
+static void dma_irq(uint32_t ch, uint64_t t_ns)
+{
+    s_dma[ch].pend = false;
+    hal_sd_ring_complete(&s_ring, (hal_sd_ch_t)ch, (uint32_t)(t_ns / 1000u));
+}
+
+/* Every DMA completion and completion interrupt due by until_ns, in time order. */
+static void sd_run(uint64_t until_ns)
+{
+    for (uint32_t guard = 0u; s_sd_on && (guard < 4000000u); guard++) {
+        uint32_t ch = HAL_SD_COUNT;
+        bool irq = false;
+        uint64_t t = UINT64_MAX;
+        for (uint32_t c = 0u; c < (uint32_t)HAL_SD_COUNT; c++) {
+            if (!s_dma[c].frozen && (s_dma[c].next_ns < t)) {
+                t = s_dma[c].next_ns;
+                ch = c;
+                irq = false;
+            }
+            if (s_dma[c].pend && (s_dma[c].irq_ns < t)) {
+                t = s_dma[c].irq_ns;
+                ch = c;
+                irq = true;
+            }
+        }
+        if ((ch == HAL_SD_COUNT) || (t > until_ns)) {
+            break;
+        }
+        if (irq) {
+            dma_irq(ch, t);
+        } else {
+            dma_complete(ch, t);
+        }
+    }
+}
+
+bool hal_sdadc_init(uint32_t carrier_hz)
+{
+    s_carrier_hz = carrier_hz;
+    const uint64_t period = sd_period_ns();
+    hal_sd_ring_init(&s_ring, (uint32_t)(period / 1000u), s_sd_base);
+    (void)memset(s_sdbuf, 0, sizeof s_sdbuf);
+    for (uint32_t c = 0u; c < (uint32_t)HAL_SD_COUNT; c++) {
+        s_dma[c].hw = s_sd_base;
+        s_dma[c].blk = (s_now / period) + 1u; /* the first whole carrier period */
+        s_dma[c].next_ns = ((s_dma[c].blk + 1u) * period) + s_dma[c].delay_ns;
+        s_dma[c].pend = false;
+    }
+    s_sd_on = true;
     return true;
 }
 
+bool hal_sdadc_read_frame(hal_sd_frame_t *f)
+{
+    sd_run(s_now);
+    return s_sd_on && hal_sd_ring_read(&s_ring, f);
+}
+
+uint32_t hal_sd_dma_slot(hal_sd_ch_t ch)
+{
+    return ((uint32_t)ch < (uint32_t)HAL_SD_COUNT) ? (s_dma[ch].hw % HAL_SD_NBUF) : HAL_SD_NBUF;
+}
+
+const volatile int16_t *hal_sd_dma_block(hal_sd_ch_t ch, uint32_t slot)
+{
+    if (s_sd_hook != NULL) {
+        s_sd_hook(ch); /* a test acts between the reader's channel copies */
+    }
+    return &s_sdbuf[(uint32_t)ch % (uint32_t)HAL_SD_COUNT][slot % HAL_SD_NBUF][0];
+}
+
+void sim_sdadc_freeze(hal_sd_ch_t ch, bool frozen)
+{
+    if ((uint32_t)ch >= (uint32_t)HAL_SD_COUNT) {
+        return;
+    }
+    sd_run(s_now);
+    if (s_dma[ch].frozen && !frozen) { /* the DMA resumes with the period being acquired now */
+        s_dma[ch].blk = s_now / sd_period_ns();
+        s_dma[ch].next_ns = ((s_dma[ch].blk + 1u) * sd_period_ns()) + s_dma[ch].delay_ns;
+    }
+    s_dma[ch].frozen = frozen;
+}
+
+void sim_sdadc_delay_ns(hal_sd_ch_t ch, uint32_t ns)
+{
+    if ((uint32_t)ch < (uint32_t)HAL_SD_COUNT) {
+        sd_run(s_now);
+        s_dma[ch].delay_ns = ns;
+        s_dma[ch].next_ns = ((s_dma[ch].blk + 1u) * sd_period_ns()) + ns;
+    }
+}
+
+void sim_sdadc_irq_latency_ns(uint32_t ns)
+{
+    sd_run(s_now);
+    s_irq_lat_ns = ns;
+    for (uint32_t c = 0u; c < (uint32_t)HAL_SD_COUNT; c++) { /* pending interrupts: no later than the new latency */
+        s_dma[c].irq_ns = min_u64(s_dma[c].irq_ns, s_now + ns);
+    }
+}
+
+void sim_sdadc_complete_now(hal_sd_ch_t ch)
+{
+    if ((uint32_t)ch < (uint32_t)HAL_SD_COUNT) {
+        dma_complete((uint32_t)ch, s_now);
+        dma_irq((uint32_t)ch, s_now); /* the interrupt preempts whatever runs */
+    }
+}
+
+void sim_sdadc_read_hook(sim_sd_hook_fn fn) { s_sd_hook = fn; }
+void sim_sdadc_count_base(uint32_t count0) { s_sd_base = count0; }
+void sim_sdadc_tag(bool on) { s_sd_tag = on; }
+const hal_sd_ring_t *sim_sdadc_ring(void) { return &s_ring; }
+uint64_t sim_sdadc_period_index(void) { return s_now / sd_period_ns(); }
+
+void sim_resolver_set(const sim_resolver_t *r)
+{
+    sd_run(s_now);
+    s_rs = *r;
+    s_rs_set = true;
+    s_rs_t = s_now;
+    s_rs_glitch = 0.0f;
+}
+
+void sim_resolver_glitch(float delta_rad)
+{
+    sd_run(s_now);
+    s_rs_glitch += delta_rad;
+}
+
+void sim_resolver_load(float r_pri_ohm, float r_ptc_ohm)
+{
+    sd_run(s_now);
+    s_r_pri = r_pri_ohm;
+    s_r_ptc = r_ptc_ohm;
+}
+
+void sim_swg_maxapp(float vpp)
+{
+    sd_run(s_now);
+    s_swg_maxapp = vpp;
+}
+
+float sim_exc_amp_vpp_max(void) { return s_amp_max; }
+
 bool hal_swg_start(uint32_t freq_hz, uint8_t amplitude_code)
 {
+    if (amplitude_code > HAL_SWG_CODE_MAX) {
+        return false;
+    }
+    sd_run(s_now);
     s_swg_code = amplitude_code;
     s_carrier_hz = freq_hz;
     s_swg_run = true;
@@ -789,6 +999,7 @@ void sim_reset_at_us(uint64_t t_us)
     s_wd_level = false;
     s_slow_model = false;
     s_slow_started = false;
+    s_phase_stop = 0u;
     s_hvil = HVIL_M_CLOSED;
     (void)memset(&P, 0, sizeof P);
     pwm_regs_reset();
@@ -796,13 +1007,21 @@ void sim_reset_at_us(uint64_t t_us)
     s_out[HAL_DO_ASC_CLR_N] = true;
     s_n_edges = 0u;
     s_rs_set = false;
-    for (uint32_t i = 0u; i < (uint32_t)HAL_SD_COUNT; i++) {
-        s_blk_last[i] = (int64_t)(s_now / 100000u);
-    }
     s_carrier_hz = 10000u;
     s_swg_run = false;
     s_swg_fail = false;
     s_swg_code = 12u;
+    s_swg_maxapp = 2.093f;
+    s_r_pri = 70.0f;
+    s_r_ptc = 1.3f;
+    s_amp_max = 0.0f;
+    s_sd_on = false;
+    s_sd_tag = false;
+    s_sd_base = 0u;
+    s_irq_lat_ns = 1000u; /* 1 us from DMA completion to its handler */
+    s_sd_hook = NULL;
+    (void)memset(s_dma, 0, sizeof s_dma);
+    (void)memset(&s_ring, 0, sizeof s_ring);
     (void)memset(s_rx_h, 0, sizeof s_rx_h);
     (void)memset(s_rx_t, 0, sizeof s_rx_t);
     (void)memset(s_tx_h, 0, sizeof s_tx_h);

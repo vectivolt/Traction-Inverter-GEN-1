@@ -20,27 +20,28 @@
 #include "wdog.h"
 
 #ifdef TI_RTD_AVAILABLE
-#include "Fee.h"          /* TODO(RTD): AUTOSAR Fee/Fls (MemIf types) */
+#include "Fee.h" /* TODO(RTD): the IP drivers (AUTOSAR Fee/Fls, MemIf types), the Config Tools symbols, half-port
+                  * symbols, Fee block numbers, SPI timeout units and FlexCAN DataInfo field names below */
 #include "Fls.h"
 #include "FlexCAN_Ip.h"
 #include "Lpspi_Ip.h"
 #include "Siul2_Dio_Ip.h"
 #include "Stm_Ip.h"
 #include "Swt_Ip.h"
-extern const Stm_Ip_InstanceConfigType STM_0_InitConfig_PB;              /* TODO(RTD): Config Tools */
-extern const Stm_Ip_ChannelConfigType STM_0_ChannelConfig_PB[];          /* TODO(RTD) */
-extern const Swt_Ip_ConfigType Swt_Ip_Cfg0;                              /* TODO(RTD) */
-extern const Lpspi_Ip_ConfigType Lpspi_Ip_PhyUnitConfig_SpiPhyUnit_3;    /* TODO(RTD) */
-extern const Lpspi_Ip_ExternalDeviceType Lpspi_Ip_DeviceAttributes_FS26; /* TODO(RTD): 32-bit frames, CPHA 1 */
-extern const Flexcan_Ip_ConfigType FlexCAN_Config0, FlexCAN_Config1;     /* TODO(RTD) */
-extern const Fee_ConfigType Fee_Config;                                  /* TODO(RTD) */
-extern const Fls_ConfigType Fls_Config;                                  /* TODO(RTD) */
-/* SIUL2 16-pin port halves, index = MSCR / 16. TODO(RTD): half-port symbols of the release. */
+extern const Stm_Ip_InstanceConfigType STM_0_InitConfig_PB;
+extern const Stm_Ip_ChannelConfigType STM_0_ChannelConfig_PB[];
+extern const Swt_Ip_ConfigType Swt_Ip_Cfg0;
+extern const Lpspi_Ip_ConfigType Lpspi_Ip_PhyUnitConfig_SpiPhyUnit_3;
+extern const Lpspi_Ip_ExternalDeviceType Lpspi_Ip_DeviceAttributes_FS26; /* 32-bit frames, CPHA 1 */
+extern const Flexcan_Ip_ConfigType FlexCAN_Config0, FlexCAN_Config1;
+extern const Fee_ConfigType Fee_Config;
+extern const Fls_ConfigType Fls_Config;
+/* SIUL2 16-pin port halves, index = MSCR / 16 (half-port symbols of the release). */
 static Siul2_Dio_Ip_GpioType *const HALF[16] = {PTA_L_HALF, PTA_H_HALF, PTB_L_HALF, PTB_H_HALF, PTC_L_HALF, PTC_H_HALF,
                                                 PTD_L_HALF, PTD_H_HALF, PTE_L_HALF, PTE_H_HALF, PTF_L_HALF, PTF_H_HALF,
                                                 PTG_L_HALF, PTG_H_HALF, PTH_L_HALF, PTH_H_HALF};
-#define TI_FEE_BLOCK(slot) ((uint16_t)(1u + (slot))) /* TODO(RTD): FeeBlockConfiguration numbers */
-#define TI_SPI_TIMEOUT 1000u                          /* TODO(RTD): units of the release (loops / us) */
+#define TI_FEE_BLOCK(slot) ((uint16_t)(1u + (slot))) /* FeeBlockConfiguration numbers */
+#define TI_SPI_TIMEOUT 1000u                          /* units of the release (loops / us) */
 #define TI_CAN_TX_MB 0u
 #define TI_NVM_BOOT_POLLS 200000u /* bounded synchronous Fee read at boot */
 #endif
@@ -276,7 +277,8 @@ static void can_rx_push(uint8_t bus, uint32_t id, uint8_t len, const uint8_t *da
 #ifdef TI_RTD_AVAILABLE
 static Flexcan_Ip_StateType s_can_state[2];
 static Flexcan_Ip_MsgBuffType s_can_mb[2];
-/* TODO(RTD): registered in FlexCAN_ConfigN as the Callback; RX MB 1 (filter 0x101, 0x102 on bus 0). */
+/* TODO(RTD): registered in FlexCAN_ConfigN as the Callback; RX MB 1 (filter 0x101, 0x102 on bus 0; the UDS
+ * request 0x7E1 on bus 1, FW-32). */
 void s32k_can_callback(uint8 instance, Flexcan_Ip_EventType ev, uint32 mb, const Flexcan_Ip_StateType *st);
 void s32k_can_callback(uint8 instance, Flexcan_Ip_EventType ev, uint32 mb, const Flexcan_Ip_StateType *st)
 {
@@ -333,7 +335,7 @@ bool hal_can_tx(uint8_t bus, const hal_can_frame_t *f)
                                           .data_length = can_dlc_to_len(can_len_to_dlc(f->len)),
                                           .fd_enable = TRUE,
                                           .enable_brs = TRUE,
-                                          .is_polling = TRUE}; /* TODO(RTD): field names */
+                                          .is_polling = TRUE};
     if (FlexCAN_Ip_GetTransferStatus(bus, TI_CAN_TX_MB) == FLEXCAN_STATUS_BUSY) {
         return false; /* never waits: the next 10 ms status frame supersedes this one */
     }

@@ -77,6 +77,13 @@ uint32_t ti_params_validate(const ti_params_t *p)
     bad += (p->cal_coolant_derate_start_c < p->cal_coolant_derate_end_c) ? 0u : 1u;
     bad += (p->cal_rslv_amp_min < p->cal_rslv_amp_max) ? 0u : 1u;
     bad += (p->fs26_wd_err_limit == 2u) ? 0u : 1u; /* FW-12 fixes it */
+    /* round 16 (A14-N01): the monitor-plane setpoint must be reachable by the SWG at its LOW corner (the
+     * trim's headroom), keep the amplifier under its -40 degC slew ceiling, and give the cold winding at
+     * least the resolver floor */
+    const float amp_vpp = p->cal_rslv_exc_target_vpp * p->exc_amp_per_mon;
+    bad += ((amp_vpp / p->exc_gain) <= p->swg_maxapp_min_vpp) ? 0u : 1u;
+    bad += (amp_vpp <= p->exc_slew_max_vpp) ? 0u : 1u;
+    bad += ((p->cal_rslv_exc_target_vpp * p->cal_rslv_wind_per_mon) >= p->rslv_floor_vpp) ? 0u : 1u;
     for (uint32_t i = 0u; i < TI_ARRAY_LEN(RANGES); i++) {
         const float v = cal_value(p, &RANGES[i]);
         bad += ((v >= RANGES[i].min) && (v <= RANGES[i].max)) ? 0u : 1u;

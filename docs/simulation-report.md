@@ -1,4 +1,4 @@
-# Simulation report (rev A.14 · generated 2026-09-25)
+# Simulation report (rev A.16 · generated 2026-09-25)
 
 Numerical time/frequency-domain simulations of the drawn circuits at the actual operating
 conditions (`calculations/sim-verify.mjs`). These complement — not replace — the closed-form
@@ -40,7 +40,7 @@ are flagged in each row's note.
 | S8 | Loop-L budget @850 V/481 A for 1080 V — 6.8 Ω hot (tf ≈38 ns) | 22.9 nH (10 kA/µs) | module + busbar ≥ 15 nH class | ✅ PASS | DPT GATE: measured Vds,pk at 850 V/481 A, −20 °C and hot, sets RG_OFF (3.3–10 Ω); IGBT tf 200–385 ns ⇒ < 40 V |
 | S9 | DESAT reaction, SiC 47 pF | 3.08 µs (detect 1.93 + soft-off 1.15; 6.5 µs at 100 mA) | tSC not published — vendor letter | ⚠️ WARN | timeline only — not a device SC validation (F05); contained SC test at 850 V/150 °C is the release gate |
 | S9 | DESAT reaction, IGBT 82 pF | 4.77 µs (detect 2.98 + soft-off 1.79; 10.1 µs at 100 mA) | 6 µs @800 V/15 V/175 °C (DS) | ⚠️ WARN | 150 pF gave 4.5 µs detection alone (F03). Global DRV_EN drop is held 22–53 µs past this (RC delay into the USCH Schmitt buffer) so it cannot cut the soft-off short |
-| S10 | ASC hold-up after TOTAL LV loss (gate reservoirs) | 3.1 ms typ · 0.5 ms worst | - | ⚠️ WARN | and the ASC command path collapses within ≈1 ms: sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract) |
+| S10 | ASC hold-up after TOTAL LV loss (gate reservoirs) | 3.1 ms typ · 0.5 ms worst | - | ⚠️ WARN | and the ASC command path collapses within ≈ 1 ms (round 17 re-derivation: ≈ 170 µF of LV bulk at ≈ 1.05 A gives 6 V/ms, the UCC14141-Q1 bias input reaches its 8 V UVLO in ≈ 0.7 ms and the V5A latch supply follows): sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks) — the safety-concept assumption IR-05/IR-32 (LV loss = SPO; LV loss with the battery disconnected above n_x is a double event, IR-33). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract) |
 
 **23 PASS · 6 WARN · 0 FAIL**
 

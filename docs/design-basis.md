@@ -416,10 +416,10 @@ open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the c
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
-- geometric pin-verify **2049/2049 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
+- geometric pin-verify **2057/2057 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
 - structural ERC **954 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **132 PASS / 24 WARN / 0 FAIL** across all four SKUs;
+- numeric worst-case verification **157 PASS / 15 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — round 17);
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -434,6 +434,61 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11p. Rev A.16 — round 17: gap closure (summary)
+
+The instruction was "close all gaps" (and "feel free to upgrade"). Every WARN row, OPEN row, firmware "the contract
+should say" item, placeholder part and unverified deliverable was taken to its source and either closed or turned into
+one numbered external item ([`review-A16-disposition.md`](review-A16-disposition.md), G-01…G-22; register F174–F189).
+**Hardware:** rated back-drive diversion diodes (PMEG4050EP-Q) close the ALM2402 OPEN row; the exciter TVS becomes the
+3 kW AEC-Q101 SMDJ8.5A-HRA on the same pad, and the fault rows split into a single fault (PASS at any source impedance)
+and a load-dump-coincident double event; the LV entry is **re-designed as let-through** for ISO 16750-2 test B —
+an anti-series TPSMC33A-VR/TPSMC18A-VR pair at the pin ahead of the reverse Schottky (pulse 1 had been avalanching it),
+TPSMC33CA-VR on the power board, a 100 µF hybrid capacitor for pulse 2a, a 5 A fuse for the undersized polyfuse, the
+ignition sense behind a 1000 V diode, the V15 post-regulator in D2PAK — thirteen rows judge every downstream part at the
+35 V plateau; RFS4 moves to a 1206. **Stale or unsourced rows recomputed:** the cold-crank excitation row (outputs are
+centred on the 2.5 V mid-rail), the PTC hold (resolver Z ≥ 60 Ω, IR-13), the discharge resistor no-flame property (the
+TT/Welwyn SQP statement), the hall reference drift (EOL calibration inside the torque allocation), the ASC command-path
+collapse (re-derived for the A.12 parts). **Deliverables:** a KiCad 9/10 set proved by KiCad 10's own netlist on every
+board with mutation tests — KiCad 10 cannot resolve the KiCad 5 legacy symbols at all — which exposed a harness
+pin-numbering defect (P1–P40) and a symbol-class defect in the legacy generator, both fixed. **Firmware:** all 35 open
+contract items closed (§10b/§10c), FW-08 zero-current decision, FW-31 liveness, FW-32 UDS service-lock routine
+(fail-closed key hook), FW-33 supply-overvoltage supervision for the let-through input, the FS26 watchdog answer moved
+from the window edge (3.0 ms) to 2.0 ms, the ASC-exit release wait made a range-checked CAL (the old 1 µs overlapped
+the 1.06 µs opto release), a 39-row silicon/RM checklist enforced by the build; 256 tests / 2310 checks. **Documents:**
+`vendor-requests.md` (VR-01…32 with acceptance criteria), `interface-requirements.md` (IR-01…41),
+`qualification-plan.md` (92 procedures with numeric pass criteria); the report's open-inputs section points only at
+them. Counts: ERC 965 · verify 157/15/0 · sim 23/6/0 · 2057/2057 pins in three sheet sets · 686 components / 236 BOM
+lines · 8XX SiC ₹72,981 @1k · 104 datasheets. Marine forks at A.16. No power-stage change.
+
+## 11o. Rev A.15 — round 16: three rechecks of 32214be (summary)
+
+All three rechecks were right ([`review-A15-disposition.md`](review-A15-disposition.md), F167–F173). The
+exciter's SWG low corner through the round-15 series losses gave 6.34 V pp at the winding, under the 6.5 V pp
+floor: the MFB feedback goes 24 k → 28 k (|H| ≈ 2.09), the FW-10 setpoint is defined at the monitor plane
+(7.2 V pp; winding × 0.964 cold, × 0.875 post-trip) with SWG-headroom and −40 °C slew checks, and the trim
+ramps up from a low amplitude so the untrimmed SWG maximum never slew-limits. The back-drive row had read one
+RC time constant as the end of the pulse and graded on the rail voltage: it is now an exponential into the
+26.7 µF rail and OPEN until the ALM2402 diode envelope is measured; the **exciter TVS is unidirectional
+(SMCJ8.5A)**, so a negative harness fault is carried by its forward diode and the amplifier's lower diode sees
+< 0.3 A. The TVS-energy PASS rested on an extrapolated 20 ms allowance — conditional now, with a source-
+impedance allocation (≥ 0.27 Ω). The /33X PTC holds 70 mA at 85 °C. Firmware: the phase-ADC failure contract,
+a per-tick resolver frame-age policy and a coherent SDADC frame API (F171–F173; contract §10b FW-27…FW-30; the amplitude planes and the SWG ramp in the trim; 243 tests / 2192 checks, ASan/UBSan, −O2 and target-check clean; a new EOL/HIL and calibration record are needed before the image arms). No power-stage change.
+
+BOM furnishing in the same round: every timing, filter and rail capacitor is bound to a value/voltage/dielectric/
+size class (C0G for the MFB, RT/CT, feed-forward and resolver filter parts; X7R with the voltage the F52/F54 rows
+assume for the bulk rails), the DGND–PE bleed and the AGND–DGND star tie carry their drawn 1206/0805 sizes, and
+`bom-gen` now reads the drawn chip size from the built footprint and fails when a rule orders another size
+(that is how the CEXD 0603-vs-1206 slip of round 15 would have been caught; the same check moved the MCU
+decoupling rows from a stale 0402 to the drawn 0603 that `dfm.md` requires). Marine forks at A.15 (86 PASS ·
+22 WARN · 0 FAIL, unchanged).
+
+KiCad hand-off: KiCad 10.0.6 resolves no symbol of the legacy `.sch` sets (kept for KiCad 5–8 and EasyEDA), so
+`kicad/traction/` now carries the same sheets as a KiCad 9/10 `.kicad_sch` project, and `kicad-sch-verify` proves
+it with KiCad itself — ERC on every sheet and KiCad's exported netlist equal to circuit.json net by net (684
+components, 422 nets, the MCU on its manifest balls), where the hand-off had only been checked by our own
+placement-rule verifier; the comparison found the 40-way harness headers numbered P1–P40 by the MCU's ball-ID label
+rule instead of their pads 1–40 — corrected in the `.kicad_sch` set, still carried by the legacy libraries.
 
 ## 11n. Rev A.14 — round 15: three rechecks of a8c75eb (summary)
 

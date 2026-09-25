@@ -12,16 +12,29 @@
 #include "sdadc.h"
 #include "spi_fs26.h"
 #include "swg.h"
+#include "ti_crc.h"
 #include "timer.h"
 #include "wdog.h"
 
 #define SESSION_MAGIC 0x4B435943u /* "KCYC" */
 #define CARRIER_HZ 10000u
-#define SWG_AMP_DEFAULT 12u
+#define RSLV_TRIM_MS 5u /* SWG trim period: the ramp from cal_swg_code_init takes a few steps */
 #define OFFSET_SAMPLES 64u
 #define CAN_RX_MAX_PER_TICK 16u
 #define STATUS_PERIOD_MS 10u
 #define MOD_TORQUE_NM 0.5f
+#define DIAG_RX_MAX_PER_TICK 4u
+
+/* FW-32: the SecurityAccess key function is a build-time hook (-DTI_UDS_KEY_FN=<function>). None by default:
+ * every seed request is refused, so the service lock can never be cleared (fail closed).
+ * TODO(REL): the product build supplies the OEM key algorithm (e.g. a MAC in the HSE) and draws the seed from
+ * the HSE TRNG (diag_seed below is unique, not random). */
+#ifdef TI_UDS_KEY_FN
+bool TI_UDS_KEY_FN(const uint8_t seed[UDS_SA_LEN], uint8_t key[UDS_SA_LEN]);
+#define UDS_KEY_FN TI_UDS_KEY_FN
+#else
+#define UDS_KEY_FN NULL
+#endif
 
 app_t g_app;
 TI_RETAINED app_session_t g_app_session;
@@ -144,6 +157,27 @@ static void init_evidence(app_t *a)
     }
 }
 
+/* FW-32 (round 17): the stuck-on QDIS lock is cleared only by the UDS routine, after the SecurityAccess
+ * unlock, never with HV present or unknown or the bridge armed. The clear rewrites the NVM record as CLEARED
+ * with this key cycle (it takes effect at the next power-up: this key cycle keeps the lock, so the latched
+ * verdict cannot re-latch it) and sets DTC_SERVICE_LOCK_CLEARED. Nothing written: NRC, the lock stays. */
+static uint8_t service_clear(void *ctx)
+{
+    app_t *a = (app_t *)ctx;
+    if ((dis_hv_state(&a->vdc) != TI_HV_SAFE) || (a->br.mode != BR_DISARMED)) {
+        return UDS_NRC_CONDITIONS;
+    }
+    if (!a->service_required) {
+        return 0u; /* nothing to clear */
+    }
+    const nv_service_t r = {.magic = NV_SERVICE_CLEARED, .dtc = (uint16_t)DTC_QDIS_STUCK_ON, .key_cycle = a->key_cycle};
+    if (!nv_queue(NV_REC_DTC, &r, (uint16_t)sizeof r)) {
+        return UDS_NRC_PROGRAMMING;
+    }
+    dtc_set(DTC_SERVICE_LOCK_CLEARED, hal_time_ms());
+    return 0u;
+}
+
 /* Item 9: a stuck-on QDIS found in an earlier key cycle still forbids re-energising. */
 static void init_service_lock(app_t *a)
 {
@@ -179,7 +213,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     init_evidence(a);
     init_service_lock(a);
     set_watchdogs(a);
-    a->swg_amp = SWG_AMP_DEFAULT;
+    a->swg_amp = p->cal_swg_code_init; /* A14-N01: low, then up under the trim — never the register maximum */
     (void)hal_swg_start(CARRIER_HZ, a->swg_amp);
     fm_init(&a->fm, a->key_cycle);
     nv_desat_t rec;
@@ -191,18 +225,21 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     vdc_init(&a->vdc);
     temp_init(&a->temp);
     hvil_init(&a->hvil);
+    vsup_init(&a->vsup);
     ign_init(&a->ign, true);
     rslv_init(&a->rslv);
     foc_reset(&a->foc);
     torque_lim_init(&a->tlim, p);
     dcl_reset(&a->dcl);
     can_cmd_init(&a->can);
+    uds_init(&a->uds, UDS_KEY_FN, service_clear, a);
     dis_init(&a->dis);
     pch_init(&a->pch);
     st_init(&a->st);
     sm_init(&a->sm);
     a->init = a->no_arm ? SM_FAIL : SM_OK;
     a->last_task_ms = hal_time_ms();
+    a->t_isr_us = hal_time_us();
 }
 
 /* ======================= shared helpers ======================= */
@@ -280,7 +317,7 @@ static void apply_decision(app_t *a, uint32_t now_us)
         }
         break;
     case SS_ACT_SPO:
-    case SS_ACT_ZERO_TORQUE_DCL:
+    case SS_ACT_ZERO_CURRENT:
         if (in_asc) {
             /* FW-06a / round 13: leave PWM-ASC only below n_x, and only once SPO is energy-safe for
              * the current still circulating (rule (a) or (b)) or that current is gone */
@@ -292,7 +329,7 @@ static void apply_decision(app_t *a, uint32_t now_us)
             a->mod_req = false; /* SPO, or §6 battery lost below n_x with the current gone (round 15) */
             br_spo(&a->br, true);
         } else {
-            a->zero_now = true; /* FW-08: zero torque at the current-loop rate while the current decays */
+            a->zero_now = true; /* FW-08: zero current (id = iq = 0) at the current-loop rate while it decays */
         }
         break;
     default:
@@ -305,8 +342,13 @@ static void sense_fast(app_t *a, uint32_t now_us)
 {
     uint16_t c[3];
     uint32_t t;
-    (void)hal_adc_read_phase(c, &t);
-    isns_update(&a->isns, c, t, now_us, a->cal.isns, a->p);
+    /* A14-R03: a triplet only when all three channels of one trigger arrived; else the sample is lost
+     * (the FW-05 failure path) — V_DC and the resolver below are still serviced */
+    if (hal_adc_read_phase(c, &t)) {
+        isns_update(&a->isns, c, t, now_us, a->cal.isns, a->p);
+    } else {
+        isns_lost(&a->isns);
+    }
     uint16_t v[2];
     uint32_t tv[2];
     uint16_t vofs;
@@ -317,13 +359,13 @@ static void sense_fast(app_t *a, uint32_t now_us)
     (void)hal_adc_read(HAL_ADC_VOFS, &vofs, &tx);
     (void)hal_adc_read(HAL_ADC_V5GD, &v5, &tx);
     vdc_update(&a->vdc, v, tv, vofs, v5, now_us, a->cal.vdc, a->p);
-    int16_t be[HAL_SDADC_BLOCK_N];
-    int16_t bs[HAL_SDADC_BLOCK_N];
-    int16_t bc[HAL_SDADC_BLOCK_N];
-    if (hal_sdadc_read_block(HAL_SD_EXC, be, &t) && hal_sdadc_read_block(HAL_SD_SIN, bs, &t) &&
-        hal_sdadc_read_block(HAL_SD_COS, bc, &t)) {
-        rslv_update(&a->rslv, be, bs, bc, 1.0f / (float)CARRIER_HZ, t, &a->cal.rslv, a->p);
+    /* A14-R02: one coherent frame (EXC, SIN, COS of one epoch and its stamp) or nothing */
+    hal_sd_frame_t f;
+    if (hal_sdadc_read_frame(&f)) {
+        rslv_update(&a->rslv, f.blk[HAL_SD_EXC], f.blk[HAL_SD_SIN], f.blk[HAL_SD_COS], 1.0f / (float)CARRIER_HZ, f.t_us,
+                    &a->cal.rslv, a->p);
     }
+    rslv_age(&a->rslv, now_us, a->p); /* A14-R01: every tick, whether a frame arrived or not */
 }
 
 /* F24: while modulating, every phase the reference asks for current must show it (current.c). The
@@ -340,7 +382,8 @@ static void stuck_check(app_t *a, uint32_t now_us)
 static void control_fast(app_t *a, uint32_t now_us)
 {
     if (a->zero_now) {
-        a->iq_ref = 0.0f; /* FW-08: zero torque at the current-loop rate */
+        a->id_ref = 0.0f; /* FW-08: zero current at the current-loop rate */
+        a->iq_ref = 0.0f;
     }
     const bool can_modulate = a->mod_req && ((a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD));
     if (!can_modulate) {
@@ -379,9 +422,10 @@ void app_isr_current(app_t *a)
 {
     const uint32_t now_us = hal_time_us();
     a->n_isr++;
+    a->t_isr_us = now_us;
     br_service(&a->br); /* A12-R05: a drop left pending by the DESAT hold happens here once it has run */
     sense_fast(a, now_us);
-    if (!a->offs_ok && (hal_pwm_mode() == HAL_PWM_OFF) && (a->offs_n < OFFSET_SAMPLES)) {
+    if (!a->offs_ok && a->isns.fresh && (hal_pwm_mode() == HAL_PWM_OFF) && (a->offs_n < OFFSET_SAMPLES)) {
         for (uint32_t i = 0u; i < 3u; i++) { /* standstill zero-current reference (§9 step 3) */
             a->offs_acc[i] += a->isns.v_pin[i];
         }
@@ -464,6 +508,8 @@ static void sense_slow(app_t *a, uint32_t t_ms)
     ign_update(&a->ign, c, t_ms, a->p);
     (void)hal_adc_read(HAL_ADC_INTRLOK_N, &c, &t);
     hal_gpio_write(HAL_DO_INTRLOK_P, hvil_step(&a->hvil, c, t_ms, a->p));
+    (void)hal_adc_read(HAL_ADC_SBC_AMUX, &c, &t);
+    vsup_update(&a->vsup, c, t_ms, a->p);
     const hal_adc_sig_t ts[TEMP_COUNT] = {HAL_ADC_TMOD_U, HAL_ADC_TMOD_V, HAL_ADC_TMOD_W, HAL_ADC_NTC_H,
                                           HAL_ADC_NTC_A,  HAL_ADC_MT1,    HAL_ADC_MT2};
     uint16_t codes[TEMP_COUNT];
@@ -474,12 +520,16 @@ static void sense_slow(app_t *a, uint32_t t_ms)
     if (a->rslv.valid) {
         a->speed_rpm = rslv_speed_rpm(&a->rslv, &a->cal.rslv);
         a->speed_valid_ms = t_ms;
+        a->rslv_seen = true;
     }
-    /* after a resolver fault the last valid speed stays the basis of the §6 column for a bounded
-     * time (inertia); then unknown = the n >= n_x column */
-    a->speed_known = a->rslv.valid || (a->rslv.locked && !ti_elapsed(t_ms, a->speed_valid_ms, a->p->cal_speed_hold_ms));
-    if (a->rslv.primed && ((t_ms % 50u) == 0u)) {
+    /* after a resolver fault or a stale resolver the last valid speed stays the basis of the §6 column
+     * for a bounded time (inertia) — never angle feedback; then unknown = the n >= n_x column */
+    a->speed_known = a->rslv.valid || (a->rslv_seen && !ti_elapsed(t_ms, a->speed_valid_ms, a->p->cal_speed_hold_ms));
+    if (a->rslv.primed && ((t_ms % RSLV_TRIM_MS) == 0u)) {
         const uint8_t amp = rslv_swg_trim(a->swg_amp, &a->rslv);
+        if (a->rslv.swg_sat) {
+            dtc_set(DTC_RSLV_SWG_SAT, t_ms); /* A14-N01: the setpoint is beyond this generator's reach */
+        }
         if (amp != a->swg_amp) {
             a->swg_amp = amp;
             (void)hal_swg_start(CARRIER_HZ, amp); /* the trim only acts once written to SWG1 */
@@ -499,6 +549,26 @@ static void comms(app_t *a, uint32_t t_ms)
     }
     vdc_bms_check(&a->vdc, a->can.contactors == TI_CONT_CLOSED, can_bms_fresh(&a->can, t_ms, a->p), a->can.v_pack,
                   t_ms, a->p);
+}
+
+/* ponytail: unique per power-up and microsecond, not random — the key hook above names the product's TRNG seed */
+static uint32_t diag_seed(const app_t *a)
+{
+    const uint64_t t = hal_time_us64();
+    const uint32_t in[3] = {a->key_cycle, (uint32_t)t, (uint32_t)(t >> 32)};
+    return ti_crc32(in, sizeof in);
+}
+
+/* FW-32: the diagnostic bus (uds.h) */
+static void diag(app_t *a)
+{
+    hal_can_frame_t rq;
+    hal_can_frame_t rsp;
+    for (uint32_t i = 0u; (i < DIAG_RX_MAX_PER_TICK) && hal_can_rx(HAL_CAN_DIAG, &rq); i++) {
+        if (uds_handle(&a->uds, &rq, diag_seed(a), &rsp)) {
+            (void)hal_can_tx(HAL_CAN_DIAG, &rsp);
+        }
+    }
 }
 
 static bool monitoring(const app_t *a)
@@ -531,9 +601,12 @@ static void detect(app_t *a, const fm_ctx_t *c)
         const dtc_id_t vd = !a->vdc.vofs_ok ? DTC_VOFS : (a->vdc.disagree ? DTC_VDC_DISAGREE
                           : ((a->vdc.ch_failsafe[0] || a->vdc.ch_failsafe[1]) ? DTC_VDC_FAILSAFE : DTC_VDC_STALE));
         flag(a, vbad, SS_ROW_VDC_INVALID, true, vbad ? vd : DTC_NONE, c);
-        const dtc_id_t rd = a->rslv.amp_fault ? DTC_RSLV_AMPLITUDE : (a->rslv.exc_fault ? DTC_RSLV_EXCITATION
-                          : (a->rslv.trk_fault ? DTC_RSLV_TRACKING : (a->rslv.acc_fault ? DTC_RSLV_ACCEL : DTC_RSLV_RATE)));
-        const bool rbad = !a->rslv.valid;
+        const dtc_id_t rd = a->rslv.stale ? DTC_RSLV_STALE : (a->rslv.amp_fault ? DTC_RSLV_AMPLITUDE
+                          : (a->rslv.exc_fault ? DTC_RSLV_EXCITATION : (a->rslv.trk_fault ? DTC_RSLV_TRACKING
+                          : (a->rslv.acc_fault ? DTC_RSLV_ACCEL : DTC_RSLV_RATE))));
+        /* control lost = a resolver that WAS valid (round 16: its first acquisition waits for the SWG
+         * ramp; before it nothing can arm — SENSOR_SELFTEST needs it — and nothing is "lost") */
+        const bool rbad = !a->rslv.valid && a->rslv_seen;
         flag(a, rbad, SS_ROW_RESOLVER_INVALID, true, rbad ? rd : DTC_NONE, c);
         const bool open = a->isns.open_wire[0] || a->isns.open_wire[1] || a->isns.open_wire[2];
         const bool ibad = !a->isns.valid;
@@ -558,7 +631,8 @@ static void detect(app_t *a, const fm_ctx_t *c)
         if (hvil_bad) {
             dtc_set((a->hvil.status == HVIL_OPEN) ? DTC_HVIL_OPEN : DTC_HVIL_SHORT, c->now_ms);
         }
-        const bool cmd_lost = !can_cmd_fresh(&a->can, c->now_ms, a->p) || hvil_bad;
+        /* round 17: an LV overvoltage longer than its ISO 16750-2 band allows takes the same orderly ramp */
+        const bool cmd_lost = !can_cmd_fresh(&a->can, c->now_ms, a->p) || hvil_bad || a->vsup.sustained;
         if (!can_cmd_fresh(&a->can, c->now_ms, a->p)) {
             dtc_set(DTC_CAN_TIMEOUT, c->now_ms);
         }
@@ -574,6 +648,16 @@ static void detect(app_t *a, const fm_ctx_t *c)
     (void)temp_module_max(&a->temp, &any, &all);
     if (!all) {
         dtc_set(DTC_TEMP_MODULE, c->now_ms);
+    }
+    /* round 17: VSUPOV is information — logged with its duration, torque untouched — until it outlasts its band */
+    if (a->vsup.ov) {
+        dtc_set(DTC_LV_OVERVOLTAGE, c->now_ms);
+    }
+    if (a->vsup.sustained) {
+        dtc_set(DTC_LV_OV_SUSTAINED, c->now_ms);
+    }
+    if (!a->vsup.valid && monitoring(a)) {
+        dtc_set(DTC_LV_VSUP_UNKNOWN, c->now_ms);
     }
 }
 
@@ -763,7 +847,7 @@ static void execute(app_t *a, uint32_t t_ms, uint32_t now_us)
 
 static void arming(app_t *a, uint32_t now_us, uint32_t t_ms)
 {
-    if (fm_any(&a->fm) && (a->fm.dec.action >= SS_ACT_ZERO_TORQUE_DCL)) {
+    if (fm_any(&a->fm) && (a->fm.dec.action >= SS_ACT_ZERO_CURRENT)) {
         return; /* the §6 decision owns the bridge */
     }
     if (!a->so.arm || a->no_arm) {
@@ -806,6 +890,8 @@ static void torque_path(app_t *a, uint32_t t_ms)
     torque_derate_update(&a->tlim, tmod, any, a->can.coolant_c, a->can.coolant_valid, i_now, 1.0e-3f, p);
     torque_limits(&a->tlim, a->vdc.vdc, w_mech, a->can.p_chg_w, a->can.p_dis_w, can_bms_fresh(&a->can, t_ms, p), p);
     float target = 0.0f;
+    /* normal RUN: torque_enable is granted only with the contactors reported CLOSED and no battery-path row
+     * (st_run), so the battery path is proven here and only here */
     if (a->so.torque_enable && fresh && a->can.enable_req) {
         target = can_dir_interlock(&a->dir, a->can.gear, a->can.torque_req_nm, a->speed_rpm, p);
         if (a->so.torque_reduced) {
@@ -813,12 +899,13 @@ static void torque_path(app_t *a, uint32_t t_ms)
             target = ti_clampf(target, -lim, lim);
         }
         target = torque_clamp(&a->tlim, target, w_mech);
+        target = dcl_trim(&a->dcl, target, a->vdc.vdc, w_mech, 1.0e-3f, p); /* FW-08: regen back above vdc_max_v */
+    } else {
+        dcl_reset(&a->dcl); /* never engaged outside normal RUN (round 17, item 26) */
     }
     const ss_action_t act = fm_any(&a->fm) ? a->fm.dec.action : SS_ACT_NONE;
-    if (act >= SS_ACT_SPO) {
-        a->t_cmd_nm = 0.0f; /* the §6 decision owns the bridge */
-    } else if (act == SS_ACT_ZERO_TORQUE_DCL) {
-        a->t_cmd_nm = dcl_step(&a->dcl, p->vdc_max_v, a->vdc.vdc, w_mech, 1.0e-3f, p); /* FW-08 */
+    if (act >= SS_ACT_ZERO_CURRENT) {
+        a->t_cmd_nm = 0.0f; /* the §6 decision owns the bridge; the status reports what is applied: 0 Nm */
     } else if (fresh && (act != SS_ACT_RAMP_KEEP_CC) && (act != SS_ACT_RAMP_THEN_SPO)) {
         a->t_cmd_nm = target;
         a->zero_now = false;
@@ -827,12 +914,12 @@ static void torque_path(app_t *a, uint32_t t_ms)
     }
     const bool armed = (a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD);
     const bool fw_needed = !a->speed_known || (ti_absf(a->speed_rpm) >= a->n_x_rpm);
-    /* Round 15: while a §6 decision owns the bridge the only modulation is its own — zero-torque
-     * current control while winding current remains after a battery-path loss below n_x — and it
-     * does not depend on the operating state's arm (FAULT included). Ordinary modulation needs it. */
-    const bool dcl = (act == SS_ACT_ZERO_TORQUE_DCL) && (i_mag(a) >= p->cal_spo_release_a);
+    /* Round 15: while a §6 decision owns the bridge the only modulation is its own — zero-current
+     * control while winding current remains after a battery-path loss below n_x — and it does not
+     * depend on the operating state's arm (FAULT included). Ordinary modulation needs it. */
+    const bool zero_cc = (act == SS_ACT_ZERO_CURRENT) && (i_mag(a) >= p->cal_spo_release_a);
     const bool ordinary = a->so.arm && ((ti_absf(a->t_cmd_nm) >= MOD_TORQUE_NM) || fw_needed || (act == SS_ACT_RAMP_KEEP_CC));
-    a->mod_req = armed && !a->no_arm && ((act >= SS_ACT_ZERO_TORQUE_DCL) ? dcl : ordinary);
+    a->mod_req = armed && !a->no_arm && ((act >= SS_ACT_ZERO_CURRENT) ? zero_cc : ordinary);
     if (!a->mod_req) {
         a->foc.xi_d = 0.0f;
         a->foc.xi_q = 0.0f;
@@ -857,7 +944,7 @@ static void torque_path(app_t *a, uint32_t t_ms)
         /* TQ_OK or TQ_LIMITED: the pair passed the voltage-feasibility witness */
     }
     a->speed_limit_req = (tr == TQ_INFEASIBLE) && relevant;
-    a->id_ref = id;
+    a->id_ref = a->zero_now ? 0.0f : id; /* FW-08 row: zero current, field weakening included */
     a->iq_ref = a->zero_now ? 0.0f : iq;
 }
 
@@ -918,13 +1005,23 @@ void app_task_1ms(app_t *a)
     const uint64_t t64 = hal_time_us64(); /* A12-R06: one read per tick keeps the 64-bit extension */
     const uint32_t now_us = (uint32_t)t64;
     const uint32_t t_ms = ti_ms_from_us64(t64);
-    hal_wdog_kick();
-    br_service(&a->br);
-    sense_slow(a, t_ms);
-    comms(a, t_ms);
+    /* FW-12 first (round 17, T-32): the answer then trails the exact 1 ms tick only by the task-start latency and
+     * two SPI frames, and fs26_wd_due() lands it on every second task — inside the FS26 window */
     if (fs26_wd_due(&a->fs, now_us) && (fs26_wd_refresh(&a->fs) != FS26_OK)) {
         dtc_set(DTC_FS26_WD, t_ms);
     }
+    hal_wdog_kick();
+    br_service(&a->br);
+    /* Round 16 (A14-R03, BCTU stopped): only the current-loop ISR reads the phase currents and the
+     * resolver frames. If it stops (no trigger, a list that never completes), its measurements go
+     * stale from here instead of staying valid at their last values. */
+    if (ti_elapsed(now_us, a->t_isr_us, a->p->cal_isns_stale_us)) {
+        isns_lost(&a->isns);
+        rslv_age(&a->rslv, now_us, a->p);
+    }
+    sense_slow(a, t_ms);
+    comms(a, t_ms);
+    diag(a);
     if ((a->sm.st != SM_GATE_SELFTEST) || (a->selftest != SM_BUSY)) {
         (void)gp_step(&a->gp, t_ms, a->p); /* FW-16 d/e/g drop RDY on purpose */
     }

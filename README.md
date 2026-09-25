@@ -4,21 +4,21 @@
 
 <p align="center">
   <img alt="Status" src="https://img.shields.io/badge/status-schematic--complete-2a9d8f?style=for-the-badge"/>
-  <img alt="Revision" src="https://img.shields.io/badge/rev-A.14%20·%20F1–F166%20closed-f4a261?style=for-the-badge"/>
+  <img alt="Revision" src="https://img.shields.io/badge/rev-A.16%20·%20F1–F189%20closed-f4a261?style=for-the-badge"/>
   <img alt="Peak power" src="https://img.shields.io/badge/peak-220%20kW-e63946?style=for-the-badge"/>
   <img alt="DC bus" src="https://img.shields.io/badge/bus-8XX%20500–850%20V%20·%204XX%20250–500%20V-457b9d?style=for-the-badge"/>
 </p>
 <p align="center">
   <img alt="Silicon" src="https://img.shields.io/badge/silicon-SiC%20or%20IGBT%20·%203×%20EconoDUAL™%203%20·%201200V%2F600A-6a4c93?style=flat-square"/>
   <img alt="Safety" src="https://img.shields.io/badge/safety-ASIL--D--capable%20architecture-d62828?style=flat-square"/>
-  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-2049%2F2049%20·%20100%25%20×2-2a9d8f?style=flat-square"/>
-  <img alt="Components" src="https://img.shields.io/badge/components-682%20·%20222%20BOM%20lines-0077b6?style=flat-square"/>
+  <img alt="Pin verify" src="https://img.shields.io/badge/pin%20verify-2057%2F2057%20·%20100%25%20×3-2a9d8f?style=flat-square"/>
+  <img alt="Components" src="https://img.shields.io/badge/components-686%20·%20236%20BOM%20lines-0077b6?style=flat-square"/>
   <img alt="BOM" src="https://img.shields.io/badge/electronics%20BOM-SiC%20₹72.5k%20·%20IGBT%20₹47.0k-588157?style=flat-square"/>
   <img alt="Sourcing" src="https://img.shields.io/badge/sourcing-LCSC%20%2B%20one%20DigiKey%20order-ff9f1c?style=flat-square"/>
-  <img alt="ERC" src="https://img.shields.io/badge/ERC-954%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
-  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-132%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
+  <img alt="ERC" src="https://img.shields.io/badge/ERC-965%20checks%20·%200%20fail-2a9d8f?style=flat-square"/>
+  <img alt="Worst case" src="https://img.shields.io/badge/worst--case%20verify-157%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
   <img alt="Simulation" src="https://img.shields.io/badge/simulation-S1–S10%20·%2023%20PASS%20·%200%20FAIL-2a9d8f?style=flat-square"/>
-  <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad5%20→%20PDF-1d3557?style=flat-square"/>
+  <img alt="Built with" src="https://img.shields.io/badge/built%20with-tscircuit%20→%20KiCad%205%20%2B%209%2F10%20→%20PDF-1d3557?style=flat-square"/>
   <img alt="License" src="https://img.shields.io/badge/license-proprietary%20·%20Vectivolt-6c757d?style=flat-square"/>
 </p>
 
@@ -87,7 +87,7 @@ gate-drive practice), and TI **TIDM-02014** (safety decomposition patterns).
 The complete drawing set, one sheet per board — dashed functional sections, net-label-only
 cross-section wiring, sheet index + net-naming + safety panels, self-identifying title blocks.
 
-**➡️ Open the PDF set: [`boards/out-pdf/`](boards/out-pdf/) · Import into EasyEDA Pro: [`kicad5/Traction-Inverter-SHIP.zip`](kicad5/Traction-Inverter-SHIP.zip) · Open in native KiCad 5: [`kicad5/Traction-Inverter-KiCad5-native.zip`](kicad5/Traction-Inverter-KiCad5-native.zip)** — two variants of the same sheets (round 15, A13-R05): EasyEDA's legacy importer ignores the symbol orientation matrix, so its variant carries a pre-mirrored library; native KiCad applies the matrix and needs the un-mirrored one. Both are verified pin-by-pin with their consumer's placement rule.
+**➡️ Open the PDF set: [`boards/out-pdf/`](boards/out-pdf/) · Import into EasyEDA Pro: [`kicad5/Traction-Inverter-SHIP.zip`](kicad5/Traction-Inverter-SHIP.zip) · Open in native KiCad 5: [`kicad5/Traction-Inverter-KiCad5-native.zip`](kicad5/Traction-Inverter-KiCad5-native.zip) · Open in KiCad 9/10: [`kicad/Traction-Inverter-KiCad-modern.zip`](kicad/Traction-Inverter-KiCad-modern.zip)** — three variants of the same sheets. EasyEDA's legacy importer ignores the symbol orientation matrix, so its variant carries a pre-mirrored library; native KiCad applies the matrix and needs the un-mirrored one (round 15, A13-R05); both are verified pin-by-pin with their consumer's placement rule. **Which KiCad reads which set:** the two legacy `.sch` sets are for KiCad 5–8; the `.kicad_sch` set ([`kicad/traction/`](kicad/traction/)) is for KiCad 9/10 — KiCad 10.0.6 loads the legacy sheets but resolves none of their symbols (its netlist has 0 components and its ERC flags every pin stub unconnected; its JSON report also prints each 200-mil stub as 0.0508 mm, which is 10.0.6 scaling every JSON coordinate by 1/100 for any schematic — the text report reads 5.08 mm). The `.kicad_sch` set is translated item for item from the same sheets and proved with KiCad 10.0.6 itself (`kicad-sch-verify.mjs`): ERC on every sheet, and a netlist export equal to circuit.json net by net.
 
 | Sheet 1 — Power board (HV) | Sheet 4 — Control card (LV) |
 |---|---|
@@ -323,10 +323,10 @@ business case: [`docs/variants.md`](docs/variants.md):
 
 | SKU | Electronics BOM @1k | Ex-works unit | Per peak kW | Suggested price (35–40 % GM) |
 |---|---|---|---|---|
-| **8XX SiC** (HCS600) | **₹72,495** → [`bom.md`](docs/bom.md) | ≈ ₹1.17 L | ₹530/kW | ₹1.75–1.95 L |
-| **8XX IGBT** (HCG600) | **₹46,995** → [`bom-igbt.md`](docs/bom-igbt.md) | ≈ ₹0.91 L | ₹415/kW | ₹1.35–1.55 L |
-| **4XX IGBT** (HCG600, 150 kW) | **₹45,395** → [`bom-igbt4.md`](docs/bom-igbt4.md) | ≈ ₹0.92 L | ₹610/kW | per-kW for its segment |
-| 4XX SiC (on request) | ₹70,895 → [`bom-sic4.md`](docs/bom-sic4.md) | ≈ ₹1.16 L | ₹775/kW | — |
+| **8XX SiC** (HCS600) | **₹72,981** → [`bom.md`](docs/bom.md) | ≈ ₹1.17 L | ₹530/kW | ₹1.75–1.95 L |
+| **8XX IGBT** (HCG600) | **₹47,481** → [`bom-igbt.md`](docs/bom-igbt.md) | ≈ ₹0.91 L | ₹415/kW | ₹1.35–1.55 L |
+| **4XX IGBT** (HCG600, 150 kW) | **₹45,881** → [`bom-igbt4.md`](docs/bom-igbt4.md) | ≈ ₹0.92 L | ₹610/kW | per-kW for its segment |
+| 4XX SiC (on request) | ₹71,381 → [`bom-sic4.md`](docs/bom-sic4.md) | ≈ ₹1.16 L | ₹775/kW | — |
 
 602 components · 191 lines · zero unmatched · per-board CSVs alongside each BOM.
 
@@ -457,6 +457,10 @@ flowchart LR
   CJ -->|pages.mjs| PG["section payloads<br/>21 functional pages"]
   PG -->|kicad5-gen.mjs| SCH["KiCad-5 sheets + lib<br/>skyline-packed sections,<br/>panels, title blocks"]
   SCH -->|kicad5-verify.mjs| V{"geometric re-derivation<br/>vs design intent"}
+  SCH -->|kicad-sch-gen.mjs| KS[".kicad_sch set<br/>(KiCad 9/10)"]
+  KS -->|"kicad-sch-verify.mjs<br/>(kicad-cli ERC + netlist)"| KV{"KiCad's own netlist<br/>vs circuit.json"}
+  KV -->|"684 parts · 422 nets<br/>0 differences"| OK
+  KV -->|any difference| FAIL
   V -->|"1717/1717 pins · 0 overlaps<br/>0 floating labels"| OK["✅ gate"]
   V -->|any mismatch| FAIL["❌ exit 1"]
   OK -->|kicad5-print.mjs| SVG["print-grade SVG"]
@@ -468,7 +472,8 @@ Four independent verification layers — each with its own tool, none trusting t
 
 | Layer | Tool | What it proves | Result |
 |---|---|---|---|
-| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net — in BOTH shipped variants, each with its consumer's placement rule (EasyEDA import: raw offset; native KiCad 5: orientation matrix applied) | **2049/2049 · 100 % × 2** (the MCU by physical ball since A.13; ball-number and matrix mutations detected) |
+| Sheets ⇄ netlist (geometry) | `kicad5-verify.mjs` | every drawn pin lands on its intended net — in BOTH shipped variants, each with its consumer's placement rule (EasyEDA import: raw offset; native KiCad 5: orientation matrix applied) | **2057/2057 · 100 % × 2** (the MCU by physical ball since A.13; ball-number and matrix mutations detected) |
+| Sheets ⇄ KiCad (the tool itself) | `kicad-sch-verify.mjs` + KiCad 10.0.6 `kicad-cli` | the `.kicad_sch` set as KiCad reads it: ERC on every board sheet and the root (no dangling label or wire end, no unconnected pin, every symbol resolved, no duplicate reference); KiCad's exported netlist equals circuit.json — same components, same net names, same REF.pin in every net, the MCU on its manifest balls | **684/684 components · 422/422 nets · 0 differences** (a mirrored MCU — ERC-clean in KiCad! —, two swapped balls, the legacy harness numbering and a duplicated reference all detected) |
 | Netlist ⇄ intent (structure) | `erc-audit.mjs` | pairing, chain topology, polarity, rails, floats, a lock-in per fixed finding | **954 checks · 0 fail** |
 | Numbers ⇄ physics (worst case) | `design-verify.mjs` + `loss-model.mjs` | losses, thermal, envelope, discharge, protection timing, tolerances — **every SKU** | **132 PASS · 24 WARN · 0 FAIL** (each WARN names its bench/vendor gate) |
 | Circuits ⇄ time/frequency domain | `sim-verify.mjs` | S1–S10: flyback start-up (cycle-by-cycle), boost Bode, SVPWM ripple, 30 s thermal per SKU, discharge ODE, current-loop PM per f_sw, overshoot budget, DESAT timeline, ASC hold-up | **23 PASS · 6 WARN · 0 FAIL** → [simulation-report](docs/simulation-report.md) |
@@ -493,7 +498,9 @@ rechecks with the production closure (MCU ball map, barrier parts, connector) in
 push: the pin-freeze errors, the firmware sequencing/clock/retention defects, the analog terminal-fault paths) in
 [`docs/review-A13-disposition.md`](docs/review-A13-disposition.md), and round fifteen (three rechecks of A.13: the
 exciter clamp topology, the native-KiCad export convention, the low-speed contactor loss) in
-[`docs/review-A14-disposition.md`](docs/review-A14-disposition.md). Every contested number was
+[`docs/review-A14-disposition.md`](docs/review-A14-disposition.md), and round sixteen (three rechecks of A.14: the
+exciter amplitude corners and planes, the fault-model interpretation, the acquisition contracts) in
+[`docs/review-A15-disposition.md`](docs/review-A15-disposition.md). Every contested number was
 recomputed by an independent second model.
 
 | Round | Release | Fixed | The headline catches |
@@ -510,6 +517,8 @@ recomputed by an independent second model.
 | Review 8 | A.8 | 16 (F90–F105, incl. its cross-check) | **a DESAT during latched ASC left the healthy low sides on** — the faulted driver holds itself off (NSI6611 Fig. 8.11) but only a ₹5 AND gate (ASC = latch AND no-FLT) guarantees SPO on every path; last slow latch preset buffered (FLT diode-OR now Schottky for the Schmitt threshold); discharge opto under-driven like the ASC one; boot self-test masked by RDY; FAULT_OUT battery-short clamp moved off the logic rail; atomic BOM publish; S4 junction path made static. Cross-check of the fixes: FW-15 always clears ASC, FW-16 on measured no-HV conditions with FS_GPIO1 and FLT-injection steps, dead-buffer pulls, 261 Ω LEDs inside 10–15 mA, B5V6 clamp, discharge header V15-GND-CMD-GND, ERC locks by net and MPN; +₹18/unit |
 | Review 9 | A.9 | 14 (F106–F119, incl. its cross-check) | **the ASC/discharge bias modules were modelled from the wrong datasheet** (QA01C-18 is +18/−3 V, not +20/−4 V) — timing re-derived, discharge gate given a 1.5 k divider; **FLT/RDY pulled above the drivers' VCC1 rating** — pull-ups moved to V5GD on a harness pin; self-test energy-limited; RFS4 made anti-surge; self-found **≈150 mA parking drain** removed with one card-side P-FET. Cross-check of the fixes: V5GD read on an ADC pin (a dead V5GD faked a 0 V bus), harness re-laid for both dual-row numberings, resolver LDO sleeps too, QLVS slew-limited, DESATs kept in NVM; +₹29/unit |
 | Review 10 | A.10 | 3 (F120–F122) | schematic-only rechecks of A.9 kept every correction; **RDY lines drove the AND gates at 20–100 ns/V against a 10 ns/V limit** — third Schmitt buffer (reverses a round-7/8 rejection); RASCG given a 0.33 W part; sheet and wording fixes; +₹11/unit |
+| Review 16 | A.15 | 7 (F167–F173) | three rechecks of the A.14 push — all right: the SWG low corner through the series losses gave 6.34 V pp at the winding (exciter gain raised, 24 k → 28 k; FW-10 setpoint 7.2 V pp defined at the monitor plane with SWG-headroom and slew checks; planes documented); the back-drive row had read one RC time constant as the end of the pulse (exponential model, OPEN pending the diode envelope); **the exciter TVS is now unidirectional (SMCJ8.5A)** so a negative fault is carried by its forward diode instead of the amplifier's; the TVS-energy PASS rested on an extrapolated 20 ms allowance (conditional now, source impedance ≥ 0.27 Ω to allocate); the /33X PTC holds 70 mA at 85 °C (not 90); **firmware:** failed phase-ADC triplets stamped an uninitialised timestamp, resolver validity never expired without new blocks, and one SIN-DMA heartbeat tagged all three SDADC channels fresh — deterministic acquisition contracts, a per-tick frame-age policy and a coherent-frame API Same round, on instruction: the BOM furnished — every timing/filter/rail capacitor bound to a dielectric/voltage/size class, the last placeholders (KL15 polyfuse MF-MSMF010/60X, automotive beads, Samtec IPL1 link/HVIL headers, VY2 chassis cap) bound with archived sheets, and a drawn-size gate in the BOM generator. Marine forked at A.15 (86 PASS · 22 WARN · 0 FAIL). |
+| Round 17 | A.16 | 16 (F174–F189) | **gap closure** ("close all gaps", "feel free to upgrade") — every WARN/OPEN/TODO became a design change, a numbered interface requirement (IR-01…41), a vendor request with acceptance criteria (VR-01…32) or an executable procedure (92 QPs): rated back-drive diversion diodes, 3 kW AEC-Q101 exciter TVS, the LV entry re-designed as let-through for ISO 16750-2 test B (pulse 1 was avalanching the reverse Schottky, the 2023 26 V jump start opened the old TVS, the input polyfuse was undersized at 9 V), RFS4 1206, stale rows recomputed, the discharge resistor no-flame statement cited, a KiCad 9/10 set proved by KiCad 10's own netlist (which exposed a harness pin-numbering defect in the legacy sets), firmware: all 35 open contract items closed, FS26 watchdog cadence 2.0 ms (was at the window edge), ASC-exit release wait, FW-31/32/33, a 39-row silicon checklist; 104 datasheets. Marine forks at A.16 (86 PASS · 22 WARN · 0 FAIL; the M10 stuck-ON wording corrected to 103 W per resistor on the SQP no-flame statement) |
 | Review 15 | A.14 | 8 (F159–F166) | three rechecks of the A.13 push — all right: **the round-14 exciter TVS sat on the connector node, so a harness fault fed it without passing through the PTC** (moved to the protected node, 2.2 Ω series resistor, monitor tap moved, ERC graph-cut check); the "no back-drive" argument did not cover VEXD absent/cranking or negative faults (modelled, bench gate ㉘ extended); the PTC was bound to 1206 (it is 1812; /33X variant, hot hold 0.09 A); NTC_A's new ball is a standard-class ADC input but the target map said precision (generator now emits the full triple); **the shipped KiCad files were the EasyEDA-import variant only — read in native KiCad the mirrored library put H5 on FLT_CLR_M** (a `traction-native/` variant is now generated and both are verified with their consumer's placement rule, matrix mutation detected); the contactor-loss detector ignored low speed and left torque permission for the same invocation (firmware). Marine forked at A.14 (86 PASS · 22 WARN · 0 FAIL) |
 | Review 14 | A.13 | 16 (F143–F158) | three independent reviews of the A.12 push (24 + 8 + 7 findings) — all right: **the A.12 pin freeze had H5 (V15, 1.5 V) on the 5 V reference and J7 (the V25 regulator output) grounded**; the map is re-derived against NXP's own GEN3 net report (every supply ball and 164/165 ports agree; the four signals without a netlist cross-check moved to confirmed balls; the symbol now numbers pins by ball). **Firmware:** the DESAT ISR bypassed the 22–53 µs hardware delay (hold added for every caller), the ms clock wrapped wrongly after 71.6 min, keep_hv ignored the all-speed rule (b), placeholder fault routing and a readback posing as a lock — now an arming-evidence record keeps the gates inhibited until route, lock and validation records exist (fail closed); torque feasibility witness; stuck-on discharge detection. **Analog:** excitation monitor 18 k + C_AAF (3 mA unpowered), exciter TVS + PTC per line, motor-temp SMAJ5.0A + bound fuse, 47 Ω bias-LDO ballast for the production UCC12051-Q1 (80 mA). UCC14141-Q1 VDE certificate archived. Marine forked at A.13 (86 PASS · 22 WARN · 0 FAIL). Wording: 500–850 V, the 4XX AC-power envelope, safety work is engineering |
 | Review 13 | A.12 | 8 (F135–F142) | rechecks of A.11: **the energy rule now applies at every speed**; resolver input bound with the MCU unpowered (12 k) and the SDADC's 220 pF C_AAF restored; verifier counts distinct assemblies; the fitted TPS55340-Q1 is 40 V abs (the 34 V "upgrade" premise was false); LDO thermal on the datasheet pad. **Production closure:** MCU ball map bound (the fabrication blocker, with seven port errors of the old list fixed), FS26 pins verified, reinforced optos (VOW3120) and biases (UCC14141-Q1) in place of the uncertified TLP152/QA01C-18, 40-way connector, 4XX can, Y-caps and discharge resistors bound to orderable MPNs; Marine forked at A.12 (86 PASS · 22 WARN · 0 FAIL); firmware delivered in `firmware/`; +₹1,269 |
@@ -546,7 +555,7 @@ can choice, a few values on existing pads, an identity resistor and a firmware p
 | Peak / continuous | 220 / 120 kW (from 654 V) | 220 / 120 kW (from 654 V) | 150 / 90 kW (from 379 V) |
 | Tj end of 30 s peak (S4; static-plate bound 135 / 142 / 133 °C) | 125 °C / 175 °C | 132 °C / 150 °C | 125 °C / 150 °C |
 | Deltas vs SiC | — | module, DESAT 4.7 k/82 pF, gate 1.0/1.0 Ω, RT 8.2 k | as IGBT + 16 × 50 µF/600 V cans, discharge 220 Ω / 15 k |
-| BOM @1k | ₹72,495 | ₹46,995 | ₹45,395 |
+| BOM @1k | ₹72,981 | ₹47,481 | ₹45,881 |
 
 Recommendation (business case in [`docs/variants.md`](docs/variants.md)): lead with 8XX (same
 hardware, best ₹/kW), make IGBT the volume SKU at both voltages, keep SiC as the premium 8XX,
@@ -561,7 +570,7 @@ module plus larger sensors and cap bank, not a new board. Generate: `npm run bom
 time and frequency domain on the shared loss model (`loss-model.mjs`). **23 PASS · 6 WARN ·
 0 FAIL** — full table with per-row modeling assumptions: [`docs/simulation-report.md`](docs/simulation-report.md).
 
-| # | Simulation | Key result (rev A.14) |
+| # | Simulation | Key result (rev A.15) |
 |---|---|---|
 | S1 | Gate-power flyback: drain stress + **cycle-by-cycle start-up** | one burst to the rails in **73–240 ms** at KL30 9–14 V, every corner (FB now on its own aux rectifier — A6-R07); the A.5 values never started at 9 V |
 | S2 | UB15 boost loop Bode (A.4.3 compensation) | f_c 1.9–2.5 kHz, **PM 72–75°** |
@@ -598,7 +607,7 @@ npm run build     # tscircuit netlists  → dist/boards/*/circuit.json
 ```
 
 ```bash
-npm run sheets    # pages → KiCad5 sheets → 100% pin-verify → SVG → PDFs  (needs Chrome)
+npm run sheets    # pages → KiCad5 sheets → 100% pin-verify → KiCad 9/10 set → kicad-cli proof → SVG → PDFs  (needs Chrome + KiCad 9/10)
 ```
 
 ```bash
@@ -612,16 +621,18 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`boards/power.tsx`](boards/power.tsx) · [`boards/capbank.tsx`](boards/capbank.tsx) · [`boards/discharge.tsx`](boards/discharge.tsx) · [`boards/control-card.tsx`](boards/control-card.tsx) | **Source of truth** — the four assembly netlists |
 | [`packages/cells.tsx`](packages/cells.tsx) | Parameterized cells: gate-drive channel, flyback chain, iso V-sense, hall AFE, CAN, 40-way harness map |
 | [`calculations/parts-db.mjs`](calculations/parts-db.mjs) | Designator→MPN/LCSC/price/alt database + on-sheet safety/discharge panel text |
-| [`calculations/*.mjs`](calculations/) | The generator pipeline (pages · kicad5-gen · verify · print · pdf · bom) · `loss-model.mjs` = the one SKU table + loss model both verifiers use |
+| [`calculations/*.mjs`](calculations/) | The generator pipeline (pages · kicad5-gen · verify · kicad-sch-gen · kicad-sch-verify · print · pdf · bom) · `circuit-net.mjs` = the circuit.json netlist loader erc-audit and kicad-sch-verify share · `loss-model.mjs` = the one SKU table + loss model both verifiers use |
 | [`boards/out-pdf/`](boards/out-pdf/) | 📄 Rendered PDF schematic set |
-| [`kicad5/`](kicad5/) | `traction/` + `Traction-Inverter-SHIP.zip` = EasyEDA-Pro import variant · `traction-native/` + `Traction-Inverter-KiCad5-native.zip` = native KiCad 5 variant (round 15) |
+| [`kicad5/`](kicad5/) | `traction/` + `Traction-Inverter-SHIP.zip` = EasyEDA-Pro import variant · `traction-native/` + `Traction-Inverter-KiCad5-native.zip` = native KiCad 5 variant (round 15) — both for KiCad 5–8 |
+| [`kicad/`](kicad/) | `traction/` + `Traction-Inverter-KiCad-modern.zip` = the KiCad 9/10 `.kicad_sch` set: project, root with the four boards as sheet instances, every symbol embedded plus an identical project library; proved with `kicad-cli` (KiCad 10 resolves no symbol of the legacy sets) |
 | [`docs/design-basis.md`](docs/design-basis.md) | Ratings, sizing math, safety concept, references |
 | [`docs/dfm.md`](docs/dfm.md) | Manufacturability plan + sourcing tiers |
 | [`docs/bom.md`](docs/bom.md) · [`bom-igbt.md`](docs/bom-igbt.md) · [`bom-igbt4.md`](docs/bom-igbt4.md) · [`bom-sic4.md`](docs/bom-sic4.md) | Generated BOMs, all four SKUs, with subsystem Pareto |
 | [`docs/variants.md`](docs/variants.md) | The platform: four SKUs on one set of boards, economics, recommended launch path |
-| [`firmware/`](firmware/README.md) | **Production firmware (rev A.14)** against the contract: safety state machine with fail-closed arming evidence, DESAT hold, monotonic clock, battery-path loss at any speed, fault manager, FS26 SBC, sensing (currents with stuck-channel detection, V_DC, resolver; ADC map and schedule generated from the ball map), FOC with a torque-feasibility witness, CAN, discharge with stuck-on detection, NVM, four SKUs; host simulation + 223 tests / 1882 checks (`make test`, also ASan/UBSan and -O2), traceability FW-01…FW-26 → tests with the round-14/15 fail-before/pass-after tables; what still needs the target/HIL and the NXP RTD |
+| [`firmware/`](firmware/README.md) | **Production firmware (rev A.16)** against the contract: safety state machine with fail-closed arming evidence, DESAT hold, monotonic clock, battery-path loss at any speed, fault manager, FS26 SBC, sensing (currents with stuck-channel detection, V_DC, resolver; ADC map and schedule generated from the ball map), FOC with a torque-feasibility witness, CAN, discharge with stuck-on detection, NVM, four SKUs; fail-closed acquisition (round 16: complete phase-current triplets or an invalid sample, per-tick resolver frame age, coherent SDADC frames, amplitude planes with the SWG ramp); round 17: every open contract item closed (FW-08 zero-current decision, FW-31 current-loop liveness, FW-32 UDS service-lock routine, FW-33 supply-overvoltage supervision for the let-through LV input, FS26 watchdog cadence 2.0 ms, ASC-exit release wait) with a 39-row silicon/RM checklist; host simulation with per-channel eDMA + 256 tests / 2310 checks (`make test`, also ASan/UBSan and -O2), traceability FW-01…FW-33 → tests with the round-14/15/16/17 fail-before/pass-after tables; what still needs the target/HIL and the NXP RTD |
 | [`docs/firmware-contract.md`](docs/firmware-contract.md) | Hardware → firmware contract: SKU identity, envelope, protection allocation, safe-state matrix, fault-latch recovery |
 | [`docs/mcu-pin-manifest.md`](docs/mcu-pin-manifest.md) · [`calculations/mcu-ballmap.json`](calculations/mcu-ballmap.json) | **Pin freeze (rev A.12)**: every S32K396 ball, its function, our net; the seven port corrections found |
+| [`docs/review-A15-disposition.md`](docs/review-A15-disposition.md) · [`.csv`](docs/review-A15-disposition.csv) | Review round 16 (three rechecks of A.14): exciter amplitude planes and gain, the unidirectional TVS, the conditional fault rows, the acquisition contracts |
 | [`docs/review-A14-disposition.md`](docs/review-A14-disposition.md) · [`.csv`](docs/review-A14-disposition.csv) | Review round 15 (three rechecks of A.13): the exciter clamp topology, the native-KiCad variant, the PTC package, the ADC class, the low-speed contactor loss |
 | [`docs/review-A13-disposition.md`](docs/review-A13-disposition.md) · [`.csv`](docs/review-A13-disposition.csv) | Review round 14 (three reviews of A.12): every finding classified, verified and dispositioned; the MCU map cross-checked against NXP's netlist |
 | [`docs/review-A12-disposition.md`](docs/review-A12-disposition.md) · [`.csv`](docs/review-A12-disposition.csv) | Review round 13 (rechecks of A.11) and the production-closure register: MCU ball map, VOW3120 / UCC14141-Q1, connector, can, Y-caps, SQP10, Marine A.12, firmware |
@@ -634,7 +645,10 @@ npm run bom       # docs/bom.md + per-board CSVs
 | [`docs/simulation-report.md`](docs/simulation-report.md) | Operating-point simulations (S1–S10) with waveform/Bode plots |
 | [`docs/cost-rollup.md`](docs/cost-rollup.md) | Full unit cost + NRE + pricing guidance |
 | [`docs/verification-report.md`](docs/verification-report.md) | **End-to-end verification**: findings log F1–F134, per-SKU margin tables, worst-case corners |
-| [`docs/datasheets/`](docs/datasheets/) | Component datasheet pack (30+ PDFs) + extracted parameters |
+| [`docs/datasheets/`](docs/datasheets/) | Component datasheet pack (104 PDFs) + extracted parameters |
+| [`docs/vendor-requests.md`](docs/vendor-requests.md) | **Vendor requests register** VR-01…VR-28 (round 17): every open vendor input as an exact question with the design condition, the acceptance criterion and the verifier row or gate it closes — HIITIO, NOVOSENSE, TDK, Faratronic, Murata, Bourns, Littelfuse, Diodes, Samtec, NXP, LEM, coldplate |
+| [`docs/interface-requirements.md`](docs/interface-requirements.md) | **Vehicle / motor / harness interface requirements** IR-01…IR-33 (round 17): what the inverter assumes about the LV supply, the motor and resolver (data for the safe-state decision, Z_primary ≥ 60 Ω), the harness (exciter fault double event), the HV side, the coolant, the EOL steps and the single-vs-double-fault safety assumptions |
+| [`docs/qualification-plan.md`](docs/qualification-plan.md) | **Qualification plan** (round 17): 92 executable procedures with fixtures, steps and numeric pass criteria for every gate, every WARN row, the simulation WARNs, the firmware silicon/HIL items and the EOL line (QP-PS/GD/SC/TH/LV/HV/RX/DS/SF/FW/FAI/EOL/MA) |
 
 ---
 
@@ -657,6 +671,7 @@ timeline
         Rev A.12 : Rechecks + production closure : F135–F142 · MCU ball map bound · VOW3120 / UCC14141-Q1 barrier parts · connector, can, Y-caps, SQP10 bound · firmware/
         Rev A.13 : Round 14 (three reviews) : F143–F158 · H5/J7 fixed, map vs NXP netlist, ball pin numbers · firmware fail-closed arming, DESAT hold, clock, keep_hv · exciter/monitor/motor-temp protection · LDO ballast
         Rev A.14 : Round 15 (three rechecks) : F159–F164 · exciter TVS behind the PTC + 2.2 R · native-KiCad variant + matrix-aware verify · PTC 1812 · ADC class triple · contactor loss at any speed
+        Rev A.15 : Round 16 (three rechecks) : F167–F173 · exciter gain 28 k + amplitude planes · unidirectional TVS · back-drive/TVS rows conditional · acquisition contracts (phase ADC, resolver age, coherent frames)
     section Next 🔜
         Pin freeze : DONE in A.12 — S32K396 289 balls bound from SPF-91122 + DS anchors : FS26 pins verified : connector bound
         RFQ : hiitio Ls + SiC SC letter + module quotes : Faratronic 4XX can : NOVOSENSE soft-off vs EN
@@ -699,24 +714,34 @@ timeline
 > Vishay VY1 (Y1, 1500 VDC); what remains is the PO-time check that TI's VDE/UL certificates, listed "planned"
 > in SLUSF10B §7.6, have issued (round 12, R1-F12; design-basis §6a). ㉕ Resolver bench: 8 V pp at 10 kHz from the SWG amplitude register against the
 > excitation monitor, and the harness short-to-KL30 injection measured at the SDADC pins (R2-F04/F13).
-> ㉖ Discharge resistor: the TE SQP10 candidate through the ⑮ stuck-ON test — no catalogue 470 Ω/10 W
-> part publishes fail-open data (round 12). ㉗ LV entry vs the OEM's ISO 16750-2 test-B source
-> resistance: the 24 V-stand-off TVS takes 35 V/400 ms on paper at Ri = 4 Ω only (no SMC datasheet
-> rates a pulse beyond 1 ms); at 2 Ω a TVS pulse test, below 1 Ω 35 V-rated rails (a ≥ 42 V boost input
-> — the fitted TPS55340-Q1 is 38 V recommended / 40 V absolute, so a 35 V rail needs the boost's own
-> derating, not a new part) (round 12, R1-F14/R2-F10; corrected round 13).
+> ㉖ Discharge resistor (re-scoped round 17): the no-flame property is closed on paper by the bound part's
+> sheet — TT/Welwyn SQP "will not burn or emit incandescent particles under any condition of applied temperature
+> or overload" (the Yageo alternate lacks the statement and is constrained in the BOM; VR-28) — so the ⑮
+> stuck-ON test now only characterises the fail-open time (QP), it is no longer a release gate. ㉗ LV entry (re-scoped round 17): the entry is LET-THROUGH — every clamp stays dark at the 35 V test-B plateau
+> (TPSMC33A-VR/TPSMC18A-VR anti-series pair at the pin ahead of the reverse Schottky, TPSMC33CA-VR on the power
+> board), every downstream part is shown rated for it (FS26 36 V extended operation, boost 38/40 V, LDOs, flyback
+> drain), a 100 µF hybrid capacitor absorbs pulse 2a and a 5 A fuse replaces the undersized polyfuse — closed on paper
+> at every source impedance (F189); what remains is measured: QP-LV-02/03/04 (jump start, test B at the OEM's Ri, the
+> other ISO 16750-2/7637-2 pulses) and the FS26 "limited period" duration asked of NXP (VR-29). Test A (unsuppressed
+> dump) is not supported — IR-03 (central suppression, Us* ≤ 36 V at the pin).
 > ⑳ FAULT_OUT wire-fault injection with V5A up, sleeping and off, a 35 V pulse, and FS1B asserted into
 > the short (A7-N04, P-01).
 > ㉑ V5GD-off state with the pull-ups on V5GD (A8-01): FLT/RDY low → SPO, nothing back-powers the dead domain.
 > ㉒ FW-16 on HIL: skip/stored-pass rule, the FS_GPIO1 steps, FLT injection with the pad rule
 > (R8X-02/03/17); motor commissioning: ASC-entry current vs the DESAT minimum (R8X-13).
 > ㉓ Bias and gate levels (A8-N01/N02): UCC14141-Q1 output at no load/start-up/ON, QDIS V_GS, ASC entry at the low end.
-> ㉔ Parking drain with the card in LPOFF (N17) and the self-test energy fixture at ≤ 13 V (A8-N03).
-> ㉘ Terminal-fault bench (round 14, F04/F18; scope widened round 15, A13-R02): each resolver excitation line and
-> each motor-temperature line to 24 V/60 s and 35 V/400 ms with VEXD/the MCU on, off and cranking, positive and
-> (where the OEM allocates it) negative — PTC and TVS current measured separately, amplifier output and
-> reverse rail current into ULDOEX (NCV4276C output-above-input is unspecified), TVS temperature, buffer unharmed,
-> excitation amplitude at the resolver (≥ 6.5 V pp) after the PTCs; energy-limited source first. **Target evidence for the arming record** (F01/F02/F06):
+> ㉙ Parking drain with the card in LPOFF (N17) and the self-test energy fixture at ≤ 13 V (A8-N03) (renumbered from a second ㉔ in round 17).
+> ㉘ Terminal-fault bench (round 14, F04/F18; widened rounds 15–16; re-scoped round 17): each resolver excitation
+> line and each motor-temperature line to 24 V/60 s and 35 V/400 ms with VEXD/the MCU on, off and cranking,
+> positive and (where the OEM allocates it) negative — since round 17 a CHARACTERISATION, not a release gate:
+> the single fault (≤ 24 V, any source impedance) is closed on paper (TVS energy inside the SMDJ8.5A-HRA 10 ms
+> point, PTC current ≤ 40 A), the back-drive charge has a rated path (DEXP/DEXN PMEG4050EP-Q, NCV4276C 40 V
+> output rating), the PTC hold is bounded by the resolver interface (IR-13), and the 35 V case is the documented
+> double event IR-16/IR-33 (only the PTC's 40 A I_max remains outside a datasheet there). Measured for the record:
+> PTC clearing waveform (cold, hot, post-trip), PTC/TVS/Schottky currents, the reverse rail current into
+> ULDOEX, TVS temperature, buffer unharmed, excitation amplitude at the WINDING (≥ 6.5 V pp; the monitor plane is
+> before the PTC) against the selected resolver's measured impedance; energy-limited source first (procedure in
+> docs/qualification-plan.md). **Target evidence for the arming record** (F01/F02/F06):
 > PWM-fault injection on PTC26/PTC25 with the CPU halted, the ADC-watchdog → PWM-fault chain ≤ 15.6 µs,
 > REG_PROT lock readback, WCET — the firmware refuses to arm without it.
 > Full list with owners: [`docs/review-A9-disposition.md`](docs/review-A9-disposition.md).
@@ -737,6 +762,6 @@ timeline
 <p align="center">
   <img alt="Vectivolt" src="https://img.shields.io/badge/⚡-VECTIVOLT-0d1b2a?style=for-the-badge"/>
   <br/>
-  <sub><b>Traction Inverter GEN-1</b> · rev A.14 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
+  <sub><b>Traction Inverter GEN-1</b> · rev A.15 · one platform, four SKUs (8XX/4XX × SiC/IGBT) · schematic-complete, layout next.<br/>
   Proprietary — © Vectivolt. Reference designs cited remain property of their respective owners.</sub>
 </p>

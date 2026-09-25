@@ -16,7 +16,7 @@
 #define TI_IMCR_UNBOUND 0u
 
 #if defined(TI_BOARD_IMCR_BOUND)
-/* TODO(RM): the four values, e.g.
+/* the four values, e.g.
  * #define TI_IMCR_PWM1_FAULT0 <index>
  * #define TI_IMCR_PWM1_FAULT2 <index>
  * #define TI_IMCR_SSS_PTC26 <sss>
@@ -27,7 +27,7 @@
 #define TI_IMCR_SSS_PTC26 TI_IMCR_UNBOUND
 #define TI_IMCR_SSS_PTC25 TI_IMCR_UNBOUND
 #if defined(TI_RTD_AVAILABLE)
-#error "TODO(RM): s32k396_board_cfg.h - the IMCR routing of FLT_HS_N/FLT_LS_N to eFlexPWM_1 FAULT0/FAULT2 is unbound"
+#error "s32k396_board_cfg.h: the IMCR routing of FLT_HS_N/FLT_LS_N to eFlexPWM_1 FAULT0/FAULT2 is unbound (firmware/docs/target-bringup.md)"
 #endif
 #endif
 

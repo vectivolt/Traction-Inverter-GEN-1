@@ -55,7 +55,7 @@
     .fw06_sample_hz = 200000.0f, /* FW-06: each V_DC channel free-running >= 200 kS/s */ \
     .fw06_conv_us = 1.0f, /* FW-06 conversion */ \
     .fw06_action_us = 1.0f, /* FW-06 ADC watchdog -> eFlexPWM fault -> ASC_REQ */ \
-    .asc_entry_max_us = 7.5f, /* §4c hardware ASC entry <= 7.5 µs */ \
+    .asc_entry_max_us = 7.56f, /* §4c hardware ASC entry <= 7.56 µs (design-verify, Safety A.8: ASC entry, latch set -> LS gates on) */ \
     .vdc_div_ratio = 455.8387f, /* design-basis §6: 6 x 470 k over 6.2 k into the AMC1311B */ \
     .vofs_nom_v = 0.5f, /* FW-07 receivers' shared +0.5 V offset */ \
     .vofs_min_v = 0.475f, /* FW-07 */ \
@@ -73,6 +73,10 @@
     .can_stale_ms = 20u, /* FW-11 <= 20 ms staleness */ \
     .fs26_wd_err_limit = 2u, /* FW-12 WD_ERR_LIMIT = 2 */ \
     .fs26_wdw_period_ms = 3u, /* FW-12 window <= 3 ms */ \
+    .vsup_amux_ratio = 14.0f, /* LV supervision (round 17): VSUP on the FS26 AMUX, divider option 1 (DS Tables 56, 130) */ \
+    .vsup_valid_min_v = 4.2f, /* LV supervision: AMUX divider 14 input range 4.2–36 V (DS Table 131); below = no reading */ \
+    .vsup_ov_v = 20.0f, /* LV supervision: the FS26 VSUP_OV threshold (19.3–20.7 V, DS Table 9) — VSUPOV */ \
+    .vsup_ov_hyst_v = 0.5f, /* LV supervision: VSUPOV ends below vsup_ov_v - this */ \
     .fs26_fs1b_tdelay_ms = 0u, /* FW-12 FS1B_TDELAY = 0 */ \
     .fs26_fs1b_tdur_ms = 100u, /* FW-12 FS1B_TDUR = 100 ms */ \
     .fs26_backup_fs0b = true, /* FW-12 BACKUP_SAFETY_PATH_FS0B = 1 */ \
@@ -93,8 +97,12 @@
     .fw16_ss_ell_v = 12.0f, /* FW-16 n_ss: E_LL,pk(n_ss) <= 12 V */ \
     .fw16_asc_rb_us = 20u, /* FW-16 step a: ASC_CMD_RB within 20 µs */ \
     .fw16_drven_rb_us = 60u, /* FW-16 step h: DRV_EN_RB 0 within 60 µs */ \
-    .asc_exit_hs_delay_ns = 1000u, /* FW-06a step 3: first HS pulse >= 1 µs after ASC_CLR */ \
     .precharge_sig_frac = 0.05f, /* FW-19 plateau ≈5 % below the pack */ \
+    .rslv_floor_vpp = 6.5f, /* gate 25: resolver minimum excitation, AT THE WINDING */ \
+    .exc_gain = 4.14348f, /* SWG -> amplifier differential: MFB |H(10 kHz)| (28 k, rev A.15) x 2 (ALM2402 bridge) */ \
+    .exc_amp_per_mon = 1.060606f, /* amplifier / monitor plane: RSX 2.2 ohm per line before the tap, PTC 1.3 ohm cold per line + 70 ohm primary after it */ \
+    .swg_maxapp_min_vpp = 1.884f, /* S32K39 DS Table 40: MAXAPP min, the SWG low corner */ \
+    .exc_slew_max_vpp = 8.276057f, /* ALM2402 ~0.13 V/us at -40 degC: 2.07 V pk per output at 10 kHz (x 4 = differential V pp) */ \
     .cal_vdc_disagree_floor_v = 18.0f, /* CAL [5, 40] FW-07 5 % has no low-voltage floor; 2 x the ±9 V uncalibrated low-level error (R9X-07) */ \
     .cal_vdc_stale_us = 100u, /* CAL [20, 1000] free-running channel delivers a sample every <= 5 µs */ \
     .cal_vdc_bms_debounce_ms = 50u, /* CAL [10, 500] contactor/BMS transients */ \
@@ -146,9 +154,9 @@
     .cal_qdis_stuck_on_frac = 0.25f, /* CAL [0.1, 0.5] stuck-ON: QDIS off but τ below this fraction of the bleeder τ */ \
     .cal_fc_fraction = 0.9f, /* CAL [0.5, 1] current-loop crossover as a fraction of the §2 ceiling */ \
     .cal_mod_index_max = 0.95f, /* CAL [0.8, 1] 5 % modulation reserve (FW-03) */ \
-    .cal_dcl_kp_nm_v = 0.5f, /* CAL [0.05, 5] FW-08 DC-link voltage controller */ \
-    .cal_dcl_ki_nm_vs = 20.0f, /* CAL [1, 200] FW-08 */ \
-    .cal_dcl_tmax_nm = 50.0f, /* CAL [5, 200] FW-08 torque authority */ \
+    .cal_dcl_kp_nm_v = 0.5f, /* CAL [0.05, 5] FW-08 DC-link trim (RUN only, battery proven): regen taken back per V above vdc_max_v */ \
+    .cal_dcl_ki_nm_vs = 20.0f, /* CAL [1, 200] FW-08 DC-link trim integral */ \
+    .cal_dcl_tmax_nm = 50.0f, /* CAL [5, 200] FW-08 DC-link trim authority: the most regen it takes back */ \
     .cal_sensor_selftest_ms = 500u, /* CAL [100, 2000] §9 step 3 timeout */ \
     .cal_fs0b_release_ms = 200u, /* CAL [50, 1000] §9 step 4: the FS26 needs WD_RFR_LIMIT good refreshes first */ \
     .cal_fs26_prog_id = 65535u, /* CAL [0, 65535] FW-12: M_PROGID of the procured OTP variant; 0xFFFF = unbound (no arming) */ \
@@ -159,9 +167,17 @@
     .cal_torque_max_nm = 450.0f, /* CAL [50, 2000] motor torque limit (commissioning) */ \
     .cal_desat_en_hold_us = 60u, /* CAL [55, 250] A12-R05: no software MCU_GATE_EN drop within this time of a FLT (latch path 22–53 µs + margin) */ \
     .cal_vdyn_reserve_frac = 0.05f, /* CAL [0, 0.2] F23: voltage kept free for current-loop dynamics (torque->current feasibility) */ \
+    .cal_vsup_ld_ms = 500u, /* CAL [400, 1000] LV supervision (round 17): tolerated time above cal_vsup_jump_max_v — IR-03, the ISO 16750-2 test-B let-through pulse (up to 35 V, td <= 400 ms) + margin; floor = the pulse, ceiling 2.5x it (the FS26's limited HV-extended period is VR-29); longer = sustained */ \
+    .cal_vsup_jump_ms = 65000u, /* CAL [60000, 120000] LV supervision: tolerated VSUPOV event at or below cal_vsup_jump_max_v — IR-02, the ISO 16750-2 24 V jump start (60 s) + margin; ceiling 2 min (IR-02: the hardware rows are sized for one minute); longer = sustained */ \
+    .cal_vsup_jump_max_v = 27.0f, /* CAL [24.5, 30] LV supervision: jump-start band ceiling — the 2023 edition's 26 V jump start at the AMUX's highest reading (x1.015 + 0.1 V = 26.5 V, DS Table 131) + margin; floor keeps IR-02's 24 V (24.46 V) inside, ceiling keeps a test-B plateau (VSUP 34.6 V, >= 34.0 V read) above */ \
+    .cal_asc_release_ns = 1500u, /* CAL [1070, 5000] FW-06a step 3 (round 17): the ASC pins release <= 1.07 µs after ASC_CLR (design-verify Safety A.8: VOW3120 tpHL 0.5 + DASCR 0.08 + NSI6611 tASC_f 0.48 µs + 11 ns of logic) + margin; the first HS pulse waits this + the SKU dead time (the LS turn-off) from the clear's falling edge; never below the release */ \
     .cal_isns_act_min_a = 20.0f, /* CAL [5, 100] F24: a phase whose reference reaches this must show current */ \
     .cal_isns_act_frac = 0.2f, /* CAL [0.05, 0.5] F24: measured phase current vs its reference (stuck channel below) */ \
     .cal_isns_act_debounce = 20u, /* CAL [4, 100] F24: consecutive applicable samples below the fraction => stuck channel */ \
+    .cal_rslv_hold_us = 500u, /* CAL [250, 800] A14-R01: newest coherent resolver frame (block start) may be this old, else the angle is withdrawn. The hold may add at most the angle error the observer already carries at the acceleration envelope (alpha/wn^2): extrapolating adds e_w*t + alpha*t^2/2 with the observer's peak speed lag e_w = alpha/(e*wn), equal at t = 1.09/wn = 580 us (wn = 2 pi 300 Hz), whatever alpha; 500 us adds 0.26 deg el at alpha = 2e4 rad/s^2. Floor: 2 carrier periods + IRQ jitter (a normal empty read); ceiling: the observer's 8-block re-acquisition gap */ \
+    .cal_rslv_exc_target_vpp = 7.2f, /* CAL [6.5, 8.3] A14-N01: SWG trim setpoint at the MONITOR plane (protected node, after RSX, before the PTC): amplifier 7.64 V pp (slew ceiling 8.28), SWG 1.84 V pp (low corner 1.884), winding 6.94 V pp cold */ \
+    .cal_rslv_wind_per_mon = 0.9641873f, /* CAL [0.8, 1] A14-N01: downstream-loss allowance monitor -> winding, 70/(70 + 2 x 1.3) with the PTCs cold; the post-trip 5 ohm (70/80 = 0.875) is NOT credited: FW-10 flags it. EOL with the real harness replaces it */ \
+    .cal_swg_code_init = 8u, /* CAL [0, 12] A14-N01: the SWG starts low (1.45 V pp at the MAXAPP max corner, IOAMPL assumed linear from MINAPP = 0.209 MAXAPP: silicon checklist, docs/target-bringup.md) and ramps up under the trim; <= 12 keeps the untrimmed max corner (1.94 V pp -> 8.0 V pp) under the slew ceiling */ \
 }
 
 #endif /* PARAMS_8XX_IGBT_H */

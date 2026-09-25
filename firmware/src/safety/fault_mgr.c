@@ -172,8 +172,10 @@ void fm_hs_reset_done(fm_t *f) { f->hs_reset_done = true; }
 
 bool fm_retry_allowed(const fm_t *f, bool vcu_auth, uint32_t now_ms, const ti_params_t *p)
 {
+    /* ms stamps are floored: 1000 counts can be 999.001 ms of real time, so one more count keeps FW-15's
+     * "no sooner than 1 s after the event" (round 16: a sub-ms phase shift exposed it) */
     return vcu_auth && !f->retry_used && (f->desat_count == 1u) && !dtc_active(DTC_DESAT_REPEAT) &&
-           ti_elapsed(now_ms, f->desat_ms, p->desat_retry_min_ms);
+           ti_elapsed(now_ms, f->desat_ms, p->desat_retry_min_ms + 1u);
 }
 
 void fm_retry_consumed(fm_t *f, const fm_ctx_t *c)

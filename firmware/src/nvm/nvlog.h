@@ -44,9 +44,10 @@ typedef struct {
     float speed_rpm;
 } nv_desat_t;
 
-/* "Service required, do not re-energise" (a stuck-on QDIS): survives key cycles until a service
- * tool rewrites it; read at every boot. */
-#define NV_SERVICE_MAGIC 0x53455256u /* "SERV" */
+/* "Service required, do not re-energise" (a stuck-on QDIS): survives key cycles until the UDS routine
+ * (FW-32) rewrites it as CLEARED, with the key cycle of the clear; read at every boot. */
+#define NV_SERVICE_MAGIC 0x53455256u   /* "SERV": locked */
+#define NV_SERVICE_CLEARED 0x434C5244u /* "CLRD": cleared by the service routine (the record of the clear) */
 typedef struct {
     uint32_t magic;
     uint16_t dtc;

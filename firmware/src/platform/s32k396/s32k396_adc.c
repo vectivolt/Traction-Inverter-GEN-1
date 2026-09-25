@@ -19,17 +19,16 @@
 #include "timer.h"
 
 #ifdef TI_RTD_AVAILABLE
-#include "Adc_Sar_Ip.h" /* TODO(RTD) */
+#include "Adc_Sar_Ip.h" /* TODO(RTD): the IP drivers, the Config Tools symbols below, ADC_SAR_IP_CONV_CHAIN_* */
 #include "Bctu_Ip.h"
 #include "Lcu_Ip.h"
 #include "Trgmux_Ip.h"
-extern const Adc_Sar_Ip_ConfigType AdcHwUnit_0, AdcHwUnit_1, AdcHwUnit_3, AdcHwUnit_4, AdcHwUnit_5,
-    AdcHwUnit_6;                                   /* TODO(RTD): Config Tools symbols */
-extern const Bctu_Ip_ConfigType BctuHwUnit_0;       /* TODO(RTD) */
-extern const Trgmux_Ip_InitType Trgmux_Ip_xTrgmuxInitPB; /* TODO(RTD) */
-extern const Lcu_Ip_InitType Lcu_Ip_xLcuInitPB;          /* TODO(RTD) */
-/* Direct reads of the data and watchdog-status registers (the ISR paths). TODO(RTD): device-header
- * names; ADC_2 is not used on this card. */
+extern const Adc_Sar_Ip_ConfigType AdcHwUnit_0, AdcHwUnit_1, AdcHwUnit_3, AdcHwUnit_4, AdcHwUnit_5, AdcHwUnit_6;
+extern const Bctu_Ip_ConfigType BctuHwUnit_0;
+extern const Trgmux_Ip_InitType Trgmux_Ip_xTrgmuxInitPB;
+extern const Lcu_Ip_InitType Lcu_Ip_xLcuInitPB;
+/* Direct reads of the data, chain and watchdog-status registers (the ISR paths). TODO(RTD): device-header
+ * names (IP_ADC_n, PCDR, ICDR, NCMR0/1, JCMR0/1, WTISR); ADC_2 is not used on this card. */
 static ADC_Type *const BASE[TI_ADC_NINST] = {IP_ADC_0, IP_ADC_1, IP_ADC_2, IP_ADC_3, IP_ADC_4, IP_ADC_5, IP_ADC_6};
 static uint32_t cdr(uint32_t inst, uint32_t ch)
 {
@@ -41,7 +40,7 @@ static uint32_t cdr(uint32_t inst, uint32_t ch)
     }
     return 0u; /* TI_ADC_CH_INVALID: no VALID bit, the signal stays "never converted" */
 }
-/* The configured chain of an instance, NCMRx/JCMRx layout. TODO(RTD): device-header names. */
+/* The configured chain of an instance, NCMRx/JCMRx layout. */
 static uint32_t cmr(uint32_t inst, ti_adc_chain_t chain, uint32_t word)
 {
     if (chain == TI_ADC_CHAIN_INJECTED) {
@@ -106,8 +105,8 @@ bool hal_adc_init(void)
      * enabled. TODO(RM): read the BCTU list back against the PHASE rows too (LISTCHR layout).
      * Trgmux_Ip_Init(&Trgmux_Ip_xTrgmuxInitPB): PWM_1 triggers -> BCTU; LCU output -> PWM_1 FAULT1.
      * Lcu_Ip_Init(&Lcu_Ip_xLcuInitPB): OR of the ADC0/1/3/4/6 watchdog outputs (active high).
-     * TODO(HW-RM): confirm the ADC watchdog -> TRGMUX/LCU -> eFlexPWM FAULT route exists on the
-     * S32K39 (the contract's FW-05 names an "eTPU fault input"; §4c the eFlexPWM channel). */
+     * TODO(HW-RM): confirm the ADC watchdog -> TRGMUX/LCU -> eFlexPWM_1 FAULT1 route exists on the S32K39 and
+     * measure it (contract FW-05/FW-06, round 17: this is the route; the EOL/HIL record proves it). */
     const Adc_Sar_Ip_ConfigType *const cfg[TI_ADC_NINST] = {&AdcHwUnit_0, &AdcHwUnit_1, NULL, &AdcHwUnit_3,
                                                             &AdcHwUnit_4, &AdcHwUnit_5, &AdcHwUnit_6};
     for (uint32_t i = 0u; i < TI_ADC_NINST; i++) {
@@ -155,26 +154,29 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
     return s_seen[sig];
 }
 
+/* Round 16 (A14-R03): all three or nothing (hal/adc.h). Every channel is fetched each time, so each
+ * VALID bit is consumed by the trigger that set it and a missing channel cannot pair a later trigger's
+ * values with this one's; on a miss nothing is written — not codes[], not *t_us, not the cache. */
 bool hal_adc_read_phase(uint16_t codes[3], uint32_t *t_us)
 {
+    uint16_t c[3] = {0u, 0u, 0u};
     bool ok = true;
     for (uint32_t i = 0u; i < 3u; i++) {
-        uint16_t c = 0u;
-        const bool fresh = fetch((hal_adc_sig_t)i, &c); /* the BCTU list just completed */
-        ok = ok && fresh;
-        codes[i] = c;
+        const bool fresh = fetch((hal_adc_sig_t)i, &c[i]); /* the BCTU list just completed */
+        ok = fresh && ok;
     }
-    if (ok) {
-        for (uint32_t i = 0u; i < 3u; i++) {
-            s_code[i] = codes[i];
-            s_seen[i] = true;
-        }
-        *t_us = hal_time_us();
-        s_t_us[0] = *t_us;
-        s_t_us[1] = *t_us;
-        s_t_us[2] = *t_us;
+    if (!ok) {
+        return false;
     }
-    return ok;
+    const uint32_t t = hal_time_us();
+    for (uint32_t i = 0u; i < 3u; i++) {
+        codes[i] = c[i];
+        s_code[i] = c[i];
+        s_t_us[i] = t;
+        s_seen[i] = true;
+    }
+    *t_us = t;
+    return true;
 }
 
 void hal_adc_start_slow(void)
@@ -188,7 +190,7 @@ void hal_adc_start_slow(void)
     /* Each instance's slow chain as the schedule derives it from MAP (round 15): the normal chain
      * on ADC0/3/4/5 (it shares ADC0/3/4 with the BCTU list, which has priority: a BCTU conversion
      * aborts and resumes the normal chain), the injected chain on ADC1 next to the continuous V_DC
-     * ch2 (MT2_SIG, INTRLOK_N, TMOD_W — never started before round 15). TODO(RTD): enum names. */
+     * ch2 (MT2_SIG, INTRLOK_N, TMOD_W — never started before round 15). */
     for (uint32_t k = 0u; k < TI_ADC_NINST; k++) {
         const ti_adc_chain_t c = adc_slow_chain(MAP, HAL_ADC_COUNT, k);
         if (c != TI_ADC_CHAIN_NONE) {
@@ -208,10 +210,11 @@ bool hal_adc_set_watchdog(hal_adc_sig_t sig, uint16_t lo_trip, uint16_t hi_trip)
     const Adc_Sar_Ip_WdgThresholdType thr = {.LowThreshold = adc_thrl(lo_trip),
                                              .HighThreshold = adc_thrh(hi_trip),
                                              .LowThresholdIntEn = (lo_trip > 0u),
-                                             .HighThresholdIntEn = true}; /* TODO(RTD): field names */
+                                             .HighThresholdIntEn = true};
     Adc_Sar_Ip_SetWdgThreshold(MAP[sig].inst, WD_REG, &thr);
-    /* TODO(RTD): channel -> threshold register (CWSELRn) and enable (CWENRn) are in the generated
-     * channel configuration (WdgThreshRegIndex); the watchdog event output is enabled for the LCU. */
+    /* TODO(RTD): the threshold field names above; channel -> threshold register (CWSELRn) and enable
+     * (CWENRn) are in the generated channel configuration (WdgThreshRegIndex); the watchdog event output is
+     * enabled for the LCU. */
     return s_init;
 #else
     (void)lo_trip;

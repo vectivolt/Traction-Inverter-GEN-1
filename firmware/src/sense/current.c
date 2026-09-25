@@ -38,6 +38,15 @@ void isns_update(isns_t *s, const uint16_t codes[3], uint32_t t_us, uint32_t now
     s->valid = all && s->fresh && !s->sum_fault && !s->stuck_fault;
 }
 
+void isns_lost(isns_t *s)
+{
+    for (uint32_t i = 0u; i < 3u; i++) {
+        s->ch_valid[i] = false;
+    }
+    s->fresh = false;
+    s->valid = false;
+}
+
 void isns_activity(isns_t *s, const float iref_abc[3], const ti_params_t *p)
 {
     for (uint32_t i = 0u; i < 3u; i++) {

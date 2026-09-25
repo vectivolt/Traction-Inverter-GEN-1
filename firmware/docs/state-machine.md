@@ -6,7 +6,8 @@
 
 The states are the ones the task listed. The transitions follow contract §9, with one ordering
 change: the FW-16 gate self-test runs **before** precharge, because the VCU precharges only after
-"self-test done". The task's list had PRECHARGE_WAIT before GATE_SELFTEST.
+"self-test done". The task's list had PRECHARGE_WAIT before GATE_SELFTEST; since round 17 contract §9
+states this order.
 
 The state machine only **gates** arming and torque. The bridge action for a fault (SPO, LS-ASC,
 PWM-ASC re-entry) is not a state. The fault manager decides it from the §6 matrix
@@ -65,8 +66,8 @@ stateDiagram-v2
 | GATE_SELFTEST | per FW-16 step | no | Runs only under its measured no-HV, standstill conditions (≤ 0.1 J). Otherwise it uses the stored pass or refuses. |
 | PRECHARGE_WAIT | no | no | FW-19 watches the precharge curve. A refusal forbids arming for the key cycle. |
 | ARMED_ZERO_TORQUE | yes | zero | |
-| RUN / DERATE | yes | yes | DERATE is FW-04 with hysteresis. The retry after a DESAT runs at reduced torque. The outputs describe the state an invocation ends in (round 15): the step that leaves RUN/DERATE grants no torque, and on the way to FAULT, DISCHARGE or SAFE_POWERDOWN no arm either. |
-| FAULT | no | no | The §6 action is applied by the fault manager; the only modulation is its own (zero-torque current control after a battery-path loss below n_x while winding current remains, round 15). Exit is only through the rows clearing or the FW-15 retry path. A failure that forbids arming (evidence, service lock, FW-16/FW-19 refusal) keeps it here for the key cycle. |
+| RUN / DERATE | yes | yes | DERATE is FW-04 with hysteresis. The retry after a DESAT runs at reduced torque. The outputs describe the state an invocation ends in (round 15): the step that leaves RUN/DERATE grants no torque, and on the way to FAULT, DISCHARGE or SAFE_POWERDOWN no arm either. The soft §6 rows — command lost (with a fresh command also HVIL open, FW-09, and a sustained LV overvoltage, FW-33, round 17) and the BMS limit at zero — act inside RUN: the fault manager ramps the torque to zero (then SPO below n_x) and the state stays; they never lead to FAULT. |
+| FAULT | no | no | The §6 action is applied by the fault manager; the only modulation is its own (zero-current control, id = iq = 0, after a battery-path loss below n_x while winding current remains — round 15, zero current since round 17). Exit is only through the rows clearing or the FW-15 retry path. A failure that forbids arming (evidence, service lock, FW-16/FW-19 refusal) keeps it here for the key cycle. |
 | DISCHARGE | no | no | QDIS is fired only while the contactors are reported open (FW-17/18). |
 | SAFE_POWERDOWN | no | no | Discharges if the contactors are open, flushes NVM, then LPOFF. |
 

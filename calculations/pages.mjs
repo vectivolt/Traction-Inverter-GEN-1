@@ -82,7 +82,7 @@ const PAGES = {
       ["SWD-BOOT", [/^JSWD$/, /^RBOOT$/, /^CRST$/]],
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [
-      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC$/, /^LFC$/, /^CLVC[12]$/, /^QLV[SN]$/, /^RLVS[GDM]$/, /^CLVSM$/, /^ZLVS$/]],
+      ["LV-INPUT", [/^DREVC$/, /^FLVC$/, /^FVB[HL]$/, /^DTVSC2?$/, /^LFC$/, /^CLVC[123]$/, /^QLV[SN]$/, /^RLVS[GDM]$/, /^CLVSM$/, /^ZLVS$/]],
       ["FS26", [/^USBC$/, /^DBAT$/, /^LSBC$/, /^LCOR$/, /^QBAL$/, /^CSB\d+B?$/, /^RSB\d+$/, /^RAGT$/, /^CVDIG$/, /^CVBOS$/, /^CBT[PC]$/, /^RDBG$/, /^CBAL$/]],
       ["WAKE", [/^RIGN[12]$/, /^RIGNS[12]$/, /^CIGN$/, /^CIGNS$/, /^DIGN$/]],
     ], ["LV-INPUT", "FS26", "WAKE"]],
@@ -98,7 +98,7 @@ const PAGES = {
     ], ["CH-1", "CH-2"]],
     ["RESOLVER", [
       ["VMID", [/^RVM[1-4]$/, /^CVM[12]$/, /^UVMB[12]$/]],
-      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/, /^CEXM$/, /^RSX[PN]$/, /^FEX[PN]$/, /^TVSE[PN]$/]],
+      ["EXCITER", [/^REX[ABM]\d$/, /^CEX[AD]\d?$/, /^UEXF$/, /^UEXD$/, /^RSDN$/, /^ULDOEX$/, /^RLDE[12]$/, /^CLDE[C]?$/, /^CEXM$/, /^RSX[PN]$/, /^FEX[PN]$/, /^TVSE[PN]$/, /^DEX[PN]$/]],
       ["SIN", [/^RSIN(1|2|F1|F2|R1|R2)$/, /^DSINP$/, /^CSIN[DFA]\d?$/]],
       ["COS", [/^RCOS(1|2|F1|F2|R1|R2)$/, /^DCOSP$/, /^CCOS[DFA]\d?$/]],
     ], ["VMID", "EXCITER", "SIN", "COS"]],
@@ -238,7 +238,8 @@ for (const side of ["power", "capbank", "disch", "card"]) {
         if (regexes.some(r => r.test(c.name))) {
           // Round 14 (A12-R03): a label of the form <ball>_<signal> (the MCU) carries its PHYSICAL ball ID —
           // that ball becomes the KiCad pin NUMBER, so the netlist/footprint handoff uses H5/J7/L14, not 65/77/94.
-          const ballOf = (p) => /^([A-U]\d{1,2})_/.exec(p.name ?? "")?.[1];
+          // round 17 (F183): the ball rule is the MCU's only — the harness labels P1_…P40_ matched it too and numbered JIC/JICC P1–P40 against pads 1–40
+          const ballOf = (p) => (c.name === "UMCU" ? /^([A-U]\d{1,2})_/.exec(p.name ?? "")?.[1] : undefined);
           const allPins = (byComp.get(c.source_component_id) ?? []).map(p => ({
             pin_number: ballOf(p) ?? p.pin_number ?? p.name, name: pinName(c, p),
             signal_name: (portNet.get(p.source_port_id) ?? "").replace(/^NC_.*/, ""),

@@ -5,7 +5,7 @@
  *
  * Interrupts (NVIC priority, 0 = highest):
  *   0  eFlexPWM_1 fault (FFLAG)        -> app_fault_isr_entry()   FW-15 step 1, FW-06, FW-05
- *   1  eDMA major loop, SDADC2 (SIN)    -> s32k_sdadc_block_irq()  resolver block time stamp
+ *   1  eDMA major loop, SDADC1/2/3      -> s32k_sdadc_dma_irq(ch)  per-channel completion (round 16)
  *   2  BCTU end of list (phase currents)-> app_isr_current()       2 x f_sw
  *   4  STM_0 channel 0 (1 ms)           -> app_task_1ms()
  *   5  FlexCAN0/1                        -> RTD ISR -> s32k_can_callback()
@@ -15,19 +15,21 @@
 #include "ti_params.h"
 
 #ifdef TI_RTD_AVAILABLE
-#include "Clock_Ip.h" /* TODO(RTD) */
+#include "Clock_Ip.h" /* TODO(RTD): the IP drivers, the Config Tools symbols and the device-header IRQ numbers below */
 #include "Fccu_Ip.h"
 #include "IntCtrl_Ip.h"
 #include "Siul2_Port_Ip.h"
-extern const Clock_Ip_ClockConfigType Clock_Ip_aClockConfig[];        /* TODO(RTD): Config Tools */
-extern const IntCtrl_Ip_CtrlConfigType IntCtrlConfig_0;               /* TODO(RTD) */
-extern const Siul2_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr0[]; /* TODO(RTD) */
-extern const Fccu_Ip_ConfigType Fccu_Ip_Config;                       /* TODO(RTD) */
-#define TI_PIN_COUNT NUM_OF_CONFIGURED_PINS0                          /* TODO(RTD) */
-/* TODO(RTD): IRQ numbers of the S32K39 device header */
+extern const Clock_Ip_ClockConfigType Clock_Ip_aClockConfig[];
+extern const IntCtrl_Ip_CtrlConfigType IntCtrlConfig_0;
+extern const Siul2_Port_Ip_PinSettingsConfig g_pin_mux_InitConfigArr0[];
+extern const Fccu_Ip_ConfigType Fccu_Ip_Config;
+#define TI_PIN_COUNT NUM_OF_CONFIGURED_PINS0
+/* IRQ numbers of the S32K39 device header */
 #define TI_IRQ_PWM1_FAULT PWM1_FAULT_IRQn
 #define TI_IRQ_BCTU BCTU_IRQn
-#define TI_IRQ_SDADC_DMA DMATCD_SDADC2_IRQn
+#define TI_IRQ_SDADC_EXC DMATCD_SDADC1_IRQn /* the eDMA channel interrupt of each SDADC's channel */
+#define TI_IRQ_SDADC_SIN DMATCD_SDADC2_IRQn
+#define TI_IRQ_SDADC_COS DMATCD_SDADC3_IRQn
 #define TI_IRQ_STM0 STM0_IRQn
 #endif
 
@@ -37,6 +39,10 @@ ti_shadow_t g_ti_shadow; /* register shadow of the host syntax-check build */
 
 /* ---------------- interrupt handlers ---------------- */
 static void isr_pwm_fault(void) { app_fault_isr_entry(); /* FFLAG stays set until FW-15 step 4 */ }
+
+static void isr_sd_exc(void) { s32k_sdadc_dma_irq(HAL_SD_EXC); }
+static void isr_sd_sin(void) { s32k_sdadc_dma_irq(HAL_SD_SIN); }
+static void isr_sd_cos(void) { s32k_sdadc_dma_irq(HAL_SD_COS); }
 
 static void isr_current(void)
 {
@@ -67,20 +73,29 @@ static void bind_interrupts(void)
 #ifdef TI_RTD_AVAILABLE
     IntCtrl_Ip_Init(&IntCtrlConfig_0);
     IntCtrl_Ip_InstallHandler(TI_IRQ_PWM1_FAULT, isr_pwm_fault, NULL_PTR);
-    IntCtrl_Ip_InstallHandler(TI_IRQ_SDADC_DMA, s32k_sdadc_block_irq, NULL_PTR);
+    IntCtrl_Ip_InstallHandler(TI_IRQ_SDADC_EXC, isr_sd_exc, NULL_PTR);
+    IntCtrl_Ip_InstallHandler(TI_IRQ_SDADC_SIN, isr_sd_sin, NULL_PTR);
+    IntCtrl_Ip_InstallHandler(TI_IRQ_SDADC_COS, isr_sd_cos, NULL_PTR);
     IntCtrl_Ip_InstallHandler(TI_IRQ_BCTU, isr_current, NULL_PTR);
     IntCtrl_Ip_InstallHandler(TI_IRQ_STM0, isr_task, NULL_PTR);
     IntCtrl_Ip_SetPriority(TI_IRQ_PWM1_FAULT, TI_PRIO_PWM_FAULT);
-    IntCtrl_Ip_SetPriority(TI_IRQ_SDADC_DMA, TI_PRIO_SDADC);
+    IntCtrl_Ip_SetPriority(TI_IRQ_SDADC_EXC, TI_PRIO_SDADC);
+    IntCtrl_Ip_SetPriority(TI_IRQ_SDADC_SIN, TI_PRIO_SDADC);
+    IntCtrl_Ip_SetPriority(TI_IRQ_SDADC_COS, TI_PRIO_SDADC);
     IntCtrl_Ip_SetPriority(TI_IRQ_BCTU, TI_PRIO_CURRENT);
     IntCtrl_Ip_SetPriority(TI_IRQ_STM0, TI_PRIO_TASK);
     /* FlexCAN IRQs: priority TI_PRIO_CAN in IntCtrlConfig_0 */
     IntCtrl_Ip_EnableIrq(TI_IRQ_PWM1_FAULT);
-    IntCtrl_Ip_EnableIrq(TI_IRQ_SDADC_DMA);
+    IntCtrl_Ip_EnableIrq(TI_IRQ_SDADC_EXC);
+    IntCtrl_Ip_EnableIrq(TI_IRQ_SDADC_SIN);
+    IntCtrl_Ip_EnableIrq(TI_IRQ_SDADC_COS);
     IntCtrl_Ip_EnableIrq(TI_IRQ_BCTU);
     IntCtrl_Ip_EnableIrq(TI_IRQ_STM0);
 #else
     (void)isr_pwm_fault;
+    (void)isr_sd_exc;
+    (void)isr_sd_sin;
+    (void)isr_sd_cos;
     (void)isr_current;
     (void)isr_task;
 #endif

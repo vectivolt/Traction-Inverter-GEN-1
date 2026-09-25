@@ -70,6 +70,7 @@ test on back-to-back rig).
 ## 4. Rules for the layout phase (so DFM survives it)
 
 - 0603 minimum passive (0402 only where loop area forces it — currently none).
+- The BOM generator reads each chip passive's drawn size from the built footprint and refuses a parts-db rule that orders another size (round 16), so a sheet/BOM package disagreement cannot reach the buyer.
 - Fiducials 3×/board + 2× local at the MCU; testpoints on every rail, PWM, FLT/RDY, SPI,
   both VDC senses, and the discharge command (flying-probe first articles, bed-of-nails at
   volume).
@@ -89,10 +90,10 @@ test on back-to-back rig).
   serial-linked kit record before the first HV energisation. FW-02's runtime τ check is a plausibility
   check only — a 4XX bank fitted with its own discharge board reads 0.71 s, inside the 8XX ±20 % band
   (round 12, R1-F24/R2-F28).
-- ROHM ESR03 parts carry fault-hold power, so their fillet (terminal) temperature is part of the
-  rating (DS Fig. 2/4). RASCG (2.2 k, 1 kΩ < R row) is full-rated to 110 °C and allows ≤ 138 °C at
-  its 0.12 W; RFS4 (1 k, R ≤ 1 kΩ row) is full-rated to 130 °C and allows ≤ 132 °C at its 0.30 W
-  (FS1B held at 18 V). Keep both off the bias-module, shunt and busbar hot spots; check on the
+- ROHM ESR anti-surge parts carry fault-hold power, so their fillet (terminal) temperature is part of the
+  rating (DS Fig. 2/4). RASCG (ESR03 2.2 k, 1 kΩ < R row) is full-rated to 110 °C and allows ≤ 138 °C at
+  its 0.12 W; RFS4 is an **ESR18 1206 (0.5 W at 70 °C) since round 17** — 0.30 W with FS1B held at 18 V,
+  0.48 W for the 24 V / 60 s jump start (0.96× of its rating; the 0603 ESR03 it replaces ran at 1.47×). Keep both off the bias-module, shunt and busbar hot spots; check on the
   thermal first article.
 
 - **UCC14141-Q1 (PSASC/PSQD, A.12)** — TI SLUSF10B §9.5.1: the 100 nF (CxxIB) at pins 6/7–8 and the
@@ -106,14 +107,23 @@ test on back-to-back rig).
   on the power board (the two nets are V15S and V15 — keep the labels).
 - **Bias-LDO ballast R5LB/R5LC (A.13)** — 2512, 0.45 W each: on the same 2 oz copper as the LDO, ≥ 5 mm from
   the UCC12051-Q1 and the AMC1311; the LDO input cap C5Lx1 sits between the ballast and the LDO IN pin.
-- **Resolver excitation protection (A.13, topology corrected A.14)** — from the amplifier outwards: RSXP/RSXN
-  (2.2 Ω 1206) → protected node (TVSEP/TVSEN SMC to the AGND star with a wide short trace; the REXM monitor
-  taps here) → FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
+- **Resolver excitation protection (A.13, topology corrected A.14, unidirectional TVS A.15, 3 kW TVS + rated back-drive diodes A.16)** — from the
+  amplifier outwards: RSXP/RSXN (2.2 Ω 1206) → protected node (TVSEP/TVSEN SMDJ8.5A-HRA — 3 kW, AEC-Q101, same SMC pad since round 17; DEXP/DEXN PMEG4050EP-Q Schottky from the node to VEXD as the rated back-drive path — **cathode on the node,
+  anode to the AGND star** with a wide short trace — the polarity matters now; the REXM monitor taps here) →
+  FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
   amplifier side of the PTC — a fault from the connector reaches the clamp only through the PTC (A13-R01). The
   feedback resistors REXB stay at the amplifier outputs. The PTCs need ~2 mm of free air (they self-heat when
   tripped).
 - **Motor-temperature protection (A.13)** — FMT (0603 fuse) first from the connector, then TVSM (SMA) to AGND,
   then the 1 k into the buffer; keep the fuse away from the LDO heat so its rating holds.
+- **KL30 entry (round 17, load-dump let-through)** — from JVEH: FLVC (Bel 0680L5000-05, 2410 ceramic slow-blow fuse; it
+  carries the whole inverter, keep it off the LDO/buck heat) → FCO, where DTVSC (TPSMC33A-VR, cathode on FCO) and DTVSC2
+  (TPSMC18A-VR, cathode on DGND) sit in series to ground **ahead of DREVC** — a short, wide loop into the DGND entry (pulse 1
+  drives 12.5 A through it) → DREVC → NRC. **CLVC3** (Panasonic EEH-ZC1H101P, φ10 × 10.2 mm G can, **10.5 mm maximum height —
+  the card's component-height envelope and the housing clearance above it must allow it**; polarised, + on NRC, the sheet
+  draws a plain C) sits beside DREVC and CLVC1 with the same short ground return, then LFC/CLVC2 to the FS26. DIGN (US1M,
+  SMA) sits between the KL15 polyfuse and both the WAKE1 and the IGN dividers. On the power board ULDO15 is a **D2PAK-5**
+  (NCV4276CDSADJR4G) since round 17: the same ≥ 1.2 in² of 2 oz copper under its tab as the other NCV4276C parts.
 - **JIC/JICC (Samtec IPL1, A.12)** — confirm the header's pin-1 corner and the odd/even row numbering
   against the Samtec print before the footprint is placed; the HARNESS40 map keeps VBAT/V5GD next to
   ground under either scheme, but the silkscreen and the cable drawing must agree.
@@ -124,5 +134,5 @@ Automotive (-Q1/-Q100/AEC) grades are the BOM primaries. Where LCSC stocks only 
 commercial twin, the `ALT` column names it — allowed in bench/proto builds only, never in
 DV/PV or production. The two NXP safety parts and the LEM sensors have no substitute at any
 grade: their lead time IS the program's critical path — order at kickoff. Two PO gates
-before any build: MGJ2D150505SC reinforced-cert + pin map, and the FS26 OTP variant per
-design-basis §8a.
+before any build: TI's VDE/UL certificates for the UCC14141-Q1 bias modules (listed "planned" in SLUSF10B §7.6;
+the MGJ2 of earlier revisions is gone since A.11), and the FS26 OTP variant per design-basis §8a.

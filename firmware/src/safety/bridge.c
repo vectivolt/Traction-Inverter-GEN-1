@@ -103,8 +103,12 @@ bool br_modulate(bridge_t *b, const float duty[3], const ti_params_t *p)
             return false;
         }
     }
-    if (b->asc_cleared_recently) { /* FW-06a step 3 */
-        const uint32_t need_us = (p->asc_exit_hs_delay_ns + 999u) / 1000u;
+    if (b->asc_cleared_recently) {
+        /* FW-06a step 3 (round 17): no high-side pulse before the ASC pins have released (cal_asc_release_ns: the
+         * verifier's 1.07 us + margin) and the low sides have then turned off (the SKU dead time, the design's
+         * complementary turn-off allowance), counted from the clear's falling edge; one count more because the
+         * microsecond counter floors both readings */
+        const uint32_t need_us = ((p->cal_asc_release_ns + p->dead_time_ns + 999u) / 1000u) + 1u;
         const uint32_t since = ti_age(hal_time_us(), b->t_asc_clear_us);
         if (since < need_us) {
             hal_delay_us(need_us - since);
@@ -116,12 +120,17 @@ bool br_modulate(bridge_t *b, const float duty[3], const ti_params_t *p)
     return true;
 }
 
-void br_asc_clear_pulse(void)
+/* The latch clears asynchronously on the falling edge: the returned stamp is taken right after it. */
+static uint32_t asc_clear_pulse(void)
 {
     hal_gpio_write(HAL_DO_ASC_CLR_N, false);
+    const uint32_t t_us = hal_time_us();
     hal_delay_us(1u);
     hal_gpio_write(HAL_DO_ASC_CLR_N, true);
+    return t_us;
 }
+
+void br_asc_clear_pulse(void) { (void)asc_clear_pulse(); }
 
 void br_flt_clear_pulse(void)
 {
@@ -163,8 +172,7 @@ bool br_exit_asc(bridge_t *b, bool allowed)
         return false; /* never in a hurry, never without the caller's proof */
     }
     hal_gpio_write(HAL_DO_ASC_REQ, false);
-    br_asc_clear_pulse(); /* 1) while PWM-ASC still holds the low sides */
-    b->t_asc_clear_us = hal_time_us();
+    b->t_asc_clear_us = asc_clear_pulse(); /* 1) while PWM-ASC still holds the low sides */
     b->asc_cleared_recently = true;
     hal_pwm_force_off(); /* 2) next state: SPO here; modulation resumes through br_modulate() */
     b->mode = BR_IDLE;

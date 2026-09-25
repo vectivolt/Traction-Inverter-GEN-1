@@ -10,6 +10,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB, SKUS } from "./parts-db.mjs";
+import { loadCircuit } from "./circuit-net.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let pass = 0, fail = 0, warn = 0;
@@ -24,30 +25,12 @@ const wr = (cond, name, detail = "") => {
 };
 
 function load(board) {
-  const j = JSON.parse(readFileSync(join(ROOT, "dist", "boards", board, "circuit.json"), "utf8"));
-  const comps = j.filter((e) => e.type === "source_component");
-  const ports = j.filter((e) => e.type === "source_port");
-  const nets = new Map(j.filter((e) => e.type === "source_net").map((n) => [n.source_net_id, n.name]));
-  const traces = j.filter((e) => e.type === "source_trace");
-  const parent = new Map();
-  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
-  const uni = (a, b) => { a = find(a); b = find(b); if (a !== b) parent.set(a, b); };
-  for (const p of ports) parent.set(p.source_port_id, p.source_port_id);
-  const groupNet = new Map();
-  for (const t of traces) {
-    const ps = t.connected_source_port_ids ?? [];
-    for (let i = 1; i < ps.length; i++) uni(ps[0], ps[i]);
-    for (const nid of t.connected_source_net_ids ?? []) if (ps.length) groupNet.set(find(ps[0]), nets.get(nid));
-  }
-  for (const [g, n] of [...groupNet]) groupNet.set(find(g), n);
-  const compName = new Map(comps.map((c) => [c.source_component_id, c.name]));
+  const { comps, compName, ports } = loadCircuit(board);
   // pin -> net name (named nets only; anonymous junction = symbol "@root")
   const pinNet = new Map();   // "REF.pinName" and "REF.pinNumber" -> net
   const netPins = new Map();  // net/root -> [REF.pin]
   for (const p of ports) {
-    const r = find(p.source_port_id);
-    const net = groupNet.get(r) ?? `@${r}`;
-    const ref = compName.get(p.source_component_id);
+    const { net, ref } = p;
     // key by name, number, and every port hint (anode/cathode live only in port_hints)
     for (const key of [`${ref}.${p.name}`, `${ref}.#${p.pin_number}`,
       ...(p.port_hints ?? []).map((h) => `${ref}.${h}`)]) pinNet.set(key, net);
@@ -378,6 +361,8 @@ ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H
   ok(same(C("JVEH.R1"), "VREX_PC") && same(C("JVEH.R2"), "VREX_NC") && same(C("TVSM1.K"), "MT1_F") && same(C("TVSM1.A"), "AGND") && same(C("TVSM2.K"), "MT2_F") && same(C("TVSM2.A"), "AGND"),
     "resolver drive reaches the vehicle connector on VREX_PC/NC; motor-temp clamps K on the line, A on AGND");
   ok(near(V(CARD, "RSXP"), 2.2) && near(V(CARD, "RSXN"), 2.2), "RSX 2.2 R (amplitude at the resolver >= 6.5 V pp with the PTCs, back-drive pulse bounded)");
+  ok(same(C("DEXP.anode"), "VREX_PX") && same(C("DEXP.cathode"), "VEXD") && same(C("DEXN.anode"), "VREX_NX") && same(C("DEXN.cathode"), "VEXD"),
+    "round 17: rated Schottky diversion from each protected node to VEXD (back-drive with the rail absent no longer relies on the ALM2402 reverse diodes)");
 }
 // the feedback network senses the amplifier output (loop stability), the monitor the protected node
 ok(same(C("REXB2.pin1"), "VREX_P") && same(C("REXB3.pin1"), "VREX_P") && same(C("REXB4.pin1"), "VREX_N"), "exciter feedback stays on the amplifier outputs");
@@ -552,7 +537,7 @@ for (const x of ["U", "V", "W"]) {
 ok(same(C("REXA2.pin2"), "NEX3") && same(C("REXA4.pin1"), "REX_F") && same(C("REXA4.pin2"), "NEX3")
   && same(C("CEXA2.pin1"), "NEX3") && same(C("CEXA2.pin2"), "AGND") && same(C("REXA3.pin1"), "NEX3") && same(C("REXA3.pin2"), "NEX4")
   && same(C("CEXA1.pin1"), "REX_F") && same(C("CEXA1.pin2"), "NEX4") && same(C("UEXF.INN"), "NEX4")
-  && near(V(CARD, "CEXA2"), 1.5e-9) && near(V(CARD, "CEXA1"), 220e-12) && near(V(CARD, "REXA4"), 24e3) && near(V(CARD, "REXA2"), 10e3) && near(V(CARD, "REXA3"), 10e3),
+  && near(V(CARD, "CEXA2"), 1.5e-9) && near(V(CARD, "CEXA1"), 220e-12) && near(V(CARD, "REXA4"), 28e3) && near(V(CARD, "REXA2"), 10e3) && near(V(CARD, "REXA3"), 10e3),
   "exciter MFB topology (feedback R to the summing node, feedback C to the inverting input) and values 10k/24k/10k, 1.5 nF/220 pF: |H(10 kHz)| 1.85");
 // R2-F27: the board NTCs are on-board 0603 parts, biased from VREF5
 for (const [id, n] of [["AMB", "NTC_A"], ["HS", "NTC_H"]])
@@ -568,12 +553,12 @@ ok(["RSINF1", "RSINF2", "RCOSF1", "RCOSF2", "RSIN1", "RSIN2", "RCOS1", "RCOS2"].
   && same(C("CEXA4.pin1"), "SWG1") && near(V(CARD, "CEXA4"), 47e-12),
   "resolver series/bias 12 k (pin injection <= 2.92 mA at 35 V into an unpowered MCU), 220 pF C_AAF at the SDADC pins + 47 p at the clamp + 22 p common-mode on BOTH legs; SWG 47 pF load");
 ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "CMA2"), 100e-9), "VREF5 rail 2.1 uF nominal (CSB5 1 uF + CMA1 + CMA2)");
-// round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 24 V-stand-off TVS (-VR) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
+// round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 33 V-stand-off TVS (-VR, round 17 let-through) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMCJ8\.5CA/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC24CA-VR$/, DTVH: /^TPSMC24CA-VR$/, DTVL: /^TPSMC24CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMDJ8\.5A-HRA$/, TVSEN: /^SMDJ8\.5A-HRA$/, DEXP: /^PMEG4050EP-Q/, DEXN: /^PMEG4050EP-Q/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC33A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC24CA-VR, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMCJ8.5CA + MF-MSMF020)`, bad.join(", "));
+  ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC33A/33CA-VR since round 17, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMDJ8.5A-HRA unidirectional + PMEG4050EP-Q diversion + MF-MSMF020/33X)`, bad.join(", "));
 }
 // ---------- round-13 PIN FREEZE: every UMCU pin label is <ball>_<signal>, on the net the manifest gives, and a
 // signal ball carries the peripheral function it is used for (calculations/mcu-ballmap.json, from SPF-91122 + DS anchors)
@@ -610,9 +595,9 @@ for (const [sku, k] of Object.entries(SKUS)) {
 }
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^UCC14141QDWNRQ1$/, PSQD: /^UCC14141QDWNRQ1$/, UASC: /^VOW3120-X017T$/, UQD: /^VOW3120-X017T$/, CY1: /^VY1472M63Y5UQ6TV0$/, JIC: /^IPL1-120-01-L-D-K$/, JICC: /^IPL1-120-01-L-D-K$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR03EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
+  const bad = Object.entries({ QLVS: /^DMP6023/, ZLVS: /BZT52-C15/, PSASC: /^UCC14141QDWNRQ1$/, PSQD: /^UCC14141QDWNRQ1$/, UASC: /^VOW3120-X017T$/, UQD: /^VOW3120-X017T$/, CY1: /^VY1472M63Y5UQ6TV0$/, JIC: /^IPL1-120-01-L-D-K$/, JICC: /^IPL1-120-01-L-D-K$/, JDIS: /^IPL1-104-01-L-S-K$/, JCTL: /^IPL1-104-01-L-S-K$/, JHVIL: /^IPL1-102-01-L-S-K$/, FVS1: /^MF-MSMF010\/60X$/, CPET: /^VY2472M49Y5US6TV0$/, LVS1: /^MMZ1608B471CTDH5$/, LFC: /^BLM31PG121SH1L$/, LFH1: /^BLM31PG121SH1L$/, LUB: /^BLM21PG221SH1D$/, RQDG: /1k5/, RV5GP: /47k/, RV5GS: /47k/, RFS4: /^ESR18EZPF1001$/, RLVSG: /10k/, RLVSD: /4k7/, CLVSM: /100nF-50V/, CASC: /50V/, CQD: /50V/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: round-9/A.12 parts resolve (UCC14141-Q1 bias, VOW3120 optos, VY1 Y-caps, Samtec harness, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
+  ok(!bad.length, `${sku}: round-9/A.12/A.15 parts resolve (UCC14141-Q1 bias, VOW3120 optos, VY1 Y-caps + VY2 chassis cap, Samtec harness + IPL1 link/HVIL headers, KL15 polyfuse /60X, automotive beads, 1.5 k gate divider, V5GD pull-down, anti-surge RFS4)`, bad.join(", "));
 }
 
 // ---------- round-10 lock-ins (schematic rechecks of 7235337 — docs/review-A10-disposition.md) ----------
@@ -628,6 +613,58 @@ for (const [sku, k] of Object.entries(SKUS)) {
   const bad = Object.entries({ USCH3: /74LVC3G17/, RRDB: /100k/, RASCG: /^ESR03EZPF2201$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-10 parts resolve (RDY Schmitt buffer, its dead-state pull-down, 0.33 W RASCG)`, bad.join(", "));
+}
+
+// ---------- round-17 lock-ins: LV entry by load-dump LET-THROUGH (F185–F189) ----------
+// F185: the pin-side clamp sits on FCO, AHEAD of DREVC, as an anti-series pair (33 V stand-off up, 18 V down)
+ok(same(C("FLVC.A"), "KL30") && same(C("FLVC.B"), "FCO") && same(C("DTVSC.cathode"), "FCO") && same(C("DTVSC.anode"), "TVSM")
+  && same(C("DTVSC2.anode"), "TVSM") && same(C("DTVSC2.cathode"), "DGND") && same(C("DREVC.anode"), "FCO") && same(C("DREVC.cathode"), "NRC"),
+  "KL30 -> FLVC -> FCO; the TVS pair clamps FCO ahead of DREVC (pulse 1 cannot avalanche the reverse Schottky, F185)");
+ok((CARD.netPins.get("TVSM") ?? []).map((q) => q.split(".")[0]).sort().join() === "DTVSC,DTVSC2" && same(C("DTVSC2.cathode"), "DGND"),
+  "the negative-side TVS returns FCO to DGND through TVSM, and nothing else loads the series node");
+// F189: the NRC bulk that holds pulse 2a (+ terminal on NRC)
+ok(same(C("CLVC3.pin1"), "NRC") && same(C("CLVC3.pin2"), "DGND") && near(V(CARD, "CLVC3"), 100e-6),
+  "CLVC3 100 uF bulk on NRC, positive terminal (pin1) on NRC (pulse-2a charge, F189)");
+// F189: no TVS with a breakdown below the test-B knee on any KL30-derived net. A TVS counts when its other terminal
+// reaches ground directly or through a series TVS node (TVSM); the stack is judged by its KL30-side member.
+{
+  const KL30NETS = new Set(["KL30", "FCO", "NRC", "VBATC", "VBSW", "VBAT_H", "VBAT_L", "FHO", "FLO", "NRH", "NRL", "V12H", "V12L"]);
+  const GND = new Set(["DGND", "AGND"]);
+  const TPSMC_VBR = { 11: 12.2, 12: 13.3, 13: 14.4, 15: 16.7, 16: 17.8, 18: 20.0, 20: 22.2, 22: 24.4, 24: 26.7, 26: 28.9, 28: 31.1, 30: 33.3, 33: 36.7, 36: 40.0, 40: 44.4, 43: 47.8 };
+  const vbrMin = (m) => { let x; if ((x = /^TPSMC(\d+)C?A-VR$/.exec(m))) return TPSMC_VBR[x[1]] ?? NaN;
+    if ((x = /^(?:SMAJ|SMBJ|SMCJ|SMDJ|5\.0SMDJ|SM[5-8]S)(\d+(?:\.\d+)?)C?A/.exec(m))) return 1.11 * Number(x[1]); return NaN; };
+  const mpnOf = (ref) => [...SKUS.sic8.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const isTvs = (m) => /^(TPSMC|SMAJ|SMBJ|SMCJ|SMDJ|5\.0SMDJ|SM[5-8]S)/.test(m);
+  const bad = [], seen = [];
+  for (const [bn, DD] of [["card", CARD], ["power", PWR]]) {
+    for (const ref of DD.comps.map((c) => c.name)) {
+      const m = mpnOf(ref);
+      if (!isTvs(m)) continue;
+      const nets = [...netsOf(DD, ref)];
+      const rail = nets.find((n) => KL30NETS.has(n));
+      if (!rail) continue;
+      const other = nets.find((n) => n !== rail);
+      const viaTvs = other && [...DD.netPins.get(other) ?? []].map((q) => q.split(".")[0]).filter((r) => r !== ref)
+        .every((r) => isTvs(mpnOf(r)) && [...netsOf(DD, r)].some((n) => GND.has(n)));
+      if (!(GND.has(other) || viaTvs)) continue;            // not a rail-to-ground clamp (e.g. a flyback primary clamp)
+      seen.push(`${bn}:${ref}`);
+      const v = vbrMin(m);
+      if (!(v >= 36.7)) bad.push(`${bn}:${ref} ${m} on ${rail} (V_BR,min ${Number.isFinite(v) ? v.toFixed(1) : "unknown"} V)`);
+    }
+  }
+  ok(!bad.length && seen.length === 3, `no TVS below the 36.7 V test-B knee on a KL30-derived net (${seen.join(", ")})`, bad.join("; ") || `saw ${seen.length}`);
+}
+// F188: WAKE1 is fed only through DIGN — a negative KL15 pulse is blocked before the FS26 WAKE1 pin
+ok(same(C("DIGN.anode"), "KL15") && same(C("DIGN.cathode"), "IGN_D") && same(C("RIGN1.pin1"), "IGN_D") && same(C("RIGN1.pin2"), "WAKE1")
+  && same(C("RIGN2.pin1"), "WAKE1") && same(C("RIGN2.pin2"), "DGND") && same(C("CIGN.pin1"), "WAKE1")
+  && (CARD.netPins.get("KL15") ?? []).map((q) => q.split(".")[0]).sort().join() === "DIGN,FVS1",
+  "KL15 reaches WAKE1 and IGN_SNS only through DIGN (pulse 1 and a reversed KL15 blocked, F188)");
+for (const [sku, k] of Object.entries(SKUS)) {
+  const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
+  const bad = Object.entries({ DTVSC: /^TPSMC33A-VR$/, DTVSC2: /^TPSMC18A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CLVC3: /^EEH-ZC1H101P$/,
+    FLVC: /^0680L5000-05$/, FVBH: /^MF-LSMF300\/24X-2$/, FVBL: /^MF-LSMF300\/24X-2$/, ULDO15: /^NCV4276CDSADJR4G$/, ULDOEX: /^NCV4276CDTADJRKG$/, DIGN: /^US1M$/, DREVC: /^STPS5L60S$/ })
+    .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
+  ok(!bad.length, `${sku}: round-17 LV-entry parts resolve (33 V/18 V TVS pair, 33 V power-board TVS, 100 uF hybrid bulk, 5 A slow-blow FLVC, D2PAK-5 ULDO15, US1M KL15 blocking diode)`, bad.join(", "));
 }
 
 // ---------- report ----------

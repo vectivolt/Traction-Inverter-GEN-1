@@ -16,7 +16,7 @@ CFLAGS  ?= -O1 -g
 INC     := -Iinclude -Isrc/hal -Isrc/util -Isrc/sense -Isrc/control -Isrc/safety -Isrc/comms \
            -Isrc/discharge -Isrc/nvm -Isrc/app
 
-FW_SRC   := $(wildcard src/util/*.c src/sense/*.c src/control/*.c src/safety/*.c src/comms/*.c \
+FW_SRC   := $(wildcard src/hal/*.c src/util/*.c src/sense/*.c src/control/*.c src/safety/*.c src/comms/*.c \
                        src/discharge/*.c src/nvm/*.c src/app/*.c)
 HOST_SRC := $(wildcard src/platform/host/*.c)
 TEST_SRC := $(wildcard tests/*.c)
@@ -46,11 +46,20 @@ $(BUILD)/host/%.o: %.c
 
 # The platform layer compiles on the host with the RTD calls compiled out (TI_RTD_AVAILABLE
 # undefined): every TODO body keeps its safe default. This catches drift between the HAL headers,
-# board_pins.h and the platform code without the NXP SDK.
+# board_pins.h and the platform code without the NXP SDK. Round 17: every TODO(<kind>) marker in the
+# sources has its row in docs/target-bringup.md (cited as file:line), and every file:line cited there is
+# still a marker.
 target-check:
 	@for f in $(TGT_SRC); do \
 	  $(CC) $(STD) $(WARN) -fsyntax-only -DTI_TARGET_S32K396 $(INC) -Isrc/platform/s32k396 $$f || exit 1; \
 	done; echo "target-check: $(words $(TGT_SRC)) platform files OK (RTD calls compiled out)"
+	@mkdir -p $(BUILD)
+	@grep -rnoE 'TODO\([A-Z][A-Z/-]*\)' src include tools | cut -d: -f1,2 | sort -u > $(BUILD)/markers.txt
+	@grep -oE '(src|include|tools)/[A-Za-z0-9_./-]+\.[a-z]+:[0-9]+' docs/target-bringup.md | sort -u > $(BUILD)/cited.txt
+	@if ! cmp -s $(BUILD)/markers.txt $(BUILD)/cited.txt; then \
+	  echo "target-check: markers vs docs/target-bringup.md (< marker without a row, > row without a marker):"; \
+	  diff $(BUILD)/markers.txt $(BUILD)/cited.txt; exit 1; \
+	fi; echo "target-check: $$(wc -l < $(BUILD)/markers.txt | tr -d ' ') markers, each with its row in docs/target-bringup.md"
 
 # Target build. Required (not in this repository):
 #   - NXP S32K3 Real-Time Drivers (RTD) for S32K39x, AUTOSAR 4.7 / IP layer, version >= 4.0.0:

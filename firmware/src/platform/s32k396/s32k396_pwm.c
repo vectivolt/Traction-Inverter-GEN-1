@@ -14,8 +14,8 @@
 #include "s32k396.h"
 
 #ifdef TI_RTD_AVAILABLE
-#include "FlexPwm_Ip.h" /* TODO(RTD): eFlexPWM IP driver of the S32K39 RTD */
-extern const FlexPwm_Ip_UserCfgType FlexPwm_Ip_UserCfg_1; /* TODO(RTD): Config Tools symbol */
+#include "FlexPwm_Ip.h" /* TODO(RTD): the eFlexPWM IP driver and the Config Tools symbol below */
+extern const FlexPwm_Ip_UserCfgType FlexPwm_Ip_UserCfg_1;
 #endif
 
 #define MASK_UPDATE_NOW ((uint16_t)(0x7u << 12)) /* MASK.UPDATE_MASK[2:0]: apply at once */
@@ -173,7 +173,7 @@ bool hal_pwm_fault_route_bound(void)
     return ((SIUL2_IMCR(TI_IMCR_PWM1_FAULT0) & TI_IMCR_SSS_MASK) == TI_IMCR_SSS_PTC26) &&
            ((SIUL2_IMCR(TI_IMCR_PWM1_FAULT2) & TI_IMCR_SSS_MASK) == TI_IMCR_SSS_PTC25);
 #else
-    return false; /* UNBOUND: s32k396_board_cfg.h is still the TODO(RM) placeholder */
+    return false; /* UNBOUND: s32k396_board_cfg.h is still the placeholder */
 #endif
 }
 

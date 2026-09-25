@@ -33,7 +33,8 @@ TEST(vdc_channels_on_separate_instances)
     const bp_entry_t *b = pin("VDC2_SE");
     CHECK(a && b && a->inst == 6u && b->inst == 1u && a->inst != b->inst);
     CHECK(strcmp(pin("VOFS")->fn, "ADC4_S11") == 0);
-    CHECK(strcmp(pin("V5GD_SNS")->port, "PTD27") == 0); /* the contract text still says PTB5 */
+    /* contract FW-07 / §4c (round 17): V5GD_SNS = V5GD/2 on PTD27, ADC4_P6; PTB5 (no ADC) is RDY_LS */
+    CHECK(strcmp(pin("V5GD_SNS")->port, "PTD27") == 0 && strcmp(pin("V5GD_SNS")->fn, "ADC4_P6") == 0);
     CHECK(strcmp(pin("RDY_LS")->port, "PTB5") == 0);
 }
 

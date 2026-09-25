@@ -20,7 +20,9 @@ void calib_nominal(calib_t *c, const ti_params_t *p, const uint8_t serial[8])
     for (uint32_t i = 0u; i < 2u; i++) {
         c->vdc[i] = (vdc_cal_t){.gain = p->vdc_div_ratio, .offset_v = 0.0f};
     }
-    c->rslv = (rslv_cal_t){.ratio_nom = 0.8f, .exc_nom_code = 20000.0f, .sin_gain = 1.0f, .cos_gain = 1.0f,
+    /* monitor chain: REXM 0.70 / 0.82 (mean 0.76) into SDADC1, +/-32767 = +/-5 V: 0.76 x 6553 / 2 = 2500
+     * codes of carrier amplitude per V pp at the protected node (EOL measures it) */
+    c->rslv = (rslv_cal_t){.ratio_nom = 0.8f, .exc_code_per_vpp = 2500.0f, .sin_gain = 1.0f, .cos_gain = 1.0f,
                            .motor_pp = 4u, .resolver_pp = 1u};
     c->motor = motor_screening();
     c->mt = (temp_mt_cal_t){.type = TEMP_MT_PT1000, .r25_ohm = 10000.0f, .b_k = 3435.0f};
@@ -46,7 +48,7 @@ static bool ranges_ok(const calib_t *c, const ti_params_t *p)
              in(c->vdc[i].offset_v, -20.0f, 20.0f);
     }
     const rslv_cal_t *r = &c->rslv;
-    ok = ok && in(r->ratio_nom, 0.2f, 2.0f) && in(r->exc_nom_code, 1000.0f, 32767.0f) && in(r->sin_gain, 0.8f, 1.25f) &&
+    ok = ok && in(r->ratio_nom, 0.2f, 2.0f) && in(r->exc_code_per_vpp, 1500.0f, 3500.0f) && in(r->sin_gain, 0.8f, 1.25f) &&
          in(r->cos_gain, 0.8f, 1.25f) && in(r->sin_offset, -0.2f, 0.2f) && in(r->cos_offset, -0.2f, 0.2f) &&
          in(r->phase_trim_deg, -30.0f, 30.0f) && in(r->zero_rad, 0.0f, 6.2832f) && (r->resolver_pp >= 1u) &&
          (r->motor_pp >= r->resolver_pp) && (r->motor_pp <= 12u) && ((r->motor_pp % r->resolver_pp) == 0u);

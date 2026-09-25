@@ -42,7 +42,8 @@ typedef enum {
     SS_ACT_NONE = 0,
     SS_ACT_RAMP_KEEP_CC,     /* ramp torque to zero, keep current control (field weakening) */
     SS_ACT_RAMP_THEN_SPO,    /* ramp torque to zero, then SPO */
-    SS_ACT_ZERO_TORQUE_DCL,  /* zero torque at the current-loop rate + DC-link control, FW-06 armed */
+    SS_ACT_ZERO_CURRENT,     /* battery path lost below n_x: id = iq = 0 at the current-loop rate while winding
+                                current remains, then SPO; FW-06 armed; no DC-link trim (round 17, FW-08) */
     SS_ACT_SPO,
     SS_ACT_LS_ASC,           /* PWM-ASC (§4c MCU path) */
     SS_ACT_SPO_THEN_PWM_ASC  /* FLT_HS at n >= n_x: SPO (hardware), PWM-ASC after the FW-15 reset */

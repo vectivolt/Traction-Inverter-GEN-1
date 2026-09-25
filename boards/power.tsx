@@ -146,7 +146,11 @@ export default () => (
       </group>
     ))}
 
-    {/* ---- LV POWER: two protected 12V feeds + V5GD LDO + V15 boost ---- */}
+    {/* ---- LV POWER: two protected 12V feeds + V5GD LDO + V15 boost ----
+        Round 17 (F189, load-dump let-through): DTVH/DTVL are 33 V stand-off parts (TPSMC33CA-VR, knee
+        36.45 V at 18 C) — the V12 rails ride the 35 V test-B plateau at ~34.2 V, and a 24 V part here would
+        take the dump through FVBx/FH1/FL1. The feeds come through the card's DREVC and QLVS, so pulse 1
+        never reaches these nodes; the card's CLVC3 holds pulse 2a. */}
     <chip name="FH1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.VBAT_H", B: "net.FHO" }} />
     <diode name="DRH" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FHO", cathode: "net.NRH" }} />
@@ -195,7 +199,9 @@ export default () => (
         when V12L rides above ~15.5 V (24 V jump start, clamped load dump) the LB15/DB15
         path feeds V15 directly. NCV4276C-ADJ (40 V in, 400 mA) sits in mild dropout in
         normal operation (V15 ≈ 15.0-15.2 V) and CLAMPS at 15.0 V during pass-through, so
-        the UCC14141-Q1 biases (8-18 V in) and the bias LDOs never see the raw rail. Vout = 2.5·(1+49.9/10). */}
+        the UCC14141-Q1 biases (8-18 V in) and the bias LDOs never see the raw rail. Vout = 2.5·(1+49.9/10).
+        Round 17 (F189): D2PAK-5 (NCV4276CDSADJR4G) — at the 35 V test-B plateau it drops ~6.7 W for ~0.26 s;
+        single-pulse R(t) ~7.5 K/W (D2PAK-5) vs ~9.5 K/W (DPAK-5) keeps Tj ~140 C at 85 C ambient. */}
     <chip name="ULDO15" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "IN", pin2: "INH", pin3: "GND", pin4: "VA", pin5: "OUT" }}
       connections={{ IN: "net.V15B", INH: "net.V15B", GND: "net.DGND", VA: "net.V15VA", OUT: "net.V15" }} />
     <resistor name="RLD1" resistance="49.9k" footprint="0603" {...gp()} connections={{ pin1: "net.V15", pin2: "net.V15VA" }} />

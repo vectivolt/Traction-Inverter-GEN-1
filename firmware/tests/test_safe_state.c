@@ -52,7 +52,7 @@ TEST(row_cmd_lost)
 TEST(row_battery_lost_never_released_by_rule_b)
 {
     const ss_decision_t lo = dec(SS_ROW_BATTERY_LOST, LOW_RPM, I_RATED, true, true);
-    CHECK(lo.action == SS_ACT_ZERO_TORQUE_DCL && !lo.rule_b);
+    CHECK(lo.action == SS_ACT_ZERO_CURRENT && !lo.rule_b);
     const ss_decision_t hi = dec(SS_ROW_BATTERY_LOST, HIGH_RPM, I_RATED, false, true);
     CHECK(hi.action == SS_ACT_LS_ASC && !hi.rule_b);
 }
@@ -133,7 +133,7 @@ TEST(ranking)
 {
     CHECK(ss_rank(SS_ACT_SPO_THEN_PWM_ASC) > ss_rank(SS_ACT_LS_ASC));
     CHECK(ss_rank(SS_ACT_LS_ASC) > ss_rank(SS_ACT_SPO));
-    CHECK(ss_rank(SS_ACT_SPO) > ss_rank(SS_ACT_ZERO_TORQUE_DCL));
+    CHECK(ss_rank(SS_ACT_SPO) > ss_rank(SS_ACT_ZERO_CURRENT));
     CHECK(ss_rank(SS_ACT_RAMP_THEN_SPO) > ss_rank(SS_ACT_RAMP_KEEP_CC));
 }
 

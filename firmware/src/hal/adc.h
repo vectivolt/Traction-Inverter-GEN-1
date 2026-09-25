@@ -39,7 +39,11 @@ bool hal_adc_init(void);
 /* Latest conversion of a signal and its time stamp. Returns false if never converted. */
 bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us);
 
-/* The simultaneous phase-current group of the last PWM trigger (U, V, W). */
+/* The simultaneous phase-current group of the last PWM trigger (U, V, W). Round 16 (A14-R03), a
+ * deterministic contract: true = all three channels delivered a NEW conversion of the same trigger;
+ * codes[] and *t_us then hold that triplet and its time. false = no complete new triplet (a channel
+ * missing, the converter or the BCTU stopped): codes[] and *t_us are NOT written — never a partial
+ * triplet, never a fresh stamp. The caller treats false as a lost sample. */
 bool hal_adc_read_phase(uint16_t codes[3], uint32_t *t_us);
 
 /* Start the slow list (1 kHz task); results appear via hal_adc_read(). */

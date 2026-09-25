@@ -114,22 +114,29 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.14** (review rounds 7–15: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.16** (review rounds 7–17: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
 V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
 re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,
 excitation-monitor and exciter/motor-temperature line hardening (exciter TVS now behind the PTC
-per line, corrected PTC part, round 15/A.14), ADC-map and any-speed contactor-loss firmware,
-V_DC-bias LDO ballast, UCC14141-Q1 certificate; list in design-basis §9). It adds:
+per line, corrected PTC part, round 15/A.14; MFB gain 24 k → 28 k and the TVS made unidirectional,
+round 16/A.15; back-drive diversion and a 3 kW TVS closing both round-16 rows, round 17/A.16),
+the LV entry rebuilt from absorption to let-through (new 33 V-class TVS network, a hybrid-polymer
+bulk cap, a rerated fuse, a rated WAKE1 clamp, round 17/A.16), ADC-map, any-speed contactor-loss
+and deterministic phase-current/resolver acquisition firmware, current-loop-liveness and LV
+supply-supervision firmware (round 17/A.16), V_DC-bias LDO ballast, UCC14141-Q1 certificate; list
+in design-basis §9). It adds:
 
 - the marine kit, about ₹27–56k per cell:
   - IP54 enclosure;
   - anti-condensation heater;
   - isolated 24 → 12 V control supply, fed from class-grade battery-backed 24 V, because a towed PM
     propeller can need the active short held for hours. The card's LV entry is a 12 V design. Its TVS
-    (TPSMC24CA-VR since A.11) is dark at 24 V, but ship 24 V reaches 31.2 V, above its 26.7–29.5 V
-    breakdown. The power board's V15 rail is also a boost, which cannot step 24 V down: its
-    post-regulator would then run into thermal shutdown and take the ASC and V_DC bias with it;
+    network (33 V-class since round 17/A.16 — TPSMC33A-VR/TPSMC33CA-VR, knee ≈ 34.9–36.95 V, up from
+    the TPSMC24CA-VR's 26.7–29.5 V through A.15) is dark at 24 V with more margin than before, but
+    that was never the limit. The power board's V15 rail is also a boost, which cannot step 24 V
+    down: its post-regulator would then run into thermal shutdown and take the ASC and V_DC bias
+    with it;
   - DC fuses and precharge;
   - leak sensor;
 - a marine identity resistor (47 k), so Road firmware refuses marine hardware and vice versa;

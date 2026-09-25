@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "traction")(type "KiCad")(uri "${KIPRJMOD}/traction.kicad_sym")(options "")(descr "Traction Inverter symbols (generated; identical to the lib_symbols embedded in every sheet)"))
+)

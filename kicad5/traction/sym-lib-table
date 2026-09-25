@@ -1,0 +1,3 @@
+(sym_lib_table
+  (lib (name traction-r1)(type Legacy)(uri ${KIPRJMOD}/traction-r1.lib)(options "")(descr "Traction Inverter GEN-1 symbols (generated)"))
+)

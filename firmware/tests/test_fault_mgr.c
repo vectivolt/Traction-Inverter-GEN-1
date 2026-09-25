@@ -70,8 +70,9 @@ TEST(one_authorised_retry_after_1s_then_latch)
     fm_ctx_t c = ctx(500.0f, 100.0f, true, 1000u);
     fm_desat(&f, false, &c, &m, P());
     CHECK(!fm_retry_allowed(&f, true, 1999u, P()));  /* < 1 s */
+    CHECK(!fm_retry_allowed(&f, true, 2000u, P()));  /* 1000 floored counts may be 999.001 ms (round 16) */
     CHECK(!fm_retry_allowed(&f, false, 2500u, P())); /* not authorised */
-    CHECK(fm_retry_allowed(&f, true, 2000u, P()));
+    CHECK(fm_retry_allowed(&f, true, 2001u, P()));
     fm_retry_consumed(&f, &c);
     CHECK(!fm_active(&f, SS_ROW_FLT_LS));
     CHECK(!fm_retry_allowed(&f, true, 9000u, P())); /* once per key cycle */
@@ -200,7 +201,7 @@ TEST(battery_lost_is_a_fault_until_its_response_is_done)
     fm_init(&f, 10u);
     fm_ctx_t c = ctx(0.0f, 480.0f, false, 0u);
     fm_raise(&f, SS_ROW_BATTERY_LOST, false, &c, &m, P());
-    CHECK(f.dec.action == SS_ACT_ZERO_TORQUE_DCL && !f.dec.keep_hv && !f.no_safe_state);
+    CHECK(f.dec.action == SS_ACT_ZERO_CURRENT && !f.dec.keep_hv && !f.no_safe_state);
     CHECK(fm_needs_fault_state(&f, false) && !fm_needs_fault_state(&f, true));
     fm_raise(&f, SS_ROW_VDC_INVALID, true, &c, &m, P());
     CHECK(fm_needs_fault_state(&f, true)); /* any other row still needs it */

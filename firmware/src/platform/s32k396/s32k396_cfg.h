@@ -71,7 +71,7 @@ static inline uint16_t pwm_ctrl2(uint32_t sub)
 /* TCTRL: OUT_TRIG_EN[5:0]: bit0 = VAL0 match (counter 0, centre), bit1 = VAL1 match (end) */
 #define PWM_TCTRL_TRIG_VAL0_VAL1 0x0003u
 /* FFILT = 0: glitch filter bypassed. The contract specifies no filter; the FLT lines come from
- * Schmitt buffers (card §7). A filter would only add latency to FW-15. HIL item: no false trips. */
+ * Schmitt buffers (card §7). A filter would only add latency to FW-15. No false trips on HIL: checklist T-15. */
 #define PWM_FFILT_VALUE 0u
 /* FCTRL2: NOCOMB[3:0] = 0: the fault input also acts through the direct combinational path */
 #define PWM_FCTRL2_VALUE 0u
@@ -162,10 +162,10 @@ static inline pwm_mode_img_t pwm_mode_image(uint32_t mode)
  *     reset).
  * "Locked" is decided only from values read back (regprot_locked): all-zero reads, a missing HLB
  * or one missing SLB bit => not locked. A matching configuration image is never taken as a lock. */
-#define TI_REGPROT_SLBR_OFS 0x1800u     /* TODO(RM) */
-#define TI_REGPROT_GCR_OFS 0x1FFCu      /* TODO(RM) */
-#define TI_REGPROT_GCR_HLB (1uL << 31)  /* TODO(RM) */
-#define TI_REGPROT_WE_SHIFT 4u          /* TODO(RM) */
+#define TI_REGPROT_SLBR_OFS 0x1800u
+#define TI_REGPROT_GCR_OFS 0x1FFCu
+#define TI_REGPROT_GCR_HLB (1uL << 31)
+#define TI_REGPROT_WE_SHIFT 4u
 
 typedef struct {
     uint32_t ofs;  /* byte offset of the register in its module */

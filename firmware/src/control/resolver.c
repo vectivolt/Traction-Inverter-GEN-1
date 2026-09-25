@@ -1,11 +1,14 @@
 /* resolver.c — FW-10 demodulation, observer and plausibility. */
 #include "resolver.h"
 
+#include "swg.h"
 #include "ti_math.h"
 
 #define N HAL_SDADC_BLOCK_N
 #define SETTLE_BLOCKS 20u /* acquisition (2 ms) before tracking/acceleration faults count */
 #define GAP_MAX_BLOCKS 8u /* a longer gap between consumed blocks re-acquires (invalid ~2.2 ms) */
+#define TRIM_LO 0.95f     /* SWG trim dead band around the setpoint: wider than one IOAMPL step (5-7 % */
+#define TRIM_HI 1.05f     /* near the top of the range), so the trim never hunts */
 
 static float s_sin[N], s_cos[N];
 static bool s_tab;
@@ -112,10 +115,9 @@ void rslv_update(rslv_t *r, const int16_t exc[N], const int16_t sn[N], const int
     iq(exc, &ei, &eq);
     iq(sn, &si, &sq);
     iq(cs, &ci, &cq);
+    r->have_frame = true;
+    r->t_frame_us = t_us; /* A14-R01: the age of the newest coherent frame, whatever it holds */
     const float a_m = sqrtf((ei * ei) + (eq * eq));
-    r->exc_ratio = a_m / ti_maxf(c->exc_nom_code, 1.0f);
-    count((r->exc_ratio < p->cal_rslv_exc_min) || (r->exc_ratio > p->cal_rslv_exc_max), &r->n_exc, &r->exc_fault,
-          p->cal_rslv_debounce);
     const float ref = atan2f(eq, ei) - ((p->cal_rslv_phase_comp_deg + c->phase_trim_deg) * (TI_PI / 180.0f));
     const float cr = cosf(ref);
     const float sr = sinf(ref);
@@ -125,6 +127,13 @@ void rslv_update(rslv_t *r, const int16_t exc[N], const int16_t sn[N], const int
     r->amp = sqrtf((r->sin_n * r->sin_n) + (r->cos_n * r->cos_n));
     const bool amp_bad = (r->amp < p->cal_rslv_amp_min) || (r->amp > p->cal_rslv_amp_max);
     count(amp_bad, &r->n_amp, &r->amp_fault, p->cal_rslv_debounce);
+    /* A14-N01: the monitor plane against the trim setpoint, the winding against the resolver's floor */
+    r->mon_vpp = a_m / ti_maxf(c->exc_code_per_vpp, 1.0f);
+    r->exc_ratio = r->mon_vpp / p->cal_rslv_exc_target_vpp;
+    r->wind_vpp = r->mon_vpp * p->cal_rslv_wind_per_mon * r->amp;
+    const bool exc_bad = (r->exc_ratio < p->cal_rslv_exc_min) || (r->exc_ratio > p->cal_rslv_exc_max) ||
+                         !(r->wind_vpp >= p->rslv_floor_vpp);
+    count(r->exc_ready && exc_bad, &r->n_exc, &r->exc_fault, p->cal_rslv_debounce);
     const float dt_s = r->have_first ? ((float)(uint32_t)(t_us - r->t_ref_us) * 1.0e-6f) : ts_s;
     if (!amp_bad && !r->exc_fault && (ts_s > 0.0f) && (dt_s > 0.0f)) {
         observer(r, dt_s, ts_s, c, p);
@@ -132,7 +141,21 @@ void rslv_update(rslv_t *r, const int16_t exc[N], const int16_t sn[N], const int
         r->t_mid_us = 0.5f * ts_s * 1.0e6f * (float)(N - 1u) / (float)N; /* mean sampling instant */
     }
     const bool fault = r->amp_fault || r->exc_fault || r->trk_fault || r->acc_fault || r->rate_fault;
-    r->valid = r->locked && !amp_bad && !fault && ti_finite(r->theta) && ti_finite(r->omega);
+    r->valid = r->locked && r->exc_ready && !amp_bad && !fault && ti_finite(r->theta) && ti_finite(r->omega);
+    if (r->valid) {
+        r->stale = false;
+    }
+}
+
+void rslv_age(rslv_t *r, uint32_t now_us, const ti_params_t *p)
+{
+    if (r->have_frame && ti_elapsed(now_us, r->t_frame_us, p->cal_rslv_hold_us)) {
+        r->stale = true;
+        r->valid = false;
+        r->have_first = false; /* frames that return are acquired afresh: priming, then SETTLE_BLOCKS */
+        r->primed = false;
+        r->locked = false;
+    }
 }
 
 float rslv_theta_e(const rslv_t *r, const rslv_cal_t *c)
@@ -167,12 +190,22 @@ void rslv_rate_check(rslv_t *r, float omega_e_model, bool model_valid, const rsl
     }
 }
 
-uint8_t rslv_swg_trim(uint8_t code, const rslv_t *r)
+/* One code per call toward the band. exc_ready once the monitor is in the band, or once the trim can go
+ * no further toward it (the FW-10 checks then judge what the generator gives). swg_sat: at the top code
+ * and still below the band — the part's maximum cannot reach the setpoint (e.g. a lower-impedance
+ * resolver loading RSX): the application records a DTC. */
+uint8_t rslv_swg_trim(uint8_t code, rslv_t *r)
 {
-    if ((r->exc_ratio < 0.95f) && (code < 15u)) {
+    const bool low = r->exc_ratio < TRIM_LO;
+    const bool high = r->exc_ratio > TRIM_HI;
+    r->swg_sat = low && (code >= HAL_SWG_CODE_MAX);
+    if ((!low && !high) || r->swg_sat || (high && (code == 0u))) {
+        r->exc_ready = true;
+    }
+    if (low && (code < HAL_SWG_CODE_MAX)) {
         return (uint8_t)(code + 1u);
     }
-    if ((r->exc_ratio > 1.05f) && (code > 0u)) {
+    if (high && (code > 0u)) {
         return (uint8_t)(code - 1u);
     }
     return code;

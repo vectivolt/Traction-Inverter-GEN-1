@@ -54,6 +54,14 @@ TEST(each_failure_detected)
     calib_seal(&c);
     CHECK(calib_check(&c, p, SN) == CAL_ERR_RANGE);
     good(&c, p);
+    c.layout_version = 1u; /* round 16: a version-1 record held an EOL code count, not the monitor gain */
+    calib_seal(&c);
+    CHECK(calib_check(&c, p, SN) == CAL_ERR_VERSION);
+    good(&c, p);
+    c.rslv.exc_code_per_vpp = 20000.0f; /* the version-1 value read as a gain */
+    calib_seal(&c);
+    CHECK(calib_check(&c, p, SN) == CAL_ERR_RANGE);
+    good(&c, p);
     ((uint8_t *)&c)[40] ^= 0x10u; /* a flipped bit anywhere */
     CHECK(calib_check(&c, p, SN) & CAL_ERR_CRC);
     CHECK(calib_check(NULL, p, SN) == CAL_ERR_MISSING);

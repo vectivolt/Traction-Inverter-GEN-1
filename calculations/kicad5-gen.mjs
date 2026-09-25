@@ -77,9 +77,9 @@ const CAT = (value, mpn, pins, designator = "") => {
   if (pins.length !== 2) return "IC";
   const m = String(mpn || value);
   if (/^(R-|R\d|HV73|CER-|WW-|SQP-|PULSE-|SHUNT2|R0805|R1206|R2512|R0603)/.test(m) || /^\d+(\.\d+)?(k|M|R|Ω)?$/.test(value)) return "R";
-  if (/^(MLCC|PP-|FILM-|X2-|Y2-|Y1-|C1812|EL-|ELH-|CLINK)/.test(m)) return /^(EL-|ELH-)/.test(m) ? "CP" : "C";
+  if (/^(MLCC|PP-|FILM-|X2-|Y2-|Y1-|C1812|EL-|ELH-|EEH-|CLINK)/.test(m)) return /^(EL-|ELH-|EEH-)/.test(m) ? "CP" : "C";   // round 17: EEH- (Panasonic hybrid polymer CLVC3) is polarised
   if (/^(IND-|DM-|FB-)/.test(m)) return "L";
-  if (/^(US\d|UF-|1N4148|SMBJ|SMCJ|SMAJ|FAST-|SICJBS|STTH|BZT52|BAS)/.test(m)) return "D";
+  if (/^(US\d|UF-|1N4148|SMBJ|SMCJ|SMAJ|SMDJ|5\.0SMDJ|FAST-|SICJBS|STTH|BZT52|BAS|PMEG)/.test(m)) return "D";   // round 17 (F184): SMDJ (the 3 kW exciter TVS) and PMEG (the diversion Schottky) are diodes too
   if (/^FUSE-/.test(m)) return "F";
   if (/^(S20K|MOV)/.test(m)) return "MOV";
   if (/^GDT-/.test(m)) return "GDT";
@@ -1047,6 +1047,12 @@ const proText = `update=Date\nversion=1\nlast_client=eeschema\n[general]\nversio
 writeFileSync(join(OUT, `${LIB_NAME}.lib`), mirrorLibY(rawLib));
 writeFileSync(join(OUT, `${LIB_NAME}.dcm`), `EESchema-DOCLIB  Version 2.0\n#\n#End Doc Library\n`);
 writeFileSync(join(OUT, "traction.pro"), proText);
+// Round-16 gap closure (F163 residual): KiCad 5 opens a project without a sym-lib-table through its remap dialog
+// and KiCad 6+ / kicad-cli cannot resolve "traction-r1:" at all — ship the table and the cache library that
+// every KiCad since 5.0 reads first, so an unattended open or a CLI netlist export resolves every symbol.
+const SYM_TABLE = `(sym_lib_table\n  (lib (name ${LIB_NAME})(type Legacy)(uri \${KIPRJMOD}/${LIB_NAME}.lib)(options "")(descr "Traction Inverter GEN-1 symbols (generated)"))\n)\n`;
+writeFileSync(join(OUT, "sym-lib-table"), SYM_TABLE);
+writeFileSync(join(OUT, "traction-cache.lib"), mirrorLibY(rawLib));
 writeFileSync(join(OUT, "README.txt"),
   `EASYEDA-IMPORT VARIANT (round 15, A13-R05). The symbol library is pre-mirrored about Y because EasyEDA's\nKiCad-legacy importer places pins at (ux+px, uy+py) and ignores the "1 0 0 -1" orientation matrix.\nDo NOT open this folder in native KiCad: use ../traction-native/ (same sheets, un-mirrored library).\nBoth variants are verified pin-by-pin with their consumer's placement rule (calculations/kicad5-verify.mjs).\n`);
 // Round 15 (A13-R05): native KiCad 5 applies the orientation matrix itself, so it needs the UN-mirrored library
@@ -1058,6 +1064,8 @@ writeFileSync(join(OUT_NATIVE, "traction.sch"), readFileSync(join(OUT, "traction
 writeFileSync(join(OUT_NATIVE, `${LIB_NAME}.lib`), rawLib);
 writeFileSync(join(OUT_NATIVE, `${LIB_NAME}.dcm`), `EESchema-DOCLIB  Version 2.0\n#\n#End Doc Library\n`);
 writeFileSync(join(OUT_NATIVE, "traction.pro"), proText);
+writeFileSync(join(OUT_NATIVE, "sym-lib-table"), SYM_TABLE);
+writeFileSync(join(OUT_NATIVE, "traction-cache.lib"), rawLib);
 writeFileSync(join(OUT_NATIVE, "README.txt"),
   `NATIVE KICAD 5 VARIANT (round 15, A13-R05). Same sheets as ../traction/, un-mirrored symbol library: KiCad 5\napplies each component's orientation matrix to the library pin before adding its position. Open traction.sch\nin KiCad 5.1.x. For EasyEDA import use ../traction/ instead. Both are verified by calculations/kicad5-verify.mjs.\n`);
 // Package for EasyEDA import as part of GENERATING (zips must not drift behind the sheets).
@@ -1067,14 +1075,14 @@ writeFileSync(join(OUT_NATIVE, "README.txt"),
   try { unlinkSync(zip); } catch {}
   const members = [...files.map((f) => join(OUT, `${f}.sch`)),
     join(OUT, `${LIB_NAME}.lib`), join(OUT, `${LIB_NAME}.dcm`),
-    join(OUT, "traction.pro"), join(OUT, "traction.sch")];
+    join(OUT, "traction.pro"), join(OUT, "traction.sch"), join(OUT, "sym-lib-table"), join(OUT, "traction-cache.lib")];
   execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members]);
   execFileSync("zip", ["-qX", "-j", zip, ...members, join(OUT, "README.txt")]);
   console.log("   packaged → kicad5/Traction-Inverter-SHIP.zip (EasyEDA-import variant)");
   const zipN = join(ROOT, "kicad5", "Traction-Inverter-KiCad5-native.zip");
   try { unlinkSync(zipN); } catch {}
   const membersN = [...files.map((f) => join(OUT_NATIVE, `${f}.sch`)), join(OUT_NATIVE, `${LIB_NAME}.lib`), join(OUT_NATIVE, `${LIB_NAME}.dcm`),
-    join(OUT_NATIVE, "traction.pro"), join(OUT_NATIVE, "traction.sch"), join(OUT_NATIVE, "README.txt")];
+    join(OUT_NATIVE, "traction.pro"), join(OUT_NATIVE, "traction.sch"), join(OUT_NATIVE, "sym-lib-table"), join(OUT_NATIVE, "traction-cache.lib"), join(OUT_NATIVE, "README.txt")];
   execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN]);
   execFileSync("zip", ["-qX", "-j", zipN, ...membersN]);
   console.log("   packaged → kicad5/Traction-Inverter-KiCad5-native.zip (native KiCad 5 variant)");

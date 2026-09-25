@@ -12,7 +12,11 @@
  *    cal_isns_act_frac of it; cal_isns_act_debounce such applicable samples in a row (per channel;
  *    a sample where that phase is asked for less neither counts nor resets) latch stuck_fault.
  *    Equal gain errors on all three channels stay unobservable in closed loop with three sensors:
- *    the coverage table is in docs/traceability.md. */
+ *    the coverage table is in docs/traceability.md.
+ *  - round 16 (A14-R03): a sample whose triplet did not arrive complete (hal_adc_read_phase false) is
+ *    LOST: isns_lost() makes the measurement invalid and not fresh and clears ch_valid, so nothing of
+ *    the previous sample feeds FOC, the OC backstop or the activity check; the DTC is ISNS_STALE (not
+ *    an open wire). t_us keeps the last complete triplet's time. */
 #ifndef CURRENT_H
 #define CURRENT_H
 
@@ -42,6 +46,7 @@ typedef struct {
 void isns_init(isns_t *s);
 void isns_update(isns_t *s, const uint16_t codes[3], uint32_t t_us, uint32_t now_us, const isns_cal_t cal[3],
                  const ti_params_t *p);
+void isns_lost(isns_t *s); /* no complete triplet this sample (round 16) */
 bool isns_oc(const isns_t *s, const ti_params_t *p);
 /* F24: iref_abc = the phase currents the loop is tracking now (A); call once per modulated sample. */
 void isns_activity(isns_t *s, const float iref_abc[3], const ti_params_t *p);

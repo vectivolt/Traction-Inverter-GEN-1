@@ -338,11 +338,18 @@ is sized per project.
 | Active discharge | 4 × 470 Ω, 32 J per resistor, 1.8 s | **5 × 470 Ω**, 40 J per resistor, 2.3 s; **≥ 1700 V switch** |
 
 Marine has no crash case: the target is IEC 61800-5-1's < 60 V within 5 s for accessible parts
-(both pass with margin). The QDIS-stuck-on case (384/515 W into 10 W parts with the battery
-connected) is bounded exactly as on the Road (fire only with the DC breaker reported open; a
+(both pass with margin). The QDIS-stuck-on case is 384/515 W total into 10 W parts with the
+battery connected — **96 W per resistor on M8/M8-SiC, 103 W on M10**, above the Road A6-R11
+qualification window of 70–100 W (round 17/A.16, `qualification-plan.md` QP-MA-05). It is bounded
+exactly as on the Road: fire only with the DC breaker reported open; a
 shorted QDIS is now detected at the next contactor opening → latched no-re-energise DTC +
-contactor-open request, round 14/A.13, replacing the earlier precharge-only check; fail-open
-flameproof wirewounds; the TE SQP10 candidate goes through the stuck-ON test, Road gate ㉖).
+contactor-open request, round 14/A.13, replacing the earlier precharge-only check. The no-flame
+property is the bound part's own datasheet statement, not the qualification window, so it holds on
+both sides of 70–100 W: the TT/Welwyn SQP10 sheet states the resistor **will not burn or emit
+incandescent particles under any condition of applied temperature or overload** (the Yageo
+alternate lacks this line — BOM note, `vendor-requests.md` VR-28). **Fail-open time** at the actual
+power is a characterisation, not this release gate — QP-MA-05 runs the stuck-ON test at 103 W for
+M10 (Road gate ㉖).
 
 Two Road rules carry over, re-derived at A.12 for the UCC14141-Q1 bias: the QDIS gate is fed
 through the kept 1.5 k/10 k divider, now **11.6–16.3 V** (low end set by the VOW3120's guaranteed
@@ -369,11 +376,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.14**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.16**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14 in the same pass, on 2026-09-25; no Marine unit is built or type-approved yet, so none
-of these moves needed a class notification. M8 carries the Road fixes of review rounds 7–15
-(`../docs/review-A7-disposition.md` … `../docs/review-A14-disposition.md`). It has the same PCBs and
+then A.14, then A.15, then A.16 in the same pass, on 2026-09-25; no Marine unit is built or
+type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
+review rounds 7–17 (`../docs/review-A7-disposition.md` … `../docs/review-A16-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -381,9 +388,10 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.14 brought** (Road `design-basis.md` §11i–§11n; A.12 = round 13,
+**What A.9–A.16 brought** (Road `design-basis.md` §11i–§11p; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
-`review-A14-disposition.md`):
+`review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17,
+`review-A16-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -484,6 +492,95 @@ move with the automotive line.
   (`kicad5/traction-native/`) beside the EasyEDA-import one; M8/M10 fabrication keeps using the
   EasyEDA-import folder unless a native-KiCad flow is wanted.
 
+- **A.15.** Round 16 rechecked the A.14 push (`review-A15-disposition.md`, F167–F173): one real
+  corner the round-15 rows did not carry, two interpretation errors in the round-15 fault rows and
+  one part-data error; all apply through the shared control card. **Exciter amplitude, corrected:**
+  the S32K39 SWG's maximum amplitude is a part spread (1.884/2.093/2.302 V pp; firmware trim only
+  reduces it), so at the A.14 gain (|H| 1.85, 24 k) the low corner delivered 6.34 V pp at the
+  resolver winding through the series resistor + PTC losses — under the 6.5 V pp floor. **The MFB
+  feedback resistor REXA4 is now 28 k** (|H(10 kHz)| ≈ 2.09, f0 16.6 kHz): low corner 7.1 V pp at
+  the winding. The FW-10 amplitude setpoint is defined at the **monitor plane** (7.2 V pp; the
+  monitor taps the protected node before the PTC — winding = monitor × 0.964 cold, × 0.875 for an
+  hour after a PTC trip, which FW-10's window then flags, as intended); the SWG needed is 1.84 V pp
+  (≤ 1.884, 3 % headroom) and 1.91 V pk per amplifier output stays under the ALM2402's −40 °C slew
+  ceiling (2.07 V pk); the trim ramps up from ≈ 1.5 V pp so the untrimmed SWG maximum never
+  slew-limits. **Exciter terminal-fault protection, corrected again:** TVSEP/TVSEN is now the
+  **unidirectional SMCJ8.5A** (cathode on the protected node) — the excitation never goes below
+  ground, so a negative harness fault is carried by the TVS forward diode (I_FSM 200 A) and the
+  amplifier's lower output diode sees < 0.3 A (the round-15 bidirectional SMCJ8.5CA put 4.4 A /
+  0.9 J into a generic 1206); RSXP/RSXN are bound to **Panasonic ERJ-8ENF2R20V**. **Fault rows made
+  honest:** the VEXD-absent back-drive is an exponential into 26.7 µF (4.9 A peak, τ 59 µs, 0.2 mJ
+  in the diode) and is now **OPEN** pending the measured ALM2402 diode envelope (round 15 had read
+  one RC time constant as the end of the pulse); the TVS-energy PASS is now **conditional** on the
+  measured PTC clearing time (the SMCJ curve is supported only to 10 ms, 5.5 J) with a
+  source-impedance allocation (≥ 0.27 Ω source + harness at 35 V, else the PTC's 40 A I_max is
+  exceeded); the MF-MSMF020/33X PTC holds **0.07 A at 85 °C** (the A.14 text carried the unsuffixed
+  part's 0.09 A) against ≈ 35 mA nominal / 60 mA assumed excitation. Bench gate ㉘ re-scoped
+  accordingly (§12). **Firmware** (shared base): a deterministic phase-current acquisition contract
+  (a failed ADC triplet no longer passes an uninitialised timestamp — the current is marked invalid
+  through the sensor-failure path while V_DC and resolver acquisition keep running); resolver
+  validity now expires on a per-tick frame-age check with a bounded hold (it used to stay valid
+  indefinitely once new SDADC blocks stopped); the SDADC resolver frame is published only when all
+  three channels of the same epoch have completed (a coherent-frame API — one SIN-DMA heartbeat used
+  to tag all three channels fresh). No power-stage change.
+
+- **A.16.** Round 17 ("gap closure") closed every remaining WARN/OPEN row and firmware "contract
+  should say" item against a named vendor request (`vendor-requests.md`, VR-01…32), an OEM/motor/
+  harness assumption (`interface-requirements.md`, IR-01…41) or an executable qualification
+  procedure (`qualification-plan.md`, incl. **QP-MA-01…10** for the marine deltas) — nothing is
+  closed by re-labelling (`review-A16-disposition.md`, F174–F189); all applies through the shared
+  control card. **LV entry rebuilt from absorption to let-through:** every clamp on a KL30-derived
+  net now sits dark at the vehicle's own central load-dump suppression point instead of trying to
+  absorb the dump itself. **DTVSC → TPSMC33A-VR** at the pin node, backed by a new **DTVSC2 →
+  TPSMC18A-VR** anti-series pair ahead of the reverse Schottky DREVC (the round-16 single TVS sat
+  behind DREVC and let ISO 7637-2 pulse 1 avalanche it); **DTVH/DTVL → TPSMC33CA-VR**; a new **100
+  µF/50 V hybrid-polymer CLVC3** (Panasonic EEH-ZC1H101P, AEC-Q200) holds the fast pulses off the
+  rail; **FLVC is now a 5 A fuse (Bel 0680L5000-05)**, correctly sized for the whole inverter's LV
+  current — the 3 A polyfuse it replaces nuisance-tripped hot at low KL30; **DIGN (US1M)** now sits
+  ahead of the FS26 **WAKE1** sense divider, so a harness transient or a reversed KL15 no longer
+  forces that pin past its −5 mA rating; **ULDO15 moves to a D2PAK-5 (NCV4276CDSADJR4G)** — the
+  DPAK-5 case it replaces reached 156 °C at the 35 V/400 ms plateau; **RFS4 → ESR18EZPF1001** (1206,
+  0.5 W), replacing the 0603 part a 24 V jump start with FS1B held ran at 1.47× nameplate. The
+  interface requirement is now **IR-03: central load-dump suppression, Us* ≤ 36 V at the inverter's
+  KL30 pin, no source-impedance constraint on the OEM** (every clamp is dark below 36.95 V, so the
+  result no longer depends on how the vehicle makes Us*); test A (an unsuppressed dump) stays
+  unsupported. **This does not transfer to the marine 24 V control network**: the kit's isolated
+  24→12 V converter (§11), not this TVS network, is what faces ship power, and a ship's 24 V
+  distribution has no alternator load-dump or starter jump-start event to test against — its
+  transient/tolerance specification is **IEC 60092-504** (electrical installations in ships,
+  control and instrumentation supply quality) and **IACS UR E10** (already this document's §2
+  "Control power" row: ±10 % steady state, battery-fed +30/−25 %, i.e. 18–31.2 V from 24 V nominal).
+  So neither the 36 V pin figure nor the FW-33 bands keyed to it (below) are ship-side numbers —
+  they describe the Road card's own automotive net, which the marine converter stands between;
+  QP-MA-06 is what actually qualifies the converter against the ship's ±30/−25 % band, not IR-02/
+  IR-03. **Exciter terminal-fault protection, closed on paper:** the round-16 OPEN back-drive row is
+  now a rated diversion (**DEXP/DEXN — Nexperia PMEG4050EP-Q**, AEC-Q101 Schottky, protected node →
+  VEXD) and the round-16 conditional TVS-energy row is PASS at the upgraded **TVSEP/TVSEN —
+  Littelfuse SMDJ8.5A-HRA** (3 kW, AEC-Q101, same SMC pad as the round-15 part); only the 35 V/
+  PTC-current corner stays an accepted double event (a short coincident with a load-dump pulse,
+  IR-16/IR-33) — bench gate ㉘ (§12) keeps the clearing measurement as a characterisation, not a
+  release gate. **Firmware** (shared base): **FW-31** current-loop liveness (`cal_isns_stale_us`,
+  200 µs default) catches a stopped current-loop trigger within one 1 ms task period instead of
+  leaving the last duty cycle standing; **FW-32** a UDS service-lock routine (RoutineControl 0xF010
+  behind a SecurityAccess 0x27 seed/key hook, fail-closed with no key function bound in the default
+  build, three wrong keys lock out) replaces the stuck-on-QDIS lock's old silent clear; **FW-33** LV
+  supply supervision reads VSUP through the FS26 AMUX and treats an overvoltage as information, not
+  a fault, for as long as the vehicle profile allows — `cal_vsup_jump_max_v` 27 V tolerated
+  `cal_vsup_ld_ms` 500 ms (load dump, IR-03) or at/below it for `cal_vsup_jump_ms` 65 s (jump start,
+  IR-02), each a range-checked CAL, then the §6 command-lost ramp. **For the marine 24 V network
+  these bands describe only what the FS26 sees behind the isolated converter — they are not a
+  rating on ship power** (see above; QP-MA-06 is the actual ship-side qualification). The FS26
+  watchdog answer is now timed from the task tick instead of a stamp that trails it: answers land
+  **2.0 ms** apart (1890–2110 µs) inside the FS26's 1.579–2.857 ms window at every oscillator
+  corner, and ASC exit waits a CAL (`cal_asc_release_ns`, 1.5 µs) plus the SKU dead time from the
+  ASC_CLR edge, closing the shoot-through window the A.12 opto's faster release opened. **KiCad:** a
+  third deliverable, **`kicad/traction/` in true KiCad 9/10 format**, generated from the
+  native-KiCad5 sheets item by item and proved by `kicad-cli sch export netlist` against the built
+  netlist, with mutation tests; M8/M10 fabrication still uses the EasyEDA-import folder unless a
+  native/modern flow is wanted. KiCad 10.0.6 cannot resolve symbols from that EasyEDA-import folder
+  at all (a CLI-verification dead end for that one folder, not a design defect). No power-stage
+  change.
+
 | Change | M8 | M10 |
 |---|---|---|
 | Power PCB | Road, unchanged | **new** — 1100 V creepage/clearance (conformal coat + slots), same D3 footprint |
@@ -524,7 +621,7 @@ insulation-coordination study; conformal coating is the marine baseline anyway (
 
 ## 10. Firmware — Marine additions to the Road contract
 
-The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), rev A.12, FW-01…FW-21)
+The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), kept at the current Road rev — FW-01…FW-33 as of A.16)
 applies unchanged, with Marine parameter-set values. FW-05 trips at 1.25 × √2 × the 110 % current in
 instantaneous amperes: ±583 A (M8) / ±525 A (M10). The FW-16 QDIS top-up is §7's. The marine build
 adds:
@@ -556,7 +653,7 @@ adds:
 |---|---|---|
 | Marine enclosure: IP44 minimum, IP54 target; stainless hardware; pressure-equalising vent | CG-0339 Enclosure B; condensing humidity (class B) | 8–15 k |
 | Anti-condensation heater + thermostat | Humidity B; ABS/BV require anti-condensation means | 1.5–3 k |
-| Isolated 24 → 12 V, 60 W (EN 50155 / IEC 60945 class), fed from **class-grade, battery-backed 24 V**; diode-OR of two feeds where the shaft can be towed | The Road LV side is a 12 V (KL30 9–16 V) design. Its entry TVS is the TPSMC24CA-VR since A.11 (24 V stand-off, V_BR 26.7–29.5 V): dark at 24 V, but ship 24 V reaches 31.2 V, above even its maximum breakdown. More decisive, the power board's V15 rail is a boost (TPS55340-Q1), which cannot step 18–31 V down. It passes the input through, and the ULDO15 post-regulator then dissipates ≈ 2.8 W at 24 V into thermal shutdown (Road F51: a survival case, not an operating mode). That drops V15, which feeds the UCC14141-Q1 ASC/discharge bias (8–18 V input, A.12; V15 sits well inside) and the UCC12050 V_DC bias. The flybacks and LDOs are rated and benched at 9–16 V, 24 V only as a 60 s jump start (Road gate ⑬). Sustained ASC needs gate power (§6) | 4–8 k (+1 k second feed) |
+| Isolated 24 → 12 V, 60 W (EN 50155 / IEC 60945 class), fed from **class-grade, battery-backed 24 V**; diode-OR of two feeds where the shaft can be towed | The Road LV side is a 12 V (KL30 9–16 V) design. Since round 17/A.16 its entry TVS is a 33 V-class network (DTVSC → TPSMC33A-VR, DTVH/DTVL → TPSMC33CA-VR; knee ≈ 34.9–36.95 V, up from the TPSMC24CA-VR's 26.7–29.5 V through A.15) — dark at 24 V with more margin than before, but that was never the limit. More decisive, the power board's V15 rail is a boost (TPS55340-Q1), which cannot step 18–31 V down. It passes the input through, and the ULDO15 post-regulator then dissipates ≈ 2.8 W at 24 V into thermal shutdown (Road F51: a survival case, not an operating mode). That drops V15, which feeds the UCC14141-Q1 ASC/discharge bias (8–18 V input, A.12; V15 sits well inside) and the UCC12050 V_DC bias. The flybacks and LDOs are rated and benched at 9–16 V, 24 V only as a 60 s jump start (Road gate ⑬). Sustained ASC needs gate power (§6) | 4–8 k (+1 k second feed) |
 | DC entry kit: 2 semiconductor fuses + precharge (90/110 Ω + contactor) | Fuse per converter (ABS); precharge before joining a live bus | 12–25 k |
 | Motor-side / DC disconnector (if in the cell's scope) | KR (PM motors); maintenance isolation | 15–30 k |
 | Leak sensor + drip tray; marine glands | Liquid-cooling rules | 1–5 k |
@@ -652,7 +749,11 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - contained short-circuit test on the 1700 V IGBT (M8: the Road's, gate ③);
    - terminal-fault test on the resolver excitation and motor-temperature lines, VEXD
      off/cranking/on and both polarities, PTC/TVS/reverse-rail currents measured separately
-     (Road gate ㉘, shared control card, widened round 15/A.14);
+     (Road gate ㉘, shared control card, widened round 15/A.14, re-scoped round 16/A.15, closed on
+     paper round 17/A.16 — the back-drive is now a rated Schottky diversion and the TVS energy is
+     PASS at the upgraded SMDJ8.5A-HRA; only the 35 V/PTC-current corner stays an accepted double
+     event, so the bench keeps the clearing-time measurement as a characterisation, not this
+     release gate);
    - coldplate Rth (shared with Road).
 8. **Before the Road PCB layout (which M8 inherits):** decide the creepage strategy, PD2 sealed
    or PD3.

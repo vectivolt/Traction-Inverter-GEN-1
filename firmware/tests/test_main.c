@@ -33,8 +33,8 @@ int main(void)
 {
     void (*const suites[])(void) = {
         suite_crc,         suite_time,       suite_params,     suite_board_map,  suite_platform_cfg,  suite_current,   suite_vdc,
-        suite_temp,        suite_hvil,       suite_hwid,       suite_ign,       suite_resolver,
-        suite_foc,         suite_torque,     suite_dclink,     suite_gains,     suite_can_cmd,
+        suite_temp,        suite_hvil,       suite_hwid,       suite_ign,       suite_resolver,   suite_sdadc,
+        suite_foc,         suite_torque,     suite_dclink,     suite_gains,     suite_can_cmd,   suite_uds,
         suite_dtc,         suite_discharge,  suite_nvlog,      suite_calib,     suite_safe_state,
         suite_fault_mgr,   suite_fs26,       suite_bridge,     suite_gate_power, suite_gate_selftest,
         suite_state_machine, suite_scenarios,

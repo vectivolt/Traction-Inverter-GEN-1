@@ -28,6 +28,8 @@ typedef struct {
     uint8_t lp_step;
     uint32_t crc_err;
     bool corrupt_next;
+    uint16_t amux;  /* M_AMUX_CTRL */
+    float vsup_v;   /* KL30 at the VSUP pin */
 } fs26_t;
 
 static fs26_t F;
@@ -35,6 +37,21 @@ static const sim_fs26_cfg_t CFG_DEFAULT = {.prog_id = 0x4A21u, .device_id = 0x26
 static sim_fs26_cfg_t s_cfg = {.prog_id = 0x4A21u, .device_id = 0x2600u};
 
 static uint16_t not_of(uint16_t v, uint16_t mask) { return (uint16_t)(~v & mask); }
+
+/* The AMUX pin (Tables 55/56, 130): the selected input over the divider; disabled or another channel: 0 V (the
+ * model shows VSUP only, the one channel the firmware selects). */
+static void amux_out(void)
+{
+    const bool vsup = ((F.amux & (1u << 6)) != 0u) && ((F.amux & 0x1Fu) == 0x11u);
+    const float ratio = ((F.amux & (1u << 5)) != 0u) ? 14.0f : 7.5f;
+    sim_adc_set_v(HAL_ADC_SBC_AMUX, vsup ? (F.vsup_v / ratio) : 0.0f);
+}
+
+void sim_fs26_vsup(float v)
+{
+    F.vsup_v = v;
+    amux_out();
+}
 static void assert_fs0b_event(void);
 
 void sim_fs26_reset(void)
@@ -55,6 +72,8 @@ void sim_fs26_reset(void)
     F.fs1b = true;
     F.gpio1 = F.cfg.gpio1_slotted;
     F.init_start = sim_now_ns();
+    F.vsup_v = 13.5f;
+    amux_out();
 }
 
 /* The FS26 watchdog reaction reset the MCU (RSTB + FS0B): the FS26 itself keeps its INIT
@@ -91,7 +110,8 @@ static uint8_t rfr_limit(void)
 static uint64_t period_ns(void)
 {
     static const uint16_t MS[16] = {0u, 1u, 2u, 3u, 4u, 6u, 8u, 12u, 16u, 24u, 32u, 64u, 128u, 256u, 512u, 1024u};
-    return (uint64_t)MS[(F.wdw >> FS26_WDW_PERIOD_SHIFT) & 0xFu] * 1000000u;
+    const double ns = (double)MS[(F.wdw >> FS26_WDW_PERIOD_SHIFT) & 0xFu] * 1.0e6 / (1.0 + (double)F.cfg.osc_error);
+    return (uint64_t)ns; /* timed by the fail-safe oscillator (round 17: its tolerance, sim_fs26_cfg_t) */
 }
 
 static uint64_t closed_ns(void)
@@ -222,6 +242,10 @@ static void write_reg(uint8_t a, uint16_t d)
         break;
     case FS26_M_REG_CTRL1: if ((d & FS26_GPIO1_BIT) != 0u) { F.gpio1 = true; } break;
     case FS26_M_REG_CTRL2: if ((d & FS26_GPIO1_BIT) != 0u) { F.gpio1 = false; } break;
+    case FS26_M_AMUX_CTRL:
+        F.amux = (uint16_t)(d & 0x7Fu);
+        amux_out();
+        break;
     case FS26_FS_LP_REQ:
         if (d == FS26_LP_PRE_LPOFF) {
             F.lp_step = 1u;
@@ -241,6 +265,7 @@ static uint16_t read_reg(uint8_t a)
     switch (a) {
     case FS26_M_DEVICEID: return F.cfg.device_id;
     case FS26_M_PROGID: return F.cfg.prog_id;
+    case FS26_M_AMUX_CTRL: return F.amux;
     case FS26_FS_I_WD_CFG: return (uint16_t)((F.wd_cfg & FS26_WD_CFG_WMASK) | (uint16_t)(F.wd_rfr << 4) | F.wd_err);
     case FS26_FS_I_NOT_WD_CFG: return F.not_wd_cfg;
     case FS26_FS_I_FSSM: return (uint16_t)((F.fssm & FS26_FSSM_WMASK) | F.flt_err);

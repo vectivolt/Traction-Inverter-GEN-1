@@ -321,8 +321,11 @@ function plot(file, title, series, xlab, ylab) {
 // Two series reservoirs per LS domain (VCC2–Kelvin 2×4.7 µF + 0.1 µF, Kelvin–VEE 10 µF), DC-bias
 // derated. Loads: driver ICC2 + 5.1 k bleeder through BOTH caps; 10 k gate pull-down + DESAT
 // source on VCC2 only (gate held high in ASC). The old 15 ms put the VEE cap in parallel with
-// VCC2 and ignored the bleeder and gate loads. The ASC COMMAND path (V12L→boost→V15→QA01C→
-// TLP152, UVLO 7.5–9.4 V) collapses first, within ≈1 ms.
+// VCC2 and ignored the bleeder and gate loads. The ASC COMMAND path collapses first: re-derived
+// in round 17 for the A.12 parts (VOW3120 + UCC14141-Q1, VIN UVLO falling < 8 V) and the round-17
+// LV bulk (CLVC1/2/3 ≈ 127 µF card + ≈ 45 µF power board at ≈ 1.05 A whole-inverter load):
+// dV/dt ≈ 6 V/ms, so the 12 V rail reaches the 8 V UCC14141 floor in ≈ 0.7 ms and the FS26
+// VPRE/V5A latch supply follows within ≈ 1 ms — the "≈ 1 ms" figure stands, now with its basis.
 {
   // start at the round-7 rail: 15.4 V nominal, 13.54 V low corner (design-verify §5)
   const hold = (k15, kvee, icc, ides, uvlo, tolc = 1, v0 = 15.4) => {
@@ -340,7 +343,7 @@ function plot(file, title, series, xlab, ylab) {
   const typ = hold(0.45, 0.75, 3.3e-3, 0.5e-3, 10.4), worst = hold(0.35, 0.65, 7e-3, 0.65e-3, 11.8, 0.9, 13.54);
   plot("s10-asc-holdup.svg", "S10 LS driver VCC2 decay after total LV loss (typ, DC-bias-derated MLCC)", [{ name: "VCC2 (V)", x: typ.tr.x, y: typ.tr.y }], "time (ms)", "V");
   add("S10", "ASC hold-up after TOTAL LV loss (gate reservoirs)", `${f(typ.t * 1e3, 1)} ms typ · ${f(worst.t * 1e3, 1)} ms worst`, "-", "WARN",
-    "and the ASC command path collapses within ≈1 ms: sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract)");
+    "and the ASC command path collapses within ≈ 1 ms (round 17 re-derivation: ≈ 170 µF of LV bulk at ≈ 1.05 A gives 6 V/ms, the UCC14141-Q1 bias input reaches its 8 V UVLO in ≈ 0.7 ms and the V5A latch supply follows): sustained ASC REQUIRES KL30 (FS26 GPIO1 holds the flybacks) — the safety-concept assumption IR-05/IR-32 (LV loss = SPO; LV loss with the battery disconnected above n_x is a double event, IR-33). With LV dead the bridge is three-phase-open — energy-safe only if the motor's E_LL,pk at n_max (cold magnets) < the 1000 V cap rating; otherwise fit the HV-fed backup-bias option (motor-dependent, see firmware contract)");
 }
 
 // ============ report ============

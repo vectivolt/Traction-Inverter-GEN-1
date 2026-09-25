@@ -5,7 +5,7 @@
 // sinusoidal-PWM averages (calculations/loss-model.mjs igbtLoss — re-checked below, not edited),
 // with two marine additions for continuous duty: switching energy ∝ V^1.3 instead of linear, and
 // the transistor/diode heat sharing one coldplate footprint. Road-mirrored protection numbers (FW-05/06/16, ASC entry,
-// DESAT corners, §6 release rule, barrier register) follow Road rev A.14 (marine/design-basis.md §9).
+// DESAT corners, §6 release rule, barrier register) follow Road rev A.16 (marine/design-basis.md §9).
 // Run: node marine/calc/marine-verify.mjs
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -244,8 +244,8 @@ for (const [id, s] of LAUNCH) {
   judge(sec, "V per wirewound", `${f(s.vMax / d.raN)} V`, "≥350 V axial class", (s.vMax / d.raN) / 350, 0.8);
   add(sec, "QDIS switch", `${f(s.vMax / ra, 2)} A pk at ${s.vMax} V`, d.qdis, "PASS",
     `fully enhanced, no linear region; gate through the kept 1.5 k/10 k divider, now 11.6–16.3 V from the UCC14141-Q1 (Road A.12; low end set by the VOW3120's guaranteed V_OH ≥ V_CC − 4 V)${id === "m10" ? " — same bias module, already rated ≥ 1150 V DC" : ""}`);
-  add(sec, "QDIS stuck ON with the battery connected", `${f(s.vMax ** 2 / ra, 0)} W continuous`, "not survivable by 10 W parts", "WARN",
-    `bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); fail-open flameproof wirewounds — candidate TE SQP10 (700 V, ${f(s.vMax / d.raN, 0)} V here) through the stuck-ON test (Road gate ㉖)`);
+  add(sec, "QDIS stuck ON with the battery connected", `${f(s.vMax ** 2 / ra, 0)} W continuous (${f(s.vMax ** 2 / ra / d.raN, 0)} W per resistor)`, "not survivable by 10 W parts", "WARN",
+    `bounded as on the Road (F23): fire only with the DC breaker reported OPEN; now detected at the next contactor opening → latched no-re-energise DTC + contactor-open request (Road round 14/A.13, replaces the earlier precharge-only check); no-flame per the TT/Welwyn SQP10 statement (will not burn or emit incandescent particles under any condition of applied temperature or overload) holds at any overload, so it covers this power without the Road A6-R11 70–100 W qualification window; fail-open TIME at this power is a QP-MA-05 characterisation, not a release gate (Road gate ㉖)`);
   // Road FW-16 (round 9, A8-N03/R9X-07): the boot self-test runs only at ≤ 0.1 J — both channels read < 3 V (≤ 12 V true),
   // or QDIS for 2 τ from a < 60 V reading (≤ 69 V true); τ at R+5 % and C_max
   const tau = ra * 1.05 * cMax, eRead = 0.5 * cMax * 12 ** 2, eTop = 0.5 * cMax * (69 * Math.exp(-2)) ** 2;

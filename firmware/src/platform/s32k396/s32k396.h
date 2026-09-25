@@ -2,14 +2,15 @@
  *
  * Two build modes:
  *   TI_RTD_AVAILABLE defined (make target): the NXP S32K3 RTD IP drivers and the S32K39 device
- *     headers are included and every TODO(RTD) body calls them;
+ *     headers are included and every RTD body calls them;
  *   undefined (make target-check): the RTD calls are compiled out and each HAL function returns
  *     its safe default (outputs off, inputs "fault", init false), and the few registers written
  *     directly land in a RAM shadow. An image built this way never arms: hal_pwm_init() fails.
  *
- * TODO(RTD) marks every item the integrator binds against the installed RTD release: the
- * generated configuration symbol names (S32 Config Tools) and the device-header register names.
- * TODO(HW) marks a value that must be measured or confirmed on the target. */
+ * Every open item of this layer carries one marker — RTD: bind against the installed RTD release and the
+ * S32 Config Tools project; RM / HW-RM: read in the S32K39 reference manual, confirm on silicon; HW: measure on
+ * the target — and one row in firmware/docs/target-bringup.md with its acceptance check and what holds the
+ * image closed until then (make target-check keeps the markers and the rows in step). */
 #ifndef S32K396_H
 #define S32K396_H
 
@@ -18,6 +19,7 @@
 #include "board_pins.h"
 #include "s32k396_board_cfg.h"
 #include "s32k396_cfg.h"
+#include "sdadc.h"
 #include "ti_types.h"
 
 /* ---------------- instances ---------------- */
@@ -52,24 +54,25 @@
 #define TI_PRIO_CURRENT 2u     /* BCTU conversion complete: app_isr_current */
 #define TI_PRIO_TASK 4u        /* STM ch0 1 ms: app_task_1ms */
 #define TI_PRIO_CAN 5u         /* FlexCAN RX into the software ring */
-#define TI_PRIO_SDADC 1u       /* eDMA major loop of the SIN channel: block time stamp only */
+#define TI_PRIO_SDADC 1u       /* eDMA major loop of each SDADC channel (three interrupts): the frame protocol */
 /* hal_crit_enter() sets PRIMASK: nv_queue() is called from the fault ISR too, so its copy must
  * exclude every level. Bound: one record copy (<= NV_PAYLOAD_MAX bytes), counted in docs/timing.md
  * against the FW-06 budget. */
 
 /* ---------------- directly written registers ---------------- */
 #ifdef TI_RTD_AVAILABLE
-#include "S32K39_FLEXPWM.h" /* TODO(RTD): device-header file and symbol names of the installed release */
+#include "S32K39_FLEXPWM.h" /* TODO(RTD): device-header files and symbols of the installed release (IP_FLEXPWM_1 and
+                               * its SUB[] / SM[] array, IP_SIUL2 MSCR/IMCR, IP_STM_0) */
 #include "S32K39_SIUL2.h"
 #include "S32K39_ADC.h"
 #include "S32K39_STM.h"
-#define TI_PWM (IP_FLEXPWM_1)                  /* TODO(RTD) */
+#define TI_PWM (IP_FLEXPWM_1)
 #define PWM_R(reg) (TI_PWM->reg)               /* module registers: OUTEN, MASK, SWCOUT, ... */
-#define PWM_SM(n, reg) (TI_PWM->SUB[(n)].reg)  /* TODO(RTD): SUB[] / SM[] per the header */
+#define PWM_SM(n, reg) (TI_PWM->SUB[(n)].reg)
 #define SIUL2_MSCR(i) (IP_SIUL2->MSCR[(i)])
 #define SIUL2_IMCR(i) (IP_SIUL2->IMCR[(i)])
 #define STM_CNT() (IP_STM_0->CNT)
-/* REG_PROT areas (s32k396_cfg.h layout): module base + offset. TODO(RM): base symbols. */
+/* REG_PROT areas: module base + the s32k396_cfg.h offsets (checked there). */
 #define TI_PWM_BASE ((uintptr_t)IP_FLEXPWM_1)
 #define TI_SIUL2_BASE ((uintptr_t)IP_SIUL2)
 #define REGPROT_U8(base, ofs) (*(volatile uint8_t *)((base) + (ofs)))
@@ -105,7 +108,7 @@ extern ti_shadow_t g_ti_shadow; /* host syntax-check build only */
 #define TI_MSCR_SSS_MASK 0x7u  /* source signal select (ALT function) */
 
 /* IMCR routing of the FLT pins to eFlexPWM_1 FAULT0/FAULT2 (contract FW-15: "routed through the
- * SIUL2 input mux"): the values come from s32k396_board_cfg.h (TODO(RM)). A placeholder can never
+ * SIUL2 input mux"): the values come from s32k396_board_cfg.h (filled from the RM). A placeholder can never
  * reach a target image: the header #errors, and filled values must be non-zero with two different
  * IMCR indices. Other builds see the route as UNBOUND (hal_pwm_fault_route_bound() false). */
 #define TI_IMCR_ROUTE_BOUND                                                                              \
@@ -119,6 +122,6 @@ _Static_assert(TI_IMCR_ROUTE_BOUND, "s32k396_board_cfg.h: IMCR values must be no
 /* Platform-internal entry points (s32k396_io.c), called from s32k396_main.c. */
 bool s32k_gpio_init(void);
 bool s32k_timer_init(void);
-void s32k_sdadc_block_irq(void);
+void s32k_sdadc_dma_irq(hal_sd_ch_t ch); /* round 16: one per SDADC channel */
 
 #endif /* S32K396_H */

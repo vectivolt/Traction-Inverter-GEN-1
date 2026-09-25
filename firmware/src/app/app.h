@@ -2,7 +2,7 @@
  *   app_isr_current : PWM-synchronised, twice per PWM period (double update, 16–20 kHz SiC,
  *                     10 kHz IGBT): currents, V_DC, resolver, FOC, guards, PWM write.
  *   app_isr_fault   : eFlexPWM fault interrupt (FFLAG): FW-15 step 1, FW-06 ASC request, FW-05.
- *   app_task_1ms    : sensors, CAN, FS26 watchdog, fault manager, state machine, torque path.
+ *   app_task_1ms    : sensors, CAN (vehicle + UDS), FS26 watchdog, fault manager, state machine, torque path.
  *   app_idle        : NVM queue (never on a safety path).
  * One instance (g_app); the target vector table and the host simulation call the same code. */
 #ifndef APP_H
@@ -21,14 +21,18 @@
 #include "gate_power.h"
 #include "gate_selftest.h"
 #include "hvil.h"
+#include "vsup.h"
 #include "hwid.h"
 #include "ign.h"
 #include "state_machine.h"
+#include "uds.h"
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0D000Fu /* rev A.13, round 15: ADC1 now runs its injected chain next to V_DC ch2, so a
-                              * round-14 FW-06 chain measurement does not cover this image */
+#define TI_FW_ID 0x0A0F0011u /* rev A.15, round 17: a new image (zero current under the battery-lost row, the
+                              * FW-08 regen trim in RUN, the UDS service routine, the FS26 answer cadence, the
+                              * ASC-exit release wait, LV supply supervision) needs its own EOL/HIL record; the
+                              * FW-20 calibration record stays layout 2 */
 
 typedef struct {
     const ti_params_t *p;
@@ -42,6 +46,7 @@ typedef struct {
     vdc_t vdc;
     temp_t temp;
     hvil_t hvil;
+    vsup_t vsup;           /* round 17: LV supply (VSUP) supervision */
     ign_t ign;
     rslv_t rslv;
     foc_t foc;
@@ -50,6 +55,7 @@ typedef struct {
     /* comms, discharge */
     can_cmd_t can;
     can_dir_t dir;
+    uds_t uds;              /* FW-32: SecurityAccess + the service-lock routine on the diagnostic bus */
     dis_t dis;
     pch_t pch;
     /* safety */
@@ -89,6 +95,7 @@ typedef struct {
     volatile bool zero_now;
     float speed_rpm;
     bool speed_known;
+    bool rslv_seen;          /* the resolver was valid at least once: its speed may be held, its loss is "control lost" */
     uint32_t speed_valid_ms; /* last time the resolver speed was valid */
     float n_x_rpm;
     /* current offset self-test */
@@ -101,6 +108,7 @@ typedef struct {
     uint8_t tx_ctr;
     uint8_t swg_amp;
     uint32_t n_isr;
+    volatile uint32_t t_isr_us; /* entry of the last current-loop ISR (round 16 liveness) */
 } app_t;
 
 /* Retained across an MCU reset inside a key cycle (not across power-down). */

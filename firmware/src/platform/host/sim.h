@@ -18,6 +18,7 @@
 #include "can.h"
 #include "gpio.h"
 #include "pwm.h"
+#include "sdadc.h"
 #include "ti_types.h"
 
 /* ---------------- time and ISR hook ---------------- */
@@ -40,6 +41,9 @@ void sim_adc_freeze(hal_adc_sig_t sig, bool frozen); /* time stamp stops advanci
 /* Round 15: model the target's slow list — every input but the phase currents and V_DC reads "never
  * converted" (false, code 0) after hal_adc_init() until hal_adc_start_slow() has run. Default off. */
 void sim_adc_require_slow_start(bool on);
+/* Round 16 (A14-R03): bit k set = phase channel k (U, V, W) delivers no new conversion, as a stopped
+ * converter or BCTU does: hal_adc_read_phase() returns false and writes nothing. 0 = healthy. */
+void sim_adc_phase_stop(uint8_t mask);
 void sim_set_phase_currents(float ia, float ib, float ic); /* nominal HC5FW scaling */
 void sim_set_link_v(float v_ch1, float v_ch2);            /* nominal divider + VOFS 0.5 V */
 void sim_set_vofs(float v_pin);
@@ -58,19 +62,40 @@ void sim_vdc_ramp(float v0, float slope_v_per_us, uint32_t period_ns, uint32_t p
                   uint32_t conv_ns, uint32_t analog_lag_ns);
 uint64_t sim_vdc_ramp_crossing_ns(float v_link); /* when the true link crosses v_link */
 
-/* ---------------- resolver (SDADC blocks) ---------------- */
+/* ---------------- resolver: excitation chain, SDADC + eDMA (round 16) ---------------- */
 typedef struct {
     float theta0_rad;   /* resolver electrical angle at set time */
     float omega_rad_s;  /* resolver electrical speed */
-    float sincos_amp;   /* sin/cos carrier amplitude, codes (nominal 16000) */
-    float exc_amp;      /* monitor amplitude, codes (nominal 20000) */
     float lag_deg;      /* sin/cos carrier lag behind the monitor (card filter 24 deg) */
     float sin_gain;     /* per-channel gain error (1.0 nominal) */
     float cos_gain;
     float noise_code;   /* deterministic pseudo-noise amplitude */
+    float out_gain;     /* resolver output vs its EOL transformation ratio (1 nominal; 0.6 = amplitude fault) */
 } sim_resolver_t;
 void sim_resolver_set(const sim_resolver_t *r);
 void sim_resolver_glitch(float delta_rad); /* instantaneous angle jump */
+/* The excitation chain: SWG code x MAXAPP corner -> x 4.14 (MFB + bridge) = amplifier -> RSX 2.2 ohm per
+ * line -> monitor plane -> PTC per line -> primary (the winding). Defaults: 2.093 V pp (typical), 70 ohm,
+ * 1.3 ohm (cold). The monitor reads 2500 codes per V pp, the sin/cos 2074 codes per winding V pp. */
+void sim_swg_maxapp(float vpp);
+void sim_resolver_load(float r_pri_ohm, float r_ptc_ohm);
+void sim_exc_planes(float *amp_vpp, float *mon_vpp, float *wind_vpp); /* at the present code */
+float sim_exc_amp_vpp_max(void); /* largest amplifier amplitude the SWG has commanded since reset */
+/* Per-channel eDMA (A14-R02): each SDADC's DMA completes one block per carrier period into its own
+ * 4-slot ring and raises its own interrupt (1 us later by default), which runs the shared frame protocol
+ * (hal/sdadc.h). A channel can be frozen (its DMA stops), delayed (completes ns late), or completed at
+ * once; the interrupt latency can exceed a carrier period (interrupts held off: the DMA keeps writing).
+ * The read hook runs each time the reader fetches a channel's block (between its channel copies). */
+typedef void (*sim_sd_hook_fn)(hal_sd_ch_t ch);
+void sim_sdadc_freeze(hal_sd_ch_t ch, bool frozen);
+void sim_sdadc_delay_ns(hal_sd_ch_t ch, uint32_t ns);
+void sim_sdadc_irq_latency_ns(uint32_t ns);
+void sim_sdadc_complete_now(hal_sd_ch_t ch); /* its DMA completes now; the interrupt runs at once */
+void sim_sdadc_read_hook(sim_sd_hook_fn fn);
+void sim_sdadc_count_base(uint32_t count0);  /* block counters start here at the next hal_sdadc_init() */
+void sim_sdadc_tag(bool on);                 /* sample 0 of every block = its carrier period (& 0x3FFF) */
+const hal_sd_ring_t *sim_sdadc_ring(void);
+uint64_t sim_sdadc_period_index(void);       /* the carrier period now being acquired */
 
 /* ---------------- safety chain ---------------- */
 #define SIM_STUCK_FS0B_TERM 0x0001u    /* AND input sees FS0B permissive */
@@ -124,7 +149,7 @@ typedef enum { SIM_MASTER_CPU = 0, SIM_MASTER_DMA } sim_master_t;
 bool sim_pwm_reg_write(sim_pwm_reg_t r, uint16_t v, sim_master_t m);
 uint16_t sim_pwm_reg_read(sim_pwm_reg_t r);
 bool sim_pwm_prot_locked(void);
-/* The board configuration binds FLT_HS_N/FLT_LS_N to FAULT0/FAULT2 (the TODO(RM) values filled).
+/* The board configuration binds FLT_HS_N/FLT_LS_N to FAULT0/FAULT2 (s32k396_board_cfg.h filled from the RM).
  * Host default: UNBOUND — the FLT pins do not reach the PWM fault inputs and
  * hal_pwm_fault_route_bound() is false. */
 void sim_pwm_fault_route_bind(bool bound);
@@ -139,6 +164,7 @@ bool sim_pwm_hs_forced_off(void); /* a latched fault holds the high sides off (D
 bool sim_pwm_ls_forced_off(void); /* ... the low sides (DISMAP B) */
 uint64_t sim_pwm_hs_off_ns(void); /* last time the high sides were forced/turned off */
 uint64_t sim_pwm_asc_set_ns(void); /* last time PWM-ASC was applied */
+uint64_t sim_pwm_mod_ns(void);     /* last time modulation started (the first high-side pulse can come at once) */
 uint32_t sim_pwm_nan_writes(void);  /* duty writes rejected as non-finite (must stay 0) */
 
 /* ---------------- FS26 ---------------- */
@@ -149,9 +175,12 @@ typedef struct {
     bool dbg_mode;
     bool fs1b_short_high;   /* FAULT_OUT shorted to KL30 */
     bool gpio1_slotted;     /* wrong OTP: GPIO1 high at power-up */
+    float osc_error;        /* fail-safe oscillator off by this fraction (FFSOSC_ACC ±5 %, DS Table 143): every
+                               watchdog window lasts nominal / (1 + osc_error) */
 } sim_fs26_cfg_t;
 void sim_fs26_config(const sim_fs26_cfg_t *c);
 void sim_fs26_mcu_reset(void); /* WD reaction RSTB + FS0B: FS26 keeps its INIT registers and FS_GPIO1 */
+void sim_fs26_vsup(float v);   /* KL30 at the VSUP pin (13.5 V after a POR); the AMUX shows it once configured */
 bool sim_fs26_fs0b_asserted(void);
 bool sim_fs26_fs1b_asserted(void);
 bool sim_fs26_gpio1(void);

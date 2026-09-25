@@ -13,7 +13,11 @@
 #include "torque.h"
 #include "vdc.h"
 
-#define CALIB_LAYOUT_VERSION 1u
+/* 2 (round 16, A14-N01): the resolver record holds the monitor chain's gain (codes per V pp at the
+ * monitor plane) where version 1 held an EOL code count: a version-1 record is refused (no torque).
+ * TODO(EOL): the EOL station that measures and seals this record (current/V_DC gains and offsets, resolver
+ * trim, monitor gain and EOL ratio, motor data) is not in this repository; calib_seal is its side. */
+#define CALIB_LAYOUT_VERSION 2u
 
 #define CAL_ERR_MISSING 0x001u
 #define CAL_ERR_VERSION 0x002u

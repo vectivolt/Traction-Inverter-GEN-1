@@ -47,7 +47,6 @@ typedef struct {
     uint8_t isns_stuck;  /* bit k: phase k's sensor output stuck at its zero-current level (F24) */
     bool qdis_stuck_on;  /* the QDIS path conducts whatever the command (item 9) */
     float rslv_amp;      /* resolver sin/cos amplitude scale (1 nominal) */
-    float exc_scale;     /* SWG output vs EOL at the same code (1 nominal, 0 = 1) */
     uint32_t t_ms;
 } h_env_t;
 
@@ -67,6 +66,8 @@ bool h_to_run(float torque_nm);
 void h_set_speed(float rpm);
 void h_ramp_speed(float rpm, uint32_t ms); /* linear, within the resolver acceleration plausibility */
 void h_isr_only_us(uint32_t us);        /* advance time running only the current ISR */
+void h_tick(void);                      /* one tick of the grid (its ISRs, then the task): no VCU frame, no plant step */
+void h_isr_now(void);                   /* one current-loop ISR at once: a trigger preempting the task where it is */
 
 /* Unit-level helpers (no app): an initialised, released FS26 with its watchdog serviced. */
 bool h_fs_ready(fs26_t *fs, ti_params_t *p);

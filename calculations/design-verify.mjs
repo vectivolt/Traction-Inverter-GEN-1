@@ -226,8 +226,8 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     judge(sec, "V per wirewound", `${f(s.vMax / 4)} V`, "≥350 V axial class", (s.vMax / 4) / 350, 0.8);
     const pStuck = s.vMax ** 2 / ra;
     add(sec, "QDIS stuck ON with the battery connected", `${f(pStuck, 0)} W continuous (${f(pStuck / 4, 0)} W/resistor)`,
-      "not survivable by 10 W parts", "WARN",
-      "F23: bounded, not survived — firmware fires QDIS only with contactors reported OPEN + auto-timeout; a pre-existing FET short is caught at the next precharge (link plateaus ≈5 % low, abnormal τ); the fail-open flameproof wirewound class opens the string. Never demonstrated on a live battery");
+      "not survivable by 10 W parts — must not flame: TT/Welwyn SQP 'will not burn or emit incandescent particles under any condition of applied temperature or overload' (SQP.pdf)", "PASS",
+      "F23 / round 17: bounded, not survived, and now non-flaming by the manufacturer's statement for the bound RDIS part (SQP10-470RJB15); the Yageo SQP alternate states only a flameproof case, so it is an alternate only with the same statement or the overload test in docs/qualification-plan.md (VR-28 asks TT and Yageo for the qualification data). Firmware fires QDIS only with contactors reported OPEN + auto-timeout; a pre-existing FET short is caught at the next precharge (link plateaus ≈5 % low, abnormal τ) and at the next contactor opening (F157), latched as service-required");
   }
   add("Discharge — 8XX values", "QDIS stress", `${f(850 / 1880, 2)} A pk (4XX ${f(500 / 880, 2)} A)`, "1200 V / 42 A part", "PASS", "fully-enhanced switch, no linear region");
 }
@@ -252,7 +252,7 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     const pBank = 3 * (q * span * fs + span * P.drv.icc2Typ + span ** 2 / 5.1e3) + 0.2;
     const cW = cap(fosc, 0.9, 8e-6 / 3);
     judge("Gate drive", `Gate-power demand per bank, ${tag}`, `${f(pBank, 2)} W`, `${f(cW, 2)} W worst-part capacity (typ ${f(cap(fosc), 2)} W) at ${f(fosc / 1e3, 0)} kHz`, pBank / cW, 0.8,
-      "Qg·ΔV·f + ICC2 + 5.1 k bleeder per domain; F27: IGBT uses the full ±15 V Qg (no scaling); IGBT SKUs fit RT 8.2 k (~308 kHz)");
+      "Qg·ΔV·f + ICC2 + 5.1 k bleeder per domain; F27: IGBT uses the full ±15 V Qg (no scaling); IGBT SKUs fit RT 8.2 k (~308 kHz). The 20 kHz SiC option runs at 86 % of the worst-part flyback capacity — a margin statement, measured on the six-domain gate-supply bench of docs/qualification-plan.md (gate-power capacity at 20 kHz, KL30 9–16 V)");
   }
   judge("Gate drive", "Positive gate clamp (18 V zener + Vf)", "18.8 V", "+22 V abs Vgs (SiC) / ±20 V (IGBT)", 18.8 / 20, 0.95);
   judge("Gate drive", "Negative gate clamp (5.1 V zener + Vf)", "−5.9 V", "−10 V abs Vgs", 5.9 / 10, 0.85);
@@ -316,7 +316,7 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   judge("Flyback", "CS limit as the saturation guard", `${f(ilim, 2)} A`, `${P.xfmr.isat} A (Isat unpublished — guard band)`, ilim / P.xfmr.isat, 1.0, "bench-verify core at current limit");
   // start condition (review A.6 F18): the rail must push I_START AND the 71 k divider current into VDD at VDD_ON(max)
   const vNeed = (r) => P.pwm.uvloOnMax + r * P.pwm.istart;   // round 7: the 67 k divider hangs on FFS, not VDD
-  const v12at9 = OP.kl30.min - 0.95;                     // two reverse Schottkys + 3 polyfuses at ~1 A
+  const v12at9 = OP.kl30.min - 0.95;                     // two reverse Schottkys + the FLVC fuse + 2 chain polyfuses at ~1 A (round 17: FLVC is a fuse, ≤ 0.06 V at 2.5 A)
   judge("Flyback", "Start threshold at the 12 V node, worst (2.2 k)", `${f(vNeed(2.2e3), 2)} V needed`, `${f(v12at9, 2)} V at KL30 = 9 V`, vNeed(2.2e3) / v12at9, 0.99,
     `A.6 needed 7.95 V (divider on VDD). Burst-to-takeover energy is S1's job`);
   judge("Flyback", "Start resistor dissipation @24 V jump start", `${f((24 - vdd) ** 2 / 2.2e3, 3)} W`, "0.25 W (1206)", (24 - vdd) ** 2 / 2.2e3 / 0.25, 0.5,
@@ -332,9 +332,11 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   const vRefl = 21.4 / 2.9;             // secondary total reflected through NS -> NP
   judge("Flyback A.4", "Reflected voltage vs clamp-TVS standoff", `${f(vRefl, 1)} V`, "13 V SMAJ13A standoff",
     vRefl / 13, 0.75, "F38 — TVS must stay dark in normal OFF; dots per TDK p.3/9");
-  const vDrainLD = 39 + 21.5 + 0.7;     // clamped load-dump rail + TVS clamp + blocking Vf
-  judge("Flyback A.4", "Drain worst case (clamped load dump)", `${f(vDrainLD, 1)} V`, "80 V BUK7Y14-80E",
-    vDrainLD / 80, 0.85, "F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF)");
+  // round 17 (F189): the V12 rails are no longer clamped by a 24 V TVS — they ride the 35 V test-B plateau (≈ 34.2 V after
+  // DREVC, the polyfuses and DRx) and, for tens of µs, the pulse-2a peak CLVC3 holds on NRC (≤ 37.5 V, LV A.16)
+  const vDrainLD = Math.max(35, 37.5) - 0.8 + 21.5 + 0.7;     // rail + SMAJ13A clamp at its V_C + blocking Vf
+  judge("Flyback A.4", "Drain worst case (35 V test-B plateau / pulse-2a peak on the rail)", `${f(vDrainLD, 1)} V`, "72 V (BUK7Y14-80E: 80 V, V(BR)DSS 72 V at −55 °C)",
+    vDrainLD / 72, 0.85, "F38 — replaces SMBJ85A (94.4 V min breakdown, forward path in OFF); round 17: the rail is let through, no longer clamped at 39 V");
   // F39 DESAT clamp direction is topological (erc-audit); F40 ASC latch levels:
   // round 7 (A6-R01): FS1B holds V_OL ≤ 0.4 V only up to 2 mA and may current-limit at 4 mA. Budget at
   // V5A 5.1 V, 1 % parts. Round 8 (A7-N04): FS1B has no own pull-up — the RFS1/RFS2 strap is its pull-up.
@@ -412,10 +414,10 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   // ABIST refuses the release). 18 V/60 min (ISO 16750-2, T_max − 20 °C ≈ 65 °C) and a 24 V/60 s jump start at 25 °C.
   {
     const p18 = ((18 - 0.7) / 1e3) ** 2 * 1e3, p24 = (22e-3) ** 2 * 1e3;
-    const rth = (155 - 70) / 0.33, tEl24 = 25 + p24 * rth;   // element temperature from the rating's own slope
-    add("Safety A.9", "RFS4 with FS1B held a whole key-on (18 V/60 min at 65 °C · 24 V/60 s at 25 °C)", `${f(p18, 2)} W · ${f(p24, 2)} W (element ≈${f(tEl24, 0)} °C)`,
-      "0.33 W continuous at ≤ 70 °C (ESR03); 155 °C element", p18 > 0.33 || tEl24 > 155 ? "FAIL" : p24 > 0.33 ? "WARN" : "PASS",
-      `R9X-14: 18 V fits. The 24 V jump start runs the resistor at ${f(p24 / 0.33, 2)}× its nameplate for 60 s — under its 155 °C element limit at 25 °C but outside the rating, in a triple condition (FAULT_OUT shorted to KL30, a high-limit FS1B part, a jump start). Drift or an open only disconnects FAULT_OUT from an already-shorted wire, and the FS1B preset keeps working through the strap. Accepted; bench item`);
+    const pR = 0.5, rth = (155 - 70) / pR, tEl24 = 25 + p24 * rth;   // ESR18 (1206) 0.5 W at 70 °C (ROHM ESR series Rev.012); element temperature from the rating's own slope
+    add("Safety A.9", "RFS4 with FS1B held a whole key-on (18 V/60 min at 65 °C · 24 V/60 s at 25 °C) — 1206 anti-surge since round 17", `${f(p18, 2)} W · ${f(p24, 2)} W (element ≈${f(tEl24, 0)} °C)`,
+      "0.5 W continuous at ≤ 70 °C (ESR18EZPF, AEC-Q200); 155 °C element", p18 > pR || tEl24 > 155 ? "FAIL" : p24 > pR ? "WARN" : "PASS",
+      `R9X-14 / round 17: 18 V fits; the 24 V jump start runs the 1206 at ${f(p24 / pR, 2)}× its nameplate for 60 s — inside the rating (the 0603 ESR03 ran at 1.47×), in a triple condition (FAULT_OUT shorted to KL30, a high-limit FS1B part, a jump start). Drift or an open only disconnects FAULT_OUT from an already-shorted wire, and the FS1B preset keeps working through the strap. Accepted; bench item`);
   }
   // ---- round 9 (A8-N03 + cross-check R9X-07): FW-16 energy eligibility. The low-voltage V_DC reading is not
   // trusted: the chain is ≈ ±9 V uncalibrated at this level (MCU ADC alone ±3.3 V of bus). Either both channels
@@ -433,9 +435,9 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   // and 1 k + 100 nF drain-gate for a controlled turn-on slew. Sleep: V5A off → gate at source → off.
   {
     const nrc = (vk) => vk - 0.5, k = 10 / 14.7, rTh = 10e3 * 4.7e3 / 14.7e3;
-    const vgs = (vk) => Math.min(nrc(vk) * k, 15.6), [g6, g9, g16, g39] = [6, 9, 16, 39].map(vgs);
-    judge("LV A.9", "LV feed switch V_GS from NRC: KL30 6 / 9 / 16 / 39 V (clamped)", `−${f(g6, 1)} / −${f(g9, 1)} / −${f(g16, 1)} / −${f(g39, 1)} V`,
-      "±20 V V_GS max; ≥ 4.5 V for the 35 mΩ point", Math.max(g39 / 20, 4.5 / g9), 0.8,
+    const vgs = (vk) => Math.min(nrc(vk) * k, 15.6), [g6, g9, g16, g42] = [6, 9, 16, 42].map(vgs);
+    judge("LV A.9", "LV feed switch V_GS from NRC: KL30 6 / 9 / 16 / 42 V (pin-side clamp, round 17)", `−${f(g6, 1)} / −${f(g9, 1)} / −${f(g16, 1)} / −${f(g42, 1)} V`,
+      "±20 V V_GS max; ≥ 4.5 V for the 35 mΩ point", Math.max(g42 / 20, 4.5 / g9), 0.8,
       `at the 9 V crank floor the gate sits ${f(g9, 1)} V below the source (≤ 35 mΩ; 0.6 A → ≤ 13 mW); even at 6 V (${f(g6, 1)} V) it stays past V_GS(th) max 3 V. R9X-10: taken from NRC, not KL30`);
     const iLeak = 50e-6;   // 2N7002 off-state drain leakage at 85 °C, V_DS ≈ 12 V (vendors give ≤ 1 µA at 25 °C, up to 500 µA at 125 °C)
     judge("LV A.9", "LV feed switch held off by a hot 2N7002 (leakage × 10 k gate-source)", `${f(iLeak * 10e3, 2)} V at ${iLeak * 1e6} µA`,
@@ -446,12 +448,16 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
       "3 A (polyfuses, harness, VBATC dip)", i16 / 3, 0.6,
       `R9X-04: slew = gate current / 100 nF ≈ ${f(((nrc(12) * k - vPl) / rTh) / cM / 1e3, 0)} V/ms at 12 V; without it the gate-drain charge alone let 9–31 A through (2.5–4.4 mJ) and dipped VBATC ~2 V at every wake`);
     // whole-inverter sleep current with KL30 present (FS26 in LPOFF): FS26 30 µA typ (60 max at 85 °C), ULDOEX
-    // inhibited ≤ 10 µA, QLVS I_DSS ≤ 1 µA, 2N7002 ≤ 1 µA, TVS ≤ 1 µA at 25 °C; the power board is unpowered
-    const iSleep25 = 30e-6 + 10e-6 + 1e-6 + 1e-6 + 1e-6, iSleep85 = 60e-6 + 10e-6 + 1e-6 + iLeak + 5e-6;
+    // inhibited ≤ 10 µA, QLVS I_DSS ≤ 1 µA, 2N7002 ≤ 1 µA, TVS ≤ 1 µA at 25 °C; the power board is unpowered.
+    // Round 17: CLVC3 (100 µF hybrid polymer on NRC) — the ZC catalogue gives I ≤ 0.01·C·V at the RATED voltage (50 µA at
+    // 50 V); applied at 16 V it is 16 µA (an estimate, no working-voltage figure is published), doubled hot. The pin-side
+    // TVS pair conducts one leakage (the reverse-biased 33 V member), as the single TVS did.
+    const iClvc3 = 0.01 * 100 * 16 * 1e-6;
+    const iSleep25 = 30e-6 + 10e-6 + 1e-6 + 1e-6 + 1e-6 + iClvc3, iSleep85 = 60e-6 + 10e-6 + 1e-6 + iLeak + 5e-6 + 2 * iClvc3;
     const iQa = 2 * 16e-3 * 15 / 0.85 / 12;
     judge("LV A.9", "Parking drain, whole inverter (KL30 present, FS26 in LPOFF)", `≤ ${f(iSleep25 * 1e6, 0)} µA at 25 °C · ≤ ${f(iSleep85 * 1e6, 0)} µA at 85 °C`,
       "0.1 mA at 25 °C (OEM sleep budgets ≤ 0.1–1 mA per ECU)", iSleep25 / 0.1e-3, 0.8,
-      `N17 + R9X-03: before, the power board's LV side drew ≥ ${f(iQa * 1e3, 0)} mA from the QA01C-18 no-load inputs alone (≈150 mA in all) and ULDOEX kept the exciter at ≈0.9 mA; both now follow V5A. S1 start-up already starts VDD at 0 V, so a switched feed costs no start time`);
+      `N17 + R9X-03: before, the power board's LV side drew ≥ ${f(iQa * 1e3, 0)} mA from the QA01C-18 no-load inputs alone (≈150 mA in all) and ULDOEX kept the exciter at ≈0.9 mA; both now follow V5A. S1 start-up already starts VDD at 0 V, so a switched feed costs no start time. Round 17 adds CLVC3's leakage, ${f(iClvc3 * 1e6, 0)} µA estimated (0.01·C·V at 16 V; IR-39 asks the OEM for the hot budget)`);
   }
   // F41 KL15 sense:
   judge("LV A.4", "IGN_SNS at 16 V KL15", `${f((16 - 0.7) * 10 / 57, 2)} V`, "5 V ADC range",
@@ -471,10 +477,10 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     "F49 — pin 5 is SYNC, not a second VIN; 12 V there exceeds abs max");
   judge("LV A.4", "V15 behind ULDO15 @24 V jump start", "15.0 V", "18 V UCC14141-Q1 recommended max (16.5 V was the QA01C window)",
     15.0 / 16.5, 0.95, "F51 — boost pass-through clamped; LDO input 23.5 V << 40 V rating");
-  judge("LV A.4", "ULDO15 input at clamped load dump", "≈33 V", "40 V NCV4276C operating max",
-    33 / 40, 0.9, "F51 — TPSMC24CA clamp level on the 12 V node");
-  judge("LV A.7", "CB15O1/2 (V15B) at clamped load dump", "≈33 V", "50 V MLCC rating",
-    33 / 50, 0.8, "round 7 RR10 — V15B follows V12L−Vf in pass-through; the 25 V parts were overstressed");
+  judge("LV A.4", "ULDO15 input at the 35 V test-B plateau (let-through)", "≈33.8 V", "40 V NCV4276C operating max",
+    33.8 / 40, 0.9, "F51; round 17 (F189): 35 V less DREVC, the fuse and polyfuses, DRL and DB15 (≈ 1.2 V) — no TVS clamps the 12 V node below 35 V any more");
+  judge("LV A.7", "CB15O1/2 (V15B) at the 35 V test-B plateau", "≈33.8 V", "50 V MLCC rating",
+    33.8 / 50, 0.8, "round 7 RR10 — V15B follows V12L−Vf in pass-through; the 25 V parts were overstressed");
   judge("LV A.4", "ULDO15 dissipation @24 V sustained", `${f((24 - 0.5 - 15) * 0.33, 1)} W`, "TSD-protected (survival case, not an operating mode)",
     0.5, 0.9, "jump start is stationary service — brief V15 brown-out via TSD is acceptable; passive bleeder unaffected");
 
@@ -549,8 +555,10 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   const pLdo = (12 - 5) * i5;
   judge("LV", "NCV4276 dissipation @12 V", `${f(pLdo, 2)} W`, "~1.5 W DPAK on copper", pLdo / 1.5, 0.6);
   const iChain = pOutChainEstimate();
-  judge("LV", "Polyfuse hold (worst chain @9 V)", `${f(iChain, 2)} A`, "3 A hold", iChain / 3, 0.65);
-  add("LV", "Load-dump path", "TVS 24 V standoff, clamp ~39 V", "-", "PASS", "F25 — all 12 V-node MLCCs raised to 50 V rating; TPS55340 Vin abs 45 V rides the clamped pulse");
+  judge("LV", "Chain polyfuse hold (FVBL/FL1, worst chain @9 V, 85 °C)", `${f(iChain, 2)} A`, "1.50 A hold at 85 °C (MF-LSMF300/24X; 3.0 A is the 23 °C figure)", iChain / 1.5, 0.85,
+    "round 17 (F187): the row compared one chain with the 23 °C hold — FLVC, which carries the whole inverter, is judged in LV A.16");
+  add("LV", "Load-dump path", "let-through (round 17): 33 V/18 V stand-off TVS pair at the pin, 33 V TVS on the power board, 100 µF hybrid bulk on NRC", "-", "PASS",
+    "F25 — all 12 V-node MLCCs raised to 50 V rating; F189 — nothing clamps below the 35 V plateau and every downstream part is rated for it (TPS55340-Q1 VIN 38 V rec / 40 V abs — the earlier 45 V abs text was wrong)");
   function pOutChainEstimate() {
     const pFly = (3 * 1.0 + 0.3) / 0.78;
     const p15 = vb15 * iload15 / 0.85;
@@ -575,12 +583,17 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
   judge("Sensing", "Divider dissipation @850 V", `${f(pDiv * 1e3)} mW total`, "6× 1206 (250 mW ea)", (pDiv / 6) / 0.25, 0.5, `${f(OP.vbusMax / 6)} V per 200 V-rated 1206 — 71 %`);
   const vHall = P.hall.v0 + OP.iphPk * Math.SQRT2 * P.hall.sens;
   judge("Sensing", "Hall output at 480 A pk", `${f(vHall, 2)} V`, "0.3–4.7 V buffer swing", (vHall - 2.5) / 2.2, 0.75);
-  add("Sensing", "Hall ratiometric ref vs ADC ref", "V5S(V5A) vs VREF5", "-", "WARN", "two 5 V sources — ~±1–2 % gain drift between them; calibrate at EOL or move VREFH to V5A (GEN3 ships the same topology)");
+  add("Sensing", "Hall ratiometric ref vs ADC ref", "V5S(V5A) vs VREF5 — ±1–2 % gain drift after the EOL gain calibration (FW-20)", "±5 % torque-accuracy allocation (IR-26, docs/interface-requirements.md)", "PASS", "round 17: two 5 V sources; the static ratio is removed at EOL and the residual temperature drift is bounded inside the torque allocation; the safety checks (KCL stuck-channel, hardware OC) do not depend on it. GEN3 ships the same topology; moving VREFH_SAR_0123 to V5A would make the precision channels ratiometric too — not taken");
   // HVIL signatures
   add("Sensing", "HVIL signatures (drive hi/lo/open)", "3.0 / 2.0 / 2.5 V", "-", "PASS", "distinct at ±5 % R tolerance (worst separation 0.38 V)");
   const vmp = 4.0 * 12.1 / (12.1 + 4.99), vmn = 4.0 * 24 / (24 + 4.99);
   judge("Sensing", "Resolver monitor dividers @4 V pk", `${f(vmp, 2)} / ${f(vmn, 2)} V`, "5 V SDADC input", Math.max(vmp, vmn) / 5, 0.85);
-  add("Sensing", "Resolver drive @9 V KL30", "≈6.5 V pp available vs 8 V pp target", "-", "WARN", "ALM2402 swing at cold-crank INCLUDING ULDOEX dropout (~0.3 V @ ~150 mA, A.4.3) — angle still tracks (amplitude-invariant demod); GEN3-equivalent behavior");
+  {
+    const vexd9 = 9 - 0.45 - 0.25, vPk = 1.91, vNeed = 2.5 + vPk + 0.2;   // STPS5L60S ≈ 0.45 V, NCV4276C dropout ≈ 0.25 V at ~100 mA; ALM2402 swing limit 0.2 V at 200 mA (35 mA here)
+    judge("Sensing", "Resolver drive @9 V KL30 (round 17 recheck of the A.4.3 row)", `outputs centred on VMID_REX 2.5 V (V5A/2): ${f(2.5 - vPk, 2)}–${f(2.5 + vPk, 2)} V at the 7.64 V pp setpoint; VEXD ≈ ${f(vexd9, 1)} V at 9 V KL30`,
+      `VEXD ≥ ${f(vNeed, 1)} V (upper swing + 0.2 V rail margin)`, vNeed / vexd9, 0.85,
+      "the A.4.3 row assumed a single-ended drive centred on VEXD/2 with an 8 V pp target; since round 12 the two ALM2402 outputs swing ±1.91 V pk around the 2.5 V AFE mid-rail, so the rail only has to clear 4.6 V — any KL30 ≥ 5.3 V keeps the full amplitude. Cold crank is not an amplitude gap; the slew ceiling (2.07 V pk at −40 °C) is the binding limit and is independent of VEXD");
+  }
 }
 
 // ============ 7b. ROUND 12 — system review of 4544715 (docs/review-A11-disposition.md) ============
@@ -599,16 +612,22 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
       wMag > head ? "WARN" : "PASS",
       `round 12: rule (a) of §6 covers this motor only up to ${f(iOk, 0)} A rms at zero back-EMF; with back-EMF the decay is slower and the generated work adds 19–76 J (Opus check: 1098–1301 V at 340 A for E_LL,pk 300–800 V), and at E ≥ V₀ the current does not decay at all — a diode-bridge simulation with the real L_d(i)/L_q(i), ψ_f, R_s decides; otherwise rule (b). The reviewers' 300 µH/20 mΩ ODE from 850 V ends at 1038 V (8XX) / 667 V (4XX)`);
   }
-  // R2-F04: resolver exciter — textbook MFB (R1 10k in, R2 24k feedback, R3 10k, C1 1.5 nF to ground, C2 220 pF feedback)
+  // R2-F04: resolver exciter — textbook MFB (R1 10k in, R2 28k feedback since A.15 (was 24k), R3 10k, C1 1.5 nF to ground, C2 220 pF feedback)
   {
-    const R1 = 13e3, R2 = 24e3, R3 = 10e3, C1 = 1.5e-9, C2 = 220e-12, w = 2 * Math.PI * 10e3;   // R1 = REXA1 + REXA2: the 100 nF coupling is a short at 10 kHz
+    const R1 = 13e3, R2 = 28e3, R3 = 10e3, C1 = 1.5e-9, C2 = 220e-12, w = 2 * Math.PI * 10e3;   // R1 = REXA1 + REXA2: the 100 nF coupling is a short at 10 kHz
     const H = (c1, c2) => { const a = 1 - w * w * c1 * c2 * R2 * R3, b = w * c2 * (R2 + R3 + R2 * R3 / R1); return (R2 / R1) / Math.hypot(a, b); };
     const h = H(C1, C2), hs = [0.9, 1.1].flatMap((a) => [0.9, 1.1].map((b) => H(C1 * a, C2 * b)));
     const f0 = 1 / (2 * Math.PI * Math.sqrt(C1 * C2 * R2 * R3)), Q = Math.sqrt(C1 * C2 * R2 * R3) / (C2 * (R2 + R3 + R2 * R3 / R1));
     const swg = [1.884, 2.093, 2.302];   // S32K39 Table 40 MAXAPP min/typ/max, V pk-pk
-    add("Sensing A.11", "Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge)", `|H| ${f(h, 2)} (${f(Math.min(...hs), 2)}–${f(Math.max(...hs), 2)} over ±10 % caps) → ${f(2 * swg[1] * h, 1)} V pp differential (${f(2 * swg[0] * h, 1)}–${f(2 * swg[2] * h, 1)} over the SWG MAXAPP range)`,
-      "≥ 6.5 V pp (resolver minimum, gate ㉕); 8 V pp is the target, not a guarantee — the SWG MAXAPP low corner gives 7.0 V pp and the low-SWG/low-filter corner 6.5 V pp", "PASS",
-      `f0 ${f(f0 / 1e3, 1)} kHz, Q ${f(Q, 2)}, passband gain −${f(R2 / R1, 2)}. 24 k is the ceiling: the ALM2402's ≈0.13 V/µs slew at −40 °C caps each output near 2.07 V pk (8.3 V pp). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped — 4.7 nF from the output to the summing node and 24 k to the inverting input — a first-order 2 kHz roll-off with |H(10 kHz)| 0.18, i.e. ${f(2 * swg[1] * 0.178, 2)} V pp from the SWG maximum. OPA348: 1 MHz GBW gives ≈ ${f(1e6 / 10e3 / (1 + R2 / R1), 0)}× loop gain at 10 kHz; slew needed ${f(Math.PI * 10e3 * 2 * swg[1] * h, 3)} V/µs of 0.5`);
+    const kMon = 72.6 / 77, kWind = 70 / 77, kWindTrip = 70 / 84.4, slewPk = 0.13e6 / (2 * Math.PI * 10e3);   // planes: amplifier → monitor (after RSX) → winding (after the PTCs), cold / post-trip; −40 °C slew ceiling per output
+    const vAmp = swg.map((v) => 2 * v * h), vWindLow = vAmp[0] * kWind, target = 7.2, vAmpT = target / kMon, swgNeed = vAmpT / (2 * h);
+    add("Sensing A.11", "Resolver excitation at 10 kHz (SWG → MFB → ALM2402 H-bridge)", `|H| ${f(h, 2)} (${f(Math.min(...hs), 2)}–${f(Math.max(...hs), 2)} over ±10 % caps) → ${f(vAmp[1], 1)} V pp at the amplifier (${f(vAmp[0], 1)}–${f(vAmp[2], 1)} over the SWG range, untrimmed)`,
+      "the trim (FW-10) holds the MONITOR plane at 7.2 V pp; the resolver floor 6.5 V pp is at the WINDING", "INFO",
+      `f0 ${f(f0 / 1e3, 1)} kHz, Q ${f(Q, 2)}, passband gain −${f(R2 / R1, 2)} (round 16: 28 k, was 24 k / 1.85 — the SWG low corner gave 6.34 V pp at the winding through the RSX + PTC losses). Round 12 (R2-F04): the A.10 network had the MFB feedback pair swapped (|H| 0.18)`);
+    judge("Sensing A.15", "Excitation at the WINDING with the SWG at its LOW corner (1.884 V pp, trim saturated)", `${f(vWindLow, 2)} V pp (amplifier ${f(vAmp[0], 2)} × ${f(kWind, 3)}: RSX 2.2 Ω + PTC 1.3 Ω per line into 70 Ω)`, "≥ 6.5 V pp (gate ㉕)", 6.5 / vWindLow, 0.97,
+      "A14-R04 (review 3): the corner the round-15 row did not carry — with the 24 k it was 6.34 V pp. The 70 Ω primary is the screening assumption; the selected resolver's impedance decides (gate ㉕)");
+    judge("Sensing A.15", "FW-10 trim setpoint 7.2 V pp at the monitor: SWG amplitude needed vs its low-corner maximum", `${f(swgNeed, 3)} V pp (amplifier ${f(vAmpT, 2)} V pp = ${f(vAmpT / 2, 2)} V pk per output)`, `≤ 1.884 V pp (MAXAPP min) · ≤ ${f(2 * slewPk, 2)} V pp per output (−40 °C slew)`, Math.max(swgNeed / 1.884, (vAmpT / 2) / (2 * slewPk)), 0.98,
+      `winding ${f(target * 70 / 72.6, 2)} V pp cold, ${f(target * 70 / 80, 2)} V pp for an hour after a PTC trip (5 Ω) — the FW-10 window flags that state, as intended. The SWG ramps up from ≈ 1.5 V pp under the trim: the untrimmed max corner (${f(vAmp[2], 1)} V pp) would slew-limit`);
   }
   // R1-F03: hall open-wire signature — 100 k to AGND at the card input
   {
@@ -644,24 +663,44 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     add("Sensing A.13", "Excitation-monitor anti-alias filter (220 pF C_AAF across SDADC1, Thevenin 12.6 k / 14.8 k per leg)", `corner ${f(fcM / 1e3, 1)} kHz, −${f(phM, 1)}° at 10 kHz (SIN/COS −${f(phS, 1)}°)`, "R_AAF ≤ 20 kΩ per leg, C_AAF 180–220 pF (Table 38)", "PASS",
       `F05: the pair had no external capacitor. The ${f(phS - phM, 1)}° static offset between the demodulation reference and the signal channels is a fixed number, absorbed by the FW-20 phase calibration; the 220 pF ±5 % C0G stays ≥ 180 pF`);
     // F04: exciter output forced to battery through the harness — SMCJ8.5CA at the connector node + MF-MSMF020 PTC per line
-    const vbr = [9.44, 10.4], rdyn = (14.4 - 10.4) / 104.2, rPath = 0.35 + 0.5;   // round 15: TVS on the PROTECTED side — the fault reaches it through the PTC (MF-MSMF020/33X R_min 0.35 Ω) + harness 0.5 Ω; worst current uses R_min
+    const vbr = [9.44, 10.4], rdyn = (14.4 - 10.4) / 208.3, rPath = 0.35 + 0.5;   // round 17: SMDJ8.5A-HRA (3 kW, AEC-Q101): same V_BR window, V_C 14.4 V at I_PP 208.3 A (SMDJ-HRA-series.pdf p.2), r_dyn half the SMCJ's   // round 15: TVS on the PROTECTED side — the fault reaches it through the PTC (MF-MSMF020/33X R_min 0.35 Ω) + harness 0.5 Ω; worst current uses R_min
     const iF = (v) => (v - vbr[1]) / (rPath + rdyn), vCl = (v) => vbr[1] + iF(v) * rdyn;
     judge("Sensing A.13", "Exciter terminal fault — clamp at the protected node during the PTC trip window (PTC in the path, A13-R01)", `${f(vCl(24), 1)} V at 24 V (${f(iF(24), 1)} A) · ${f(vCl(35), 1)} V at 35 V (${f(iF(35), 1)} A ≤ 40 A PTC I_max)`, "≤ 12.8 V while VEXD is up (12.1 V rail + a diode) · 18 V output abs max", vCl(35) / 12.8, 0.95,
-      `F04: the amplifier's regulated 12.1 V rail does not protect an output pin forced by the harness (ALM2402 output abs max 18 V; its output diodes conduct reverse current only as pulses, DS §8.3.6 — the clamp below the rail avoids that entirely). SMCJ8.5CA V_BR ${vbr[0]}–${vbr[1]} V clears the 4–8 V excitation swing; the MF-MSMF020 (0.2 A hold, 30 V, AEC-Q200) trips in 0.06 s at 6 A and faster at these 30–70× overloads, then holds the TVS at ≈ 0.3–0.8 W. Line-to-ground shorts are the ALM2402's own current limit (≈ 750 mA). BENCH (gate ㉘): both lines, MCU on/off, 24 V/60 s and 35 V/400 ms`);
-    const eTvs24 = vCl(24) * iF(24) * 0.02, eTvs35 = vCl(35) * iF(35) * 0.01, capTvs = 400 * 0.02;   // MF-MSMF020/33X: 0.02 s at 8 A (sheet point) — both faults exceed 8 A, so ≤ 20 ms; SMC ≈ 400 W at 20 ms (1.5 kW/1 ms, 550 W/10 ms, Fig. 2)
-    judge("Sensing A.13", "Exciter TVS energy during the PTC trip window (PTC in the path)", `${f(eTvs24, 1)} J at 24 V (${f(vCl(24) * iF(24), 0)} W × ≤ 20 ms) · ${f(eTvs35, 1)} J at 35 V (${f(vCl(35) * iF(35), 0)} W × ≤ 10 ms)`, `≈ ${f(capTvs, 0)} J (SMC 1.5 kW at 1 ms, 550 W at 10 ms, 6.5 W steady)`, Math.max(eTvs24, eTvs35) / capTvs, 0.6,
-      "round 15 (A13-R01): the round-14 drawing had the TVS on the connector node, where a 24/35 V fault fed it 25/46 A (287/555 W) with nothing to interrupt — the PTC is now between the connector and the clamp. Trip time from the Bourns 8 A point (0.02 s); the bench (gate ㉘) measures it. If slower than 100 ms, the 3 kW 5.0SMDJ8.5CA fits the same pad");
-    // A13-R02: VEXD absent/cranking — the clamp is then ABOVE the rail and the ALM2402 reverse diode conducts through RSX
-    const iRev = (vCl(35) - 0.7) / 2.2, tRev = 22e-6 * (vCl(35) - 0.7) / iRev, eDiode = 0.7 * iRev * tRev;
-    judge("Sensing A.13", "Exciter back-drive with VEXD absent (reverse diode through RSX 2.2 Ω until CLDE charges)", `${f(iRev, 1)} A for ≈ ${f(tRev * 1e6, 0)} µs (${f(eDiode * 1e3, 2)} mJ in the diode), rail then ≈ ${f(vCl(35) - 0.7, 1)} V`, "diode: pulsed use only (DS §8.3.6); rail ≤ 18 V abs max", (vCl(35) - 0.7) / 18, 0.8,
-      "A13-R02: with the rail down the 'no back-drive' argument does not hold — RSX bounds the pulse and the pumped rail sits under the ALM2402 18 V abs max until the PTC trips. Bench gate ㉘: VEXD off / cranking / on, reverse rail current into ULDOEX measured (NCV4276C output-above-input behaviour is not specified)");
-    const iNeg = (vbr[1] - 0.7) / 2.2;
-    add("Sensing A.13", "Exciter negative terminal fault (line pulled below ground; bidirectional clamp −9.4…−10.4 V)", `lower reverse diode ≈ ${f(iNeg, 1)} A through RSX until the PTC trips (≤ 20 ms)`, "ALM2402 output −0.3 V abs; diode pulse only", "WARN",
-      "whether a negative fault exists on this connector is an OEM allocation (reverse-battery, inductive kick); RSX bounds it — gate ㉘ includes the negative case where allocated");
-    // amplitude at the resolver, now judged: 7.7 V pp designed, 70 Ω primary, RSX + PTC cold per line
-    const vpp = 7.7 * 70 / (70 + 2 * (2.2 + 1.3)), vppTrip = 7.7 * 70 / (70 + 2 * (2.2 + 5.0));
-    judge("Sensing A.13", "Excitation amplitude at the resolver through RSX + PTC (70 Ω primary)", `${f(vpp, 2)} V pp cold (${f(vppTrip, 2)} V pp for an hour after a trip)`, "≥ 6.5 V pp (gate ㉕)", 6.5 / vpp, 0.97,
-      "round 15: the 6.5 V pp floor is evaluated at the resolver, not at the amplifier; the monitor REXM now taps the protected node so the FW-10 window and the SWG trim see the same point; post-trip the FW-10 window flags the line (intended)");
+      `F04: the amplifier's regulated 12.1 V rail does not protect an output pin forced by the harness (ALM2402 output abs max 18 V; its output diodes conduct reverse current only as pulses, DS §8.3.6 — the clamp below the rail avoids that entirely). SMDJ8.5A-HRA (round 17; SMCJ8.5A in round 16, SMCJ8.5CA in round 15) V_BR ${vbr[0]}–${vbr[1]} V clears the excitation swing; the MF-MSMF020 (0.2 A hold, 30 V, AEC-Q200) trips in 0.06 s at 6 A and faster at these 30–70× overloads, then holds the TVS at ≈ 0.3–0.8 W. Line-to-ground shorts are the ALM2402's own current limit (≈ 750 mA). BENCH (gate ㉘): both lines, MCU on/off, 24 V/60 s and 35 V/400 ms`);
+    // Round 17 split (gap closure): a resolver line shorted to KL30 at up to 24 V (16 V nominal, 24 V jump start) is a SINGLE
+    // fault and must pass at ANY source impedance; 35 V only exists during an ISO 16750-2 test-B pulse (400 ms), so a short
+    // coincident with it is a DOUBLE event — stated in docs/interface-requirements.md and accepted, not a design gate.
+    const cap10 = 900 * 0.010;   // SMDJ (3 kW) Fig. 2 ends at 10 ms at ≈ 0.9–1.0 kW: 9 J — the only supported long-pulse point (the SMCJ it replaces: 550 W / 5.5 J); capability GROWS with width, so a 20 ms energy below it passes without extrapolation
+    const e24_10 = vCl(24) * iF(24) * 0.01, e24_20 = vCl(24) * iF(24) * 0.02, e35_10 = vCl(35) * iF(35) * 0.01, e35_20 = vCl(35) * iF(35) * 0.02;
+    add("Sensing A.15", "Exciter TVS energy — single fault (line shorted to KL30 up to the 24 V jump start), PTC clearing bounded by the 8 A / 20 ms sheet point", `${f(e24_10, 1)} J at ≤ 10 ms · ${f(e24_20, 1)} J at the 20 ms bound (${f(iF(24), 1)} A through the PTC)`, `${f(cap10, 1)} J supported at 10 ms (SMDJ 3 kW/1 ms, ≈ 0.9 kW/10 ms) — a lower energy over a longer pulse is inside the curve`,
+      e24_20 <= cap10 ? "PASS" : "WARN",
+      "round 17: the round-16 conditional row mixed the 24 V single fault with the 35 V load-dump case. At 24 V the 20 ms bound (all sheet trip points above 8 A are faster) puts less energy into the SMDJ8.5A-HRA than its 10 ms capability (it was already inside the 1.5 kW SMCJ's 5.5 J), so the single fault is closed on paper; docs/qualification-plan.md still records the clearing waveform (cold, hot, post-trip) as a characterisation, not a release gate");
+    add("Sensing A.15", "Exciter TVS energy — load-dump-coincident fault (35 V for ≤ 400 ms, ISO 16750-2 test B, AND a line short at the same time)", `${f(e35_10, 1)} J at ≤ 10 ms · ${f(e35_20, 1)} J at 20 ms (${f(iF(35), 1)} A)`, `${f(cap10, 1)} J supported at 10 ms by the 3 kW SMDJ8.5A-HRA (round 17 upgrade; the 1.5 kW SMCJ8.5A supported 5.5 J and left the 20 ms bound uncovered)`,
+      e35_20 <= cap10 ? "PASS" : "INFO",
+      "round 17: a short to a 35 V network exists only while a test-B pulse is on the harness — a double event (IR-16 / IR-33) — and the upgraded 3 kW SMDJ8.5A-HRA on the same SMC pad now covers even that energy at the 20 ms PTC bound without extrapolation, so the TVS side of the double event is closed on paper; the PTC I_max side stays the accepted double event (next row). VR-17 (pulse data beyond 10 ms) becomes informational");
+    const rSrcMin = (35 - vbr[1]) / 40 - 0.35, i24_0 = (24 - vbr[1]) / (0.35 + rdyn);
+    judge("Sensing A.15", "Exciter PTC current vs I_max 40 A — single fault at 24 V with ZERO external impedance", `${f(i24_0, 0)} A (V_BR max ${vbr[1]} V, PTC R_min 0.35 Ω, TVS r_dyn)`, "40 A (MF-MSMF020/33X I_max; trip-cycle life tested at V_max/I_max, no arcing or burning)", i24_0 / 40, 0.95,
+      "round 17: the single fault passes with no source-impedance allocation at all (the zero-impedance case is a bound — any real harness adds ≥ 50 mΩ; the 3 kW TVS's lower r_dyn raised this figure from 35 A) — the round-16 '≥ 0.27 Ω' requirement applied to the 35 V case only");
+    add("Sensing A.15", "Exciter PTC current vs I_max 40 A — load-dump-coincident fault (35 V)", `at 0.1 Ω external: ${f((35 - vbr[1]) / (0.1 + 0.35 + rdyn), 0)} A > 40 A · needs ≥ ${f(rSrcMin, 2)} Ω source + harness; V_max 33 V is also exceeded by 6 %`, "double event (IR-16 / IR-33)", "INFO",
+      "the PTC still trips (faster than at 8 A); above I_max its survival is not warranted — it may fail open, which the FW-10 amplitude window reports as a resolver fault (fail-safe, not fail-dangerous). Accepted as a double event; the OEM allocation is IR-16 and the PTC transient question VR-16");
+    // A13-R02 / A14-R02 / round 17: VEXD absent/cranking — the clamp is then ABOVE the rail. Round 17 adds DEXP/DEXN
+    // (Schottky, protected node → VEXD): with V_F ≈ 0.45 V they carry the exponential charge into the 26.7 µF rail instead
+    // of the ALM2402's internal reverse diodes (DS §8.3.6: pulsed use, no envelope) — a rated path with a datasheet I_FSM.
+    const cRail = 22e-6 + 4.7e-6, vFin = vCl(35) - 0.45, iRev0 = vFin / 2.2, tau = 2.2 * cRail, qRev = cRail * vFin, eDiode = 0.45 * qRev, eRsx = iRev0 ** 2 * 2.2 * tau / 2;
+    const ifsmClass = 70;   // PMEG4050EP-Q: I_FSM 70 A (8.3 ms half sine), V_F 0.49 V max at 5 A (SOD128, AEC-Q101); the 4.9 A / 59 µs exponential is ≈ 1/14 of that at 1/140 of the width
+    judge("Sensing A.15", "Exciter back-drive with VEXD absent — rated diversion (DEXP/DEXN Schottky to VEXD, round 17)", `${f(iRev0, 1)} A peak, τ = ${f(tau * 1e6, 0)} µs (99 % of the ${f(qRev * 1e3, 2)} mC by ${f(4.6 * tau * 1e6, 0)} µs); ${f(eDiode * 1e3, 2)} mJ in the Schottky, ${f(eRsx * 1e3, 1)} mJ in RSX; rail then ≈ ${f(vFin, 1)} V`,
+      `PMEG4050EP-Q I_FSM ${ifsmClass} A (8.3 ms) · NCV4276C output abs max 40 V with the input at 0 V (DS Maximum Ratings: V_Q −1…40 V) · ALM2402 18 V abs`, iRev0 / ifsmClass, 0.5,
+      "round 17 closes the round-16 OPEN row: the internal ALM2402 diodes (≈ 0.8 V at 5 A, Fig. 7) now share only the residual above the Schottky's 0.49 V max at 5 A; reverse-biased 8–12 V in service its leakage (300 µA max at 40 V/25 °C, graph at 125 °C) is a DC offset the amplifier sinks; the LDO's output-above-input case is specified (40 V abs), and the rail cannot exceed the TVS clamp. Gate ㉘ keeps the measurement as characterisation (reverse rail current into ULDOEX), no longer as a release gate");
+    const iNegTvs = (24 - 1.2) / (0.5 + 0.35), iNegAmp = (1.2 - 0.7) / 2.2;
+    judge("Sensing A.15", "Exciter negative terminal fault — UNIDIRECTIONAL SMDJ8.5A-HRA forward-conducts (node at −0.7…−1.2 V)", `TVS forward ≈ ${f(iNegTvs, 0)} A at −24 V until the PTC trips; amplifier lower diode ≈ ${f(iNegAmp, 2)} A through RSX (${f(iNegAmp ** 2 * 2.2 * 1e3, 0)} mW)`, "I_FSM 300 A (8.3 ms half sine — SMDJ-HRA sheet; the SMCJ had 200 A) · ALM2402 −0.3 V abs bounded by the diode", iNegTvs / 200, 0.8,
+      "round 16 (A14-R02): with the round-15 BIdirectional part a negative fault put 4.4 A (43 W) through the lower output diode and RSX for the PTC trip time — 0.9 J in a 1206; the excitation never goes below ground (4–8 V around VMID), so the unidirectional part is free. Negative faults themselves are an OEM allocation (gate ㉘)");
+    const iExMax = 7.2 / (2 * Math.SQRT2) / (60 + 2.6);   // 7.2 V pp at the monitor into the interface minimum Z_primary 60 Ω + two cold PTCs
+    judge("Sensing A.15", "Exciter PTC hold current (MF-MSMF020/33X, 0.07 A at 85 °C) vs the excitation current at the interface minimum resolver impedance", `≈ 34 mA rms with the 70 Ω screening resolver · ${f(iExMax * 1e3, 0)} mA rms at the 60 Ω interface minimum (IR-13, docs/interface-requirements.md)`, "70 mA at 85 °C (Bourns derating table — the /33X row; the unsuffixed 020 is 90 mA)", iExMax / 0.07, 0.8,
+      "round 17: the round-16 '60 mA assumed maximum' had no source; the resolver interface now states Z_primary ≥ 60 Ω at 10 kHz (IR-13), which bounds the excitation current at 58 % of the hot hold. The selected resolver is measured against it at qualification (docs/qualification-plan.md); a nuisance trip shows as the FW-10 amplitude window, not as a silent fault");
+    // amplitude planes (round 16, A14-N01): the monitor is on the protected node BEFORE the PTC — the winding sees less
+    const kW = 70 / 72.6, kWT = 70 / 80;
+    add("Sensing A.15", "Amplitude planes: monitor (protected node) vs winding", `monitor 7.2 V pp (trim setpoint) → winding ${f(7.2 * kW, 2)} V pp cold (× ${f(kW, 3)}), ${f(7.2 * kWT, 2)} V pp for an hour after a trip (× ${f(kWT, 3)})`, "≥ 6.5 V pp at the WINDING (gate ㉕); the post-trip state is flagged by FW-10", "INFO",
+      "the round-15 wording 'the monitor sees what the resolver gets' was too strong: the monitor does not observe the PTC or harness drop. EOL characterises monitor-to-terminal transfer with the real harness and sets the FW-10 window with that allowance");
     // F18: motor-temperature line shorted to KL30 — fuse + SMAJ5.0A + 1 k into the buffer
     const iMt = (24 - 8) / 1.0, iBuf = (9.2 - 5.3) / 1e3;
     judge("Sensing A.13", "Motor-temp line KL30 short: SMAJ5.0A carries the fault until FMT opens", `≈ ${f(iMt, 0)} A through ≈ 1 Ω (fuse + harness) · V_C ≤ 9.2 V`, "I_PP 43.5 A (400 W, 10/1000 µs)", iMt / 43.5, 0.8,
@@ -669,8 +708,8 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
     // F09: QDIS shorted with the battery connected — no software can interrupt it
     for (const [sku, v, r] of [["8XX", 850, 470], ["4XX", 500, 220]]) {
       const i = v / (4 * r), p = i * i * r;
-      add("Discharge", `Stuck-ON QDIS with the battery connected, ${sku}`, `${f(i, 2)} A · ${f(p, 0)} W per resistor (10 W rated)`, "resistor must fail open without flame (gate ㉖)", "WARN",
-        "F09: the software timeout is bypassed by a shorted switch; the firmware detects the unexpected discharge at the next contactor opening (latched DTC, no re-energisation) — the benign-failure test of the SQP10 at this power is the release evidence");
+      add("Discharge", `Stuck-ON QDIS with the battery connected, ${sku}`, `${f(i, 2)} A · ${f(p, 0)} W per resistor (10 W rated)`, "resistor must not flame (gate ㉖): TT/Welwyn SQP statement — no burning or incandescent particles under any overload (SQP.pdf)", "PASS",
+        "F09 / round 17: the software timeout is bypassed by a shorted switch; the firmware detects the unexpected discharge at the next contactor opening (latched DTC, no re-energisation); the no-flame property is the manufacturer's statement for the bound part, the fail-open time is a characterisation in docs/qualification-plan.md (VR-28; the Yageo alternate needs the same statement)");
     }
     // F07: short-circuit current-extinction budget = detection (blank + threshold + deglitch) + soft-off + current fall/tail
     const d = P.drv;
@@ -699,20 +738,104 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
       "3 mA per pin — the S32K39 operating AND absolute-maximum limit, in every power state", iPin[2] / 3e-3, 0.98,
       `round 12/13: the GEN3 330 Ω + 120 Ω let ${f(iOld * 1e3, 0)} mA in; the round-12 10 k held only the powered case (5.7 V clamp) — unpowered it was 3.42 mA. The VMID buffer sinks ${f(iBuf * 1e3, 1)} mA through the two 12 k bias resistors at 35 V (OPA348 ≈ 7 mA at 125 °C; it saturates toward V5A, an invalid-resolver state for FW-10). 220 pF C_AAF at the pins (S32K39 Table 38: 180 pF min) + 47 pF + 22 pF common-mode both legs → corner ${f(fc / 1e3, 0)} kHz, −${f(ph, 0)}° at 10 kHz on both channels; source 24 k vs Z_DIFF 215–380 k: gain ${f(gMin, 3)}–${f(gMax, 3)}, cancels only as far as the channels match — worst independent corners ${f(dTheta, 2)}° electrical, an EOL calibration item (FW-20), not "ratio-cancelled"`);
   }
-  // R1-F14/R2-F10 (Opus check): the LV-entry coordination under ISO 16750-2 test B (35 V, 400 ms, Ri 0.5–4 Ω).
-  // TVS I–V above breakdown: V ≈ V_BR + R_d·I with R_d ≈ (V_C − V_BR)/I_PP. Classic TPSMC24CA (V_BR 22.8–25.2 V, 33.2 V at
-  // 45.8 A) vs the 24 V stand-off TPSMC24CA-VR now bound (V_BR 26.7–29.5 V, 38.9 V at 38.6 A). No SMC datasheet rates a
-  // pulse beyond 1 ms; ≈110 W for 400 ms is an extrapolation of the 1.5 kW 10/1000 µs curve, quoted as such.
+  // Round 17 (F185–F189): LV entry by LOAD-DUMP LET-THROUGH. ISO 16750-2 test B is the test-A source (Us 79–101 V behind
+  // Ri 0.5–4 Ω, td 40–400 ms, tr 10 ms) clamped to Us* = 35 V by the central suppressor (Nexperia IAN50007, Diotec AN,
+  // TI TIDUC41). A local TVS that clamps BELOW 35 V competes with that clamp and takes the unsuppressed current, so every
+  // TVS on a KL30-derived net is dark at 35 V (ERC-locked) and everything downstream is rated for the plateau. Data:
+  // Littelfuse TPSMC-VR DS (V_BR, V_C at I_PP, αT), Vishay SM8S DS + EDN load-dump table (SM8S24A 50 A for 10 × 400 ms),
+  // FS26 Rev.3 Fig. 8 / Table 5 (36 V High Voltage Extended Operation, 40 V abs, WAKE −5 mA reverse DC), TPS55340-Q1
+  // SLVSBV5C (38/40 V), NCV4276C DS (Fig. 32/33 single-pulse R(t)), STPS5L60 DS2741 (P_ARM), Bel 0680L (I²t, derating),
+  // Panasonic ZC catalog (CLVC3).
   {
-    const tvs = (vbr, rd, ri) => { const i = Math.max(0, (35 - vbr) / (ri + rd)); return [i, i * (vbr + rd * i)]; };
-    for (const [name, vbr, rd] of [["classic TPSMC24CA", 22.8, (33.2 - 25.2) / 45.8], ["TPSMC24CA-VR", 26.7, (38.9 - 29.5) / 38.6]]) {
-      const [[i05, p05], [i2, p2], [i4, p4]] = [0.5, 2, 4].map((ri) => tvs(vbr, rd, ri));
-      add("LV A.11", `Load dump test B (35 V, 400 ms) into the ${name} + MF-LSMF300/24X polyfuse`, `${f(i05, 1)} A / ${f(p05, 0)} W at Ri 0.5 Ω · ${f(i2, 1)} A / ${f(p2, 0)} W at 2 Ω · ${f(i4, 1)} A / ${f(p4, 0)} W at 4 Ω`,
-        "no datasheet rating beyond 1 ms (≈ 110 W at 400 ms is an extrapolation of the 1.5 kW curve, quoted for scale only); polyfuse 3 A hold / 5.2 A trip, V_max 24 V", "WARN",
-        name.startsWith("classic")
-          ? "round 12, historical: the A.4 notes described this part — it conducts at the 24 V/60 s jump start (V_BR min 22.8 V) and at Ri ≤ 2 Ω takes ≥ 1.2× the extrapolated 400 ms capability; at 0.5 Ω the polyfuse trips inside the pulse (0.1–0.25 s hot), sees ≈ 30 V (V_max 24 V) and latches until a KL30 cycle — the archived sheet and the LCSC code were the -VR class, now bound explicitly"
-          : "round 12/13: dark at 24 V (V_BR ≥ 26.7 V); clamps ≤ 33 V — and the fitted TPS55340-Q1 is rated 38 V recommended / 40 V absolute (A11-R03: the 34 V used in round 12 was the non-Q1 part), so the rails tolerate the pulse either way. No SMC datasheet rates a pulse beyond 1 ms, so NO 400 ms case is covered on paper, 4 Ω included: gate ㉗ needs supplier long-pulse data or a test at the OEM's source resistance; below ≈ 1 Ω the polyfuse trips inside the pulse and sees ≈ 30 V. The polyfuse stays (the 33 V MF-LSMF260 holds 1.17 A hot against the 1.19 A worst chain)");
-    }
+    const LN10 = Math.log(10);
+    const TV = { vbr: [36.7, 40.6], vc: 53.3, ipp: 28.2, at: 0.097e-2 };     // TPSMC33A-VR (DTVSC) / TPSMC33CA-VR (DTVH/DTVL)
+    const TN = { vbr: [20.0, 22.1], vc: 29.2, ipp: 51.4, at: 0.088e-2 };     // TPSMC18A-VR (DTVSC2, negative leg)
+    const rdN = (TN.vc - TN.vbr[1]) / TN.ipp;
+    const vbrMin = (t, T) => t.vbr[0] * (1 + t.at * (T - 25));
+    const VF_TVS = 0.5;                                                     // forward drop of the series leg near the knee (≈ 1 mA)
+    const kneeCard = vbrMin(TV, 18) + VF_TVS, kneePwr = vbrMin(TV, 18), kneeCold = vbrMin(TV, -40);
+    // whole-inverter LV load: flybacks 2 × 4.23 W and boost 6.45 W at full gate load (the LV-budget rows), card 5.0 W (S32K396 V11
+    // 1.47 A max at 125 °C, DS Table 14, through the FS26 bucks, + the V5A/V3B/VREF loads), ULDOEX 0.15 A + UGDL 0.05 A linear;
+    // once V12L passes the boost setpoint the V15 load (0.356 A) is linear too
+    const P_CARD = 5.0, P_FLY = 2 * (3 * 1.0 + 0.3) / 0.78, VB15 = P.boost.vref * (1 + 110 / 9.53), I15 = 4 * (1 / 0.75) / 15, P_B15 = VB15 * I15 / 0.85;
+    const iLV = (v) => (P_CARD + P_FLY) / v + 0.15 + 0.05 + (v < VB15 + 0.8 ? P_B15 / v : I15);
+    const DROP_CARD = 0.35 + 0.05, DROP_V12 = DROP_CARD + 0.03 + 0.4, DROP_V15B = DROP_V12 + 0.4;   // DREVC + FLVC · + FVBL/FL1 + DRL · + DB15
+    const vNrcLD = 35 - DROP_CARD, vV12LD = 35 - DROP_V12, vV15BLD = 35 - DROP_V15B;
+    const ldOpen = (t, us, td = 0.4) => 14 + (us - 14) * (t < 0.01 ? t / 0.01 : Math.exp(-(t - 0.01) / (td / LN10)));
+    const tPlat = 0.01 + (0.4 / LN10) * Math.log((101 - 14) / (35 - 14));
+    // (1) the absorb alternative, kept as the reason for the change (INFO)
+    const absorb = (vbr, rd, ri, model, us) => { let ipk = 0, e = 0;
+      for (let t = 0; t < 1.2; t += 1e-4) { const vo = ldOpen(t, us), vs = model === "T" ? Math.min(vo, 35) : vo, i = Math.max(0, (vs - vbr) / (ri + rd)); ipk = Math.max(ipk, i); e += i * (vbr + rd * i) * 1e-4; }
+      return [ipk, e]; };
+    const tab = (vbr, rd) => [0.5, 2, 4].map((ri) => { const [iT, eT] = absorb(vbr, rd, ri, "T", 101), [iP79] = absorb(vbr, rd, ri, "P", 79), [iP101, eP] = absorb(vbr, rd, ri, "P", 101);
+      return `Ri ${ri} Ω: ${f(iT, 1)} A / ${f(eT, 0)} J (35 V behind Ri) · ${f(iP79, 0)}–${f(iP101, 0)} A / ≤ ${f(eP, 0)} J (clamp in parallel)`; }).join(" · ");
+    add("LV A.16", "Test B by ABSORPTION — why the entry changed (24 V stand-off TVS, Us 79/101 V, td 400 ms)",
+      `TPSMC24CA-VR (SMC): ${tab(26.7, (38.9 - 29.5) / 38.6)} ‖ SM8S24A (DO-218AB): ${tab(26.7, (38.9 - 29.5) / 170)}`,
+      "SMC: no rating beyond 1 ms (1.5 kW at 1 ms extrapolates to ≈ 112 W at 400 ms); SM8S24A 50 A for 10 × 400 ms (Vishay load-dump table)", "INFO",
+      `round 17 (F189): the result hinges on how the generator makes Us* — a 35 V source behind Ri, or the unsuppressed 79–101 V source with the 35 V clamp in parallel (the alternator physics, and the parameter set ISO 16750-2 gives for test B). In the second model any local clamp below 35 V takes the full unsuppressed current: the SM8S24A holds only for Ri ≳ 1.5 Ω, the SMC part at no Ri. Let-through removes the dependence; the rows below carry the ${f(tPlat * 1e3, 0)} ms plateau of Us 101 V / td 400 ms`);
+    // (2) the knee and what the plateau does to the load and the parts on it
+    judge("LV A.16", "Test B: KL30 pin-side TVS knee (DTVSC V_BR,min at 18 °C + DTVSC2 forward) vs Us* + 1 V", `${f(kneeCard, 2)} V`, "≥ 36 V (Us* 35 V + generator tolerance; ISO 16750-2 test B at RT)", 36 / kneeCard, 0.99,
+      `the TVS draws 0 A at every Ri 0.5–4 Ω in both generator models, so no Ri is required of the OEM (IR-03). At −40 °C the knee is ${f(kneeCold + VF_TVS, 1)} V (a cold central clamp also sits lower); the old TPSMC24CA-VR knee was 26.7 V`);
+    const iPl = iLV(vNrcLD), iL = P_FLY / 2 / vV12LD + I15 + 0.05, iH = P_FLY / 2 / vV12LD, fuseRer = 5 * 0.98 * 0.8;
+    judge("LV A.16", "Test B: inverter LV current at the 35 V plateau vs FLVC and the chain polyfuses", `${f(iPl, 2)} A (L chain ${f(iL, 2)} A · H chain ${f(iH, 2)} A)`,
+      `FLVC ${f(fuseRer, 2)} A rerated (5 A × 0.98 at 85 °C × 0.8); FVBx/FHx 1.50 A hold at 85 °C`, Math.max(iPl / fuseRer, iL / 1.5), 0.8,
+      "nothing trips during the pulse, so no fuse or polyfuse V_max applies (the 24 V polyfuse V_max mattered only because the old TVS drew the dump through it)");
+    judge("LV A.16", "Test B: FS26 VSUP / VSUP_PWR at the 35 V plateau", `${f(vNrcLD, 2)} V`, "36 V — FS26 High Voltage Extended Operation, full function for a limited time (DS Rev.3 Fig. 8); 40 V abs", vNrcLD / 36, 0.95,
+      "the datasheet names load dump as the use case but gives no duration for its limited period; the design needs 5 × ≤ 0.4 s — VR-29 (NXP). VSUPOV_I latches at 19.3–20.7 V: an interrupt, not a fault reaction");
+    judge("LV A.16", "Test B: TPS55340-Q1 VIN / EN at the 35 V plateau (V12L)", `${f(vV12LD, 2)} V`, `${P.boost.vinRec} V recommended / ${P.boost.vinAbs} V abs (SLVSBV5C §6.3/§6.1)`, vV12LD / P.boost.vinRec, 0.95,
+      "in pass-through (V12L above the 15.4 V setpoint) SW ≈ VIN; the DS pin table still reads VIN 2.9–32 V against the 38 V table — VR-30 (TI)");
+    judge("LV A.16", "Test B: DB15 (SS34) reverse when the boost restarts at the end of the dump", `${f(vV15BLD, 2)} V`, "40 V V_RRM (SS34)", vV15BLD / 40, 0.9,
+      "V15B holds the plateau value on CB15O while V12L falls back; the switch closing puts it across the diode");
+    // (3) linear-regulator junctions through the plateau: superposition of the onsemi single-pulse R(t) (NCV4276C DS Fig. 32
+    // DPAK-5 / Fig. 33 D2PAK-5, 736/788 mm² curves read at the decades) over min(test-A profile, 35 V) at Us 101 V, td 400 ms
+    const zt = (tz, t) => { if (t <= tz[0][0]) return tz[0][1] * t / tz[0][0];
+      for (let j = 1; j < tz.length; j++) if (t <= tz[j][0]) { const [t0, z0] = tz[j - 1], [t1, z1] = tz[j], a = Math.log(t / t0) / Math.log(t1 / t0); return Math.exp(Math.log(z0) + a * Math.log(z1 / z0)); }
+      return tz[tz.length - 1][1]; };
+    const Z_DPAK = [[1e-3, 3.2], [1e-2, 6.5], [0.1, 8.5], [0.3, 9.5], [1, 11], [3, 13.5], [10, 17], [100, 45], [1000, 58.5]];
+    const Z_D2PAK = [[1e-3, 3.0], [1e-2, 5.8], [0.1, 6.8], [0.3, 7.5], [1, 8.5], [10, 13], [100, 35], [1000, 43.3]];
+    const dTj = (pAt, tz) => { const dt = 2e-3, n = 750, ps = Array.from({ length: n }, (_, j) => pAt(j * dt)); let best = 0;
+      for (let k = 0; k < n; k++) { let s = 0, prev = 0; for (let j = 0; j <= k; j++) { const dp = ps[j] - prev; prev = ps[j]; if (dp) s += dp * zt(tz, (k - j + 1) * dt); } best = Math.max(best, s); }
+      return best; };
+    const rail = (t, drop) => Math.min(ldOpen(t, 101), 35) - drop;
+    const p15 = (t) => Math.max(0, rail(t, DROP_V15B) - 15.0) * I15, p0 = (VB15 - 15.0) * I15;
+    const dD2 = dTj(p15, Z_D2PAK), dDP = dTj(p15, Z_DPAK), tj = 85 + p0 * 43.3 + dD2, tjDpak = 85 + p0 * 58.5 + dDP;
+    judge("LV A.16", "Test B: ULDO15 junction, D2PAK-5 (85 °C ambient, V15 0.356 A, Us 101 V / td 400 ms)", `${f(tj, 0)} °C (+${f(dD2, 0)} K from ${f(p15(0.05), 1)} W)`, "150 °C (NCV4276C Tj max; TSD 150–210 °C)", tj / 150, 0.95,
+      `F189: in DPAK-5 the same pulse reaches ${f(tjDpak, 0)} °C — over the 150 °C maximum, so ULDO15 moves to NCV4276CDSADJR4G. The single-pulse curves are read from the DS figures and the V15 load is the conservative 4 × 1 W class figure; the thermal first article measures it at 35 V`);
+    const pEx = (t) => Math.max(0, rail(t, DROP_CARD) - 12.1) * 0.06, pGd = (t) => Math.max(0, rail(t, DROP_V12) - 5.0) * 0.05;
+    const tjEx = 85 + (13.5 - DROP_CARD - 12.1) * 0.06 * 58.5 + dTj(pEx, Z_DPAK), tjGd = 85 + (13.5 - DROP_V12 - 5.0) * 0.05 * 58.5 + dTj(pGd, Z_DPAK);
+    judge("LV A.16", "Test B: ULDOEX / UGDL junction (DPAK-5, 85 °C ambient)", `${f(tjEx, 0)} °C (${f(pEx(0.05), 1)} W) / ${f(tjGd, 0)} °C (${f(pGd(0.05), 1)} W)`, "150 °C", Math.max(tjEx, tjGd) / 150, 0.9,
+      "ULDOEX at the IR-13 bound (≤ 42 mA rms excitation + ALM2402 quiescent ≈ 60 mA); UGDL at the 50 mA V5GD budget; steady part on the 58.5 K/W pad");
+    // (4) fast pulses on the let-through entry
+    const p2a = (us, c, tdTo) => { const a = (tdTo === 10 ? LN10 : Math.LN2) / 50e-6, b = 1 / (2 * c), ts = Math.log(b / a) / (b - a);
+      return 13.5 + us * b / (b - a) * (Math.exp(-a * ts) - Math.exp(-b * ts)); };
+    const cEff = 100e-6 * 0.8 + 12e-6, cMl = 12e-6;                  // CLVC3 at −20 % + card MLCCs at bias (QLVS off: power-board caps not counted)
+    const [pk50, pk10, pkNo] = [p2a(112, cEff, 2), p2a(112, cEff, 10), p2a(112, cMl, 2)];
+    judge("LV A.16", "Pulse 2a (+112 V / 2 Ω, 50 µs) on NRC — closed form ΔV = Us·b/(b−a)·(e^(−a·t*) − e^(−b·t*)), t* = ln(b/a)/(b−a)",
+      `${f(pk50, 1)} V (td read to 50 %) · ${f(pk10, 1)} V (td to 10 %); C_eff ${f(cEff * 1e6, 0)} µF`, `40 V (FS26 VSUP, TPS55340-Q1 VIN abs); TVS knee ${f(kneeCard, 2)} V`, pk50 / 40, 0.95,
+      `a = ln10 or ln2 over td, b = 1/(Ri·C_eff); C_eff = CLVC3 at −20 % + the card MLCCs at bias, QLVS off (the power board's ≈ 14 µF adds when it is on). Without CLVC3 the same pulse reaches ${f(pkNo, 0)} V — the bead and MLCCs do not attenuate a 50 µs pulse. Us = +112 V is the 2011 upper level quoted from secondary sources (2004 levels +37/+50 V, TIDUC41) — IR-38`);
+    const i1 = (150 - TN.vbr[1] - 1.0) / (10 + rdN), vNeg1 = TN.vbr[1] + rdN * i1 + 1.0;
+    let e1 = 0; for (let t = 0; t < 4e-3; t += 1e-6) { const i = Math.max(0, (150 * Math.exp(-t / (2e-3 / LN10)) - TN.vbr[1] - 1.0) / (10 + rdN)); e1 += i * (TN.vbr[1] + rdN * i + 1.0) * 1e-6; }
+    const i3 = (220 - TN.vbr[1] - 1.0) / (50 + rdN), vNeg3 = TN.vbr[1] + rdN * i3 + 1.0;
+    const pOld = (13.5 + 150 - 70) / 10 * 70;
+    judge("LV A.16", "Pulse 1 (−150 V / 10 Ω, 2 ms) — reverse voltage on DREVC behind the pin-side pair", `${f(13.5 + vNeg1, 1)} V (FCO at −${f(vNeg1, 1)} V, ${f(i1, 1)} A)`, "60 V V_RRM (STPS5L60S)", (13.5 + vNeg1) / 60, 0.8,
+      `F185: V_BR,max(DTVSC2) + R_d·I + V_F(DTVSC) with NRC still at 13.5 V; ${f(e1, 2)} J in DTVSC2 (${f(vNeg1 * i1, 0)} W peak vs 1.5 kW at 10/1000 µs). Before, the TVS sat behind DREVC: the Schottky avalanched at ≈ ${f(pOld, 0)} W against P_ARM 144 W (10 µs, 125 °C; ≈ 5.8 W at 1 ms, DS Fig. 3). A single 33 V bidirectional part at the pin would leave 58.8 V (0.98)`);
+    judge("LV A.16", "Pulse 3a (−220 V / 50 Ω) — reverse voltage on DREVC", `${f(13.5 + vNeg3, 1)} V (${f(i3, 1)} A)`, "60 V V_RRM", (13.5 + vNeg3) / 60, 0.8, "the 150 ns pulses of 3a/3b move the NRC bulk by millivolts");
+    judge("LV A.16", "Reverse battery −14 V / 60 s vs the negative-leg knee (DTVSC2 at −40 °C)", `14 V vs ${f(vbrMin(TN, -40), 2)} V`, "dark (no conduction)", 14 / vbrMin(TN, -40), 0.9,
+      "DREVC blocks the rest; KL15 is blocked by DIGN (US1M)");
+    judge("LV A.16", "Test B: DTVH/DTVL (TPSMC33CA-VR) dark at the V12 plateau", `${f(vV12LD, 2)} V vs ${f(kneePwr, 2)} V knee (18 °C)`, "below the knee", vV12LD / kneePwr, 0.97,
+      "the power-board TVSs sit behind DREVC, the chain polyfuses and DRH/DRL; a 24 V part here would take the dump through FVBx/FHx");
+    add("LV A.16", "Jump start 26 V / 60 s (ISO 16750-2:2023, RT and T_min) vs the lowest KL30 TVS knee", `26 V vs ${f(kneeCold, 1)} V at −40 °C (${f(26 / kneeCold * 100, 0)} % of the knee)`, "IR-02 stays 24 V (2012 edition)", "INFO",
+      `the 2023 edition raises the jump start to 26 V and adds T_min; the old TPSMC24CA-VR knee was ${f(26.7 * (1 - 0.00092 * 65), 1)} V at −40 °C (it would conduct for the whole minute). Rows sized at 24 V that change at 26 V: flyback start resistor ${f((26 - 10.9) ** 2 / 2.2e3, 3)} W (0.25 W 1206), ULDO15 ${f((26 - 0.5 - 15) * 0.33, 1)} W (TSD survival case), RFS4 with FS1B held (Safety A.9), the exciter single-fault TVS/PTC rows (Sensing A.15)`);
+    // (5) FLVC — the fuse that replaces the undersized polyfuse (Bel 0680L5000-05: 5 A slow blow, 36 A²s < 10 ms, ≈ 98 % at 85 °C)
+    const i9 = iLV(9 - 0.5), i135 = iLV(13.5 - 0.5);
+    judge("LV A.16", "FLVC continuous current at 85 °C: 9 V crank / 13.5 V (whole inverter)", `${f(i9, 2)} A / ${f(i135, 2)} A`, `${f(fuseRer, 2)} A (5 A × 0.98 at 85 °C × 0.80 continuous)`, i9 / fuseRer, 0.8,
+      `F187: the MF-LSMF300/24X it replaces holds 1.50 A at 85 °C (${f(i9 / 1.5, 2)}× at 9 V, ${f(i135 / 1.5, 2)}× at 13.5 V) — the old row compared one chain with the 23 °C hold. Load model: flybacks 2 × 4.23 W, boost 6.45 W, card 5.0 W constant-power + 0.2 A linear`);
+    const cIn = (4.7 + 22 + 100) * 1.1e-6, i2tPlug = 16 ** 2 * cIn / (2 * 0.03), i2t2a = ((125.5 - 20) / 2) ** 2 * (50e-6 / LN10) / 2, i2t1 = i1 ** 2 * (2e-3 / LN10) / 2;
+    judge("LV A.16", "FLVC I²t: KL30 hot-plug into CLVC1–3 (16 V, 30 mΩ loop) / pulse 2a / pulse 1", `${f(i2tPlug, 2)} / ${f(i2t2a, 3)} / ${f(i2t1, 3)} A²s`, "36 A²s melting (< 10 ms, Bel 0680L5000)", i2tPlug / 36, 0.2,
+      "each ≤ 2 % of melting (pulse 2a repeats 500×: 0.1 % per hit); a hard short behind the fuse (≥ 90 A at 13.5 V through 0.15 Ω) is > 18 × I_n: open in 0.01–0.1 s, inside the 500 A / 75 V DC interrupting rating");
+    // (6) KL15: the WAKE1 path behind the blocking diode
+    judge("LV A.16", "KL15 pulse 1 (−150 V / 10 Ω): DIGN reverse and the WAKE1 pin", `${f(150 + 13.5, 0)} V on DIGN (US1M) · WAKE1 ≥ 0 V`, "1000 V (US1M); WAKE1 −0.3 V abs min, −5 mA reverse DC (FS26 Table 5)", (150 + 13.5) / 1000, 0.8,
+      `F188: RIGN1 now hangs behind DIGN, so neither pulse 1 nor a reversed KL15 reaches WAKE1 — before, 5.1 k straight from KL15 took ≈ ${f(150 / 5.1e3 * 1e3, 0)} mA at pulse 1 (${f(150 / 5.1e3 / 5e-3, 1)}× the −5 mA rating) and ${f((14 - 0.7) / 5.1e3 * 1e3, 1)} mA at a reversed battery. The added diode drop leaves WAKE1 at ${f((6 - 0.6) * 10 / 15.1, 2)} V for a 6 V KL15 (V_IH 3.5 V at the high-threshold OTP, 2.0 V at the low)`);
   }
   // R1-F06/R2-F05: the IGBT SC rating is a test condition, not a corner guarantee
   add("Power stage — all SKUs", "IGBT short-circuit rating condition vs the design corner", "6 µs at 800 V / 15 V / 175 °C (hiitio DS)", "design corner 850 V / VCC2 up to 16.7 V", "WARN",
@@ -723,7 +846,7 @@ add("Regeneration, battery path lost — budget", "FW-06 latency to the ASC requ
 {
   add("Safety", "FS0B → driver EN path", "2 gate delays (~20 ns) + driver td", "-", "PASS", "no software; erc-verified topology");
   add("Safety", "ASC latch power", "V5A + RASCP default-low", "-", "PASS", "survives MCU reset; FS1B can SET via RFS1");
-  add("Safety", "ASC drive path", "VOW3120 + UCC14141-Q1 + 5.1 V clamp, DCN-referenced", "-", "WARN", "DS 1.2 confirms ASC forces OUTH high at a GND2-referenced 0-5 V pin (F28 level fix applied); behaviour DURING VCC2-UVLO is unspecified — bench-verify that gate power (SBC-held flybacks) is sufficient for ASC hold");
+  add("Safety", "ASC drive path", "VOW3120 + UCC14141-Q1 + 5.1 V clamp, DCN-referenced", "-", "WARN", "DS 1.2 confirms ASC forces OUTH high at a GND2-referenced 0-5 V pin (F28 level fix applied); behaviour DURING VCC2-UVLO is unspecified — NOVOSENSE statement requested (VR-09, docs/vendor-requests.md) and the ASC-hold measurement with SBC-held gate power is a procedure in docs/qualification-plan.md");
   add("Safety", "Default-OFF discipline", "11 pulldowns power + 4 card", "-", "PASS", "erc-verified");
 }
 
@@ -744,7 +867,7 @@ A WARN is an item this analysis cannot close on paper — each names its bench o
 Every SKU of the platform (8XX/4XX × SiC/IGBT — \`loss-model.mjs\`) is checked on the
 same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also runs.
 
-## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review · F135–F142 rev A.12 rechecks, pin freeze and production closure · F143–F158 rev A.13 round 14 · F159–F166 rev A.14 round 15 (three rechecks of a8c75eb, two firmware self-finds) — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
+## Findings log (F1–F36 rev A.3 campaign · F37–F46 rev A.4 · F47–F51 rev A.4.1 · F52–F57 rev A.4.2 · F58–F59 rev A.4.3 · F60–F62 rev A.5 docs audit · F63–F76 rev A.6 external review round 6 · F77–F89 rev A.7 review round 7 · F90–F97 rev A.8 review round 8 · F98–F105 its cross-check · F106–F113 rev A.9 review round 9 · F114–F119 its cross-check · F120–F122 rev A.10 schematic rechecks · F123–F134 rev A.11 system review · F135–F142 rev A.12 rechecks, pin freeze and production closure · F143–F158 rev A.13 round 14 · F159–F166 rev A.14 round 15 · F167–F173 rev A.15 round 16 (three rechecks of 32214be) · F174–F184 rev A.16 round 17 (gap closure) · F185–F189 rev A.16 round 17 (LV entry: test-B let-through, pulses 1/2a, FLVC, KL15) — all fixed; review cross-reference in [\`review-A6-disposition.md\`](review-A6-disposition.md), [\`review-A7-disposition.md\`](review-A7-disposition.md) and [\`review-A8-disposition.md\`](review-A8-disposition.md))
 
 | # | Severity | Finding | Fix |
 |---|---|---|---|
@@ -825,6 +948,29 @@ same PCBs; losses and thermal use the shared model that \`sim-verify.mjs\` also 
 | F164 | **HIGH** | Round 15 (review-3 A13-R02): the contactor-loss detector required n ≥ n_x, so a known low-speed OPEN/INVALID contactor report did not raise the battery-path-lost row, and st_run() kept arm/torque_enable for the same invocation | loss detected at any speed while armed (OPEN/INVALID/stale explicit); ordinary torque permission removed in the same invocation; the §6 policy selects the response |
 | F165 | **HIGH** | Round 15 (self-found while deriving the ADC schedule from the ball map): ADC1's injected chain was never started, so MT2_SIG, INTRLOK_N and TMOD_W were never converted on the target; the pre-fix driver also read out of bounds for the standard-class channel | the 1 ms list starts ADC0/3/4/5 normally and ADC1's injected conversions; hal_adc_init() reads the chain masks back and refuses a configuration that does not match the ball map; the FW-06 sample wait includes the injected conversions (measured on the target) |
 | F166 | MED | Round 15 (self-found): HW_ID was classified in app_init before any slow conversion had run — on the target a false "HW_ID short", and the board never arms | init_identity() starts the slow list before each sample; TI_FW_ID bumped (0x0A0D000F) — the image needs a new EOL/HIL validation record before it arms |
+| F167 | **HIGH** | Round 16 (A14-R04 review 3 / A14-N01): the SWG's low corner (MAXAPP 1.884 V pp) through the round-15 series losses gave 6.34 V pp at the winding — under the 6.5 V pp resolver floor — and the monitor plane (protected node, before the PTC) had been called "what the resolver gets" | exciter MFB 24 k → 28 k (|H| ≈ 2.09): low corner ≈ 7.2 V pp at the winding; FW-10 trim setpoint 7.2 V pp at the monitor plane with the SWG-headroom and −40 °C slew checks; planes documented (winding = monitor × 0.964 cold, × 0.875 post-trip) |
+| F168 | MED | Round 16 (A14-R02 ×3): the round-15 back-drive row read one RC time constant (48 µs) as the end of the pulse, ignored CEXD (26.7 µF total) and graded a reverse-diode pulse on the rail voltage; the negative-fault case put 4.4 A through the amplifier's lower diode and 0.9 J into a generic 1206 | exponential model (4.9 A peak, τ 59 µs, 0.19 mJ) marked OPEN (WARN) pending the measured diode envelope; **TVS changed to the unidirectional SMCJ8.5A** — a negative fault is carried by its forward diode (I_FSM 200 A) and the amplifier diode sees < 0.3 A; RSX bound to ERJ-8ENF2R20V with its pulse stress stated |
+| F169 | MED | Round 16 (A14-R03 review 1 / R05 review 3): the TVS-energy PASS used a 20 ms allowance (400 W) extrapolated beyond the SMCJ curve (ends at 10 ms) and treated the Bourns 8 A / 20 ms point as a universal clearing bound; the 0.5 Ω source impedance is unallocated (0.1 Ω → 50 A > the PTC's 40 A) | rows conditional on the measured clearing time (5.5 J at 10 ms supported), a source-impedance allocation row (≥ 0.27 Ω at 35 V) — WARN, gate ㉘ |
+| F170 | LOW | Round 16 (A14-R01/R03 ×2): the /33X PTC's hot hold current is 0.07 A at 85 °C, not the unsuffixed part's 0.09 A the A.14 text carried | corrected (BOM, EXTRACTED §31); judged against 35 mA nominal / 60 mA assumed (WARN: measured with the selected resolver) |
+| F171 | **HIGH** | Round 16 (A14-R04 review 1 / R03 review 2 / R01 review 3): hal_adc_read_phase() writes the timestamp only on a complete triplet while sense_fast() ignored the return and passed an uninitialised timestamp with zero-filled channels into isns_update() | deterministic HAL contract (explicit invalid result, outputs untouched); the caller consumes only complete triplets and otherwise marks the current invalid through the sensor-failure path while V_DC and resolver acquisition keep running; tests for every missing-channel combination |
+| F172 | **CRITICAL** | Round 16 (A14-R01 review 2): resolver validity did not expire when new blocks stopped — the gap check ran only when a later block was consumed (valid after 1 s of silence) | per-tick age check of the last accepted coherent frame with a bounded hold (CAL from the angle-error envelope), then angle invalidated and the resolver-invalid safe state dispatched; tests with delivery stopped at standstill and rotating |
+| F173 | **CRITICAL** | Round 16 (A14-R02 review 2): one SIN-DMA heartbeat tagged all three SDADC channels fresh — a frozen EXC/COS buffer read as new and a completion between the reads let a mixed-generation tuple through | per-channel completion handshake, one coherent frame (EXC + SIN + COS + epoch) copied atomically with the generation checked across the copy, partial/overrun detection; incoherent frames feed the age policy, never a fresh stamp; host DMA model per channel |
+| F174 | MED | Round 17 (gap closure): the exciter back-drive with VEXD absent stayed OPEN because the charge into the 26.7 µF rail ran through the ALM2402 reverse diodes (pulsed use only, no envelope) | DEXP/DEXN Nexperia PMEG4050EP-Q (AEC-Q101, I_FSM 70 A, V_F 0.49 V at 5 A) from each protected node to VEXD carry the 4.9 A / 59 µs / 0.29 mC exponential; NCV4276C output abs max 40 V covers the back-fed rail — row PASS with a rated path |
+| F175 | MED | Round 17: the exciter TVS energy row was conditional and the source-impedance row asked the OEM for ≥ 0.27 Ω because a single fault (≤ 24 V) and a load-dump-coincident 35 V case were judged together | rows split: single fault PASS at any source impedance (3.4 J at the 20 ms bound, 37 A ≤ 40 A); TVSEP/TVSEN upgraded to SMDJ8.5A-HRA (3 kW, AEC-Q101, same SMC pad, ≈ 9 J at 10 ms) so the 35 V energy is inside the curve too; the 35 V PTC current is the documented double event IR-16/IR-33 |
+| F176 | LOW | Round 17: the PTC hold row judged 70 mA against a "60 mA assumed maximum" that had no source | resolver interface requirement IR-13 (Z_primary ≥ 60 Ω at 10 kHz) bounds the excitation at 41 mA rms — 58 % of the hot hold, PASS |
+| F177 | LOW | Round 17: the "resolver drive at 9 V KL30 ≈ 6.5 V pp" WARN was a stale A.4.3 model — the outputs have swung ±1.91 V pk around the 2.5 V AFE mid-rail since round 12 | recomputed: the rail only has to clear 4.6 V (VEXD ≈ 8.3 V at 9 V KL30) — PASS; the slew ceiling is the binding limit |
+| F178 | MED | Round 17: gate ㉖ asked the bench to prove the discharge resistors do not flame when QDIS sticks ON, although the bound TT/Welwyn SQP sheet states it ("will not burn or emit incandescent particles under any condition of applied temperature or overload") | both stuck-ON rows PASS on the statement; the Yageo alternate (flameproof case only) is constrained in the BOM; VR-28 asks for the qualification data; the fail-open time becomes a QP characterisation |
+| F179 | LOW | Round 17: RFS4 (0603 ESR03, 0.33 W) ran at 1.47× its nameplate for the 24 V / 60 s jump start with FS1B held | RFS4 → ESR18EZPF1001 (1206, 0.5 W at 70 °C, AEC-Q200; ROHM ESR series Rev.012 archived) — 0.96× for 60 s, element ≈ 107 °C, PASS |
+| F180 | LOW | Round 17: the hall ratiometric-reference drift row named "calibrate at EOL or move VREFH" without a bound | EOL gain calibration (FW-20) plus the ±5 % torque-accuracy allocation IR-26 bound it — PASS; VREFH stays on VREF5 (GEN3 parity) |
+| F181 | **HIGH** | Round 17: the KiCad hand-off was verified only by our placement rule. The installed KiCad 10.0.6 loads the KiCad 5 legacy sheets but resolves no symbols (sym-lib-table, cache library and project file tried), so KiCad 9/10 cannot netlist the legacy set at all | sym-lib-table + cache library added to both legacy folders/zips (KiCad 5–8 open them without the remap dialog); a KiCad 9/10 format set (kicad/traction, embedded symbols + project library) converted from the native sheets and proved by kicad-cli netlist export against the built netlist on every board, with mutation tests (mirrored MCU, ball swap, harness numbering, duplicate reference) |
+| F182 | LOW | Round 17 datasheet round: the JIC/JICC note asked to confirm interleaved pin numbering; the BOM had TDK "AT000" beads as automotive alternates and the Murata BLM31 sheet was missing; the plain SMDJ has no AEC-Q101 statement | Samtec drawing: numbering is sequential per row (row A 1–20, row B 21–40); TDK's automotive MPZ2012 catalog has no 120 Ω part (220 Ω alternate confirmed, 120 Ω has none); BLM31PG121SH1L sheet archived (automotive application code, no literal AEC-Q200 line — VR-14); the -HRA suffix is the AEC-Q101 SMDJ; DMP6023LEQ still "Advance Information" (VR-20) |
+| F183 | MED | Round 17 (found by the KiCad-10 proof): the legacy KiCad 5 sets numbered the JIC/JICC harness pins P1–P40 — the MCU ball rule in pages.mjs matched the harness labels P1_…P40_ — against pads 1–40 (netlist unaffected, symbol pin numbers wrong) | the ball rule applies to UMCU only; all sets and PDFs regenerated; the modern set takes pin numbers from the built netlist and the verifier detects the old numbering as a mutation (62 failures) |
+| F184 | LOW | Round 17 (found by the KiCad-10 proof): the legacy generator classed diodes by MPN prefix (SMAJ/SMBJ/SMCJ…) — after the SMDJ8.5A-HRA upgrade TVSEP/TVSEN were drawn as resistors, and the PMEG Schottky needed the same rule | SMDJ, 5.0SMDJ and PMEG classed as diodes in kicad5-gen; regenerated |
+| F185 | **HIGH** | Round 17 (LV-entry study): ISO 7637-2 pulse 1 (−75…−150 V, 10 Ω) reached the reverse Schottky DREVC unclamped — the card's TVS sat behind it on NRC, so DREVC avalanched at ≈ 654 W (−150 V) against P_ARM 144 W (10 µs, 125 °C; ≈ 5.8 W at 1 ms); pulse 3a (−220 V / 50 Ω) exceeded P_ARM too. GEN3 places its TVS ahead of the Schottky | pin-side anti-series pair on FCO: DTVSC TPSMC33A-VR (cathode FCO) + DTVSC2 TPSMC18A-VR (cathode DGND) — DREVC sees ≤ 38.3 V at −150 V and 37.1 V at 3a; the −14 V reverse battery leaves DTVSC2 dark (18.9 V knee at −40 °C) |
+| F186 | MED | Round 17: ISO 16750-2:2023 raised the jump start to 26 V / 60 s at RT and T_min; the TPSMC24CA-VR knee (26.7 V at 25 °C) is 25.1 V at −40 °C — it would conduct for the whole minute | every TVS on a KL30-derived net is a 33 V stand-off part (knee 34.4 V at −40 °C); IR-02 stays 24 V until the OEM names the 2023 edition; an INFO row lists the 24 V-sized rows that change at 26 V |
+| F187 | MED | Round 17: FLVC (MF-LSMF300/24X, 3 A hold at 23 °C) carries the WHOLE inverter — 2.54 A at 9 V, 1.73 A at 13.5 V — against a 1.50 A hold at 85 °C; the verifier compared one chain (1.19 A) with the 23 °C hold | FLVC → Bel 0680L5000-05, 5 A slow-blow 2410 (125 V DC / 100 A and 75 V DC / 500 A interrupting; 36 A²s): 0.65 of its 85 °C / 80 % rerating at 9 V; hot-plug, pulse-1 and pulse-2a I²t each ≤ 2 % of melting; AEC-Q200 report requested (VR-32); the chain-polyfuse row now judges at 85 °C |
+| F188 | MED | Round 17: KL15 pulse 1 drove the FS26 WAKE1 pin through RIGN1 (5.1 k straight from KL15): ≈ 29 mA reverse against the −5 mA WAKE rating (−0.3 V abs min), 2.6 mA at a reversed battery; the 1N4148WS steering diode (75 V) would avalanche at −150 V | RIGN1 moved behind DIGN, DIGN → US1M (1000 V, already in the BOM): WAKE1 and IGN_SNS both behind one blocking diode; WAKE1 still reads 3.6 V at a 6 V KL15 |
+| F189 | **HIGH** | Round 17 (gate ㉗): ISO 16750-2 test B (35 V / 400 ms, Ri 0.5–4 Ω) could not be shown on paper with the 24 V stand-off TVS at any Ri — no SMC sheet rates a pulse beyond 1 ms — and if the generator is the unsuppressed 79–101 V source with the 35 V clamp in parallel (the parameter set ISO 16750-2 gives for test B), a local clamp below 35 V takes 70–100 A at Ri 0.5 Ω; ULDO15 (DPAK-5) also reached ≈ 150 °C at the old ≈ 33 V clamp | let-through: no TVS on a KL30-derived net below 36.7 V (ERC-locked), CLVC3 100 µF hybrid polymer holds pulse 2a on NRC ≤ 37.5 V, DTVH/DTVL → TPSMC33CA-VR, ULDO15 → NCV4276CDSADJR4G (D2PAK-5, ≈ 140 °C); the FS26 (36 V HV extended operation), TPS55340-Q1 (38 V rec) and NCV4276C (40 V) carry the 35 V plateau; no Ri is required of the OEM (IR-03). Open: the FS26 limited period (VR-29), the TPS55340-Q1 pin text (VR-30), CLVC3 pulse life (VR-31) |
 | F77 | **HIGH** | The A.6 RC timing nodes drove non-Schmitt LVC inputs: the clear one-shot into ULAT2 /CLR at ≈63,500 ns/V (5 ns/V allowed), the soft-off delay into UAND2 at ≈14,000 ns/V (10 ns/V) (RR01/RR02, A6-R02/R03) | 74LVC3G17-Q100 Schmitt buffer (no Δt/ΔV limit) on both nodes and on FS0B; one-shot 61–230 µs, delay 22–53 µs at its thresholds |
 | F78 | **HIGH** | FS1B loaded 5.45 mA through 1 k pull-ups: V_OL ≤ 0.4 V holds only to 2 mA and the limit can be 4 mA — FS1B 1.33 V, ASC_SET_N 1.67 V (> VIL), SBC read-back (< 0.7 V) fails; the checker compared with 22 mA and divided by 1000 twice (A6-R01) | RENP1/2 5.1 k (NXP value): 1.79 mA incl. strap and a specified FAULT_OUT load, ASC_SET_N ≤ 0.84 V; checker at the V_OL point |
 | F79 | **HIGH** | ASC entry had no break-before-make: FS0B/FS1B assert together on the MCU-dead path (HS turn-off raced the LS ASC), and the MCU path had no ordered entry (RR05) | CASCD 12 nF + DASCR: LS ASC ≥ 3.4 µs after the latch, entry ≤ 7.0 µs, release ≤ 0.75 µs; MCU path = eFlexPWM fault (high sides off) → ASC_REQ → PWM-ASC with EN high after the dead time (§4c). A first draft also dropped DRV_EN from the latch (DASC) — removed: with EN low the NSI6611 does not give DESAT priority over ASC (DS §8.12, cross-check) |
@@ -914,12 +1060,16 @@ for (const r of rows) {
 md += `
 ## Open vendor/bench inputs (every WARN above names one)
 
-hiitio: module stray inductance Ls (SiC D3), SiC short-circuit envelope at 850 V ·
-NOVOSENSE: RST/EN behaviour during DESAT soft turn-off and the I_STO distribution · TDK:
-VGT12EEM saturation current and working-insulation rating · Faratronic: the 4XX 50 µF/600 V
-can (ripple/ESR/life) · Murata: MGJ2 reinforced certificate · coldplate Rth (thermal test) ·
-motor data (flux linkage, n_max, Ld/Lq) for the safe-state decision. Datasheet values used are
-in \`docs/datasheets/EXTRACTED-PARAMS.md\`.
+Since round 17 every remaining WARN resolves to a numbered item in one of three documents: the questions to
+vendors with acceptance criteria in [vendor-requests.md](vendor-requests.md) (HIITIO module Ls, SiC
+short-circuit envelope at 850 V and FIT; NOVOSENSE I_STO distribution, RST/EN during soft-off, ASC during
+VCC2 UVLO; TDK VGT12EEM saturation/working insulation; Faratronic 4XX can; Murata BLM31PG121SH1L specification (the MGJ2 line of earlier rounds is stale — superseded by the UCC12051-Q1 since A.11); Bourns,
+Littelfuse, Diodes, Samtec, NXP, LEM, the coldplate supplier), the assumptions about the vehicle, motor,
+resolver and harness in [interface-requirements.md](interface-requirements.md) (motor data for the
+safe-state decision, resolver impedance, the exciter fault double event, central load-dump suppression at Us* ≤ 36 V (no R_i needed since round 17), LV-loss
+behaviour) and the executable procedures with pass criteria in [qualification-plan.md](qualification-plan.md)
+(double pulse, contained short circuit, thermal, VCC2 six-domain bench, terminal-fault bench ㉘, discharge
+㉖, HIL/EOL). Datasheet values used are in docs/datasheets/EXTRACTED-PARAMS.md.
 
 ## Method
 

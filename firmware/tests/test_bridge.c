@@ -39,7 +39,9 @@ TEST(pwm_asc_entry_is_break_before_make)
     CHECK(sim_chain_ls_on() && !sim_chain_hs_on());
 }
 
-TEST(asc_exit_only_when_allowed_and_hs_after_1us)
+/* FW-06a (round 17): the first high-side pulse only after the ASC pins' release (<= 1.07 us, design-verify
+ * Safety A.8) and the low sides' turn-off (the dead time), counted from the clear's falling edge. */
+TEST(asc_exit_only_when_allowed_and_hs_after_the_release)
 {
     ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
     fs26_t fs;
@@ -56,7 +58,8 @@ TEST(asc_exit_only_when_allowed_and_hs_after_1us)
     CHECK(!hal_gpio_read(HAL_DI_ASC_CMD_RB));
     const float d[3] = {0.5f, 0.5f, 0.5f};
     CHECK(br_modulate(&b, d, &p));
-    CHECK(sim_now_ns() >= t_clr + 1000u); /* first HS pulse >= 1 us after the clear */
+    CHECK(sim_pwm_mod_ns() >= t_clr + 1070u + p.dead_time_ns);             /* never before the release deadline */
+    CHECK(sim_pwm_mod_ns() >= t_clr + p.cal_asc_release_ns + p.dead_time_ns); /* the CAL's own margin kept */
     CHECK(!br_exit_asc(&b, true));        /* not in ASC any more */
 }
 
@@ -212,7 +215,7 @@ TEST(non_desat_spo_drops_en_at_once)
 void suite_bridge(void)
 {
     RUN(pwm_asc_entry_is_break_before_make);
-    RUN(asc_exit_only_when_allowed_and_hs_after_1us);
+    RUN(asc_exit_only_when_allowed_and_hs_after_the_release);
     RUN(guard_refuses_nonfinite_duty);
     RUN(fw15_recovery_waits_1p5ms_and_clears);
     RUN(fw15_recovery_fails_safe_on_a_hard_short);

@@ -75,6 +75,12 @@ typedef enum {
     DTC_ARM_EVIDENCE,       /* round 14: IMCR route unbound or no valid EOL/HIL validation record */
     DTC_TORQUE_INFEASIBLE,  /* F23: no voltage-feasible current even at iq = 0: zero torque + speed limit */
     DTC_ISNS_STUCK,         /* F24: a phase shows no current where its reference asks for it */
+    DTC_RSLV_STALE,         /* round 16 (A14-R01/R02): no coherent resolver frame within cal_rslv_hold_us */
+    DTC_RSLV_SWG_SAT,       /* round 16 (A14-N01): SWG trim at its top code, monitor still below the setpoint */
+    DTC_SERVICE_LOCK_CLEARED, /* round 17 (FW-32): the UDS routine cleared the stuck-on QDIS lock (a record, not a failure) */
+    DTC_LV_OVERVOLTAGE,     /* round 17: VSUP above VSUP_OV — information; its first/last stamps give the duration */
+    DTC_LV_OV_SUSTAINED,    /* round 17: VSUPOV longer than its band allows: the orderly ramp to zero torque */
+    DTC_LV_VSUP_UNKNOWN,    /* round 17: no VSUP reading from the FS26 AMUX: LV supervision off (information) */
     DTC_COUNT
 } dtc_id_t;
 

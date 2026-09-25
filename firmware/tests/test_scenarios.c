@@ -5,7 +5,9 @@
 #include "dtc.h"
 #include "harness.h"
 #include "nvlog.h"
+#include "swg.h"
 #include "test.h"
+#include "uds.h"
 
 #define LOW_RPM 1000.0f
 #define HIGH_RPM 10000.0f /* screening motor n_x = 8086 rpm (8XX) */
@@ -64,12 +66,7 @@ static bool last_status(hal_can_frame_t *out)
 /* ---- round 15 (A13-R02) helpers ---- */
 /* One 1 ms tick in which the task is the first to see what the test just changed (no VCU frame, no
  * link update of the harness in between). */
-static void tick_1ms(void)
-{
-    h_isr_only_us(1000u);
-    app_task_1ms(&g_app);
-    app_idle(&g_app);
-}
+static void tick_1ms(void) { h_tick(); }
 
 /* The next VCU command frame at once, with the harness state (keeps its alive counter in sequence). */
 static void vcu_frame_now(void)
@@ -489,15 +486,40 @@ TEST(asc_exit_only_below_n_x_by_mcu_command)
     CHECK(sim_gpio_edge_ns(HAL_DO_ASC_CLR_N, false, t0) != UINT64_MAX);
 }
 
+/* A14-N01: the SWG starts low (cal_swg_code_init — never the register maximum, whose untrimmed max corner
+ * would slew-limit the amplifier) and the trim ramps it up one code at a time until the MONITOR plane sits
+ * within +-5 % of cal_rslv_exc_target_vpp. Where it settles follows the generator's corner: typical 12,
+ * low corner 14, high corner 11 (a code at the top is not needed even at the low corner: 1.84 of 1.884 V pp).
+ * The amplifier never exceeds the -40 degC slew ceiling, the cold winding keeps the resolver floor, and no
+ * corner saturates the trim. */
 TEST(swg_trim_is_written_to_the_generator)
 {
-    h_setup(TI_SKU_8XX_SIC);
-    H.exc_scale = 0.9f; /* a weak SWG: monitor at 0.9 of EOL at the nominal code */
-    h_set_speed(0.0f);
-    h_boot();
-    h_run_ms(300u);
-    CHECK(sim_swg_code() == 13u); /* 0.9 x 13/12 = 0.975: inside the +-5 % dead band */
-    CHECK(g_app.rslv.exc_ratio > 0.95f && g_app.rslv.exc_ratio < 1.05f);
+    const float corner[3] = {2.093f, 1.884f, 2.302f};
+    const uint8_t settle[3] = {12u, 14u, 11u};
+    for (unsigned k = 0u; k < 3u; k++) {
+        sim_reset();
+        dtc_init();
+        h_setup(TI_SKU_8XX_SIC);
+        sim_swg_maxapp(corner[k]);
+        h_boot();
+        CHECK(sim_swg_code() == h_p.cal_swg_code_init && h_p.cal_swg_code_init < HAL_SWG_CODE_MAX);
+        uint8_t last = sim_swg_code();
+        bool monotonic = true;
+        for (uint32_t ms = 0u; ms < 300u; ms++) {
+            h_run_ms(1u);
+            monotonic = monotonic && (sim_swg_code() >= last) && ((sim_swg_code() - last) <= 1u);
+            last = sim_swg_code();
+        }
+        float amp = 0.0f;
+        float mon = 0.0f;
+        float wind = 0.0f;
+        sim_exc_planes(&amp, &mon, &wind);
+        CHECK(monotonic && sim_swg_code() == settle[k]);
+        CHECK(g_app.rslv.exc_ratio >= 0.95f && g_app.rslv.exc_ratio <= 1.05f && g_app.rslv.exc_ready);
+        CHECK_NEAR(g_app.rslv.mon_vpp, mon, 0.02 * mon); /* the firmware's monitor plane is the card's */
+        CHECK(sim_exc_amp_vpp_max() <= h_p.exc_slew_max_vpp && wind >= h_p.rslv_floor_vpp);
+        CHECK(!dtc_active(DTC_RSLV_SWG_SAT) && g_app.rslv.valid);
+    }
 }
 
 /* A12-R05 end to end. The driver latches FLT at t_flt; the fault ISR runs at t = 0 (+0.3 us). The
@@ -949,16 +971,16 @@ TEST(battery_path_loss_while_armed_at_every_speed)
             /* the invocation that processed the loss */
             CHECK(fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
             CHECK((l != LOSS_STALE) || fm_active(&g_app.fm, SS_ROW_CMD_LOST));
-            CHECK(d->action == (slow ? SS_ACT_ZERO_TORQUE_DCL : SS_ACT_LS_ASC) && d->high_speed == !slow);
+            CHECK(d->action == (slow ? SS_ACT_ZERO_CURRENT : SS_ACT_LS_ASC) && d->high_speed == !slow);
             CHECK(g_app.sm.st == SM_FAULT && !g_app.so.arm && !g_app.so.torque_enable);
             CHECK(ti_absf(t_before) > 90.0f && g_app.iq_ref == 0.0f);
-            CHECK(ti_absf(g_app.t_cmd_nm) <= g_app.p->cal_dcl_tmax_nm); /* not the request */
+            CHECK(g_app.t_cmd_nm == 0.0f && (!slow || g_app.id_ref == 0.0f)); /* round 17 (item 26): zero, not a trim */
             CHECK(slow ? (g_app.mod_req && g_app.br.mode == BR_MOD && hal_gpio_out_state(HAL_DO_MCU_GATE_EN))
                        : (!g_app.mod_req && g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC));
             /* afterwards */
             if (slow) {
-                h_isr_only_us(500u); /* zero-torque current control, not all gates off */
-                CHECK(hal_pwm_mode() == HAL_PWM_MOD && g_app.foc.iq_ref == 0.0f);
+                h_isr_only_us(500u); /* zero-current control, not all gates off */
+                CHECK(hal_pwm_mode() == HAL_PWM_MOD && g_app.foc.iq_ref == 0.0f && g_app.foc.id_ref == 0.0f);
             }
             bool torque = false;
             for (uint32_t k = 0u; k < 12u; k++) {
@@ -1004,6 +1026,674 @@ TEST(zero_torque_opening_at_standstill_disarms_without_fault)
     CHECK(last_status(&f) && ((f.data[1] & 0x80u) == 0u));
     H.contactors = TI_CONT_CLOSED;
     CHECK(h_run_until(SM_ARMED_ZERO_TORQUE, 200u));
+}
+
+/* ======================= round 16 ======================= */
+
+static void sd_freeze_all(bool on)
+{
+    sim_sdadc_freeze(HAL_SD_EXC, on);
+    sim_sdadc_freeze(HAL_SD_SIN, on);
+    sim_sdadc_freeze(HAL_SD_COS, on);
+}
+
+/* Current-loop ticks until one consumes a resolver frame; returns that frame's start. */
+static uint32_t isr_until_frame(void)
+{
+    const uint32_t per = app_isr_period_us(&g_app);
+    const uint32_t t0 = g_app.rslv.t_frame_us;
+    for (uint32_t k = 0u; (k < 10u) && (g_app.rslv.t_frame_us == t0); k++) {
+        h_isr_only_us(per);
+    }
+    return g_app.rslv.t_frame_us;
+}
+
+/* Delivery stops right after a frame. Every current-loop tick is watched: valid and modulating while the
+ * newest frame is younger than cal_rslv_hold_us, withdrawn at the first tick past it — never later than
+ * one tick — with no ordinary FOC update after it. Returns the age at the withdrawal (0: never). */
+static uint32_t stop_and_watch(void)
+{
+    const uint32_t per = app_isr_period_us(&g_app);
+    const uint32_t hold = g_app.p->cal_rslv_hold_us;
+    const uint32_t t_f = isr_until_frame();
+    sd_freeze_all(true);
+    bool inside_ok = true;
+    uint32_t age_off = 0u;
+    for (uint32_t k = 0u; (k < 40u) && (age_off == 0u); k++) {
+        h_isr_only_us(per);
+        const uint32_t age = ti_age(hal_time_us(), t_f);
+        if (age < hold) {
+            inside_ok = inside_ok && g_app.rslv.valid && !g_app.rslv.stale && (hal_pwm_mode() == HAL_PWM_MOD);
+        } else {
+            age_off = age;
+            CHECK(!g_app.rslv.valid && g_app.rslv.stale && !g_app.mod_req && hal_pwm_mode() != HAL_PWM_MOD);
+            CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID));
+        }
+    }
+    CHECK(inside_ok && age_off >= hold && age_off < hold + per);
+    return age_off;
+}
+
+/* A14-R01: all resolver delivery stops after a good acquisition — at standstill holding 200 Nm, at low
+ * speed under torque with the microsecond counter wrapping inside the hold, and at 10 000 rpm in field
+ * weakening. The angle is withdrawn at the hold, the §6 "resolver invalid" row takes the bridge (SPO
+ * below n_x, PWM-ASC above), the torque permission goes (FAULT), DTC_RSLV_STALE, and the last speed is
+ * kept only for the §6 column (cal_speed_hold_ms). When frames return the resolver re-acquires (not at
+ * the first frame), the row stays latched, and a VCU fault reset below n_x brings torque back. */
+TEST(resolver_frames_stopping_withdraws_the_angle_at_the_hold)
+{
+    const float rpm[3] = {0.0f, LOW_RPM, HIGH_RPM};
+    const float tq[3] = {200.0f, 100.0f, 0.0f};
+    const uint64_t epoch[3] = {1000000u, WRAP_US - 3000000u, 1000000u};
+    for (unsigned k = 0u; k < 3u; k++) {
+        sim_reset();
+        sim_nvm_wipe();
+        (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
+        (void)memset(&g_app_session, 0, sizeof g_app_session);
+        CHECK(run_at_epoch(rpm[k], tq[k], epoch[k]));
+        if (k == 1u) { /* the deadline straddles the 32-bit wrap */
+            run_until_wrap_minus(3000u);
+            h_isr_only_us(WRAP_US - 300u - hal_time_us64());
+        }
+        CHECK(g_app.rslv.valid && hal_pwm_mode() == HAL_PWM_MOD);
+        (void)stop_and_watch();
+        CHECK((k != 1u) || (hal_time_us64() > WRAP_US));
+        tick_1ms();
+        const bool slow = (k < 2u);
+        CHECK(dtc_active(DTC_RSLV_STALE) && g_app.sm.st == SM_FAULT && !g_app.so.torque_enable);
+        CHECK(g_app.speed_known && ti_absf(g_app.speed_rpm - rpm[k]) < 20.0f); /* held for the §6 column */
+        CHECK(slow ? (g_app.fm.dec.action == SS_ACT_SPO && hal_pwm_mode() == HAL_PWM_OFF)
+                   : (g_app.fm.dec.action == SS_ACT_LS_ASC && g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC));
+        h_run_ms(30u);
+        CHECK(!g_app.rslv.valid && g_app.sm.st == SM_FAULT);
+        /* delivery returns: a controlled re-acquisition */
+        sd_freeze_all(false);
+        bool early = false;
+        for (uint32_t us = 0u; us < 1500u; us += 50u) {
+            h_isr_only_us(50u);
+            early = early || g_app.rslv.valid;
+        }
+        CHECK(!early);
+        h_run_ms(10u);
+        CHECK(g_app.rslv.valid && !g_app.rslv.stale && g_app.sm.st == SM_FAULT); /* the row stays latched */
+        if (slow) {
+            H.fault_reset = true;
+            CHECK(h_run_until(SM_RUN, 1500u));
+            H.fault_reset = false;
+            h_run_ms(20u);
+            CHECK(hal_pwm_mode() == HAL_PWM_MOD && ti_absf(g_app.t_cmd_nm - tq[k]) < 1.0f);
+        }
+    }
+}
+
+/* A14-R01: a current loop faster than the frames (SiC 20 kHz: every other tick has nothing new; the
+ * IGBT's 10 kHz beats against the 10 kHz carrier) and a channel completing 30 us late are normal: two
+ * seconds under torque, the resolver never goes stale. */
+TEST(temporary_empty_reads_never_fault)
+{
+    const ti_sku_t sku[2] = {TI_SKU_8XX_SIC, TI_SKU_8XX_IGBT};
+    for (unsigned k = 0u; k < 2u; k++) {
+        sim_reset();
+        dtc_init();
+        h_setup(sku[k]);
+        h_boot();
+        CHECK(h_to_run(100.0f));
+        h_ramp_speed(LOW_RPM, 400u);
+        sim_sdadc_delay_ns(HAL_SD_COS, 30000u);
+        bool ok = true;
+        for (uint32_t ms = 0u; ms < 2000u; ms++) {
+            h_run_ms(1u);
+            ok = ok && g_app.rslv.valid && (g_app.sm.st == SM_RUN);
+        }
+        CHECK(ok && !dtc_active(DTC_RSLV_STALE) && !fm_any(&g_app.fm));
+    }
+}
+
+/* A14-R02 at the application: one channel's DMA freezes while running (the reviewer's frozen COS buffer
+ * that SIN's heartbeat kept reading as fresh). No frame is published again: the resolver goes stale at the
+ * hold and stays out for the key cycle (the channel lost step). */
+TEST(a_frozen_resolver_channel_is_never_read_as_fresh)
+{
+    for (uint32_t ch = 0u; ch < (uint32_t)HAL_SD_COUNT; ch++) {
+        sim_reset();
+        dtc_init();
+        CHECK(run_at(LOW_RPM, 100.0f));
+        const uint32_t per = app_isr_period_us(&g_app);
+        const uint32_t t_f = isr_until_frame();
+        sim_sdadc_freeze((hal_sd_ch_t)ch, true);
+        uint32_t age_off = 0u;
+        for (uint32_t i = 0u; (i < 40u) && (age_off == 0u); i++) {
+            h_isr_only_us(per);
+            age_off = g_app.rslv.valid ? 0u : ti_age(hal_time_us(), t_f);
+        }
+        CHECK(age_off >= g_app.p->cal_rslv_hold_us && age_off < g_app.p->cal_rslv_hold_us + per);
+        CHECK(g_app.rslv.t_frame_us == t_f); /* nothing consumed after the freeze */
+        sim_sdadc_freeze((hal_sd_ch_t)ch, false);
+        h_run_ms(100u);
+        CHECK(!g_app.rslv.valid && dtc_active(DTC_RSLV_STALE) && sim_sdadc_ring()->broken);
+        CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD);
+    }
+}
+
+/* A14-R03: every combination of missing phase channels (U, V, W, UV, UW, VW, all: the BCTU or the
+ * converters stopped), at 1000 rpm under 100 Nm. In the tick it happens: the measurement is lost — invalid,
+ * not fresh, not an "open wire", its stamp the last complete triplet's — no ordinary FOC update (the FOC
+ * state and the PWM are not written with it), while V_DC and the resolver are still serviced (a link step
+ * during the loss is seen). Then the current-sensor path: the §6 "control lost" row, FAULT, DTC_ISNS_STALE.
+ * Repeated for 20 ms it stays so; once the triplets return the measurement recovers and a VCU fault reset
+ * brings torque back. */
+TEST(lost_phase_current_triplets_take_the_failure_path)
+{
+    for (uint8_t mask = 1u; mask <= 7u; mask++) {
+        sim_reset();
+        dtc_init();
+        CHECK(run_at(LOW_RPM, 100.0f));
+        const uint32_t per = app_isr_period_us(&g_app);
+        CHECK(g_app.isns.valid && hal_pwm_mode() == HAL_PWM_MOD);
+        const uint32_t t_good = g_app.isns.t_us;
+        const foc_t foc0 = g_app.foc;
+        const float d0[3] = {sim_pwm_duty(0u), sim_pwm_duty(1u), sim_pwm_duty(2u)};
+        const uint32_t frame0 = g_app.rslv.t_frame_us;
+        H.link_override = true;
+        sim_set_link_v(780.0f, 780.0f); /* the pack steps while the currents are lost */
+        sim_adc_phase_stop(mask);
+        h_isr_only_us(per); /* one current-loop tick */
+        CHECK(!g_app.isns.valid && !g_app.isns.fresh && g_app.isns.t_us == t_good);
+        CHECK(!g_app.isns.open_wire[0] && !g_app.isns.open_wire[1] && !g_app.isns.open_wire[2]);
+        CHECK(g_app.foc.id == foc0.id && g_app.foc.iq == foc0.iq && g_app.foc.vd == foc0.vd && g_app.foc.vq == foc0.vq);
+        CHECK(sim_pwm_duty(0u) == d0[0] && sim_pwm_duty(1u) == d0[1] && sim_pwm_duty(2u) == d0[2]);
+        CHECK(!g_app.mod_req && hal_pwm_mode() != HAL_PWM_MOD);
+        CHECK(ti_absf(g_app.vdc.vdc - 780.0f) < 5.0f && g_app.vdc.valid); /* V_DC serviced */
+        h_isr_only_us(4u * per);
+        CHECK(g_app.rslv.t_frame_us != frame0 && g_app.rslv.valid); /* resolver serviced */
+        tick_1ms();
+        CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && dtc_active(DTC_ISNS_STALE) && !dtc_active(DTC_ISNS_OPEN));
+        CHECK(g_app.sm.st == SM_FAULT && !g_app.so.torque_enable);
+        H.link_override = false;
+        h_run_ms(20u); /* repeated losses */
+        CHECK(!g_app.isns.valid && g_app.isns.t_us == t_good && hal_pwm_mode() != HAL_PWM_MOD);
+        sim_adc_phase_stop(0u); /* the triplets return */
+        h_run_ms(2u);
+        CHECK(g_app.isns.valid && g_app.isns.fresh && g_app.isns.t_us != t_good && g_app.sm.st == SM_FAULT);
+        H.fault_reset = true;
+        CHECK(h_run_until(SM_RUN, 1500u));
+        H.fault_reset = false;
+        h_run_ms(20u);
+        CHECK(hal_pwm_mode() == HAL_PWM_MOD && g_app.isns.valid);
+        if (t_fails != 0u) {
+            printf("    ^ missing channels mask %u\n", mask);
+        }
+    }
+}
+
+/* A14-R03 across the 32-bit microsecond wrap: triplets lost from 300 us before it to 700 us after it. The
+ * stamp stays the last complete triplet's (before the wrap) — defined, never an uninitialised value — the
+ * sample is never taken as fresh, and the first complete triplet after the wrap is. */
+TEST(lost_triplets_across_the_microsecond_wrap_keep_a_defined_stamp)
+{
+    CHECK(run_at_epoch(LOW_RPM, 100.0f, WRAP_US - 3000000u));
+    run_until_wrap_minus(3000u);
+    h_isr_only_us(WRAP_US - 300u - hal_time_us64());
+    const uint32_t t_good = g_app.isns.t_us;
+    CHECK(g_app.isns.valid && t_good > 0xFFF00000u);
+    sim_adc_phase_stop(0x2u);
+    bool ok = true;
+    for (uint32_t us = 0u; us < 1000u; us += 50u) {
+        h_isr_only_us(50u);
+        ok = ok && !g_app.isns.valid && !g_app.isns.fresh && (g_app.isns.t_us == t_good);
+    }
+    CHECK(ok && hal_time_us64() > WRAP_US);
+    sim_adc_phase_stop(0u);
+    h_isr_only_us(50u);
+    CHECK(g_app.isns.fresh && g_app.isns.t_us < 1000u && ti_age(hal_time_us(), g_app.isns.t_us) < 60u);
+}
+
+/* A14-R03, the BCTU stopped: no trigger, so no current-loop interrupt at all — nothing in the ISR can
+ * notice. The 1 ms task does: within one tick the currents are lost (and the resolver frame ages out), the
+ * §6 row takes the bridge off the last duty cycle it was left on, DTC_ISNS_STALE. With the current unknown
+ * §6 assumes the SKU's crest: rule (a) fails for the screening motor, so the row is LS-ASC (PWM-ASC). */
+TEST(a_stopped_current_loop_is_caught_by_the_task)
+{
+    CHECK(run_at(LOW_RPM, 100.0f));
+    CHECK(hal_pwm_mode() == HAL_PWM_MOD);
+    sim_advance_us(1000u); /* the PWM keeps running on its last duty; no current-loop interrupt */
+    app_task_1ms(&g_app);
+    CHECK(!g_app.isns.valid && fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && dtc_active(DTC_ISNS_STALE));
+    CHECK(g_app.fm.dec.action == SS_ACT_LS_ASC && hal_pwm_mode() == HAL_PWM_ASC && g_app.br.mode == BR_ASC);
+    CHECK(!g_app.rslv.valid && g_app.rslv.stale); /* its newest frame is > 1 ms old */
+    sim_advance_us(1000u);
+    app_task_1ms(&g_app);
+    CHECK(g_app.sm.st == SM_FAULT && !g_app.so.torque_enable && hal_pwm_mode() == HAL_PWM_ASC);
+}
+
+/* A14-N01: the trim-saturated DTC fires only where the required SWG amplitude exceeds the part's maximum —
+ * here a 25 ohm resolver (its load drops more across RSX, upstream of the monitor) on a low-corner SWG:
+ * the trim reaches the top code with the monitor still below its band, DTC_RSLV_SWG_SAT; the winding
+ * (6.1 V pp) is below the floor, so the resolver never validates and nothing arms. The 70 ohm screening
+ * resolver at the same corner does not saturate (swg_trim_is_written_to_the_generator). */
+TEST(a_low_impedance_resolver_saturates_the_trim_with_a_dtc)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    sim_swg_maxapp(1.884f);
+    sim_resolver_load(25.0f, 1.3f);
+    h_boot();
+    ever_armed = false;
+    run_watch(1500u);
+    CHECK(sim_swg_code() == HAL_SWG_CODE_MAX && dtc_active(DTC_RSLV_SWG_SAT) && g_app.rslv.swg_sat);
+    CHECK(g_app.rslv.exc_ratio < 0.95f && g_app.rslv.wind_vpp < h_p.rslv_floor_vpp);
+    CHECK(!g_app.rslv.valid && !ever_armed && g_app.sm.st == SM_FAULT);
+    CHECK(sim_exc_amp_vpp_max() <= h_p.exc_slew_max_vpp);
+}
+
+/* A14-N01: a harness fault tripped an exciter PTC; for an hour it sits near 5 ohm per line. The monitor
+ * (protected node, before the PTC) still reads the 7.2 V pp setpoint, the winding gets 6.3 V pp — below the
+ * resolver's 6.5 V pp floor. FW-10 judges the winding: the excitation fault, the §6 row, the DTC. A
+ * restart while the PTC is still warm never arms; one after it has cooled arms normally. */
+TEST(ptc_post_trip_is_flagged_at_the_winding_and_a_cool_restart_recovers)
+{
+    CHECK(run_at(LOW_RPM, 50.0f));
+    const float mon0 = g_app.rslv.mon_vpp;
+    CHECK(g_app.rslv.valid && g_app.rslv.wind_vpp > h_p.rslv_floor_vpp);
+    sim_resolver_load(70.0f, 5.0f);
+    h_run_ms(5u);
+    CHECK(ti_absf(g_app.rslv.mon_vpp - mon0) < 0.01f * mon0); /* the monitor does not see it */
+    CHECK_NEAR(g_app.rslv.wind_vpp, g_app.rslv.mon_vpp * 70.0 / 80.0, 0.03); /* 6.3 V pp at the setpoint */
+    CHECK(g_app.rslv.exc_fault && !g_app.rslv.amp_fault && !g_app.rslv.valid && dtc_active(DTC_RSLV_EXCITATION));
+    CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD);
+    for (unsigned k = 0u; k < 2u; k++) { /* restart with the PTC still warm, then cooled */
+        const bool warm = (k == 0u);
+        sim_reset(); /* power off and on (the next key cycle) */
+        (void)memset(&g_app_session, 0, sizeof g_app_session);
+        dtc_init();
+        h_setup(TI_SKU_8XX_SIC);
+        sim_resolver_load(70.0f, warm ? 5.0f : 1.3f);
+        h_boot();
+        if (warm) {
+            ever_armed = false;
+            run_watch(2000u);
+            CHECK(!ever_armed && !g_app.rslv.valid && g_app.rslv.exc_fault && g_app.sm.st == SM_FAULT);
+        } else {
+            CHECK(h_to_armed() && g_app.rslv.valid && !dtc_active(DTC_RSLV_EXCITATION));
+        }
+    }
+}
+
+/* ======================= round 17 ======================= */
+
+/* Item 26: with the battery path proven (normal RUN) the FW-08 trim is a regen limiter — idle while the pack
+ * holds the link inside the normal range, taking regen back (never adding motoring torque) while the link sits
+ * above vdc_max_v, handing it back when the link returns; the status reports the torque applied. */
+TEST(dc_link_trim_limits_regen_with_the_battery_present)
+{
+    CHECK(run_at(LOW_RPM, 50.0f));
+    H.torque_nm = -150.0f; /* braking at 1000 rpm */
+    h_run_ms(30u);
+    CHECK(g_app.sm.st == SM_RUN && g_app.t_cmd_nm == -150.0f && g_app.dcl.integ == 0.0f); /* 750 V: idle */
+    for (uint32_t k = 0u; k < 120u; k++) { /* a full pack pushed above the range by the charge current */
+        H.v_pack += 1.0f;
+        h_run_ms(1u);
+    }
+    h_run_ms(30u);
+    CHECK(H.v_pack > g_app.p->vdc_max_v && g_app.vdc.vdc > g_app.p->vdc_max_v);
+    CHECK(g_app.sm.st == SM_RUN && !fm_any(&g_app.fm)); /* the battery path is proven: nothing else acts */
+    CHECK(g_app.dcl.integ > 0.0f && g_app.t_cmd_nm > -149.0f && g_app.t_cmd_nm <= 0.0f);
+    hal_can_frame_t f;
+    (void)last_status(&f);
+    for (uint32_t k = 0u; (k < 20u) && !last_status(&f); k++) {
+        h_run_ms(1u); /* the tick that sends the next status frame */
+    }
+    CHECK_NEAR((double)(int16_t)(uint16_t)(f.data[4] | (f.data[5] << 8)) * 0.1, g_app.t_cmd_nm, 0.1); /* 0.1 Nm, truncated */
+    for (uint32_t k = 0u; k < 120u; k++) {
+        H.v_pack -= 1.0f;
+        h_run_ms(1u);
+    }
+    h_run_ms(300u);
+    CHECK(g_app.dcl.integ == 0.0f && g_app.t_cmd_nm == -150.0f); /* regen handed back */
+}
+
+/* Item 26: below n_x a lost battery path is zero CURRENT — id = iq = 0 at the current-loop rate while the
+ * winding holds 340 A rms, not a DC-link trim — the status reports the torque applied (0 Nm, zero-torque bit),
+ * and the trim never engages. Two cases: 1000 rpm with the link above the normal range (the trim was taking
+ * regen back in RUN the moment before), and 7000 rpm at 750 V, where zero torque alone would still ask for
+ * field-weakening current (n_x = 8086 rpm). */
+TEST(battery_path_loss_below_n_x_applies_and_reports_zero_current)
+{
+    const float rpm[2] = {LOW_RPM, 7000.0f};
+    for (unsigned c = 0u; c < 2u; c++) {
+        const unsigned before = t_fails;
+        sim_reset();
+        sim_nvm_wipe();
+        CHECK(run_at(rpm[c], 50.0f));
+        H.torque_nm = -150.0f;
+        h_run_ms(30u);
+        for (uint32_t k = 0u; (c == 0u) && (k < 120u); k++) {
+            H.v_pack += 1.0f;
+            h_run_ms(1u);
+        }
+        h_run_ms(20u);
+        CHECK(g_app.sm.st == SM_RUN && (g_app.t_cmd_nm < -50.0f));
+        CHECK((c == 0u) ? (g_app.dcl.integ > 0.0f) : (g_app.id_ref < -20.0f)); /* trim engaged / field weakening */
+        H.contactors = TI_CONT_OPEN;
+        vcu_frame_now();
+        H.i_pk_a = 480.0f;
+        tick_1ms();
+        CHECK(fm_active(&g_app.fm, SS_ROW_BATTERY_LOST) && g_app.fm.dec.action == SS_ACT_ZERO_CURRENT);
+        CHECK(g_app.t_cmd_nm == 0.0f && g_app.id_ref == 0.0f && g_app.iq_ref == 0.0f && g_app.dcl.integ == 0.0f);
+        bool engaged = false;
+        bool current = false;
+        for (uint32_t k = 0u; k < 25u; k++) {
+            h_run_ms(1u);
+            engaged = engaged || (g_app.dcl.integ != 0.0f) || (g_app.t_cmd_nm != 0.0f);
+            current = current || (g_app.foc.id_ref != 0.0f) || (g_app.foc.iq_ref != 0.0f) || (g_app.id_ref != 0.0f);
+        }
+        CHECK(!engaged && !current);
+        CHECK(hal_pwm_mode() == HAL_PWM_MOD && fm_active(&g_app.fm, SS_ROW_BATTERY_LOST)); /* current control, not SPO */
+        hal_can_frame_t f;
+        CHECK(last_status(&f) && (f.data[4] == 0u) && (f.data[5] == 0u) && ((f.data[3] & 0x10u) != 0u));
+        if (t_fails != before) {
+            printf("    ^ %.0f rpm\n", (double)rpm[c]);
+        }
+    }
+}
+
+/* ---- FW-32: the service-lock routine on the diagnostic bus ---- */
+static bool test_key(const uint8_t seed[UDS_SA_LEN], uint8_t key[UDS_SA_LEN])
+{
+    for (uint32_t i = 0u; i < UDS_SA_LEN; i++) {
+        key[i] = (uint8_t)(seed[(i + 1u) % UDS_SA_LEN] ^ (0xA5u + i));
+    }
+    return true;
+}
+
+static const uint8_t CLEAR_RQ[4] = {0x31u, 0x01u, (uint8_t)(UDS_RID_CLEAR_SERVICE_LOCK >> 8),
+                                    (uint8_t)(UDS_RID_CLEAR_SERVICE_LOCK & 0xFFu)};
+
+/* One single-frame request on the diagnostic bus; the response the next task tick sends. */
+static bool uds_req(const uint8_t *req, uint8_t n, uint8_t rsp[8])
+{
+    hal_can_frame_t f = {.id = UDS_ID_REQ, .len = 8u};
+    (void)memset(f.data, 0xAA, 8u);
+    f.data[0] = n;
+    (void)memcpy(&f.data[1], req, n);
+    hal_can_frame_t r;
+    while (sim_can_pop_tx(HAL_CAN_DIAG, &r)) {
+    }
+    sim_can_inject(HAL_CAN_DIAG, &f);
+    h_run_ms(1u);
+    if (!sim_can_pop_tx(HAL_CAN_DIAG, &r) || (r.id != UDS_ID_RSP) || (r.len != 8u)) {
+        return false;
+    }
+    (void)memcpy(rsp, r.data, 8u);
+    return true;
+}
+
+static bool uds_unlock(void)
+{
+    uint8_t r[8];
+    const uint8_t sq[2] = {0x27u, 0x01u};
+    if (!uds_req(sq, 2u, r) || (r[0] != 6u) || (r[1] != 0x67u) || (r[2] != 0x01u)) {
+        return false;
+    }
+    uint8_t kq[2u + UDS_SA_LEN] = {0x27u, 0x02u};
+    (void)test_key(&r[3], &kq[2]);
+    return uds_req(kq, (uint8_t)sizeof kq, r) && (r[1] == 0x67u) && (r[2] == 0x02u);
+}
+
+/* A stuck-on QDIS latched in an earlier key cycle (the NVM record service_lock() writes). */
+static void store_service_lock(void)
+{
+    const nv_service_t r = {.magic = NV_SERVICE_MAGIC, .dtc = (uint16_t)DTC_QDIS_STUCK_ON, .key_cycle = 1u};
+    nv_init();
+    (void)nv_queue(NV_REC_DTC, &r, (uint16_t)sizeof r);
+    for (int k = 0; (k < 200) && !nv_idle(); k++) {
+        nv_service();
+    }
+}
+
+static uint32_t service_magic(uint32_t *key_cycle)
+{
+    nv_service_t r = {0};
+    (void)nv_read(NV_REC_DTC, &r, (uint16_t)sizeof r);
+    *key_cycle = r.key_cycle;
+    return r.magic;
+}
+
+static void power_cycle_and_boot(void)
+{
+    sim_reset(); /* the next key cycle: retained RAM lost, the NVM kept */
+    (void)memset(&g_app_session, 0, sizeof g_app_session);
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    h_boot();
+}
+
+/* FW-32, default build: no key function, so nothing unlocks. The seed request is refused (NRC 0x22), a key
+ * without a seed is a sequence error, the routine is denied (0x33); the lock survives the next power-up. */
+TEST(service_lock_clear_is_refused_without_a_key)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    store_service_lock();
+    h_boot();
+    CHECK(g_app.service_required && g_app.init == SM_FAIL && g_app.uds.key_fn == NULL);
+    h_run_ms(300u);
+    CHECK(dis_hv_state(&g_app.vdc) == TI_HV_SAFE && g_app.br.mode == BR_DISARMED); /* only the key is missing */
+    uint8_t r[8];
+    const uint8_t sq[2] = {0x27u, 0x01u};
+    CHECK(uds_req(sq, 2u, r) && r[0] == 3u && r[1] == 0x7Fu && r[2] == 0x27u && r[3] == UDS_NRC_CONDITIONS);
+    const uint8_t kq[2u + UDS_SA_LEN] = {0x27u, 0x02u, 1u, 2u, 3u, 4u};
+    CHECK(uds_req(kq, (uint8_t)sizeof kq, r) && r[1] == 0x7Fu && r[3] == UDS_NRC_SEQUENCE);
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[1] == 0x7Fu && r[2] == 0x31u && r[3] == UDS_NRC_SECURITY_DENIED);
+    h_run_ms(50u);
+    uint32_t kc = 0u;
+    CHECK(service_magic(&kc) == NV_SERVICE_MAGIC && !dtc_active(DTC_SERVICE_LOCK_CLEARED));
+    power_cycle_and_boot();
+    CHECK(g_app.service_required && g_app.init == SM_FAIL);
+}
+
+/* FW-32: unlocked with the key, the routine is still refused (NRC 0x22, nothing written) while the link holds
+ * HV — the VCU closed the contactors again — and while the bridge is armed, even at a moment the link reads
+ * below 60 V; the lock stays. */
+TEST(service_lock_clear_is_refused_with_hv_present_or_armed)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    store_service_lock();
+    h_boot();
+    g_app.uds.key_fn = test_key;
+    H.contactors = TI_CONT_PRECHARGE;
+    h_run_ms(800u);
+    H.contactors = TI_CONT_CLOSED;
+    h_run_ms(100u);
+    CHECK(dis_hv_state(&g_app.vdc) == TI_HV_PRESENT && g_app.br.mode == BR_DISARMED && g_app.sm.st == SM_FAULT);
+    CHECK(uds_unlock());
+    uint8_t r[8];
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[1] == 0x7Fu && r[2] == 0x31u && r[3] == UDS_NRC_CONDITIONS);
+    h_run_ms(50u);
+    uint32_t kc = 0u;
+    CHECK(service_magic(&kc) == NV_SERVICE_MAGIC && !dtc_active(DTC_SERVICE_LOCK_CLEARED) && g_app.service_required);
+    sim_nvm_wipe(); /* no lock: an armed inverter */
+    CHECK(run_at(0.0f, 0.0f) && g_app.br.mode != BR_DISARMED);
+    g_app.uds.key_fn = test_key;
+    CHECK(uds_unlock());
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[1] == 0x7Fu && r[3] == UDS_NRC_CONDITIONS);
+    H.link_override = true; /* the link reads 20 V for a moment: HV "safe", the bridge still armed */
+    sim_set_link_v(20.0f, 20.0f);
+    h_run_ms(3u);
+    CHECK(dis_hv_state(&g_app.vdc) == TI_HV_SAFE && g_app.br.mode != BR_DISARMED);
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[1] == 0x7Fu && r[3] == UDS_NRC_CONDITIONS);
+}
+
+/* FW-32: with the key and the link discharged the routine clears the lock: positive response, the NVM record
+ * rewritten as CLEARED with this key cycle, DTC_SERVICE_LOCK_CLEARED; the unlock is consumed. This key cycle
+ * keeps its lock (status b14.1/2, FAULT); the next power-up has none and arms. */
+TEST(service_lock_clear_with_the_key_takes_effect_at_the_next_power_up)
+{
+    h_setup(TI_SKU_8XX_SIC);
+    store_service_lock();
+    h_boot();
+    g_app.uds.key_fn = test_key;
+    h_run_ms(300u);
+    CHECK(dis_hv_state(&g_app.vdc) == TI_HV_SAFE && g_app.sm.st == SM_FAULT && g_app.service_required);
+    CHECK(uds_unlock());
+    uint8_t r[8];
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[0] == 4u && r[1] == 0x71u && r[2] == 0x01u &&
+          r[3] == (uint8_t)(UDS_RID_CLEAR_SERVICE_LOCK >> 8) && r[4] == (uint8_t)(UDS_RID_CLEAR_SERVICE_LOCK & 0xFFu));
+    CHECK(dtc_active(DTC_SERVICE_LOCK_CLEARED));
+    CHECK(uds_req(CLEAR_RQ, 4u, r) && r[1] == 0x7Fu && r[3] == UDS_NRC_SECURITY_DENIED); /* one run per unlock */
+    h_run_ms(50u);
+    uint32_t kc = 0u;
+    CHECK(service_magic(&kc) == NV_SERVICE_CLEARED && kc == g_app.key_cycle);
+    hal_can_frame_t f;
+    CHECK(last_status(&f) && ((f.data[14] & 0x06u) == 0x06u) && g_app.sm.st == SM_FAULT);
+    power_cycle_and_boot();
+    CHECK(!g_app.service_required && g_app.init == SM_OK);
+    CHECK(h_to_armed());
+}
+
+/* T-32 (round 17): the FS26 challenger window restarts at every answer and lasts 3 ms, the first half closed
+ * (FS_WDW_DURATION, DS Rev.3 Tables 144/145), timed by the fail-safe oscillator, 20 MHz ±5 % (Table 143): closed
+ * until 1.43–1.58 ms, open until 2.86–3.16 ms. On the target the 1 ms task runs on the STM's exact grid, which
+ * the harness now keeps (SPI time no longer shifts later ticks). In RUN, at the oscillator's slow, nominal and
+ * fast corners, the answers come every second task (2.0 ms) — never on the third (3.0 ms: the window's end,
+ * late whenever the FS26 runs fast) — with no watchdog error and FS0B never asserted. */
+TEST(fs26_is_answered_every_2ms_inside_its_window_at_both_oscillator_corners)
+{
+    const float osc[3] = {-0.05f, 0.0f, 0.05f};
+    for (unsigned c = 0u; c < 3u; c++) {
+        const unsigned before = t_fails;
+        sim_reset();
+        sim_nvm_wipe();
+        (void)memset(&g_app_session, 0, sizeof g_app_session);
+        dtc_init();
+        h_setup(TI_SKU_8XX_SIC);
+        const sim_fs26_cfg_t fc = {.prog_id = 0x4A21u, .device_id = 0x2600u, .osc_error = osc[c]};
+        sim_fs26_config(&fc);
+        h_boot();
+        CHECK(h_to_run(100.0f));
+        uint32_t n0 = g_app.fs.n_refresh;
+        uint32_t last = g_app.fs.last_refresh_us;
+        uint32_t lo = UINT32_MAX;
+        uint32_t hi = 0u;
+        for (uint32_t k = 0u; k < 400u; k++) {
+            h_run_ms(1u);
+            if (g_app.fs.n_refresh != n0) {
+                const uint32_t d = g_app.fs.last_refresh_us - last;
+                lo = (d < lo) ? d : lo;
+                hi = (d > hi) ? d : hi;
+                last = g_app.fs.last_refresh_us;
+                n0 = g_app.fs.n_refresh;
+            }
+        }
+        CHECK(lo >= 1900u && hi <= 2100u); /* every second task; the host's answer offset is constant */
+        CHECK(sim_fs26_wd_err_cnt() == 0u && !sim_fs26_fs0b_asserted() && !dtc_active(DTC_FS26_WD));
+        CHECK(g_app.sm.st == SM_RUN && hal_gpio_read(HAL_DI_DRV_EN_RB));
+        if (t_fails != before) {
+            printf("    ^ fail-safe oscillator %+.0f %%: answers every %u..%u us\n", (double)osc[c] * 100.0, lo, hi);
+        }
+    }
+}
+
+/* FW-06a step 3 (round 17): leaving ASC into modulation — here after an MCU reset at 10 000 rpm, the §9 step-5 ASC
+ * handed over to field weakening once the battery and current control are proven. The exit runs in the 1 ms task
+ * and the current-loop ISR (higher priority) can preempt it right behind the clear: the test fires one at once.
+ * The first high-side pulse still never precedes the release deadline: the ASC pins release <= 1.07 us after the
+ * clear's falling edge (VOW3120 tpHL 0.5 + DASCR 0.08 + NSI6611 tASC_f 0.48 us + logic, design-verify Safety A.8),
+ * then the low sides turn off within the dead time. SiC (1.0 us dead time) and IGBT (2.5 us). */
+TEST(asc_exit_first_high_side_pulse_after_the_release_deadline)
+{
+    const ti_sku_t sku[2] = {TI_SKU_8XX_SIC, TI_SKU_8XX_IGBT};
+    for (unsigned k = 0u; k < 2u; k++) {
+        const unsigned before = t_fails;
+        sim_reset();
+        sim_nvm_wipe();
+        (void)memset(&g_app_session, 0, sizeof g_app_session);
+        (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
+        dtc_init();
+        h_setup(sku[k]);
+        h_boot();
+        CHECK(h_to_armed());
+        h_ramp_speed(HIGH_RPM, 600u);
+        h_run_ms(10u);
+        sim_fs26_mcu_reset(); /* FS1B-ASC with EN low while the MCU restarts */
+        h_boot();
+        const uint64_t t0 = sim_now_ns();
+        bool held = false;
+        for (uint32_t n = 0u; (n < 3000u) && !(held && !g_app.asc_hold); n++) {
+            /* §9: step 5 keeps ASC; the arming exits it once the battery and current control are proven */
+            h_run_ms(1u);
+            held = held || g_app.asc_hold;
+        }
+        const uint64_t t_clr = sim_gpio_edge_ns(HAL_DO_ASC_CLR_N, false, t0);
+        h_isr_now(); /* the current-loop trigger right behind the exit */
+        CHECK(held && !g_app.asc_hold && hal_pwm_mode() == HAL_PWM_MOD && t_clr != UINT64_MAX);
+        const uint64_t gap = sim_pwm_mod_ns() - t_clr;
+        CHECK(sim_pwm_mod_ns() > t_clr && gap >= (1070u + g_app.p->dead_time_ns));
+        if (t_fails != before) {
+            printf("    ^ %s: first high-side pulse %llu ns after the clear (deadline %u ns)\n", g_app.p->name,
+                   (unsigned long long)gap, 1070u + g_app.p->dead_time_ns);
+        }
+    }
+}
+
+/* LV supervision (round 17): the let-through design passes an ISO 16750-2 test-B pulse — KL30 at 35 V for 400 ms —
+ * to parts rated for it, and the FS26 sees VSUPOV. It is information: RUN, the torque unchanged, no §6 row, a DTC
+ * whose first/last stamps give the event's duration; nothing changes when the pulse ends. */
+TEST(lv_load_dump_35v_for_400ms_is_information_not_a_fault)
+{
+    CHECK(run_at(LOW_RPM, 100.0f));
+    sim_fs26_vsup(35.0f);
+    bool steady = true;
+    for (uint32_t k = 0u; k < 400u; k++) {
+        h_run_ms(1u);
+        steady = steady && (g_app.sm.st == SM_RUN) && (g_app.t_cmd_nm == 100.0f) && !fm_any(&g_app.fm) &&
+                 !g_app.vsup.sustained;
+    }
+    CHECK(steady && g_app.vsup.ov && g_app.vsup.hi && dtc_active(DTC_LV_OVERVOLTAGE) &&
+          !dtc_active(DTC_LV_OV_SUSTAINED));
+    sim_fs26_vsup(13.5f);
+    h_run_ms(50u);
+    uint32_t first = 0u;
+    uint32_t last = 0u;
+    CHECK(dtc_times(DTC_LV_OVERVOLTAGE, &first, &last) && ti_age(last, first) >= 395u && ti_age(last, first) <= 400u);
+    CHECK(!g_app.vsup.ov && g_app.sm.st == SM_RUN && g_app.t_cmd_nm == 100.0f && hal_pwm_mode() == HAL_PWM_MOD);
+}
+
+/* LV supervision: 35 V held past cal_vsup_ld_ms (500 ms) is sustained — DTC_LV_OV_SUSTAINED and the orderly ramp
+ * the firmware already takes for HVIL open (the §6 command-lost row: torque ramped to zero, then SPO below n_x; no
+ * ASC, no FAULT state); VSUP back in range ends it and the requested torque returns. */
+TEST(lv_overvoltage_beyond_its_band_takes_the_orderly_ramp)
+{
+    CHECK(run_at(LOW_RPM, 100.0f));
+    sim_fs26_vsup(35.0f);
+    h_run_ms(g_app.p->cal_vsup_ld_ms);
+    CHECK(!g_app.vsup.sustained && !fm_active(&g_app.fm, SS_ROW_CMD_LOST) && g_app.t_cmd_nm == 100.0f);
+    h_run_ms(2u);
+    CHECK(g_app.vsup.sustained && fm_active(&g_app.fm, SS_ROW_CMD_LOST) && dtc_active(DTC_LV_OV_SUSTAINED));
+    h_run_ms(100u); /* below n_x the row's cell: the ramp, then SPO — pulses off, the bridge still armed */
+    CHECK(g_app.t_cmd_nm == 0.0f && hal_pwm_mode() == HAL_PWM_OFF && g_app.br.mode == BR_IDLE && g_app.sm.st == SM_RUN);
+    sim_fs26_vsup(13.5f);
+    h_run_ms(20u);
+    CHECK(!g_app.vsup.ov && !g_app.vsup.sustained && !fm_active(&g_app.fm, SS_ROW_CMD_LOST) &&
+          g_app.t_cmd_nm == 100.0f && hal_pwm_mode() == HAL_PWM_MOD);
+}
+
+/* LV supervision: a 24 V jump start (IR-02, ISO 16750-2: 60 s) — and the 2023 edition's 26 V at the AMUX's highest
+ * reading (26.5 V) — stays in the jump-start band (at or below cal_vsup_jump_max_v, 27 V): information for its whole
+ * minute — RUN, torque unchanged, no row — and sustained only once it outlasts cal_vsup_jump_ms (65 s). */
+TEST(lv_24v_jump_start_is_information_for_its_60s)
+{
+    const float level_v[2] = {24.0f, 26.5f};
+    for (uint32_t j = 0u; j < 2u; j++) {
+        CHECK(run_at(LOW_RPM, 100.0f));
+        sim_fs26_vsup(level_v[j]);
+        bool steady = true;
+        for (uint32_t k = 0u; k < 60000u; k++) {
+            h_run_ms(1u);
+            steady = steady && (g_app.sm.st == SM_RUN) && (g_app.t_cmd_nm == 100.0f) && !fm_any(&g_app.fm);
+        }
+        CHECK(steady && g_app.vsup.ov && !g_app.vsup.hi && !g_app.vsup.sustained && dtc_active(DTC_LV_OVERVOLTAGE));
+        h_run_ms(g_app.p->cal_vsup_jump_ms - 60000u + 2u);
+        CHECK(g_app.vsup.sustained && fm_active(&g_app.fm, SS_ROW_CMD_LOST) && dtc_active(DTC_LV_OV_SUSTAINED));
+    }
 }
 
 void suite_scenarios(void)
@@ -1053,4 +1743,22 @@ void suite_scenarios(void)
     RUN(low_speed_open_contactor_is_a_battery_path_loss);
     RUN(battery_path_loss_while_armed_at_every_speed);
     RUN(zero_torque_opening_at_standstill_disarms_without_fault);
+    RUN(resolver_frames_stopping_withdraws_the_angle_at_the_hold);
+    RUN(temporary_empty_reads_never_fault);
+    RUN(a_frozen_resolver_channel_is_never_read_as_fresh);
+    RUN(lost_phase_current_triplets_take_the_failure_path);
+    RUN(lost_triplets_across_the_microsecond_wrap_keep_a_defined_stamp);
+    RUN(a_stopped_current_loop_is_caught_by_the_task);
+    RUN(a_low_impedance_resolver_saturates_the_trim_with_a_dtc);
+    RUN(ptc_post_trip_is_flagged_at_the_winding_and_a_cool_restart_recovers);
+    RUN(dc_link_trim_limits_regen_with_the_battery_present);
+    RUN(battery_path_loss_below_n_x_applies_and_reports_zero_current);
+    RUN(service_lock_clear_is_refused_without_a_key);
+    RUN(service_lock_clear_is_refused_with_hv_present_or_armed);
+    RUN(service_lock_clear_with_the_key_takes_effect_at_the_next_power_up);
+    RUN(fs26_is_answered_every_2ms_inside_its_window_at_both_oscillator_corners);
+    RUN(asc_exit_first_high_side_pulse_after_the_release_deadline);
+    RUN(lv_load_dump_35v_for_400ms_is_information_not_a_fault);
+    RUN(lv_overvoltage_beyond_its_band_takes_the_orderly_ramp);
+    RUN(lv_24v_jump_start_is_information_for_its_60s);
 }

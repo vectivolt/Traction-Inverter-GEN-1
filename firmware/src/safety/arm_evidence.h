@@ -13,7 +13,8 @@
  * The last two come from a validation record in NVM (NV_REC_VALIDATION), sealed with a CRC-32 and
  * bound to the firmware identity, the SKU and the hardware serial: a record written for another
  * image or another card, or a corrupted one, validates nothing. The CAN status reports the missing
- * items (can_cmd.h). */
+ * items (can_cmd.h). TODO(EOL): the EOL/HIL rig that injects FLT at the pads, measures the FW-06 chain and
+ * writes this record for each TI_FW_ID is not in this repository (arm_validation_make/_seal are its side). */
 #ifndef ARM_EVIDENCE_H
 #define ARM_EVIDENCE_H
 

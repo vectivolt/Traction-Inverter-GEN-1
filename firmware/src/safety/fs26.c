@@ -5,7 +5,7 @@
 #include "ti_crc.h"
 #include "timer.h"
 
-#define WD_REFRESH_US 2000u /* window 3 ms, 50 % closed: open 1.5–3.0 ms after the last answer */
+#define WD_DUE_US 1500u /* the second 1 ms task after the answer (≈ 2.0 ms), never the first or third: fs26_wd_due */
 
 /* ---------------- protocol helpers (also used by the host device model) ---------------- */
 static uint8_t crc_of(uint32_t frame)
@@ -22,7 +22,8 @@ uint32_t fs26_frame(uint8_t hex_addr, bool write, uint16_t data)
 
 bool fs26_frame_crc_ok(uint32_t frame) { return crc_of(frame) == (uint8_t)(frame & 0xFFu); }
 
-/* §22.6.1: ANSWER = NOT(((TOKEN x 4) + 6) - 4) / 4, 32-bit intermediate as NXP's drivers compute it */
+/* §22.6.1: ANSWER = NOT(((TOKEN x 4) + 6) - 4) / 4, 32-bit intermediate as NXP's drivers compute it.
+ * TODO(HW): on silicon, that the FS26 accepts this 16-bit answer (not the 16-bit-intermediate one). */
 uint16_t fs26_wd_answer(uint16_t token)
 {
     uint32_t mr = token;
@@ -129,7 +130,7 @@ fs26_status_t fs26_init(fs26_t *f, const ti_params_t *p)
     if (rd(f, FS26_M_PROGID, &v) != FS26_OK) {
         return fail(f, FS26_ERR_SPI);
     }
-    f->prog_id = v;
+    f->prog_id = v; /* TODO(EOL): the per-field OTP comparison with design-basis §8a (debug/OTP mode only) */
     if ((p->cal_fs26_prog_id == 0xFFFFu) || (v != p->cal_fs26_prog_id)) {
         return fail(f, FS26_ERR_PROGID);
     }
@@ -154,7 +155,8 @@ fs26_status_t fs26_init(fs26_t *f, const ti_params_t *p)
         }
     }
     /* readback: after an MCU-only reset the FS26 is past INIT_FS and these are read-only — they
-     * must still hold FW-12's values */
+     * must still hold FW-12's values. TODO(HW): on silicon, the FS26 after an MCU-only reset (INIT_FS not
+     * re-entered, these values held) and the FS0B/FS1B release after an RSTB (FLT_ERR_CNT back to 0). */
     const bool ok = check(f, FS26_FS_I_WD_CFG, FS26_WD_CFG_WMASK, fs26_wd_cfg_value()) &&
                     check(f, FS26_FS_I_NOT_WD_CFG, FS26_WD_CFG_WMASK, (uint16_t)~fs26_wd_cfg_value()) &&
                     check(f, FS26_FS_I_FSSM, FS26_FSSM_WMASK, fs26_fssm_value()) &&
@@ -176,13 +178,21 @@ fs26_status_t fs26_init(fs26_t *f, const ti_params_t *p)
     if (rd(f, FS26_FS_SAFE_IOS_1, &v) == FS26_OK) {
         f->fs1b_short_high = (v & FS26_IOS1_FS1B_DIAG) != 0u;
     }
+    (void)fs26_write(f, FS26_M_AMUX_CTRL, FS26_AMUX_VSUP_DIV14); /* VSUP for the LV supervision (sense/vsup.h) */
     f->init_done = true;
     return FS26_OK;
 }
 
+/* Round 17 (T-32). The window restarts at every answer: 3 ms, the first half closed (FS_WDW_DURATION, DS Rev.3
+ * Tables 144/145), timed by the fail-safe oscillator, 20 MHz ±5 % (Table 143): closed until 1.43–1.58 ms, open
+ * until 2.86–3.16 ms after the answer. The caller runs this at the top of the 1 ms task, whose ticks are exact
+ * (STM compare); last_refresh_us trails its task's start by the answer's position d (task-start latency + two
+ * SPI frames, 20–120 us assumed). Due at >= 1500 us fires on the second task (2000 - d elapsed), never on the
+ * first (1000 - d), for any d < 500 us: answers every 2000 +/- 100 us. Waiting for 2000 us fired on the third
+ * task (3000 - d < 2000 on the second): every 3.0 ms, the window's end. */
 bool fs26_wd_due(const fs26_t *f, uint32_t now_us)
 {
-    return f->wd_running && ti_elapsed(now_us, f->last_refresh_us, WD_REFRESH_US);
+    return f->wd_running && ti_elapsed(now_us, f->last_refresh_us, WD_DUE_US);
 }
 
 fs26_status_t fs26_wd_refresh(fs26_t *f)

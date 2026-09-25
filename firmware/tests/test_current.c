@@ -169,8 +169,35 @@ TEST(activity_catches_a_stuck_channel_where_current_is_asked)
     CHECK(s.stuck_fault && !s.sum_fault);
 }
 
+/* A14-R03: a sample whose triplet did not arrive complete is lost — invalid, not fresh, no channel valid
+ * (so neither the OC backstop nor the activity check reads the previous values) — and it is not taken
+ * for an open wire; the time stamp stays the last complete triplet's; the next complete one recovers. */
+TEST(lost_sample_is_invalid_and_keeps_its_last_stamp)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const isns_cal_t cal[3] = {CAL_NOM, CAL_NOM, CAL_NOM};
+    isns_t s;
+    isns_init(&s);
+    const uint16_t hi[3] = {code_of_v(2.5f + 2.22e-3f * 650.0f), code_of_v(2.5f), code_of_v(2.5f)};
+    isns_update(&s, hi, 5000u, 5000u, cal, p);
+    CHECK(isns_oc(&s, p)); /* 650 A in this sample: the software backstop sees it */
+    isns_lost(&s);
+    CHECK(!isns_oc(&s, p)); /* the next sample is lost: the old 650 A is not evaluated again as if new */
+    const uint16_t c[3] = {code_of_v(2.5f + 2.22e-3f * 100.0f), code_of_v(2.5f - 2.22e-3f * 50.0f),
+                           code_of_v(2.5f - 2.22e-3f * 50.0f)};
+    isns_init(&s);
+    isns_update(&s, c, 5000u, 5000u, cal, p);
+    CHECK(s.valid && s.fresh);
+    isns_lost(&s);
+    CHECK(!s.valid && !s.fresh && !s.ch_valid[0] && !s.ch_valid[1] && !s.ch_valid[2]);
+    CHECK(!s.open_wire[0] && !s.open_wire[1] && !s.open_wire[2] && s.t_us == 5000u);
+    isns_update(&s, c, 5050u, 5050u, cal, p);
+    CHECK(s.valid && s.fresh && s.t_us == 5050u);
+}
+
 void suite_current(void)
 {
+    RUN(lost_sample_is_invalid_and_keeps_its_last_stamp);
     RUN(conversion_and_validity);
     RUN(open_hall_wire_reads_0v_and_invalidates);
     RUN(sum_plausibility_debounced_then_latched);

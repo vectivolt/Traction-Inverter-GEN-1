@@ -10,7 +10,8 @@
  * design-basis §8a is proven at EOL; at every boot the firmware proves the variant (PROG_ID), the
  * OTP CRC monitor and the INIT configuration. FS_GPIO1 "push-pull, not slotted" is proven
  * indirectly: gate power up before §9 step 6 => DTC (safety/state_machine.c).
- * Run time: challenger refresh every 2 ms (inside the 1.5–3 ms open window), FS0B/FS1B release
+ * Run time: challenger refresh on every second 1 ms task, ≈ 2.0 ms (open window 1.58–2.86 ms at the fail-safe
+ * oscillator's ±5 %; fs26_wd_due, round 17), FS0B/FS1B release
  * with the token-derived word (§9 step 4), FS0B_REQ for FW-16 step a, GPIO1 control, LPOFF. */
 #ifndef FS26_H
 #define FS26_H

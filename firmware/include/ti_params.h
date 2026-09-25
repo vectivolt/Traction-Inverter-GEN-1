@@ -111,6 +111,12 @@ typedef struct {
     bool fs26_backup_fs0b;
     bool fs26_backup_fs1b;
 
+    /* ---- LV supervision (round 17): VSUP through the FS26 AMUX ---- */
+    float vsup_amux_ratio;
+    float vsup_valid_min_v;
+    float vsup_ov_v;      /* the FS26 VSUP_OV threshold: VSUPOV */
+    float vsup_ov_hyst_v;
+
     /* ---- FW-13 temperature chains ---- */
     float ntc_b_k;           /* module NTC B25/50 */
     float ntc_r25_ohm;
@@ -133,11 +139,15 @@ typedef struct {
     uint32_t fw16_asc_rb_us;
     uint32_t fw16_drven_rb_us;
 
-    /* ---- FW-06a / §4c ---- */
-    uint32_t asc_exit_hs_delay_ns;
-
     /* ---- FW-19 ---- */
     float precharge_sig_frac; /* the ~5 % plateau signature of a shorted QDIS */
+
+    /* ---- FW-10 excitation planes (round 16, A14-N01): SWG -> amplifier -> RSX -> monitor -> PTC -> winding ---- */
+    float rslv_floor_vpp;     /* resolver minimum excitation AT THE WINDING (gate 25) */
+    float exc_gain;           /* SWG V pp -> amplifier differential V pp (MFB |H(10 kHz)| x 2) */
+    float exc_amp_per_mon;    /* amplifier / monitor plane (RSX upstream of the tap; screening primary) */
+    float swg_maxapp_min_vpp; /* SWG maximum amplitude at its low corner (DS Table 40 MAXAPP min) */
+    float exc_slew_max_vpp;   /* amplifier differential ceiling: ALM2402 slew at -40 degC */
 
     /* ---- CAL (defaults + ranges: include/cal_ranges.h) ---- */
     float cal_vdc_disagree_floor_v;
@@ -203,10 +213,18 @@ typedef struct {
     uint32_t cal_oneshot_wait_us;
     float cal_torque_max_nm;
     uint32_t cal_desat_en_hold_us; /* A12-R05: MCU_GATE_EN held this long after a FLT is first seen */
+    uint32_t cal_asc_release_ns;   /* FW-06a step 3 (round 17): ASC pins' release after ASC_CLR, + margin */
+    uint32_t cal_vsup_ld_ms;       /* LV supervision (round 17): tolerated time above the jump-start ceiling */
+    uint32_t cal_vsup_jump_ms;     /* ... tolerated VSUPOV event at or below it (24 V jump start) */
+    float cal_vsup_jump_max_v;     /* ... the jump-start band ceiling */
     float cal_vdyn_reserve_frac;   /* F23: dynamic voltage reserve of the torque->current witness */
     float cal_isns_act_min_a;      /* F24: latent stuck-channel detector */
     float cal_isns_act_frac;
     uint8_t cal_isns_act_debounce;
+    uint32_t cal_rslv_hold_us;     /* A14-R01: age limit of the newest coherent resolver frame */
+    float cal_rslv_exc_target_vpp; /* A14-N01: SWG trim setpoint at the MONITOR plane (V pp) */
+    float cal_rslv_wind_per_mon;   /* A14-N01: monitor -> winding allowance (PTCs cold) */
+    uint8_t cal_swg_code_init;     /* A14-N01: SWG code at start; the trim ramps up from it */
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */

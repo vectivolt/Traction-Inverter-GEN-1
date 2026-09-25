@@ -22,7 +22,7 @@ static ss_action_t cell(ss_row_t row, bool high, bool battery)
     case SS_ROW_CMD_LOST:
         return high ? (battery ? SS_ACT_RAMP_KEEP_CC : SS_ACT_LS_ASC) : SS_ACT_RAMP_THEN_SPO;
     case SS_ROW_BATTERY_LOST:
-        return high ? SS_ACT_LS_ASC : SS_ACT_ZERO_TORQUE_DCL;
+        return high ? SS_ACT_LS_ASC : SS_ACT_ZERO_CURRENT;
     case SS_ROW_BMS_LIMIT_ZERO: /* a connected pack is a voltage source: never an ASC case */
         return high ? SS_ACT_RAMP_KEEP_CC : SS_ACT_RAMP_THEN_SPO;
     case SS_ROW_RESOLVER_INVALID:
@@ -100,7 +100,7 @@ const char *ss_row_name(ss_row_t r)
 
 const char *ss_action_name(ss_action_t a)
 {
-    static const char *const N[7] = {"NONE", "RAMP_KEEP_CC", "RAMP_THEN_SPO", "ZERO_TORQUE_DCL", "SPO", "LS_ASC",
+    static const char *const N[7] = {"NONE", "RAMP_KEEP_CC", "RAMP_THEN_SPO", "ZERO_CURRENT", "SPO", "LS_ASC",
                                      "SPO_THEN_PWM_ASC"};
     return ((uint32_t)a < 7u) ? N[a] : "?";
 }

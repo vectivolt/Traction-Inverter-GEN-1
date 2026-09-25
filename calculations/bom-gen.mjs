@@ -114,6 +114,15 @@ for (const [board] of BOARDS) {
   const j = INPUTS.get(board);
   const ports = new Map();
   for (const e of j) if (e.type === "source_port") ports.set(e.source_component_id, (ports.get(e.source_component_id) ?? 0) + 1);
+  // Drawn-size gate (round 16 polish): the footprinter's pad extents identify the imperial size the
+  // sheet draws; a rule whose footprint ends in a size must agree with it (CEXD once ordered a 0603
+  // while the sheet drew a 1206 — that is now a build failure, for bound and CLASS rows alike).
+  const SIZE = { "2.45x0.95": "0603", "2.85x1.40": "0805", "4.05x1.75": "1206", "4.05x2.65": "1210", "7.15x3.35": "2512" };
+  const drawn = new Map();
+  for (const p of j.filter((e) => e.type === "pcb_component")) {
+    const sz = SIZE[`${p.width.toFixed(2)}x${p.height.toFixed(2)}`];
+    if (sz) drawn.set(p.source_component_id, sz);
+  }
   const lines = new Map();
   const unmatched = [];
   for (const c of j.filter((e) => e.type === "source_component")) {
@@ -121,6 +130,9 @@ for (const [board] of BOARDS) {
     const rule = (VARIANT ? undefined : OVERRIDES[c.name]) ?? XDB.find((r) => r.m.test(c.name));
     if (!rule) { unmatched.push(c.name); continue; }
     const val = rule.value ?? valueOf0(c);
+    // only imperial chip sizes are compared — XAL4040 / PTC1812-on-a-generic-symbol stay a layout matter
+    const dsz = drawn.get(c.source_component_id), rsz = /^(?:C|R|L|FB|PTC)?(0402|0603|0805|1206|1210|1812|2010|2512)$/.exec(String(rule.fp ?? ""))?.[1];
+    if (dsz && rsz && dsz !== rsz) mismatches.push(`${c.name}: sheet draws ${dsz}, BOM footprint ${rule.fp} (${rule.mpn})`);
     // connector contact count (A6-R10): the bound part must have as many contacts as the symbol has pins
     if (rule.pins && ports.get(c.source_component_id) !== rule.pins)
       mismatches.push(`${c.name}: symbol has ${ports.get(c.source_component_id)} pins, ${rule.mpn} has ${rule.pins} contacts`);

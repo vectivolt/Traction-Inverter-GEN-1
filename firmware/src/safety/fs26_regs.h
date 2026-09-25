@@ -17,6 +17,8 @@
 #define FS26_M_REG_CTRL1 0x11u /* bit 8 GPIO1HI: request GPIO1 high */
 #define FS26_M_REG_CTRL2 0x12u /* bit 8 GPIO1LO: request GPIO1 low */
 #define FS26_GPIO1_BIT 0x0100u
+#define FS26_M_AMUX_CTRL 0x13u /* Tables 55/56: AMUX_EN bit 6, AMUX_DIV bit 5 (1 = ratio 14), AMUX[4:0] */
+#define FS26_AMUX_VSUP_DIV14 ((uint16_t)((1u << 6) | (1u << 5) | 0x11u)) /* VSUP / 14 (AMUX 10001, Table 130; round 17) */
 
 /* fail-safe logic */
 #define FS26_FS_GRL_FLAGS 0x40u

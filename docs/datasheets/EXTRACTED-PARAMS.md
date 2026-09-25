@@ -446,10 +446,11 @@ Design use: 270 Ω 1 % LED series from the 5 V LVC outputs (10.8–15.8 mA, veri
 | Littelfuse SMCJ8.5CA (TVSEP/TVSEN) | V_RWM / V_BR / V_C at I_PP | 8.5 V / 9.44–10.40 V / 14.4 V at 104.2 A (10/1000 µs); I_R 20 µA | `SMCJ-series.pdf` p.2 |
 | | P_PP / P_D | 1500 W at 1 ms (Table 1); ≈ 550 W at 10 ms (Fig. 2, read graphically; the axis stops at 10 ms); 6.5 W steady at T_L 50 °C | p.1, p.3 |
 | | AEC-Q101 | not stated on the commercial sheet — the automotive-line variant if the OEM requires it | all pages |
+| Littelfuse SMCJ8.5A (unidirectional, TVSEP/TVSEN since A.15) | forward surge | I_FSM 200 A, 8.3 ms single half sine (Note 3) — carries a negative harness fault at −0.7…−1.2 V so the ALM2402's lower output diode sees < 0.3 A | p.2 |
 | Vishay SMAJ8.5CA (comparison) | V_BR / V_C / I_PP | 9.44–10.4 V / 14.4 V / 27.8 A (400 W) | `SMAJ-series.pdf` p.2 |
 | Bourns MF-MSMF020/33X (FEXP/FEXN since A.14; A.13 had the unsuffixed 020) | I_hold / I_trip / V_max / I_max | 0.20 A / 0.40 A / **33 V** / 40 A; package **1812** (4.37 × 3.07 mm — the A.13 BOM had said 1206, A13-R03) | `MF-MSMF.pdf` p.1 |
 | | R_min / R_1max · time-to-trip · P_trip | 0.35 Ω / 5.0 Ω (1 h after a trip) · **0.02 s at 8 A** · 0.8 W typ; −40…85 °C | |
-| | hold-current derating | **0.09 A at 85 °C** (0.13 A is the 60 °C figure — A13-R06) against the 40–60 mA rms excitation | p.9 |
+| | hold-current derating | **/33X: 0.07 A at 85 °C** (0.29 / 0.26 / 0.23 / 0.20 / 0.17 / 0.15 / 0.14 / 0.12 / 0.07 A at −40 / −20 / 0 / 23 / 40 / 50 / 60 / 70 / 85 °C) — the unsuffixed 020 is 0.09 A at 85 °C (round 16, A14-R03 corrected the A.14 text) against ≈ 35 mA rms at the nominal 7 V pp / 70 Ω (60 mA assumed maximum) | p.9 |
 | | unsuffixed MF-MSMF020 | 30 V, 80 A, 0.40/6.0 Ω, 0.06 s at 6 A; flagged not-for-new-designs — hence the /33X | |
 | | why not MF-LSMF | the family has no 0.2 A part (lowest MF-LSMF030X); MF-LSMF050X is 60 V / 0.5 A (4 s at 2.5 A), MF-LSMF075X 30 V / 0.75 A | `MF-LSMF.pdf` |
 | Littelfuse 0438.375WRA (FMT1/FMT2) | rating / V / I²t / R | 375 mA, 63 V DC, 0.0041 A²s melting, 1.247 Ω, 0.488 V drop at rating, −55…150 °C, **AEC-Q200** (438A series, 0603) | `Littelfuse-438A.pdf` p.1, p.3 |
@@ -465,6 +466,131 @@ lists six types including **UCC14141QDWNRQ1** (item 2 of 6). The cover certifica
 V_IOWM 1000 Vrms / 1414 VDC, V_IOTM 7071 Vpk) stand, and the datasheet's "planned" wording (SLUSF10B, 2023)
 simply predates the certificate. UL 1577 recognition is still listed as planned by TI — no UL file found.
 This closes the gate ㉔ component residual on the VDE basis (round 14, N01).
+
+## 33. Ferrite beads bound in rev A.15 (round 16): Murata BLM31PG121SH1L / BLM21PG221SH1D, TDK MMZ1608B471CTDH5
+
+| Line | Part | Key numbers | Citation |
+|---|---|---|---|
+| LFH1 / LFL1 / LFC (12 V pi filters, drawn 1206) | **Murata BLM31PG121SH1L** | 120 Ω ±25 % @ 100 MHz, 3.5 A, DCR 20 mΩ max, −55…125 °C; the automotive-grade twin of the commercial SN1L part | `BLM31PG121SH1L.pdf` (distributor mirror of the Murata spec, archived round 17) p.1 application code "Automotive Usage: Powertrain/Safety", p.2 electricals (3.5 A at 85 °C / 2 A at 125 °C); the sheet carries no literal AEC-Q200 line — VR-14 |
+| LUB / LVB / LWB (hall 5 V, 0805) | **Murata BLM21PG221SH1D** | 220 Ω ±25 % @ 100 MHz, 2 A at 85 °C / 1.25 A at 125 °C, DCR 45 mΩ max; application code "Automotive Powertrain/Safety" | `BLM21PG221SH1D.pdf` p.1 (application/package codes), p.2 (electrical table) |
+| LVS1–4 (CAN lines, 0603) | **TDK MMZ1608B471CTDH5** | 470 Ω ±25 % @ 100 MHz, 500 mA, DCR 0.30 Ω max; TDK automotive signal-line series (GEN3 fits the same family) | `MMZ1608-automotive.pdf` p.7 (table), p.14 |
+| LVS alternate | Murata BLM18KG471SH1D | 470 Ω, 1 A, DCR 0.145 Ω max (the lowest-DCR 470 Ω in the BLM18 automotive family) | `QNFA9101-BLM18-automotive.pdf` p.2, p.13 |
+| TDK automotive MPZ2012 (round 17) | `TDK-MPZ2012-automotive-power.pdf` | AEC-Q200 catalog lists 30 / 100 / 220 / 330 / 600 / 1000 Ω only — **no 120 Ω automotive MPZ2012 exists**; the T000 / TD25 suffix is reel packaging, the grade is the catalog. MPZ2012S221ATD25 (220 Ω) is confirmed as the LUB/LVB/LWB alternate; LFH1/LFL1/LFC have no TDK drop-in | p.1 |
+
+The guessed codes "MMZ1608…CTAH0" and "BLM18…TN1D" do not exist / are the commercial parts; the automotive suffixes are **CTDH5** (TDK) and **SH1D** (Murata).
+
+## 34. Bourns MF-MSMF010/60X — FVS1 KL15 sense-line polyfuse (`MF-MSMF.pdf`, `Littelfuse-1812L.pdf`)
+
+| Parameter | MF-MSMF010/60X (fitted) | Littelfuse 1812L010/60DR (alternate) | Citation |
+|---|---|---|---|
+| I_hold / I_trip | **0.10 A / 0.30 A** | 0.10 A / 0.30 A | MF-MSMF p.1; 1812L p.2 |
+| V_max / I_max | **60 V / 40 A** | 60 Vdc / 10 A | same |
+| R_min / R1_max | 0.70 Ω / 15 Ω | 1.6 Ω / 15 Ω | same |
+| Trip test | 0.5 A / 1.5 s | 0.5 A / 1.5 s | same |
+| AEC-Q200 | **yes** | not stated for this rating (the 1812L family footnotes only 1812L150/24 as AEC-Q200 tested; an "-A" automotive suffix exists but is unconfirmed at 0.10 A) | 1812L p.7 |
+| Package | 1812 | 1812 | — |
+
+Duty: the KL15 line feeds a 47 k / 10 k sense divider (< 1 mA); 15 Ω max in series is invisible. 60 V covers the 24 V jump start and the 35 V load-dump pulse. **Bourns makes no "005/60"** — 0.10 A is the lowest hold current in the MSMF family, so the 0.05–0.10 A window asked for in round 16 tops out at this part.
+
+## 35. Samtec IPL1 single-row headers — JDIS / JCTL (IPL1-104-01-L-S-K) and JHVIL (IPL1-102-01-L-S-K) (`Samtec-IPL1.pdf`, `Samtec-IPD1-CC79L.pdf`)
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Family | 2.54 mm shrouded, keyed, vertical through-hole, single row; standard positions 02–25 (2- and 4-way are catalog sizes) | IPL1 doc F-226 |
+| Pin numbering, double row (JIC/JICC IPL1-120-01-L-D-K) | **sequential per row**: row A = 1…20, row B = 21…40 (Fig. 1 of the engineering drawing shows 01/02 on the top row and 07 starting the bottom row of the 6-position example) — not odd/even interleaved; IPD1-20-D-K follows the same scheme | `Samtec-IPL1-double-row-print.pdf` sheet 1, Fig. 1 (Rev AL), round 17 |
+| Current / voltage | 4.8 A/pin (two pins powered), 275 VAC / 389 VDC | same |
+| Temperature | −55…125 °C; natural LCP body, gold-flash contacts (-L) | same |
+| Mating side | IPD1-04-S-K / IPD1-02-S-K nylon 6/6 keyed housings with CC79L-2024-01-L crimps (20–24 AWG; -F gold flash, -L 10 µin gold; -2630 for 26–30 AWG) | IPD1/CC79L sheet |
+| Price | ≈ $2.50 unit (DigiKey) for the 4-way; crimps ≈ $0.20; 1k breaks are quote-gated — the BOM carries planning figures | — |
+
+Same family as the JIC/JICC 40-way harness headers, so one housing/crimp/tool set covers the whole inverter.
+
+## 36. Vishay VY2472M49Y5US6TV0 — CPET DGND-to-chassis Y2 capacitor (`VY2-series.pdf`; alternate `B32021-Y2.pdf`)
+
+| Parameter | VY2472M49Y5US6TV0 (fitted) | TDK/EPCOS B32021A3472 (alternate) | Citation |
+|---|---|---|---|
+| Value / class | 4.7 nF ±20 %, **Y2 300 VAC** (dual X1 440 VAC) | 4.7 nF, Y2 300 VAC, MKP film box | VY2 p.2 ordering table; B32021 p.1 |
+| Impulse | 3 × 5 kV | per Y2 class | VY2 p.6 |
+| Body / leads | D 12.5 mm max, **10 mm** kinked leads (the FilmBoxFP(10) land) | 5.0 × 11.0 × 13.0 mm, 10 mm pitch | VY2 p.3; B32021 p.5 |
+| Temperature | −40…125 °C (Y5U) | −40…110 °C class | same |
+
+Ordering-code note: the size digits after the value are the body code — "49" is the 12.5 mm 4.7 nF body; "63" (guessed in round 16) is the 16 mm 10 nF body, so **VY2472M63… does not exist**. Murata's DE2E Y2 4.7 nF discs are offered only at 5.0 / 7.5 mm lead spacing (the 10 mm DE1E3KX472 is X1-only), so no Murata disc fits this land — the film box is the alternate.
+
+## 37. ROHM ESR anti-surge series — RFS4 moves from ESR03 (0603) to ESR18EZPF1001 (1206) in rev A.16 (`ROHM-ESR-series-Rev012.pdf`)
+
+| Size | Code | Rated power at 70 °C | Notes | Citation |
+|---|---|---|---|---|
+| 0805 | ESR10 | 0.4 W | | series table, p.1 |
+| **1206** | **ESR18** | **0.5 W** | limiting element voltage 150 V; −55…155 °C; AEC-Q200 "Yes"; F ±1 % E24/E96; derating above 70 °C ambient (Fig. 1) | series table p.1, derating p.5 |
+| 1210 | ESR25 | 0.75 W | | series table, p.1 |
+
+Duty (verifier row "RFS4 with FS1B held a whole key-on"): 0.30 W at 18 V/60 min (65 °C) and 0.48 W for 60 s at the 24 V jump start
+(25 °C) — 0.96× of the 1206 rating against 1.47× of the 0603 ESR03 it replaces; element ≈ 107 °C from the rating's own
+slope vs 155 °C. The DigiKey listing of the same part says "1/2 W", the ROHM table 0.5 W — consistent.
+
+## 38. Littelfuse SMDJ8.5A-HRA — exciter TVS upgrade in rev A.16 (`SMDJ-HRA-series.pdf`; plain family `SMDJ-series.pdf`)
+
+| Parameter | Value | Citation |
+|---|---|---|
+| Grade | "High reliability application and automotive grade AEC-Q101" (MIL-PRF-19500 reference screening) — the plain SMDJ sheet has no AEC statement | HRA p.1 |
+| V_RWM / V_BR min–max / I_T | 8.5 V / 9.44–10.40 V / 1 mA — identical to SMCJ8.5A | HRA p.2 |
+| V_C at I_PP (10/1000 µs) | **14.4 V at 208.3 A** (SMCJ8.5A: 14.4 V at 104.2 A → r_dyn halves) | HRA p.2 |
+| V_C at I_PP (8/20 µs) | 18.6 V at 1041.5 A | HRA p.2 |
+| I_FSM / V_F / P_M(AV) | **300 A** (8.3 ms half sine) / 3.5 V at 100 A / 6.5 W at 50 °C | HRA p.1 table |
+| Pulse derating (Fig. 2) | ≈ 3 kW at 1 ms → **≈ 0.9–1.0 kW at 10 ms (≈ 9–10 J)**, the curve ends at 10 ms; nothing published beyond | SMDJ p.3 |
+| Package | DO-214AB (SMC) — the same pad as the round-16 SMCJ8.5A | — |
+
+Why: the round-16 conditional row needed 6.3 J at the 20 ms PTC bound for the 35 V (load-dump-coincident) fault; 5.5 J was the
+1.5 kW part's 10 ms point. With 9 J at 10 ms the 20 ms energy is inside the curve without extrapolation.
+
+## 39. Diversion Schottky DEXP/DEXN (rev A.16): Nexperia PMEG4050EP-Q (`PMEG4050EP-Q.pdf`); alternates evaluated
+
+| Parameter | PMEG4050EP-Q (fitted) | SBR3U40P1-7 (alternate) | SS3P4HM3 (evaluated) | Citation |
+|---|---|---|---|---|
+| Grade / package | AEC-Q101, SOD128 | AEC-Q101, PowerDI123 | AEC-Q101 (HM3 suffix), SMP | p.1 each |
+| V_F | 430 typ / **490 mV max at 5 A** (25 °C) | 0.47 V max at 3 A | 0.60 V max at 3 A | tables |
+| I_FSM (8.3 ms) | **70 A** | 75 A | 50 A | tables |
+| I_R | 60 typ / 300 µA max at 40 V, 25 °C (graph at 125 °C) | 400 µA at 25 °C / **40 mA at 125 °C** | — | tables |
+| Duty here | 4.9 A peak, τ 59 µs, 0.29 mC once per fault; 8–12 V reverse in service | | | verifier row |
+
+The SBR's 40 mA hot leakage into a permanently reverse-biased node (0.4 W, a DC offset into the amplifier) makes it the second
+choice; the onsemi NRVBS3040MFST1G / NRVB340MFST1G codes named in the round-17 brief could not be found and were not bound.
+
+## 40. KL30 entry by load-dump let-through (rev A.16, round 17): TVS pair, entry fuse, NRC bulk, D2PAK-5 LDO, KL15 blocking diode
+
+Design rule (F189): no TVS on a KL30-derived net may conduct at the 35 V ISO 16750-2 test-B plateau, and every part downstream
+is rated for it. The verifier rows are "LV A.16"; the ERC locks the knee (≥ 36.7 V V_BR,min) on every rail-to-ground TVS.
+
+| Part (designator) | Parameter | Value | Citation |
+|---|---|---|---|
+| Littelfuse TPSMC33A-VR (DTVSC) / TPSMC33CA-VR (DTVH, DTVL) | V_R / V_BR min–max at 1 mA / V_C at I_PP / αT | 33 V / **36.7–40.6 V** / 53.3 V at 28.2 A (10/1000 µs) / 0.097 %/°C | `TPSMC24CA.pdf` (TPSMC-VR series) p.2 table |
+| | knee at 18 °C / −40 °C | 36.45 V / 34.39 V (V_BR,min × (1 + αT·(T − 25))) | computed |
+| Littelfuse TPSMC18A-VR (DTVSC2, negative leg) | V_R / V_BR / V_C at I_PP / αT | 18 V / **20.0–22.1 V** / 29.2 V at 51.4 A / 0.088 %/°C → 18.86 V at −40 °C | same table |
+| TPSMC-VR series | grade / P_PPM / I_FSM / V_F | AEC-Q101, 1500 W at 10/1000 µs, 200 A (8.3 ms), 3.5 V at 100 A (uni); pulse curve ends at 1 ms (≈ 1.5 kW) | p.1, p.3 Fig. 2 |
+| Bel 0680L5000-05 (FLVC) | rating / type / package | 5 A, slow blow, ceramic tube, 2410 | `Bel-0680L.pdf` p.1–2 |
+| | voltage / interrupting | 125 V AC/DC; **125 V DC at 100 A, 75 V DC at 500 A** (≤ 7 A ratings) | p.1 approvals table |
+| | melting I²t / cold R / drop / max power | **37 A²s at 10 × I_n, 36 A²s under 10 ms** / 0.019 Ω / ≤ 0.23 V at 5 A / 1.15 W | p.2 table |
+| | opening time | 100 % ≥ 4 h · 200 % ≤ 120 s · 300 % 0.15–3 s · 800 % 0.01–0.1 s | p.1 |
+| | temperature | −55…125 °C; derating curve ≈ 98 % at 85 °C, ≈ 96 % at 125 °C | p.3 |
+| | automotive status | "AEC-Q compliant", "largely based on internal AEC-Q test plan" — not an AEC-Q200 qualification statement (VR-32) | p.1 |
+| Bourns SF-1206SA500W-2 (FLVC alternate) | rating / voltage / interrupting / I²t / R | 5 A slow blow, 1206, **65 VDC, 50 A at 65 VDC**, 5.4 A²s (1 ms), 12.9 mΩ typ; AEC-Q200 Rev. E compliant; derating ≈ 86 % at 85 °C | `Bourns-SF-1206SA-W.pdf` p.1, p.3 |
+| Littelfuse 407A (evaluated, not fitted) | 5 A rating | **32 V**, 50 A at 32 VDC (only ≤ 2 A is 63 V) — under the ≥ 35 V the entry needs | `Littelfuse-407A.pdf` p.1 |
+| Panasonic EEH-ZC1H101P (CLVC3) | C / V / case / height | 100 µF ± 20 %, 50 V, G case φ10 × 10.2 mm, **10.5 mm max height** | `Panasonic-EEH-ZC.pdf` p.1, characteristics list |
+| | ESR / ripple / life / surge | 28 mΩ (100 kHz), 1600 mA rms, 4000 h at 125 °C, surge 1.25 × rated; AEC-Q200 compliant | same |
+| onsemi NCV4276CDSADJR4G (ULDO15) | package / thermal | D2PAK-5; R_θJA 43.3 °C/W (1.2 in²); single-pulse R(t) ≈ 6.8 / 7.5 / 8.5 K/W at 0.1 / 0.3 / 1 s (Fig. 33; DPAK-5 Fig. 32: ≈ 8.5 / 9.5 / 11) | `NCV4276C.pdf` p.3, p.13 |
+| NXP FS26 (the downstream anchor) | VSUP | 18–36 V "High Voltage Extended Operation" — full function for a limited period ("load dump or double-battery jump-start"); 36–40 V characteristics not guaranteed; 40 V abs (VSUP, VSUP_PWR, BATSENSE, WAKEx) | `FS26.pdf` Rev.3 Fig. 8/9, Table 5 |
+| | WAKEx | protected to 40 V; **DC reverse current −5 mA max**; V_IH 2 V (low-threshold OTP) or 0.7 × VBOS; wake filter 50–100 µs | Table 5, WAKE electrical table |
+| TI TPS55340-Q1 | VIN / EN / SW | 38 V recommended, 40 V abs; the pin table still says "2.9 V and 32 V" (VR-30) | `TPS55340-Q1.pdf` §5, §6.1, §6.3 |
+| ST STPS5L60S (DREVC) | V_RRM / P_ARM | 60 V / 144 W at 10 µs, 125 °C; ≈ 0.04 × at 1 ms (≈ 5.8 W) — why pulse 1 must be clamped ahead of it | `STPS5L60.pdf` Table 1, Fig. 3 |
+| Vishay SM8S24A (evaluated for "absorb") | P_PPM / load-dump table | 6600 W (10/1000 µs), 5200 W (10/10 000 µs); Fig. 1 ≈ 1.9 kW at 100 ms; SM8S24A **55 A single / 50 A for 10 pulses at 400 ms** (Vishay/EDN load-dump table); "not for new designs" (→ SM8S…AHM3) | `SM8S.pdf` p.1–4; vishay.com/docs/49748 |
+| TI LM74700-Q1 / LM7480-Q1 (evaluated, not fitted) | ideal-diode / OV cut-off controllers | 65 V, −65 V reverse; LM74700 80 µA I_Q; LM7480 397 µA I_Q with EN high (too much for the always-on path) | `LM74700-Q1.pdf`, `LM7480-Q1.pdf` |
+
+Test parameters used (secondary sources — the standards themselves are not in the archive): ISO 16750-2:2012 test B =
+the test-A source Us 79–101 V, Ri 0.5–4 Ω, td 40–400 ms, tr 10 ms, clamped to Us* 35 V, 5 pulses at 1 min (Nexperia IAN50007;
+Diotec load-dump AN, Table 1); ISO 7637-2 pulse 1 −75…−100 V (2004 levels; −150 V is the 2011 bound), 10 Ω, 2 ms; pulse 2a
++37…+50 V (2004; +112 V is the 2011 bound), 2 Ω, 50 µs; pulses 3a/3b −112…−150 / +75…+100 V (2004), 50 Ω, 0.1 µs; reverse
+voltage 14 V for 60 s (TI TIDUC41 Tables 3–8). ISO 16750-2:2023 (public preview): jump start **26 V for 60 s at RT and T_min**
+(Table 5), transient overvoltage 18 V / 400 ms × 5 (Table 6), overvoltage 18 V / 60 min; functional status C minimum unless agreed.
 
 ## 30. Discharge resistors: TT/Welwyn SQP10 (`SQP.pdf`) and Yageo SQP (`Yageo-SQP.pdf`) — RDIS since rev A.12
 
@@ -660,3 +786,33 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | Littelfuse-438A.pdf | 360,460 | Littelfuse 438A 0603 fuse (FMT1/FMT2 0438.375WRA since A.13) |
 | Littelfuse-0466.pdf | 566,688 | Littelfuse 466 1206 fuse — FMT alternate evaluated (125 V, no AEC-Q200) |
 | SF-0603FP-F.pdf | 188,435 | Bourns SF-0603FP — FMT alternate evaluated (65 V, no AEC-Q200) |
+| Littelfuse-1812L.pdf | 589,549 | Littelfuse 1812L PTC series — FVS1 alternate 1812L010/60DR (AEC-Q200 footnoted only for 1812L150/24) |
+| BLM21PG221SH1D.pdf | 214,852 | Murata BLM21PG221SH1D (LUB/LVB/LWB hall 5 V beads since A.15) |
+| QNFA9101-BLM18-automotive.pdf | 624,652 | Murata BLM18 automotive-grade bead catalog (LVS alternate BLM18KG471SH1D) |
+| MMZ1608-automotive.pdf | 397,132 | TDK MMZ1608 automotive signal-line bead catalog (LVS1–4 MMZ1608B471CTDH5 since A.15) |
+| MPZ2012S101AT000-commercial-grade-reference.pdf | 207,952 | TDK MPZ2012 sibling sheet — evidence that the AT000 suffix is the commercial-grade catalog (bead alternates to be confirmed) |
+| Samtec-IPL1.pdf | 389,449 | Samtec IPL1 single/double-row 2.54 mm shrouded header (JDIS/JCTL IPL1-104, JHVIL IPL1-102 since A.15; doc F-226) |
+| Samtec-IPD1-CC79L.pdf | 555,971 | Samtec IPD1 housings + CC79L crimps (the mating side of every IPL1 header) |
+| VY2-series.pdf | 172,543 | Vishay VY2 Y2 disc series (CPET VY2472M49Y5US6TV0 since A.15) |
+| B32021-Y2.pdf | 2,158,794 | TDK/EPCOS B32021 Y2 MKP film box — CPET alternate B32021A3472 |
+| ROHM-ESR-series-Rev012.pdf | 2,376,006 | ROHM ESR anti-surge chip resistor series, Rev.012 (2024.12) — RFS4 ESR18EZPF1001 since A.16 (distributor-wrapped copy of the ROHM sheet; the fscdn link 403s) |
+| BLM31PG121SH1L.pdf | 296,400 | Murata BLM31PG121SH1L spec (LFH1/LFL1/LFC; distributor mirror, automotive application code) |
+| TDK-MPZ2012-automotive-power.pdf | 239,096 | TDK MPZ2012 automotive power-bead catalog (AEC-Q200; 30/100/220/330/600/1000 Ω — no 120 Ω) |
+| TDK-MPZ2012-J-automotive-power.pdf | 288,431 | TDK MPZ2012 A2B-bus automotive variant catalog (context) |
+| SMDJ-series.pdf | 1,034,681 | Littelfuse SMDJ 3 kW TVS series (no AEC-Q101 statement) |
+| SMDJ-HRA-series.pdf | 817,824 | Littelfuse SMDJ-HRA 3 kW automotive AEC-Q101 series — TVSEP/TVSEN SMDJ8.5A-HRA since A.16 |
+| PMEG4050EP.pdf | 259,621 | Nexperia PMEG4050EP base sheet (context) |
+| PMEG4050EP-Q.pdf | 259,772 | Nexperia PMEG4050EP-Q AEC-Q101 Schottky — DEXP/DEXN since A.16 |
+| SBR3U40P1.pdf | 260,776 | Diodes SBR3U40P1-7 — DEX alternate (75 A I_FSM, 40 mA leakage at 125 °C) |
+| SS3P4.pdf | 98,386 | Vishay SS3P4 — DEX candidate evaluated (HM3 is the automotive suffix; I_FSM 50 A) |
+| Bourns-FW-fusible-resistor.pdf | 182,966 | Bourns FW fusible resistors (explicit fail-open, ≤ 7 W) — evidence that no 10 W family states fail-open |
+| Vishay-Sfernice-RWM.pdf | 79,220 | Vishay Sfernice RWM 8–30 W wirewound (fire-proof claim only) — RDIS class context |
+| Samtec-IPL1-double-row-print.pdf | 308,207 | Samtec IPL1 double-row engineering drawing Rev AL — pin numbering sequential per row (JIC/JICC) |
+| Samtec-100-mini-mate-spec.pdf | 809,767 | Samtec Mini Mate 2.54 mm general specification |
+| LM74700-Q1.pdf | 2,657,068 | TI LM74700-Q1 ideal-diode controller (SNOSD17G) — evaluated in the round-17 LV-entry study, not fitted |
+| LM7480-Q1.pdf | 9,773,286 | TI LM7480-Q1 ideal diode + OV cut-off controller (SNOSD95C) — evaluated round 17, not fitted (397 µA I_Q on the always-on path) |
+| SM8S.pdf | 199,370 | Vishay SM8S 6.6 kW DO-218AB load-dump TVS — the "absorb" alternative of round 17, not fitted |
+| Panasonic-EEH-ZC.pdf | 826,281 | Panasonic ZC hybrid polymer series catalog — CLVC3 EEH-ZC1H101P since round 17 (fetched via the product page link) |
+| Bel-0680L.pdf | 820,562 | Bel 0680L 2410 slow-blow fuse series (Rev. Jan2026) — FLVC 0680L5000-05 since round 17 |
+| Bourns-SF-1206SA-W.pdf | 577,835 | Bourns SF-1206SA-W automotive slow-blow fuses — FLVC alternate SF-1206SA500W-2 (50 A interrupting) |
+| Littelfuse-407A.pdf | 371,603 | Littelfuse 407A AEC-Q200 1206 time-lag fuses — evaluated round 17, rejected (5 A rating is 32 V; Wayback copy of the Littelfuse asset) |

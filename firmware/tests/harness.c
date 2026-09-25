@@ -17,6 +17,7 @@ static const uint8_t SERIAL[8] = {'T', 'I', '-', '0', '0', '0', '0', '1'};
 
 static float s_theta0;
 static uint64_t s_theta_t;
+static uint32_t s_noise; /* plant_currents' ADC-level noise */
 
 void h_set_speed(float rpm)
 {
@@ -26,10 +27,9 @@ void h_set_speed(float rpm)
     s_theta0 = ti_wrap_2pi(s_theta0);
     s_theta_t = sim_now_ns();
     H.speed_rpm = rpm;
-    const float k = (H.exc_scale > 0.0f) ? H.exc_scale : 1.0f;
-    const sim_resolver_t r = {.theta0_rad = s_theta0, .omega_rad_s = rpm / TI_RPM_PER_RAD_S,
-                              .sincos_amp = k * 16000.0f * ((H.rslv_amp > 0.0f) ? H.rslv_amp : 1.0f),
-                              .exc_amp = k * 20000.0f, .lag_deg = 24.0f, .sin_gain = 1.0f, .cos_gain = 1.0f};
+    const sim_resolver_t r = {.theta0_rad = s_theta0, .omega_rad_s = rpm / TI_RPM_PER_RAD_S, .lag_deg = 24.0f,
+                              .sin_gain = 1.0f, .cos_gain = 1.0f,
+                              .out_gain = (H.rslv_amp > 0.0f) ? H.rslv_amp : 1.0f};
     sim_resolver_set(&r);
 }
 
@@ -71,6 +71,7 @@ void h_setup(ti_sku_t sku)
     H.tau_dis_s = h_p.tau_dis_s;
     s_theta0 = 0.3f;
     s_theta_t = sim_now_ns();
+    s_noise = 12345u;
     sim_fs26_cfg_t fc = {.prog_id = H_PROG_ID, .device_id = 0x2600u};
     sim_fs26_config(&fc);
     sim_fs26_reset();
@@ -85,11 +86,14 @@ void h_setup(ti_sku_t sku)
     h_store_validation(&v);
 }
 
+static void grids_restart(void);
+
 void h_boot(void)
 {
     app_init(&g_app, &h_p, &h_cal, SERIAL);
     sim_set_fault_isr(app_fault_isr_entry);
     H.t_ms = hal_time_ms();
+    grids_restart();
 }
 
 static void vcu_tx(void)
@@ -136,6 +140,17 @@ static void plant_1ms(void)
  * or the d axis without one). The loop is ideal in the controller's own dq frame (its resolver
  * angle; the model's angle when that is invalid): this plant does not respond to voltage, so any
  * frame error would leave a dq error the PI integrators walk after forever. */
+/* ADC-level noise, ±0.55 A per phase (one LSB of the 2.22 mV/A sensor at 12 bit), deterministic. On the exact
+ * tick grid the samples are phase-locked: at 1000 rpm they fall on the same electrical angles every period, so
+ * without noise their quantization errors repeat as a constant dq offset, and this plant — which does not respond
+ * to voltage — lets the current PIs integrate that offset forever (a false FW-10 rate fault after 3.4 s). A real
+ * converter dithers it away; so does the noise here. */
+static float noise_a(void)
+{
+    s_noise = (s_noise * 1664525u) + 1013904223u;
+    return (((float)(s_noise >> 8) / 16777216.0f) - 0.5f) * 1.1f;
+}
+
 static void plant_currents(void)
 {
     const float th_r = s_theta0 + (H.speed_rpm / TI_RPM_PER_RAD_S) * (float)(int64_t)(sim_now_ns() - s_theta_t) * 1e-9f;
@@ -156,7 +171,7 @@ static void plant_currents(void)
     float i[3];
     for (uint32_t k = 0u; k < 3u; k++) {
         const float a = th - (2.0943951f * (float)k);
-        i[k] = (d * cosf(a)) - (q * sinf(a));
+        i[k] = (d * cosf(a)) - (q * sinf(a)) + noise_a();
     }
     sim_set_phase_currents(i[0], i[1], i[2]);
     const hal_adc_sig_t ch[3] = {HAL_ADC_ISNS_U, HAL_ADC_ISNS_V, HAL_ADC_ISNS_W};
@@ -179,32 +194,82 @@ void h_ramp_speed(float rpm, uint32_t ms)
     }
 }
 
-void h_isr_only_us(uint32_t us)
+/* The target's two clocks (round 17, T-32): the current-loop ISR on the PWM trigger, every 1/(2 f_sw), and the
+ * 1 ms task on the STM compare — both exact, whatever time the code spends: an SPI transfer or a busy wait takes
+ * real time but moves neither trigger. The harness runs the ISR and the task in time order, each on its own grid.
+ * It cannot preempt a task with an ISR, so ISR triggers that fall inside a long task (FW-16 step h, the FW-15
+ * one-shot wait: on the target the ISR preempts them) are dropped, and neither grid is ever shifted. A clock the
+ * test reset, or moved on by itself past a whole tick, restarts both grids there. (Before round 17 time advanced
+ * in relative steps: every FS26 transfer shifted all later ticks, which hid the watchdog answers' cadence.) */
+static uint64_t s_isr_ns;  /* next current-loop trigger */
+static uint64_t s_task_ns; /* next 1 ms tick */
+#define TICK_NS 1000000u
+
+static uint64_t isr_per_ns(void) { return 500000000u / g_app.gains.fsw_hz; }
+
+static void grids_restart(void)
 {
-    const uint32_t per = app_isr_period_us(&g_app);
-    for (uint32_t t = 0u; t < us; t += per) {
-        sim_advance_us(per);
+    s_isr_ns = sim_now_ns() + isr_per_ns();
+    s_task_ns = sim_now_ns() + TICK_NS;
+}
+
+static void grids_check(void)
+{
+    const uint64_t now = sim_now_ns();
+    if (((now + TICK_NS) < s_task_ns) || (now >= (s_task_ns + TICK_NS))) {
+        grids_restart();
+    }
+}
+
+/* Runs every ISR trigger up to and including `until` (a trigger at the same instant as the tick runs first). */
+static void isrs_until(uint64_t until)
+{
+    const uint64_t per = isr_per_ns();
+    for (; s_isr_ns <= until; s_isr_ns += per) {
+        const uint64_t now = sim_now_ns();
+        if (s_isr_ns < now) {
+            continue; /* inside a long task (or a clock the test moved): on the target it preempted the task */
+        }
+        sim_advance_ns(s_isr_ns - now);
         plant_currents();
         app_isr_current(&g_app);
     }
 }
 
+void h_isr_only_us(uint32_t us)
+{
+    grids_check();
+    const uint64_t end = sim_now_ns() + ((uint64_t)us * 1000u);
+    isrs_until(end);
+    sim_advance_ns(end - sim_now_ns());
+}
+
+void h_isr_now(void)
+{
+    plant_currents();
+    app_isr_current(&g_app);
+}
+
+void h_tick(void)
+{
+    grids_check();
+    isrs_until(s_task_ns);
+    if (sim_now_ns() < s_task_ns) {
+        sim_advance_ns(s_task_ns - sim_now_ns());
+    }
+    s_task_ns += TICK_NS; /* a task that overran the next tick runs that one late: the STM trigger is pending */
+    app_task_1ms(&g_app);
+    app_idle(&g_app);
+}
+
 void h_run_ms(uint32_t ms)
 {
-    const uint32_t per = app_isr_period_us(&g_app);
-    const uint32_t n = 1000u / per;
     for (uint32_t k = 0u; k < ms; k++) {
         if ((H.t_ms % 10u) == 0u) {
             vcu_tx();
         }
         plant_1ms();
-        for (uint32_t i = 0u; i < n; i++) {
-            sim_advance_us(per);
-            plant_currents();
-            app_isr_current(&g_app);
-        }
-        app_task_1ms(&g_app);
-        app_idle(&g_app);
+        h_tick();
         H.t_ms++;
     }
 }
