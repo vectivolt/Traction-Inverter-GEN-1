@@ -81,8 +81,9 @@
     {"cal_rslv_exc_target_vpp", offsetof(ti_params_t, cal_rslv_exc_target_vpp), TI_CAL_F32, 6.5f, 8.3f}, \
     {"cal_rslv_wind_per_mon", offsetof(ti_params_t, cal_rslv_wind_per_mon), TI_CAL_F32, 0.8f, 1.0f}, \
     {"cal_swg_code_init", offsetof(ti_params_t, cal_swg_code_init), TI_CAL_U8, 0.0f, 12.0f}, \
+    {"cal_sd_irq_lat_max_us", offsetof(ti_params_t, cal_sd_irq_lat_max_us), TI_CAL_U32, 5.0f, 45.0f}, \
 }
 
-#define TI_CAL_RANGE_COUNT 75u
+#define TI_CAL_RANGE_COUNT 76u
 
 #endif /* CAL_RANGES_H */

@@ -149,7 +149,9 @@ void rslv_update(rslv_t *r, const int16_t exc[N], const int16_t sn[N], const int
 
 void rslv_age(rslv_t *r, uint32_t now_us, const ti_params_t *p)
 {
-    if (r->have_frame && ti_elapsed(now_us, r->t_frame_us, p->cal_rslv_hold_us)) {
+    /* round 18 (A16-R01): signed — a frame published after now_us was read (a higher-priority interrupt, or a
+     * read inside a long ISR) is fresh, never 2^32 us old */
+    if (r->have_frame && ti_stale(now_us, r->t_frame_us, p->cal_rslv_hold_us)) {
         r->stale = true;
         r->valid = false;
         r->have_first = false; /* frames that return are acquired afresh: priming, then SETTLE_BLOCKS */
@@ -163,9 +165,12 @@ float rslv_theta_e(const rslv_t *r, const rslv_cal_t *c)
     return ti_wrap_2pi((r->theta / res_per_motor(c)) - c->zero_rad);
 }
 
+/* Round 18 (A16-R03): the block's angle is the rotor's cal_rslv_latency_us BEFORE its mid-block reference (the
+ * chain delays it), so the extrapolation to now_us ADDS the latency: theta(now) = theta_block + w * ((now - t_ref)
+ * - t_mid + latency). It subtracted it: -12 / -24 deg el at 10 000 rpm, 4 pole pairs, 25 / 50 us. */
 float rslv_theta_e_at(const rslv_t *r, const rslv_cal_t *c, uint32_t now_us, const ti_params_t *p)
 {
-    const float dt_s = ((float)(int32_t)(now_us - r->t_ref_us) - r->t_mid_us - p->cal_rslv_latency_us) * 1.0e-6f;
+    const float dt_s = ((float)(int32_t)(now_us - r->t_ref_us) - r->t_mid_us + p->cal_rslv_latency_us) * 1.0e-6f;
     return ti_wrap_2pi(((r->theta + (r->omega * dt_s)) / res_per_motor(c)) - c->zero_rad);
 }
 

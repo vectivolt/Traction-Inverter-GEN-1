@@ -222,8 +222,11 @@ for (const side of ["power", "capbank", "disch", "card"]) {
   };
   // Diode ports must reach the sheet named A/C so the glyph seats the anode semantically.
   const pinName = (c, p) => {
+    const n = String(p.name ?? "");
+    if (/^anode$/i.test(n)) return "A";     // round 18 (F190): the Diode cell names its ports anode/cathode and numbers K = 1
+    if (/^cathode$/i.test(n)) return "C";
     if (c.ftype === "simple_diode") {
-      if (/anode|pin1|pos/i.test(p.name ?? "") || p.pin_number === 1) return "A";
+      if (/anode|pin1|pos/i.test(n) || p.pin_number === 1) return "A";
       return "C";
     }
     return p.name ?? String(p.pin_number);

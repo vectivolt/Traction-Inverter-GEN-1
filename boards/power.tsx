@@ -4,7 +4,7 @@
 // ASC buffer, 40-way harness. Schematic-complete; layout is a later phase.
 import {
   StudFP, FilmCanFP, FilmBoxFP, DiscFP, AxialFP, TO247_4L, EconoDual3FP, Header, IsoBias18,
-  SmdFP, Smd2FP, GateDrive, FlybackChain, IsoVSense, ModNtc, Harness, gp,
+  SmdFP, Diode, GateDrive, FlybackChain, IsoVSense, ModNtc, Harness, gp,
 } from "../packages/cells";
 
 const NO_ROUTE = process.env.TSCI_NO_ROUTE === "1";
@@ -32,7 +32,7 @@ export default () => (
       connections={{ A: "net.HVIL_LA", B: "net.HVIL_LB" }} />
     <resistor name="RHVL1" resistance="100" footprint="0603" {...gp()} connections={{ pin1: "net.HVIL_A", pin2: "net.HVIL_LA" }} />
     <resistor name="RHVL2" resistance="100" footprint="0603" {...gp()} connections={{ pin1: "net.HVIL_LB", pin2: "net.HVIL_B" }} />
-    <diode name="DTVSH" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.HVIL_B" }} />
+    <Diode name="DTVSH" {...gp()} anode={"net.DGND"} cathode={"net.HVIL_B"} />
 
     {/* The 16-can DC-link lives on the SEPARATE CAP BANK busbar assembly (sheet 2) — FR4
         cannot carry the bus current; DCP/DCN reach this board only as sense/bias taps.
@@ -102,7 +102,7 @@ export default () => (
     {/* NSI6611 ASC abs max = GND2+6 V (DS 1.2 §2) — series 2.2k + 5.1 V zener clamp the
         18 V opto swing to a legal ASC level (F28) */}
     <resistor name="RASCG" resistance="2.2k" footprint="0603" {...gp()} connections={{ pin1: "net.ASCVO", pin2: "net.ASC_DRV" }} />
-    <diode name="ZASC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DCN", cathode: "net.ASC_DRV" }} />
+    <Diode name="ZASC" {...gp()} anode={"net.DCN"} cathode={"net.ASC_DRV"} />
     <resistor name="RASCPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
     {/* ASC break-before-make, delay half (round 7, RR05): 12 nF on the 1.8 k Thevenin holds
         ASC below its 2.7 V rising threshold for >= 3.5 us (fast corner: the bias at its 18.6 V
@@ -113,7 +113,7 @@ export default () => (
         fast through DASCR into the opto output (<= 1.06 us). Each LS ASC pin has its own 1 k
         (GateDrive cell). The ASC input has hysteresis (2.7-3.2 / 1.3-1.7 V). */}
     <capacitor name="CASCD" capacitance="12nF" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_DRV", pin2: "net.DCN" }} />
-    <diode name="DASCR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.ASC_DRV", cathode: "net.ASCVO" }} />
+    <Diode name="DASCR" {...gp()} anode={"net.ASC_DRV"} cathode={"net.ASCVO"} />
     <capacitor name="CASC" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V18A", pin2: "net.DCN" }} />
 
     {/* ---- ISOLATED DC-LINK SENSING: two independent channels, each with its OWN reinforced bias ---- */}
@@ -153,15 +153,15 @@ export default () => (
         never reaches these nodes; the card's CLVC3 holds pulse 2a. */}
     <chip name="FH1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.VBAT_H", B: "net.FHO" }} />
-    <diode name="DRH" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FHO", cathode: "net.NRH" }} />
-    <diode name="DTVH" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.NRH" }} />
+    <Diode name="DRH" {...gp()} anode={"net.FHO"} cathode={"net.NRH"} />
+    <Diode name="DTVH" {...gp()} anode={"net.DGND"} cathode={"net.NRH"} />
     <inductor name="LFH1" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRH", pin2: "net.V12H" }} />
     <capacitor name="CLVH1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRH", pin2: "net.DGND" }} />
     <capacitor name="CLVH2" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12H", pin2: "net.DGND" }} />
     <chip name="FL1" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.VBAT_L", B: "net.FLO" }} />
-    <diode name="DRL" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLO", cathode: "net.NRL" }} />
-    <diode name="DTVL" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.NRL" }} />
+    <Diode name="DRL" {...gp()} anode={"net.FLO"} cathode={"net.NRL"} />
+    <Diode name="DTVL" {...gp()} anode={"net.DGND"} cathode={"net.NRL"} />
     <inductor name="LFL1" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRL", pin2: "net.V12L" }} />
     <capacitor name="CLVL1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRL", pin2: "net.DGND" }} />
     <capacitor name="CLVL2" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
@@ -183,7 +183,7 @@ export default () => (
     <capacitor name="CB15S" capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15SS", pin2: "net.DGND" }} />
     <resistor name="RB15Q" resistance="80.6k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FQ", pin2: "net.DGND" }} />
     <inductor name="LB15" inductance="10uH" footprint="1210" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.B15SW" }} />
-    <diode name="DB15" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.B15SW", cathode: "net.V15B" }} />
+    <Diode name="DB15" {...gp()} anode={"net.B15SW"} cathode={"net.V15B"} />
     <capacitor name="CB15I" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
     <capacitor name="CB15O1" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.DGND" }} />
     <capacitor name="CB15O2" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.V15B", pin2: "net.DGND" }} />

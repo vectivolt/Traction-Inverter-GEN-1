@@ -5,6 +5,11 @@
 #include "pwm.h"
 #include "test.h"
 
+#define WRAP_NS (4294967296ull * 1000u) /* the 32-bit microsecond counter wraps here */
+
+/* Round 18: the time the 1 ms task read at its start — what the pre-fix br_rec_step took from its caller. */
+static uint32_t s_task_us;
+
 /* gate power up and FS0B released so DRV_EN can follow MCU_GATE_EN; the FLT pads routed to the
  * PWM fault inputs (a board configuration with the IMCR values filled) */
 static void chain_ready(fs26_t *fs, ti_params_t *p)
@@ -98,12 +103,12 @@ TEST(fw15_recovery_waits_1p5ms_and_clears)
     br_rec_t r = BR_REC_WAIT_LOW;
     for (int k = 0; k < 10 && r == BR_REC_WAIT_LOW; k++) {
         h_wait_ms(&fs, 1u);
-        r = br_rec_step(&b, hal_time_us(), &p);
+        r = br_rec_step(&b, &p);
     }
     const uint64_t t_pulse = sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, t_fault);
     CHECK(t_pulse != UINT64_MAX && (t_pulse - t_fault) >= 1500000u); /* >= 1.5 ms with DRV_EN low */
     CHECK(sim_gpio_edge_ns(HAL_DO_ASC_CLR_N, false, t_fault) < t_pulse); /* ASC cleared first */
-    r = br_rec_step(&b, hal_time_us(), &p);
+    r = br_rec_step(&b, &p);
     CHECK(r == BR_REC_DONE);
     CHECK(hal_gpio_read(HAL_DI_FLT_HS_N) && hal_gpio_read(HAL_DI_DRV_EN_RB) && !hal_gpio_read(HAL_DI_ASC_CMD_RB));
     CHECK((hal_pwm_fault_flags() & HAL_PWM_FAULT_FLT_HS) == 0u && hal_pwm_mode() == HAL_PWM_OFF);
@@ -123,9 +128,9 @@ TEST(fw15_recovery_fails_safe_on_a_hard_short)
     br_rec_t r = BR_REC_WAIT_LOW;
     for (int k = 0; k < 10 && r == BR_REC_WAIT_LOW; k++) {
         h_wait_ms(&fs, 1u);
-        r = br_rec_step(&b, hal_time_us(), &p);
+        r = br_rec_step(&b, &p);
     }
-    r = br_rec_step(&b, hal_time_us(), &p);
+    r = br_rec_step(&b, &p);
     CHECK(r == BR_REC_FAIL);
     CHECK(!hal_gpio_read(HAL_DI_DRV_EN_RB) && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
     CHECK((hal_pwm_fault_flags() & HAL_PWM_FAULT_FLT_LS) != 0u);
@@ -186,16 +191,116 @@ TEST(desat_hold_covers_br_rec_start_and_recovery_still_works)
     for (int k = 0; k < 20 && r == BR_REC_WAIT_LOW; k++) {
         sim_advance_us(100u);
         br_service(&b);
-        r = br_rec_step(&b, hal_time_us(), &p);
+        r = br_rec_step(&b, &p);
     }
     const uint64_t t_en = sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, false, t_fault);
     CHECK(t_en != UINT64_MAX && (t_en - t_fault) >= (uint64_t)p.cal_desat_en_hold_us * 1000u);
     const uint64_t t_pulse = sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, t_fault);
     CHECK(t_pulse != UINT64_MAX && (t_pulse - t_fault) >= 1500000u && t_en < t_pulse);
     CHECK(sim_gpio_edge_ns(HAL_DO_ASC_CLR_N, false, t_fault) < t_pulse);
-    r = br_rec_step(&b, hal_time_us(), &p);
+    r = br_rec_step(&b, &p);
     CHECK(r == BR_REC_DONE && hal_gpio_read(HAL_DI_FLT_LS_N) && hal_gpio_read(HAL_DI_DRV_EN_RB));
     CHECK((hal_pwm_fault_flags() & HAL_PWM_FAULT_FLT_LS) == 0u && b.mode == BR_IDLE);
+}
+
+/* Advance ns in steps of at most 100 us, answering the FS26 when due (FS0B must stay released for DRV_EN). */
+static void run_serviced(fs26_t *fs, uint64_t ns)
+{
+    const uint64_t end = sim_now_ns() + ns;
+    for (uint32_t k = 0u; (k < 200000u) && (sim_now_ns() < end); k++) {
+        const uint64_t left = end - sim_now_ns();
+        sim_advance_ns((left < 100000u) ? left : 100000u);
+        if (fs26_wd_due(fs, hal_time_us())) {
+            (void)fs26_wd_refresh(fs);
+        }
+    }
+}
+
+/* Round 18 (the A16-R01 class, FW-15): the >= 1.5 ms low ran on the caller's time. The 1 ms task reads its time,
+ * the fault ISR preempts it and stamps the fault 20 us later, the task goes on past the 60 us DESAT hold (the EN
+ * drop carried out, nothing pending) and reaches the recovery: the unsigned age of a fault stamp newer than the
+ * task's time wrapped, and the reset pulse came at once — the driver maybe not reset. Now br_rec_step reads the
+ * time itself: WAIT_LOW ends fw15_low_us after the fault and the driver resets — also with the task's time just
+ * before the 32-bit wrap and the fault just after it. */
+/* Round 18 (the FW-34 class, the last instance): the dead time before PWM-ASC counts from the bridge's own turn-off
+ * stamp when it is newer than the caller's — a hardware fault that inhibited the PWM after the 1 ms task read its
+ * time, the task then deciding PWM-ASC with that older time (which the pre-fix code read as "long ago": no wait). */
+TEST(pwm_asc_dead_time_counts_from_the_bridges_own_turn_off)
+{
+    const uint64_t start_us[2] = {1000000u, 4294967296ull - 400000u};
+    for (unsigned w = 0u; w < 2u; w++) {
+        sim_reset_at_us(start_us[w]);
+        ti_params_t p = *ti_params_get(TI_SKU_8XX_IGBT); /* 2.5 us dead time */
+        fs26_t fs;
+        chain_ready(&fs, &p);
+        bridge_t b;
+        br_init(&b, &p);
+        CHECK(br_arm_idle(&b));
+        (void)hal_pwm_init(5000u, p.dead_time_ns);
+        const float d[3] = {0.6f, 0.4f, 0.5f};
+        CHECK(br_modulate(&b, d, &p));
+        if (w == 1u) { /* the task's time 10 us before the wrap */
+            run_serviced(&fs, (WRAP_NS - 10000u - sim_now_ns()) - 1000000u);
+            sim_advance_ns(WRAP_NS - 10000u - sim_now_ns());
+        }
+        const uint32_t t_task = hal_time_us(); /* the 1 ms task reads its time ... */
+        sim_advance_us(20u);                    /* ... and is preempted: FAULT0/2 inhibits the PWM in hardware now */
+        hal_pwm_force_off();
+        const uint64_t t_off = sim_now_ns();
+        br_note_pwm_off(&b, hal_time_us());    /* the fault ISR's first line */
+        CHECK((w == 0u) || (hal_time_us() < t_task)); /* across the wrap in the second pass */
+        br_enter_pwm_asc(&b, t_task, &p);      /* the task decides PWM-ASC with its older time */
+        CHECK(b.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC);
+        CHECK(sim_pwm_asc_set_ns() >= t_off + p.dead_time_ns);         /* never inside the dead time of the REAL turn-off */
+        CHECK(sim_pwm_asc_set_ns() < t_off + p.dead_time_ns + 5000u);  /* and not needlessly late */
+    }
+}
+
+
+TEST(fw15_low_wait_runs_on_the_bridges_own_clock)
+{
+    const uint64_t start_us[2] = {1000000u, 4294967296ull - 400000u};
+    for (unsigned w = 0u; w < 2u; w++) {
+        sim_reset_at_us(start_us[w]);
+        ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
+        fs26_t fs;
+        chain_ready(&fs, &p);
+        bridge_t b;
+        br_init(&b, &p);
+        CHECK(br_arm_idle(&b));
+        (void)hal_pwm_init(10000u, p.dead_time_ns);
+        const float d[3] = {0.6f, 0.4f, 0.5f};
+        CHECK(br_modulate(&b, d, &p));
+        if (w == 1u) { /* the task's time 10 us before the wrap */
+            run_serviced(&fs, (WRAP_NS - 10000u - sim_now_ns()) - 1000000u);
+            sim_advance_ns(WRAP_NS - 10000u - sim_now_ns());
+        }
+        s_task_us = hal_time_us(); /* the 1 ms task reads its time, then waits on its FS26 transfer: */
+        sim_advance_us(20u);
+        const uint64_t t_fault = sim_now_ns();
+        sim_chain_desat(true, false);
+        br_spo(&b, true); /* the fault ISR's SPO: the EN drop waits for the hold */
+        const uint32_t t_fault_us = hal_time_us();
+        CHECK(ti_age(t_fault_us, s_task_us) == 20u && ((w == 0u) || (t_fault_us < s_task_us)));
+        sim_advance_us(80u); /* the task goes on past the 60 us hold ... */
+        br_service(&b);      /* ... and its br_service carries the drop out */
+        CHECK(!br_en_drop_pending(&b) && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN));
+        br_rec_start(&b, t_fault_us); /* recovery(): the fault stamp is newer than the task's time */
+        br_rec_t r = br_rec_step(&b, &p);
+        CHECK(r == BR_REC_WAIT_LOW && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN)); /* not at once */
+        for (int k = 0; (k < 40) && (r == BR_REC_WAIT_LOW); k++) {
+            run_serviced(&fs, 100000u);
+            r = br_rec_step(&b, &p);
+        }
+        s_task_us = 0u; /* the other tests step the recovery from their own time */
+        const uint64_t low_ns = (uint64_t)p.fw15_low_us * 1000u;
+        const uint64_t t_pulse = sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, t_fault);
+        const uint64_t t_en = sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, true, t_fault);
+        CHECK(t_pulse != UINT64_MAX && (t_pulse - t_fault) >= low_ns && (t_pulse - t_fault) < low_ns + 200000u);
+        CHECK(t_en != UINT64_MAX && (t_en - t_fault) >= low_ns);
+        r = br_rec_step(&b, &p); /* after the one-shot: the driver released FLT at the EN edge */
+        CHECK(r == BR_REC_DONE && hal_gpio_read(HAL_DI_FLT_HS_N) && hal_gpio_read(HAL_DI_DRV_EN_RB));
+    }
 }
 
 /* No FLT line low: a non-DESAT emergency keeps the immediate drop. */
@@ -222,4 +327,6 @@ void suite_bridge(void)
     RUN(desat_hold_keeps_en_until_the_hold_then_drops_it);
     RUN(desat_hold_covers_br_rec_start_and_recovery_still_works);
     RUN(non_desat_spo_drops_en_at_once);
+    RUN(fw15_low_wait_runs_on_the_bridges_own_clock);
+    RUN(pwm_asc_dead_time_counts_from_the_bridges_own_turn_off);
 }

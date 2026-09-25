@@ -23,7 +23,7 @@ void isns_update(isns_t *s, const uint16_t codes[3], uint32_t t_us, uint32_t now
         all = all && s->ch_valid[i];
     }
     s->t_us = t_us;
-    s->fresh = !ti_elapsed(now_us, t_us, p->cal_isns_stale_us);
+    s->fresh = !ti_stale(now_us, t_us, p->cal_isns_stale_us); /* round 18: now_us is read after the triplet */
     if (all) {
         s->sum_a = s->i_a[0] + s->i_a[1] + s->i_a[2];
         if (ti_absf(s->sum_a) > p->cal_isum_tol_a) {

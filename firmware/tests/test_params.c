@@ -173,6 +173,25 @@ TEST(exciter_planes_and_trim_headroom)
     CHECK(ti_params_validate(&q) == 1u);
 }
 
+/* Round 18 (A16-R02): the servicing deadline of a resolver block's first completion interrupt is a range-checked
+ * CAL: 30 us by default, never at or above half the 100 us carrier period (a later completion would sit nearer
+ * the next block's end), never below the handler's own entry and its two sibling handlers. */
+TEST(round18_cal_defaults_and_ranges)
+{
+    for (int k = TI_SKU_8XX_SIC; k < TI_SKU_COUNT; k++) {
+        const ti_params_t *q = ti_params_get((ti_sku_t)k);
+        CHECK(q->cal_sd_irq_lat_max_us == 30u && ti_params_validate(q) == 0u);
+        CHECK(q->cal_rslv_latency_us == 0.0f);
+    }
+    ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_sd_irq_lat_max_us = 45u;
+    CHECK(ti_params_validate(&p) == 0u);
+    p.cal_sd_irq_lat_max_us = 50u; /* half the carrier period */
+    CHECK(ti_params_validate(&p) >= 1u);
+    p.cal_sd_irq_lat_max_us = 4u;
+    CHECK(ti_params_validate(&p) >= 1u);
+}
+
 void suite_params(void)
 {
     RUN(all_skus_validate);
@@ -185,4 +204,5 @@ void suite_params(void)
     RUN(round14_cal_defaults_and_ranges);
     RUN(round16_cal_defaults_and_ranges);
     RUN(exciter_planes_and_trim_headroom);
+    RUN(round18_cal_defaults_and_ranges);
 }

@@ -81,6 +81,8 @@ typedef enum {
     DTC_LV_OVERVOLTAGE,     /* round 17: VSUP above VSUP_OV — information; its first/last stamps give the duration */
     DTC_LV_OV_SUSTAINED,    /* round 17: VSUPOV longer than its band allows: the orderly ramp to zero torque */
     DTC_LV_VSUP_UNKNOWN,    /* round 17: no VSUP reading from the FS26 AMUX: LV supervision off (information) */
+    DTC_RSLV_REACQUIRED,    /* round 18 (A16-R02): the resolver frame ring re-acquired after an ambiguous completion —
+                               information (the FW-28 age-out selects any safe state); one occurrence per event */
     DTC_COUNT
 } dtc_id_t;
 

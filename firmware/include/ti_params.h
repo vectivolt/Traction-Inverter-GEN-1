@@ -225,6 +225,7 @@ typedef struct {
     float cal_rslv_exc_target_vpp; /* A14-N01: SWG trim setpoint at the MONITOR plane (V pp) */
     float cal_rslv_wind_per_mon;   /* A14-N01: monitor -> winding allowance (PTCs cold) */
     uint8_t cal_swg_code_init;     /* A14-N01: SWG code at start; the trim ramps up from it */
+    uint32_t cal_sd_irq_lat_max_us; /* A16-R02: servicing deadline of a resolver block's first SDADC completion */
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */

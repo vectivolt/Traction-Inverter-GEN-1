@@ -1,4 +1,4 @@
-# Qualification plan — rev A.15 with the round-17 closure (2026-09-25)
+# Qualification plan — rev A.17: the round-17 closure and the round-18 rechecks (2026-09-25)
 
 Every item the design leaves open becomes an executable procedure here. Each one states what it closes, the
 unit it runs on, the fixture and instruments, the steps, what is measured, the numeric pass criteria, what is
@@ -69,7 +69,10 @@ Round 17 is still being completed: its "LV input" and "Firmware" sections are pl
    A row that has only a limit gets PASS or FAIL only.
 3. **Characterisation QPs.** Gates ㉖ and ㉘ since round 17, and the rows round 17 closed on paper, are
    characterisations. They use the same three verdicts: a PASS confirms the paper closure, a CONDITIONAL reopens
-   the row, and a FAIL is a design defect.
+   the row, and a FAIL is a design defect. **Round 18 exception:** two ㉘ measurements are release gates again —
+   QP-RX-05's reverse rail current into ULDOEX (F192, VR-33) and QP-RX-04 step 2b's sustained-short sweep with
+   the ECU asleep (F193, IR-42) — because their rows could not be closed on paper (verification-report "Sensing
+   A.17" WARN rows).
 4. **Labels.** "(derived)" marks arithmetic on source numbers, and the arithmetic is shown. "(plan)" marks a
    plan choice, such as a sample size, a step, a dwell or a repetition count. A plan choice is not a design
    number.
@@ -1459,14 +1462,19 @@ UCC14141-Q1 and VOW3120 barriers are ≥ 10 mm (dfm §4).
 
 All of §7 runs on F-RX with the selected resolver, the harness replica, and FW with CAL, VAL and OTP.
 
-**The exciter path since round 17** runs from the amplifier through RSX 2.2 Ω to the protected node, then through
-the PTC MF-MSMF020/33X to the connector. Three parts hang on the protected node:
+**The exciter path since round 18** runs from the amplifier output node (where the Schottky DEXP/DEXN PMEG4050EP-Q
+to VEXD sits, in parallel with the ALM2402's own upper diode — round 18 moved it off the protected node so the
+harness charging loop passes RSX) through RSX 2.2 Ω (ROHM ESR18EZPF2R20 anti-surge since round 18) to the protected
+node, then through the PTC MF-MSMF020/33X to the connector. Two parts hang on the protected node:
 - the TVS SMDJ8.5A-HRA to AGND;
-- the Schottky DEXP/DEXN PMEG4050EP-Q to VEXD;
 - the monitor tap.
 
-**Gate ㉘ is a characterisation since round 17** (README ㉘): the single fault (≤ 24 V, any source impedance) is
-closed on paper, and the 35 V case is a documented double event. RX-04 to RX-08 therefore follow §0.1 item 3.
+**Gate ㉘ since round 18** (README ㉘): the sheet-bounded single fault (fault current ≥ 8 A — the ISO 16750-2 direct
+short), the PTC hold and the 35 V double event stay characterisations (§0.1 item 3). Two measurements are RELEASE
+GATES again (F192, F193): the reverse rail current into ULDOEX (QP-RX-05 — the NCV4276C's 40 V output rating covers
+the node voltage only, VR-33) and the sustained-short impedance sweep with the ECU asleep (QP-RX-04 step 2b — below
+8 A the PTC's trip time is a typical curve and the tripped PTC's trickle leaves 1.5–4 W in the TVS; dfm.md layout
+rule, IR-42, VR-17).
 
 ### QP-RX-01 · Excitation amplitude planes and SWG trim with the selected resolver (gate ㉕, amplitude)
 
@@ -1509,9 +1517,14 @@ corner (T-29); DTCs.
 - **Slew.** The per-output amplitude is ≤ 4.14 V pp, the −40 °C slew ceiling; the design needs 3.82 V pp per
   output. The waveform shows no slew-limiting at −40 °C. Code 8 starts below the slew-safe level at the maximum
   corner (T-31), and the excitation is at 10.000 kHz (T-30).
-- **Gain.** |H(10 kHz)| lies in 1.94–2.2 (±10 % capacitors; nominal 2.07).
-- **Winding.** The winding amplitude is ≥ 6.5 V pp cold (6.94 V pp predicted). At the SWG low corner with the trim
-  saturated it is 7.1 V pp predicted.
+- **Gain.** |H(10 kHz)| lies in **1.98–2.18** for the bound parts (R ±1 %, CEXA1/CEXA2 ±5 % C0G; nominal 2.076 with the
+  coupling capacitor) — a board reading 1.94–1.98 is out of tolerance; a ±10 % build spans 1.92–2.24 (round 18, F195).
+- **Winding.** The winding amplitude is ≥ 6.5 V pp cold (6.94 V pp predicted with the PTCs at 1.3 Ω; 7.13 V pp at
+  R_min, 6.30 V pp at R_1max — the sheet bounds the PTC at 0.35–5.0 Ω, so this step SETS the FW-10 window from the
+  measured monitor-to-terminal transfer). At the SWG low corner with the trim saturated it is 7.1 V pp predicted at
+  nominal gain; at the full tolerance stack (SWG low × |H| 1.98 × REXB −1 % corner) it is 6.78 V pp at 70 Ω and
+  6.48 V pp at the IR-13 60 Ω minimum — there the trim reports saturation (DTC_RSLV_SWG_SAT) and the unit does not
+  arm: an EOL rejection of that board/MCU pairing, not a CONDITIONAL (round 18, F195).
 - **Schottky leakage.** With DEXP/DEXN at 125 °C, the monitor stays inside the trim band and the output offset
   stays inside the swing that the "Resolver drive @9 V KL30" row allows (outputs 0.59–4.41 V).
 - **Planes.** Winding/monitor is 0.964 cold (70/72.6) and 0.875 after a trip (70/80). After a trip the winding
@@ -1584,7 +1597,7 @@ method).
 
 **On fail** — the series resistors (12 k), or the clamp structure.
 
-### QP-RX-04 · Exciter terminal fault, positive, VEXD and MCU on (gate ㉘, characterisation)
+### QP-RX-04 · Exciter terminal fault, positive, VEXD and MCU on — and the sustained-short impedance sweep with the ECU asleep (gate ㉘; step 2b a RELEASE GATE since round 18)
 
 **Closes** —
 - gate ㉘ as re-scoped in round 17: the PTC clearing waveform (cold, hot, post-trip), the PTC, TVS and Schottky
@@ -1592,45 +1605,70 @@ method).
 - *Sensing A.13* "Exciter terminal fault — clamp at the protected node during the PTC trip window" (BENCH);
 - *Sensing A.15* "Exciter TVS energy — single fault …" and "… — load-dump-coincident fault …" (PASS since round
   17);
-- *Sensing A.15* "Exciter PTC current vs I_max 40 A — single fault at 24 V with ZERO external impedance" (PASS)
-  and "… — load-dump-coincident fault (35 V)" (INFO, double event);
-- G-02, F153, F159, F169, F175;
+- *Sensing A.15* "Exciter PTC current vs I_max 40 A — single fault at 24 V with the IR-16 minimum harness (0.05 Ω)"
+  (PASS) and "… — load-dump-coincident fault (35 V)" (INFO, double event);
+- *Sensing A.17* "Exciter TVS/PTC coordination BELOW the 8 A bound — a sustained short through external resistance"
+  and "Sustained exciter short to the NORMAL battery (12.6–16 V) with the ECU asleep" (both WARN — step 2b closes them);
+- *Sensing A.17* "RSX power during a terminal fault" (PASS with the round-18 anti-surge part; measured here);
+- G-02, F153, F159, F169, F175, F193, F194; IR-42; VR-17;
 - A15 "What stays open" ("the PTC clearing waveform at the allocated source impedance").
 
 **DUT** — card, three cards × both lines (plan). The PTCs are tested at room temperature ("cold"), pre-heated to
 85 °C ("hot"), and within 1 h of a previous trip ("post-trip").
 
-**Fixture and instruments** — F-RX; I-CP separately on the PTC lead, the TVS lead and the Schottky lead; I-TC on
-the TVS lead and the PTC; I-LVS at the protected node and on VEXD.
+**Fixture and instruments** — F-RX; I-CP separately on the PTC lead, the TVS lead and the RSX lead (the Schottky
+now sits on the amplifier node: its current is the RSX current less the ALM2402 diode share); I-TC on the TVS lead,
+the RSX body and the PTC; I-LVS at the protected node, the amplifier output node and on VEXD; a settable series
+resistor 0–100 Ω (≥ 50 W) for step 2b; the card's sleep control (V5A off / LPOFF) for step 2b.
 
 **Steps**
 1. Energy-limited first: 24 V at a 2 A limit. Check the clamp and the monitoring.
 2. **Single fault.** Apply 24 V for 60 s to EXC+ and EXC− in turn, in each PTC state, with the source directly at
    the connector (0 Ω external — the row's bound) and with the harness replica.
+2b. **Sustained-short impedance sweep, ECU asleep (RELEASE GATE, round 18, F193).** With the card in LPOFF (V5A = 0,
+   so the ALM2402 SDN is low and ULDOEX is inhibited — nothing sinks the fault current), apply 12.6, 14.4, 16 and
+   24 V to EXC+ and EXC− in turn through external series resistances 0, 0.5, 1, 1.35, 2, 3, 5, 10, 20, 35, 70 and
+   100 Ω, each for 10 min or until the TVS lead temperature has settled, whichever is later; abort a point at a
+   TVS lead temperature of 150 °C and record the time. Repeat the 12.6 V / 20 Ω and 16 V / 5 Ω points at −40 °C
+   and 85 °C chamber. Then repeat the 12.6 V and 24 V sweeps with the card awake (ALM2402 driving) and record the
+   RSX body temperature.
 3. **Double event, characterisation.** Apply 35 V for 400 ms with source + harness at the interface-requirements
-   allocation (harness — exciter-line fault source + harness impedance ≥ 0.27 Ω at 35 V).
+   allocation (IR-16: exciter-line fault source + harness impedance ≥ 0.29 Ω at 35 V since round 18).
 4. Repeat each 10 times per line (plan), cooling to 25 °C between repetitions.
 5. After the tests, run the QP-RX-01 amplitude check.
 
-**Measure** — I_PTC(t), I_TVS(t), I_DEX(t), the protected-node voltage, the clearing time (fault start → I_PTC
-below the 0.4 A trip current), the TVS energy ∫v·i, the TVS peak lead temperature, and the ALM2402 and buffer
-status.
+**Measure** — I_PTC(t), I_TVS(t), I_RSX(t), the protected-node and amplifier-node voltages, the clearing time (fault
+start → I_PTC below the 0.4 A trip current), the TVS energy ∫v·i, the TVS peak lead temperature, the ALM2402 and
+buffer status; for step 2b at every (voltage, resistance) point: the settled TVS power and lead temperature, whether
+and when the PTC tripped (by current or by the TVS's heat), and the RSX temperature awake.
 
 **Pass** —
-- **Single fault, 24 V.** I_PTC peak ≤ 40 A at 0 Ω external (37 A predicted).
-- **Clearing time and TVS energy**, at 24 V and 35 V, against the SMDJ8.5A-HRA's 9 J supported at 10 ms:
-  - **≤ 10 ms** — PASS inside the published curve with no argument: TVS energy 1.7 J at 24 V, 3.1 J at 35 V.
-  - **10–20 ms** — still PASS under the round-17 rows: the 20 ms bound is the sheet's 8 A point, and "a lower
-    energy over a longer pulse is inside the curve" (≤ 3.3 J at 24 V, ≤ 6.2 J at 35 V). The record flags it.
-  - **> 20 ms** — CONDITIONAL: outside every sheet point, so the rows are recomputed.
-  - **TVS energy > 9 J** — FAIL.
+- **Single fault, 24 V.** I_PTC peak ≤ 40 A with the harness replica (36.7 A predicted cold at the IR-16 minimum
+  0.05 Ω); at a true 0 Ω the prediction is 40.7–41.8 A — recorded, not judged (IR-16).
+- **Clearing time and TVS energy**, at 24 V and 35 V, against the SMDJ8.5A-HRA's **5.3 J** (the 10 ms point converted
+  from the exponential test pulse to a rectangular one and derated to 85 °C; 6.5 J at 25 °C — round 18, F193):
+  - **fault current ≥ 8 A and ≤ 20 ms** — PASS inside the sheet's bound: ≤ 1.7 J at the 8 A point, 0.13 J at 37 A.
+  - **fault current ≥ 8 A and > 20 ms** — FAIL (the sheet's only maximum trip time is exceeded).
+  - **fault current < 8 A** (step 2b) — judged by the sweep criteria below, not by a clearing time.
+  - **TVS energy > 5.3 J** — FAIL.
+- **Sweep, ECU asleep (step 2b, RELEASE GATE).** At every (voltage, resistance) point the TVS lead temperature stays
+  ≤ 125 °C (T_J ≤ 150 °C at 15 K/W junction-to-lead) and no part is damaged. Where the PTC never trips, the settled
+  TVS power is ≤ the steady-state figure for the measured lead temperature. A point where the TVS lead exceeds 125 °C
+  but the PTC then trips on the TVS's heat within 60 s (the dfm.md island coupling), TVS undamaged, is CONDITIONAL:
+  the rows are re-run with the measured coupling. A destroyed TVS is FAIL unless the end state is the fail-safe one
+  (TVS short, PTC tripped and holding, FW-10 fault at key-on, nothing else damaged) — then CONDITIONAL with the
+  island/coupling as the corrective action and IR-42 raised with the OEM.
+- **Sweep, awake.** The RSX body stays ≤ 155 °C (ROHM ESR operating limit) and the amplifier reaches OTF, recovers,
+  and is parametrically unchanged (QP-RX-01 afterwards).
 - **Clamp.** The protected node stays ≤ 12.8 V while VEXD is up (10.7 V predicted at 24 V / 15.6 A), and never
   above the 18 V output abs max.
-- **Double event, 35 V at ≥ 0.27 Ω.** The node stays ≤ 12.8 V (10.9 V / 28.3 A predicted), and the TVS energy is
-  ≤ 9 J (6.2 J predicted at 20 ms). The outcome must be fail-safe: the PTC may fail open (above I_max its survival
+- **Double event, 35 V at ≥ 0.29 Ω.** The node stays ≤ 12.8 V (11.1 V / 37 A predicted), and the TVS energy is
+  ≤ 5.3 J (0.09 J predicted on the typical trip curve; 8.9 J if the PTC took the full 20 ms at 40 A — the double
+  event is bounded only by the typical curve, F193). The outcome must be fail-safe: the PTC may fail open (above I_max its survival
   is not warranted), and FW-10 must then report a resolver fault. The ALM2402, the buffer and the MCU pads must
   be undamaged.
-- **After the trip.** The TVS holds ≈ 0.3–0.8 W, with its lead temperature inside the SMDJ steady-state rating.
+- **After the trip.** The TVS holds V_BR·P_d/(V_S − V_BR): ≈ 0.6 W at 24 V, 0.3 W at 35 V — 1.5–3.8 W at 12.6–16 V
+  (step 2b) — with its lead temperature inside the SMDJ steady-state rating for the measured value.
 - **TVS after the test.** V_BR stays in 9.44–10.40 V, with leakage within the SMDJ-HRA I_R.
 - **Survival.** The ALM2402 and the buffer are unharmed: QP-RX-01 amplitudes unchanged, no OT flag.
 
@@ -1639,49 +1677,64 @@ the questions in vendor-requests.md (Bourns — clearing time across 15–40 A; 
 
 **On fail** —
 - Single-fault clamp or energy: the TVS package (the 5.0SMDJ8.5A was the round-16 fallback).
-- A PTC current above 40 A at 0 Ω: a series element or a PTC with a higher I_max.
+- A PTC current above 40 A at the IR-16 harness minimum: a series element or a PTC with a higher I_max.
+- Sweep (2b): first the layout — island area, via count, PTC placement on the island (the coupling is the lever; a
+  PTC with a lower trip current does not exist at 33 V, and no TVS voltage removes the trickle window — verification-report
+  "Sensing A.17"); then IR-42 with the OEM.
 - A non-fail-safe double event: raise it with interface-requirements (harness allocation).
 
-### QP-RX-05 · Exciter back-drive with VEXD off and cranking (gate ㉘, characterisation)
+### QP-RX-05 · Exciter back-drive with VEXD off and cranking (gate ㉘; the reverse rail current into ULDOEX a RELEASE GATE since round 18)
 
 **Closes** —
-- gate ㉘ ("the reverse rail current into ULDOEX");
-- *Sensing A.15* "Exciter back-drive with VEXD absent — rated diversion (DEXP/DEXN Schottky to VEXD, round 17)"
-  (PASS; the row keeps the measurement as characterisation);
-- G-01, F160, F168, F174;
+- gate ㉘ ("the reverse rail current into ULDOEX") — a RELEASE GATE since round 18 (F192, VR-33);
+- *Sensing A.15* "Exciter back-drive with VEXD absent — rated diversion THROUGH RSX (DEXP/DEXN on the amplifier node,
+  round 18)" (PASS by I²t; the reverse current into the regulator is what this procedure decides);
+- G-01, F160, F168, F174, F191, F192;
 - A15 "What stays open" ("the ALM2402 reverse-diode envelope").
 
 **DUT** — as QP-RX-04. The VEXD states are:
 - off: KL30 off, and separately the card in LPOFF with ULDOEX inhibited;
 - cranking: KL30 at 6, 8 and 9 V (plan).
 
-**Fixture and instruments** — F-RX; the 0.1 Ω shunt between ULDOEX OUT and CEXD; I-CP on the DEXP/DEXN lead and on
-the RSX lead (the amplifier-side share); I-LVS on VEXD, the ULDOEX input and output, and both ALM2402 outputs.
+**Fixture and instruments** — F-RX; the 0.1 Ω shunt between ULDOEX OUT and CEXD; I-CP on the RSX lead (since round 18
+the whole diversion passes it) and on the DEXP/DEXN lead (the ALM2402 diode share is the difference); I-LVS on VEXD,
+VBATC, the ULDOEX input and output, and both ALM2402 outputs; an SMU (12 V / 1 A compliance) on VEXD for step 4.
 
 **Steps**
 1. Energy-limited first.
 2. Apply 24 V for 60 s and 35 V for 400 ms per line, in each VEXD state.
 3. Run 100 pulses per line and state (plan), then retest the ALM2402 (output swing, current limit, OTF) and the
    ULDOEX regulation.
+4. **Regulator reverse current (round 18).** With the fault source removed, sweep VEXD with the SMU from 0 to 12 V
+   in each input state — IN at 0 V (KL30 off), IN at 4.5 and 6 V (cranking), IN at 13.5 V with INH low (inhibited)
+   — logging I_OUT (into the regulator), I_IN and I_GND; then hold 11 V for 60 s per state.
 
 **Measure** — the total back-drive current: peak, time constant, charge. The split between the Schottky and the
 RSX / ALM2402-diode path. The reverse rail current into ULDOEX, and the VEXD peak.
 
 **Pass** —
-- The total envelope is ≤ the row's: peak ≤ 4.8 A, τ ≈ 59 µs, 99 % of the 0.28 mC by 270 µs. That puts
-  0.13 mJ in the Schottky and 1.5 mJ in RSX. A larger envelope is CONDITIONAL.
-- The Schottky peak is ≤ its 70 A I_FSM (8.3 ms), 7 % used per the row.
+- The total envelope is ≤ the row's: peak ≤ 5.0 A, τ ≈ 60 µs, 0.28–0.30 mC (99 % by 280 µs), the protected node
+  held at 11.0–11.6 V by the TVS meanwhile. That puts ≈ 0.15 mJ in the Schottky and 1.5 mJ in RSX. A larger envelope
+  is CONDITIONAL.
+- The Schottky I²t is ≤ 1 mA²s (0.7 mA²s predicted against the 20 A²s of its 70 A / 8.3 ms I_FSM point — the
+  criterion is I²t, not peak against a 140× wider pulse; round 18).
 - The RSX / ALM2402-diode share is recorded. The row's premise is that the internal diodes (≈ 0.8 V at 5 A)
   carry only the residual above the Schottky's 0.49 V; a share that contradicts this is CONDITIONAL.
 - VEXD stays ≤ 18 V abs (≈ 10.5 V predicted).
-- ULDOEX is inside its output rating with the input at 0 V (V_Q −1…40 V), and its regulation is unchanged
-  afterwards.
+- **Reverse rail current into ULDOEX (RELEASE GATE, F192 / VR-33).** In every input state of step 4 the current
+  into the regulator's OUT pin is ≤ 100 mA at any VEXD up to 12 V and returns to the leakage floor once the
+  diversion pulse has ended (steps 2–3: the shunt current after 300 µs); VBATC does not rise (no back-powering that
+  could wake the card — INH follows V5A); after 100 pulses per state V_Q, dropout, I_q and the current limit are
+  unchanged. A sustained reverse path (the 60 µs pulse turning into ≈ 1.3–1.6 A DC through RSX, 3–5 W) is FAIL:
+  the on-fail action is a blocking element in the regulator's output path — prescribed only then. The 40 V V_Q
+  maximum rating is a node-voltage rating and closes nothing here.
 - The ALM2402 is parametrically unchanged after the 100 pulses (swing, current limits ≈ 750 / 550 mA, OTF).
 
 **Record** — envelope and split table per state.
 
-**On fail** — a Schottky with lower V_F or higher I_FSM on the same diversion, or a series element in the RSX path.
-vendor-requests.md has no ALM2402 envelope question; the rated diversion replaced it.
+**On fail** — a Schottky with lower V_F or higher I_FSM on the same diversion, or a series element in the RSX path;
+a reverse current into ULDOEX beyond the criterion: a blocking element in the regulator's output path (VR-33's
+answer may close it without one). vendor-requests.md has no ALM2402 envelope question; the rated diversion replaced it.
 
 ### QP-RX-06 · Exciter negative terminal fault (gate ㉘, where allocated)
 
@@ -3289,7 +3342,7 @@ Pass is the class surveyor's acceptance, with the Road functional set after each
 | ㉕ | Resolver bench: amplitude; KL30 short at the SDADC pins | QP-RX-01, QP-RX-03 (and QP-RX-02) |
 | ㉖ | Discharge resistor, no-flame closed by the TT statement; fail-open time characterised | QP-DS-03 |
 | ㉗ | LV entry vs the OEM test-B R_i | QP-LV-03 |
-| ㉘ | Terminal-fault bench (characterisation since round 17) | QP-RX-04, QP-RX-05, QP-RX-06, QP-RX-07, QP-RX-08 |
+| ㉘ | Terminal-fault bench (characterisation since round 17; QP-RX-04 step 2b and the QP-RX-05 reverse-current measurement release gates since round 18) | QP-RX-04, QP-RX-05, QP-RX-06, QP-RX-07, QP-RX-08 |
 | Target evidence | Fault-route injection with the CPU halted, the ≤ 15.6 µs chain, REG_PROT, WCET | QP-FW-01, QP-FW-02, QP-FW-03, QP-FW-04, QP-EOL-05 |
 
 ### 13.2 verification-report.md WARN rows → QP

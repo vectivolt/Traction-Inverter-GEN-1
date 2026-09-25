@@ -21,7 +21,7 @@ void vdc_update(vdc_t *s, const uint16_t code_ch[2], const uint32_t t_ch_us[2], 
     for (uint32_t i = 0u; i < 2u; i++) {
         const float pin = ti_code_to_v(code_ch[i]);
         s->ch_failsafe[i] = pin < p->vdc_failsafe_v;
-        s->ch_stale[i] = ti_elapsed(now_us, t_ch_us[i], p->cal_vdc_stale_us);
+        s->ch_stale[i] = ti_stale(now_us, t_ch_us[i], p->cal_vdc_stale_us); /* round 18: signed */
         s->v_ch[i] = cal[i].gain * (pin - s->vofs_v) + cal[i].offset_v;
         s->ch_valid[i] = !s->ch_failsafe[i] && !s->ch_stale[i] && s->vofs_ok && s->v5gd_ok;
     }

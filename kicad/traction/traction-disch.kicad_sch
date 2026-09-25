@@ -7,7 +7,7 @@
 	(title_block
 		(title "Traction Inverter — Discharge board (bolt-on, XM3 pattern)")
 		(date "2026-09-23")
-		(rev "A.16")
+		(rev "A.17")
 		(company "Traction Inverter 220 kW pk - Discharge (HV, bolt-on), sheet 3 of 4")
 		(comment 1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost")
 		(comment 2 "Content: passive 66k bleeder (56 s nom / 65 s worst) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted")
@@ -782,7 +782,7 @@
 	(rectangle (start 190.5 107.95) (end 269.24 177.8) (stroke (width 0) (type dash)) (fill (type none)) (uuid "df525839-853a-40c8-b045-e39cb158feaa"))
 	(rectangle (start 190.5 12.7) (end 269.24 95.25) (stroke (width 0) (type dash)) (fill (type none)) (uuid "55a1231b-4a1e-4532-8b65-4fe432fcc288"))
 	(rectangle (start 12.7 12.7) (end 180.34 177.8) (stroke (width 0) (type dash)) (fill (type none)) (uuid "d7dfbb0f-1fe4-44e7-b455-fa61e8715643"))
-	(text "220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.16   ·   3 sections   ·   35 components" (exclude_from_sim no) (at 15.24 193.04 0) (effects (font (size 1.524 1.524) (bold yes)) (justify left bottom)) (uuid "8b0a5875-2073-47cf-a49b-70560970a5c3"))
+	(text "220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.17   ·   3 sections   ·   35 components" (exclude_from_sim no) (at 15.24 193.04 0) (effects (font (size 1.524 1.524) (bold yes)) (justify left bottom)) (uuid "8b0a5875-2073-47cf-a49b-70560970a5c3"))
 	(text "NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab" (exclude_from_sim no) (at 15.24 200.66 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "54f46f75-e787-4d64-b815-0554b05afc0c"))
 	(text "DISCHARGE / ENTRY" (exclude_from_sim no) (at 192.024 112.014 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "0d8724a7-e818-4eae-94a6-dd7b7dc47bad"))
 	(text "DISCHARGE / BLEED" (exclude_from_sim no) (at 192.024 16.764 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "6fcf7418-4f47-46ee-a817-82430357d4de"))

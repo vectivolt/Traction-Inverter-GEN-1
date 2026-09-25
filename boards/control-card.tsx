@@ -4,7 +4,7 @@
 // chains, 2x CAN-FD, HVIL ladder, motor/module/board temperature inputs, vehicle connector,
 // 40-way harness. Pin NUMBERS on MCU/SBC are symbolic; NAMES are the real GEN3 nets (§VERIFY).
 import {
-  Header, SmdFP, Smd2FP, CanFd, HallChain, NtcIn, Harness, gp,
+  Header, SmdFP, Diode, CanFd, HallChain, NtcIn, Harness, gp,
 } from "../packages/cells";
 
 const NO_ROUTE = process.env.TSCI_NO_ROUTE === "1";
@@ -232,9 +232,9 @@ export default () => (
         ratings; the bead + MLCCs alone let it through. */}
     <chip name="FLVC" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }}
       connections={{ A: "net.KL30", B: "net.FCO" }} />
-    <diode name="DTVSC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.TVSM", cathode: "net.FCO" }} />
-    <diode name="DTVSC2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.TVSM", cathode: "net.DGND" }} />
-    <diode name="DREVC" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FCO", cathode: "net.NRC" }} />
+    <Diode name="DTVSC" {...gp()} anode={"net.TVSM"} cathode={"net.FCO"} />
+    <Diode name="DTVSC2" {...gp()} anode={"net.TVSM"} cathode={"net.DGND"} />
+    <Diode name="DREVC" {...gp()} anode={"net.FCO"} cathode={"net.NRC"} />
     <inductor name="LFC" inductance="1uH" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.VBATC" }} />
     <capacitor name="CLVC1" capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
     <capacitor name="CLVC3" capacitance="100uF" footprint={SmdFP(2)} {...gp()} connections={{ pin1: "net.NRC", pin2: "net.DGND" }} />
@@ -253,7 +253,7 @@ export default () => (
     <chip name="QLVS" footprint={SmdFP(4)} {...gp()} pinLabels={{ pin1: "G", pin2: "D", pin3: "S", pin4: "TAB" }}
       connections={{ G: "net.LVS_G", D: "net.VBSW", S: "net.NRC", TAB: "net.VBSW" }} />
     <resistor name="RLVSG" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.NRC", pin2: "net.LVS_G" }} />
-    <diode name="ZLVS" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.LVS_G", cathode: "net.NRC" }} />
+    <Diode name="ZLVS" {...gp()} anode={"net.LVS_G"} cathode={"net.NRC"} />
     <resistor name="RLVSD" resistance="4.7k" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_G", pin2: "net.LVS_D" }} />
     <resistor name="RLVSM" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_G", pin2: "net.LVS_M" }} />
     <capacitor name="CLVSM" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.LVS_M", pin2: "net.VBSW" }} />
@@ -268,7 +268,7 @@ export default () => (
     <chip name="USBC" footprint={SmdFP(49)} {...gp()}
       pinLabels={Object.fromEntries(SBC_PINS.map(([l], i) => [`pin${i + 1}`, l]))}
       connections={Object.fromEntries(SBC_PINS.map(([l, n]) => [l, `net.${n}`]))} />
-    <diode name="DBAT" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VBATC", cathode: "net.BATSNS" }} />
+    <Diode name="DBAT" {...gp()} anode={"net.VBATC"} cathode={"net.BATSNS"} />
     {/* FS26 mandatory support pins (DS Rev.3): VDIG + VBOS decouplers, both buck bootstraps,
         DEBUG strapped to ground for normal mode */}
     <capacitor name="CVDIG" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VDIG", pin2: "net.DGND" }} />
@@ -312,7 +312,7 @@ export default () => (
     <resistor name="RIGN2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.WAKE1", pin2: "net.DGND" }} />
     {/* IGN sense: 14 V -> 2.33 V at the ADC pin; 47k series limits load-dump injection to
         <1 mA (S32K39 spec 3 mA); reads as analog, thresholds in firmware (rev A.4) */}
-    <diode name="DIGN" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.KL15", cathode: "net.IGN_D" }} />
+    <Diode name="DIGN" {...gp()} anode={"net.KL15"} cathode={"net.IGN_D"} />
     <resistor name="RIGNS1" resistance="47k" footprint="0603" {...gp()} connections={{ pin1: "net.IGN_D", pin2: "net.IGN_SNS" }} />
     <resistor name="RIGNS2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.IGN_SNS", pin2: "net.AGND" }} />
     <capacitor name="CIGNS" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.IGN_SNS", pin2: "net.AGND" }} />
@@ -401,8 +401,8 @@ export default () => (
           and the FS26 Q&A watchdog -> FS0B (FW-12). */}
     {/* FLT diode-OR is Schottky (BAT46): FLT_CMB_N low <= 0.3 V V_OL + 0.45 V cold drop, under the
         USCH2 Schmitt V_T- minimum of 1.0 V (a 1N4148 would sit right at it cold) — round 8 */}
-    <diode name="DFLT1" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_HS_N" }} />
-    <diode name="DFLT2" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CMB_N", cathode: "net.FLT_LS_N" }} />
+    <Diode name="DFLT1" {...gp()} anode={"net.FLT_CMB_N"} cathode={"net.FLT_HS_N"} />
+    <Diode name="DFLT2" {...gp()} anode={"net.FLT_CMB_N"} cathode={"net.FLT_LS_N"} />
     <resistor name="RFLTC" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.FLT_CMB_N" }} />
     <chip name="ULAT2" footprint={SmdFP(8)} {...gp()}
       pinLabels={{ pin1: "CLK", pin2: "D", pin3: "QN", pin4: "GND", pin5: "Q", pin6: "CLR_N", pin7: "PRE_N", pin8: "VCC" }}
@@ -411,7 +411,7 @@ export default () => (
     <capacitor name="CFLTD" capacitance="3.3nF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_OKD", pin2: "net.DGND" }} />
     <resistor name="RLAT2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.FLT_CLR_N" }} />
     <capacitor name="CCLR" capacitance="15nF" footprint="0603" {...gp()} connections={{ pin1: "net.FLT_CLR_M", pin2: "net.FLT_CLR_N" }} />
-    <diode name="DCLR" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FLT_CLR_N", cathode: "net.V5A" }} />
+    <Diode name="DCLR" {...gp()} anode={"net.FLT_CLR_N"} cathode={"net.V5A"} />
     <capacitor name="CLAT2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.DGND" }} />
     <resistor name="RGPD" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.DRV_EN", pin2: "net.DGND" }} />
     {/* FLT/RDY pull-ups and the diode-OR pull-up sit on the DRIVERS' rail, V5GD (harness pin 1),
@@ -474,8 +474,8 @@ export default () => (
     <resistor name="RFS2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.ASC_SET_N" }} />
     <resistor name="RFS3" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_CLR_M", pin2: "net.ASC_CLR_N" }} />
     <resistor name="RFS4" resistance="1k" footprint="1206" {...gp()} connections={{ pin1: "net.FS1B_N", pin2: "net.FOUT_K" }} />  {/* round 17: 1206 anti-surge (ESR18, 0.5 W) so the 24 V/60 s jump start with FS1B held (0.48 W) sits inside the rating */}
-    <diode name="DFO" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.FAULT_OUT", cathode: "net.FOUT_K" }} />
-    <diode name="ZSET" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: "net.ASC_SET_N" }} />
+    <Diode name="DFO" {...gp()} anode={"net.FAULT_OUT"} cathode={"net.FOUT_K"} />
+    <Diode name="ZSET" {...gp()} anode={"net.DGND"} cathode={"net.ASC_SET_N"} />
     {/* RASCP on the latch output (round 8 cross-check): behind UASCG a dead/unpowered ULAT (Hi-Z) would
         float the gate input — now it reads "no ASC". ASC_CMD keeps RPD8 on the power board. */}
     <resistor name="RASCP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.ASC_Q", pin2: "net.DGND" }} />
@@ -580,14 +580,18 @@ export default () => (
                            TVSEx (SMCJ8.5CA) to AGND
         The TVS sits on the PROTECTED (amplifier) side of the PTC, so an external battery fault can reach
         the clamp only THROUGH the PTC — the round-14 drawing had the TVS on the connector node, where the
-        fault current bypassed the PTC (A13-R01). Round 16: the TVS is UNIDIRECTIONAL (SMCJ8.5A, cathode on
+        fault current bypassed the PTC (A13-R01). Round 18: the single-fault rows are bounded by the sheet's
+        8 A / 20 ms trip point only while the fault current is >= 8 A (external <= 1.35 R, the ISO 16750-2
+        direct short); a sustained short through 1.4-70 R keeps the TVS at 4-40 W for the PTC's typical trip
+        time — outside every sheet point (VR-17) — so that window is a characterisation (QP-RX-04 sweep) with a
+        fail-safe outcome (a TVS that fails short trips the PTC; FW-10 reports the line), not a PASS on paper. Round 16: the TVS is UNIDIRECTIONAL (SMCJ8.5A, cathode on
         the node): the excitation never goes below ground (4-8 V around VMID), so a negative harness fault is
         carried by the TVS forward diode at -0.7...-1.2 V (I_FSM 200 A) and the amplifier's lower output diode
         sees < 0.3 A through RSX instead of 4.4 A (A14-R02). Positive clamp ~10.4-11.5 V: below the 12.1 V
-        rail + a diode while VEXD is up; with VEXD absent/cranking the amplifier's reverse diode charges the
-        26.7 uF rail (CLDE + CEXD) through RSX — 4.9 A peak decaying with tau = 59 us (0.19 mJ in the diode,
-        rail then ~10.8 V, under the 18 V abs max) until the PTC trips; the diode's pulse envelope is not
-        published (DS 8.3.6: pulsed use) — bench gate 28 measures it with VEXD off/cranking/on. The monitor
+        rail + a diode while VEXD is up; with VEXD absent/cranking the rail (26.7 uF, CLDE + CEXD) charges
+        through RSX and DEXP/DEXN (round 17/18, below) — 4.8 A peak decaying with tau = 59 us, rail then ~10 V,
+        under the 18 V abs max — until the PTC trips; the ALM2402's own diode envelope is not published
+        (DS 8.3.6: pulsed use), which is why the Schottky carries it — gate 28 measures it with VEXD off/cranking/on. The monitor
         (REXM) taps the protected node — the winding sees that minus the PTC/harness drop (x0.964 cold,
         x0.875 for an hour after a trip); the feedback (REXB) stays at the amplifier output. design-verify §7c:
         fault currents, TVS energy (conditional on the PTC clearing time), back-drive, amplitude planes. */}
@@ -598,12 +602,20 @@ export default () => (
     {/* Round 17 (gap closure of the A.15 OPEN back-drive row): with VEXD absent or cranking, a positive harness fault
         clamped by the TVS above the rail charges the 26.7 uF rail through the amplifier's internal reverse diodes
         (ALM2402 DS 8.3.6: pulsed use only, no energy envelope published). DEXP/DEXN give that charge a RATED path:
-        a Schottky from each protected node to VEXD conducts at ~0.45 V, a good 0.3 V below the internal diodes, so
-        the 4.9 A / 59 us exponential (0.29 mC) is carried by a part with a datasheet I_FSM; NCV4276C output abs max
-        40 V tolerates the rail sitting at the clamp with its input at 0 V. Dark in normal operation: the node swings
-        0.6-4.4 V, the rail is 12.1 V; dark during a rail-present fault too (SMCJ8.5A clamps below 12.8 V up to ~40 A). */}
-    <diode name="DEXP" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VREX_PX", cathode: "net.VEXD" }} />
-    <diode name="DEXN" footprint={Smd2FP()} {...gp()} connections={{ anode: "net.VREX_NX", cathode: "net.VEXD" }} />
+        a Schottky in parallel with each internal upper diode conducts at ~0.45 V, a good 0.3 V below it.
+        Round 18 (A16-R02, all three rechecks): round 17 had drawn the anode on the PROTECTED node (VREX_PX), so the
+        harness fault charged the rail through PTC -> DEX directly — RSX was not in that path although the model
+        divided by it (5 A / 59 us was the RSX model; the drawn loop was bounded only by the PTC's 0.35 R: ~40-60 A).
+        The anode now sits on the AMPLIFIER node (VREX_P): the rail-charging loop is PTC -> VREX_PX -> RSX 2.2 R ->
+        DEX -> VEXD, so the 4.8 A / 59 us / 0.28 mC exponential IS the circuit (ERC graph cut: no DEX on the
+        protected node), the TVS keeps clamping the protected node meanwhile (total PTC current ~37 A at 24 V / 0 R)
+        and the amplifier's own diode carries only the residual above the Schottky's knee. NCV4276C V_Q abs max
+        40 V covers the NODE voltage only — the reverse current into ULDOEX with its input at 0 V / cranking /
+        inhibited is a release gate (QP-RX-05, VR-33), not a datasheet closure. Dark in normal operation: the
+        node swings 0.6-4.4 V, the rail is 12.1 V; dark during a rail-present fault too (the amplifier sinks <= 0.75 A
+        through RSX, so its output stays below VEXD + 0.45 V while the SMDJ8.5A-HRA clamps the protected node). */}
+    <Diode name="DEXP" {...gp()} anode="net.VREX_P" cathode="net.VEXD" />
+    <Diode name="DEXN" {...gp()} anode="net.VREX_N" cathode="net.VEXD" />
     <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_PX", B: "net.VREX_PC" }} />
     <chip name="FEXN" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_NX", B: "net.VREX_NC" }} />
     <resistor name="REXB1" resistance="24k" footprint="0603" {...gp()} connections={{ pin1: "net.REX_F", pin2: "net.EXN1" }} />

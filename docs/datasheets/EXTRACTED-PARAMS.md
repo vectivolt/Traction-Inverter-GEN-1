@@ -599,6 +599,21 @@ wirewound, the sheet archived as `SQP.pdf` (round 12). Alternate: Yageo **SQP10A
 body 48 × 9.5 × 9.0 mm, 0.8 mm leads, 10 W at 40 °C, 500 V working / 1000 V overload, "flameproof ceramic case"
 (no UL 94 class printed). Neither sheet publishes fail-open data — gate ㉖ stays.
 
+## 41. Round-18 diode pin-numbering audit (every 2-pin diode; Sonnet agent, cited)
+
+The generic diode cell numbered the anode as pin 1 until rev A.16. Every bound 2-pin diode was checked against its
+sheet: **Nexperia** PMEG4050EP-Q (Table 2, p.1), PMEG4010EH (Table 2, p.1) and the BZT52 family (Table 2, p.2) number
+**pin 1 = K (cathode), pin 2 = A**; **Vishay** 1N4148WS draws the cathode band at pin 1 (p.1 figure); every other part —
+Diodes Inc US1M ("cathode band or notch"), Vishay SS34 / SMAJ ("band denotes cathode"), Littelfuse TPSMC-VR / SMDJ-HRA
+("band denotes cathode, except bidirectional"), onsemi NRVBAF360T3G ("cathode polarity band"), ST BAT46ZFILM (unnumbered;
+sheet not fetchable, read from ST's page text) — leaves the terminals unnumbered and marks the cathode with a band. KiCad's
+shipped `Device:D` symbol carries `Sim.Pins "1=K 2=A"` and every `Diode_SMD` footprint (D_SOD-123/128/323, D_SMA, D_SMC)
+puts pad 1 on the band side; IPC-7351C's polarity rule is pin 1 = cathode for 2-pin molded bodies. Since rev A.17 the
+shared `Diode` cell numbers the cathode as pin 1 on all 35 diodes (F190); the ERC locks it on every board. BAT64-04
+(3-pin SOT-23: A = 1, K = 2, junction = 3) is outside the cell and already matches Infineon's diagram. Note: the archived
+`SS34.pdf` is Vishay's SMC-family sheet while DB15 is drawn as SMA (same polarity convention; the SMA-specific sheet of
+the sourced part goes in at PO).
+
 ## 26. Round-8 data (rev A.8)
 
 **Nexperia 74LVC1G74 / 74LVC1G08 / 74LVC3G17-Q100.** One LVC family; identical output limits.
@@ -801,6 +816,8 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | TDK-MPZ2012-J-automotive-power.pdf | 288,431 | TDK MPZ2012 A2B-bus automotive variant catalog (context) |
 | SMDJ-series.pdf | 1,034,681 | Littelfuse SMDJ 3 kW TVS series (no AEC-Q101 statement) |
 | SMDJ-HRA-series.pdf | 817,824 | Littelfuse SMDJ-HRA 3 kW automotive AEC-Q101 series — TVSEP/TVSEN SMDJ8.5A-HRA since A.16 |
+| TPSMC-VR-series.pdf | 733,668 | Littelfuse TPSMC-VR automotive series (the fitted DTVSC/DTVSC2/DTVH/DTVL parts): polarity band = cathode for unidirectional parts, none for the "CA" bidirectional — archived by the round-18 pin-numbering audit |
+| BZT52-series-nexperia.pdf | 316,486 | Nexperia BZT52 series (the hyphenated MPNs the BOM uses — the older `BZT52-series.pdf` is Vishay's): Table 2 pinning 1 = K, 2 = A — archived by the round-18 pin-numbering audit |
 | PMEG4050EP.pdf | 259,621 | Nexperia PMEG4050EP base sheet (context) |
 | PMEG4050EP-Q.pdf | 259,772 | Nexperia PMEG4050EP-Q AEC-Q101 Schottky — DEXP/DEXN since A.16 |
 | SBR3U40P1.pdf | 260,776 | Diodes SBR3U40P1-7 — DEX alternate (75 A I_FSM, 40 mA leakage at 125 °C) |

@@ -4,7 +4,8 @@
  * stale, VOFS is outside 0.475–0.525 V (both), V5GD is outside 4.75–5.25 V (both). The pair is
  * invalid when |V1 - V2| > 5 % (floor: cal_vdc_disagree_floor_v). With contactors closed,
  * |V_DC - V_pack| > 3 % flags bms_mismatch (the §6 "V_DC leaving the pack voltage"). HV state:
- * UNKNOWN whenever the pair is invalid, never SAFE (FW-18). */
+ * UNKNOWN whenever the pair is invalid, never SAFE (FW-18). Round 18 (A16-R01): now_us is read after the
+ * channels were read (the target stamps a conversion when it reads it) and the age is signed (ti_stale). */
 #ifndef VDC_H
 #define VDC_H
 

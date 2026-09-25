@@ -29,10 +29,11 @@
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0F0011u /* rev A.15, round 17: a new image (zero current under the battery-lost row, the
-                              * FW-08 regen trim in RUN, the UDS service routine, the FS26 answer cadence, the
-                              * ASC-exit release wait, LV supply supervision) needs its own EOL/HIL record; the
-                              * FW-20 calibration record stays layout 2 */
+#define TI_FW_ID 0x0A0F0012u /* rev A.17, round 18: a new image (sensor freshness judged after the reads, the
+                              * resolver stamp on the SDADC cadence with the servicing deadline and the ring's
+                              * re-acquisition, the resolver latency added, not subtracted) needs its own
+                              * EOL/HIL validation record before it arms; the FW-20 calibration record stays
+                              * layout 2. Round 17 was 0x0A0F0011 */
 
 typedef struct {
     const ti_params_t *p;
@@ -109,6 +110,7 @@ typedef struct {
     uint8_t swg_amp;
     uint32_t n_isr;
     volatile uint32_t t_isr_us; /* entry of the last current-loop ISR (round 16 liveness) */
+    uint32_t sd_reacq;          /* round 18: resolver ring re-acquisitions already recorded (DTC_RSLV_REACQUIRED) */
 } app_t;
 
 /* Retained across an MCU reset inside a key cycle (not across power-down). */

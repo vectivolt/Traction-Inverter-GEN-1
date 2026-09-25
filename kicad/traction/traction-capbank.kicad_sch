@@ -7,7 +7,7 @@
 	(title_block
 		(title "Traction Inverter — Cap bank (busbar assembly, 320 uF)")
 		(date "2026-09-23")
-		(rev "A.16")
+		(rev "A.17")
 		(company "Traction Inverter 220 kW pk - Cap bank (HV, busbar), sheet 2 of 4")
 		(comment 1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost")
 		(comment 2 "Content: laminated busbar + 16x 20 uF/1100 V film cans = 320 uF — NOT an FR4 PCB; discharge board bolts across it")
@@ -422,7 +422,7 @@
 	(label "DCN" (at 165.1 29.21 0) (effects (font (size 1.143 1.143)) (justify left bottom)) (uuid "b1effcbd-a0df-4833-b732-27c794a209ba"))
 	(rectangle (start 12.7 12.7) (end 66.04 95.25) (stroke (width 0) (type dash)) (fill (type none)) (uuid "b8a937cb-a1cc-42b8-a56b-1778a398cd0d"))
 	(rectangle (start 76.2 12.7) (end 193.04 114.3) (stroke (width 0) (type dash)) (fill (type none)) (uuid "ebe6adb8-e794-4233-b666-fad30365d995"))
-	(text "220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.16   ·   2 sections   ·   26 components" (exclude_from_sim no) (at 15.24 129.54 0) (effects (font (size 1.524 1.524) (bold yes)) (justify left bottom)) (uuid "a768e58b-5763-402e-86eb-29f9eb53d837"))
+	(text "220 kW pk Cap bank (HV, busbar) - 2 of 4   ·   rev A.17   ·   2 sections   ·   26 components" (exclude_from_sim no) (at 15.24 129.54 0) (effects (font (size 1.524 1.524) (bold yes)) (justify left bottom)) (uuid "a768e58b-5763-402e-86eb-29f9eb53d837"))
 	(text "NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab" (exclude_from_sim no) (at 15.24 137.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6d8224a4-9e23-4af6-a9d9-a8debdb86942"))
 	(text "CAP-BANK / BUS-STUDS" (exclude_from_sim no) (at 14.224 16.764 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "5afa20db-765e-4cc7-b31c-3679b948bdfd"))
 	(text "CAP-BANK / CAN-ARRAY" (exclude_from_sim no) (at 77.724 16.764 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "fb976e55-e8bd-493a-a946-394c953a459b"))

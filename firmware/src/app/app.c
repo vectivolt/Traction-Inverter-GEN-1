@@ -197,7 +197,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     br_init(&a->br, p); /* §9 step 1: every enable low, ASC_CLR latch high */
     gp_init(&a->gp);
     (void)hal_adc_init();
-    (void)hal_sdadc_init(CARRIER_HZ);
+    (void)hal_sdadc_init(CARRIER_HZ, p->cal_sd_irq_lat_max_us);
     (void)hal_fs26_spi_init();
     (void)hal_can_init(HAL_CAN_VEHICLE);
     (void)hal_can_init(HAL_CAN_DIAG);
@@ -338,14 +338,18 @@ static void apply_decision(app_t *a, uint32_t now_us)
 }
 
 /* ======================= current-loop ISR ======================= */
-static void sense_fast(app_t *a, uint32_t now_us)
+/* Round 18 (A16-R01): each freshness check uses a time read AFTER its acquisition reads. The target stamps a
+ * sample when it reads it (s32k396_adc.c), later than the ISR entry, and a frame can be published by an SDADC
+ * interrupt preempting this ISR; checked against the entry time such a stamp was 2^32 us old — stale, the
+ * control lost. The checked channels are read last in their group (V_DC after VOFS/V5GD). */
+static void sense_fast(app_t *a)
 {
     uint16_t c[3];
     uint32_t t;
     /* A14-R03: a triplet only when all three channels of one trigger arrived; else the sample is lost
      * (the FW-05 failure path) — V_DC and the resolver below are still serviced */
     if (hal_adc_read_phase(c, &t)) {
-        isns_update(&a->isns, c, t, now_us, a->cal.isns, a->p);
+        isns_update(&a->isns, c, t, hal_time_us(), a->cal.isns, a->p);
     } else {
         isns_lost(&a->isns);
     }
@@ -354,18 +358,18 @@ static void sense_fast(app_t *a, uint32_t now_us)
     uint16_t vofs;
     uint16_t v5;
     uint32_t tx;
-    (void)hal_adc_read(HAL_ADC_VDC1, &v[0], &tv[0]);
-    (void)hal_adc_read(HAL_ADC_VDC2, &v[1], &tv[1]);
     (void)hal_adc_read(HAL_ADC_VOFS, &vofs, &tx);
     (void)hal_adc_read(HAL_ADC_V5GD, &v5, &tx);
-    vdc_update(&a->vdc, v, tv, vofs, v5, now_us, a->cal.vdc, a->p);
+    (void)hal_adc_read(HAL_ADC_VDC1, &v[0], &tv[0]);
+    (void)hal_adc_read(HAL_ADC_VDC2, &v[1], &tv[1]);
+    vdc_update(&a->vdc, v, tv, vofs, v5, hal_time_us(), a->cal.vdc, a->p);
     /* A14-R02: one coherent frame (EXC, SIN, COS of one epoch and its stamp) or nothing */
     hal_sd_frame_t f;
     if (hal_sdadc_read_frame(&f)) {
         rslv_update(&a->rslv, f.blk[HAL_SD_EXC], f.blk[HAL_SD_SIN], f.blk[HAL_SD_COS], 1.0f / (float)CARRIER_HZ, f.t_us,
                     &a->cal.rslv, a->p);
     }
-    rslv_age(&a->rslv, now_us, a->p); /* A14-R01: every tick, whether a frame arrived or not */
+    rslv_age(&a->rslv, hal_time_us(), a->p); /* A14-R01: every tick, whether a frame arrived or not */
 }
 
 /* F24: while modulating, every phase the reference asks for current must show it (current.c). The
@@ -418,13 +422,16 @@ static void control_fast(app_t *a, uint32_t now_us)
     }
 }
 
+/* Two times (round 18): now_us, the ENTRY, is the ISR's own — its liveness stamp (t_isr_us, FW-31), the WCET
+ * reference, the angle the FOC uses (the currents were sampled at the trigger, just before the entry) and every
+ * bridge action; the freshness of each sample is judged at a time read after it was read (sense_fast). */
 void app_isr_current(app_t *a)
 {
     const uint32_t now_us = hal_time_us();
     a->n_isr++;
     a->t_isr_us = now_us;
     br_service(&a->br); /* A12-R05: a drop left pending by the DESAT hold happens here once it has run */
-    sense_fast(a, now_us);
+    sense_fast(a);
     if (!a->offs_ok && a->isns.fresh && (hal_pwm_mode() == HAL_PWM_OFF) && (a->offs_n < OFFSET_SAMPLES)) {
         for (uint32_t i = 0u; i < 3u; i++) { /* standstill zero-current reference (§9 step 3) */
             a->offs_acc[i] += a->isns.v_pin[i];
@@ -449,6 +456,7 @@ void app_isr_current(app_t *a)
 void app_isr_fault(app_t *a)
 {
     const uint32_t now_us = hal_time_us();
+    br_note_pwm_off(&a->br, now_us); /* round 18: FFLAG inhibited the PWM in hardware at or before this read (FW-34 class) */
     const uint8_t f = hal_pwm_fault_flags();
     if (st_in_step_h(&a->st)) {
         return; /* FW-16 step h injects this FLT and checks FFLAG itself */
@@ -525,6 +533,15 @@ static void sense_slow(app_t *a, uint32_t t_ms)
     /* after a resolver fault or a stale resolver the last valid speed stays the basis of the §6 column
      * for a bounded time (inertia) — never angle feedback; then unknown = the n >= n_x column */
     a->speed_known = a->rslv.valid || (a->rslv_seen && !ti_elapsed(t_ms, a->speed_valid_ms, a->p->cal_speed_hold_ms));
+    /* round 18 (A16-R02): each re-acquisition of the resolver frame ring is one occurrence of an information
+     * DTC (its count and first/last stamps); no §6 row — while frames are absent the FW-28 age-out acts */
+    const uint32_t n_reacq = hal_sdadc_reacquired();
+    if (n_reacq != a->sd_reacq) {
+        a->sd_reacq = n_reacq;
+        dtc_set(DTC_RSLV_REACQUIRED, t_ms);
+    } else {
+        dtc_pass(DTC_RSLV_REACQUIRED);
+    }
     if (a->rslv.primed && ((t_ms % RSLV_TRIM_MS) == 0u)) {
         const uint8_t amp = rslv_swg_trim(a->swg_amp, &a->rslv);
         if (a->rslv.swg_sat) {
@@ -661,14 +678,16 @@ static void detect(app_t *a, const fm_ctx_t *c)
     }
 }
 
-static void recovery(app_t *a, uint32_t now_us, bool for_retry)
+/* The FW-15 sequence. br_rec_step times the >= 1.5 ms low itself (round 18): the fault ISR may have stamped
+ * t_fault_us after this task read its own time. */
+static void recovery(app_t *a, bool for_retry)
 {
     if (!a->rec_active) {
         br_rec_start(&a->br, a->t_fault_us);
         a->rec_active = true;
         a->rec_for_retry = for_retry;
     }
-    const br_rec_t r = br_rec_step(&a->br, now_us, a->p);
+    const br_rec_t r = br_rec_step(&a->br, a->p);
     if (r == BR_REC_DONE) {
         a->rec_active = false;
         a->br.rec = BR_REC_IDLE;
@@ -696,7 +715,7 @@ static void fault_actions(app_t *a, const fm_ctx_t *c, uint32_t now_us)
     }
     const ss_decision_t *d = &a->fm.dec;
     if ((d->action == SS_ACT_SPO_THEN_PWM_ASC) && !a->fm.hs_reset_done && !a->rec_done_asc) {
-        recovery(a, now_us, false); /* FLT_HS at n >= n_x: the FW-15 reset, then PWM-ASC */
+        recovery(a, false); /* FLT_HS at n >= n_x: the FW-15 reset, then PWM-ASC */
         if (a->rec_done_asc) {
             fm_hs_reset_done(&a->fm);
             fm_update(&a->fm, c, &a->cal.motor, a->p);
@@ -786,7 +805,7 @@ static void selftest_step(app_t *a, uint32_t t_ms)
     }
 }
 
-static void execute(app_t *a, uint32_t t_ms, uint32_t now_us)
+static void execute(app_t *a, uint32_t t_ms)
 {
     const sm_out_t *o = &a->so;
     if (o->req_flt_clear) {
@@ -818,7 +837,7 @@ static void execute(app_t *a, uint32_t t_ms, uint32_t now_us)
         selftest_step(a, t_ms);
     }
     if (o->req_recovery && !a->rec_done_retry) {
-        recovery(a, now_us, true); /* the one VCU-authorised retry (>= 1 s, n < n_x) */
+        recovery(a, true); /* the one VCU-authorised retry (>= 1 s, n < n_x) */
         if (a->rec_done_retry) {
             const fm_ctx_t c = ctx_now(a);
             fm_retry_consumed(&a->fm, &c);
@@ -1014,8 +1033,10 @@ void app_task_1ms(app_t *a)
     br_service(&a->br);
     /* Round 16 (A14-R03, BCTU stopped): only the current-loop ISR reads the phase currents and the
      * resolver frames. If it stops (no trigger, a list that never completes), its measurements go
-     * stale from here instead of staying valid at their last values. */
-    if (ti_elapsed(now_us, a->t_isr_us, a->p->cal_isns_stale_us)) {
+     * stale from here instead of staying valid at their last values. Round 18 (A16-R01): signed — the ISR
+     * preempts this task, so its entry can postdate now_us (read above, before the FS26 transfers): that is a
+     * running loop, not a dead one. */
+    if (ti_stale(now_us, a->t_isr_us, a->p->cal_isns_stale_us)) {
         isns_lost(&a->isns);
         rslv_age(&a->rslv, now_us, a->p);
     }
@@ -1033,7 +1054,7 @@ void app_task_1ms(app_t *a)
     sm_in_t in;
     gather(a, &in, t_ms);
     sm_step(&a->sm, &in, &a->so, a->p);
-    execute(a, t_ms, now_us);
+    execute(a, t_ms);
     arming(a, now_us, t_ms);
     if ((a->sm.st == SM_PRECHARGE_WAIT) || (a->pch.res == PCH_RUNNING)) {
         const pch_result_t pr = pch_step(&a->pch, a->can.contactors, &a->vdc, a->can.v_pack,

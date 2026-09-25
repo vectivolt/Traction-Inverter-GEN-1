@@ -142,7 +142,7 @@
     .cal_rslv_rate_tol_rad_s = 50.0f, /* CAL [10, 200] FW-10 angle-rate vs current model, absolute (el) */ \
     .cal_rslv_rate_min_rad_s = 200.0f, /* CAL [50, 1000] back-EMF observable above this (el) */ \
     .cal_rslv_accel_max_rad_s2 = 20000.0f, /* CAL [5000, 200000] FW-10 angle-rate plausibility: driveline accel bound (el) */ \
-    .cal_rslv_latency_us = 0.0f, /* CAL [0, 200] resolver chain latency beyond the mid-block reference (SDADC group delay, filter envelope delay): HIL-measured */ \
+    .cal_rslv_latency_us = 0.0f, /* CAL [0, 200] resolver chain latency beyond the mid-block reference (SDADC group delay, filter envelope delay); positive = the sample represents an earlier instant; add (round 18, A16-R03: the extrapolation to now adds it): HIL-measured, T-37 */ \
     .cal_speed_hold_ms = 200u, /* CAL [0, 1000] §6 column choice after a resolver fault: last valid speed held (inertia; FW-06 backstops a rise above n_x) */ \
     .cal_rdy_timeout_ms = 400u, /* CAL [250, 1000] FW-14: S1 73–240 ms to rails */ \
     .cal_spo_release_a = 10.0f, /* CAL [2, 50] §6 'release to SPO once the current is gone' */ \
@@ -178,6 +178,7 @@
     .cal_rslv_exc_target_vpp = 7.2f, /* CAL [6.5, 8.3] A14-N01: SWG trim setpoint at the MONITOR plane (protected node, after RSX, before the PTC): amplifier 7.64 V pp (slew ceiling 8.28), SWG 1.84 V pp (low corner 1.884), winding 6.94 V pp cold */ \
     .cal_rslv_wind_per_mon = 0.9641873f, /* CAL [0.8, 1] A14-N01: downstream-loss allowance monitor -> winding, 70/(70 + 2 x 1.3) with the PTCs cold; the post-trip 5 ohm (70/80 = 0.875) is NOT credited: FW-10 flags it. EOL with the real harness replaces it */ \
     .cal_swg_code_init = 8u, /* CAL [0, 12] A14-N01: the SWG starts low (1.45 V pp at the MAXAPP max corner, IOAMPL assumed linear from MINAPP = 0.209 MAXAPP: silicon checklist, docs/target-bringup.md) and ramps up under the trim; <= 12 keeps the untrimmed max corner (1.94 V pp -> 8.0 V pp) under the slew ceiling */ \
+    .cal_sd_irq_lat_max_us = 30u, /* CAL [5, 45] A16-R02 (round 18): a resolver block's first SDADC completion interrupt is serviced within this of the block's end, else the frame is not published and the ring re-acquires (a later one cannot tell a delay from a lap of the 4-slot ring). The priority-1 handler waits at most for the fault ISR (<= 10 us budget), a PRIMASK section and its two sibling handlers (~1 us each): ~13 us, x2.3 margin; floor 5 us above entry + the siblings; ceiling 45 us < half the 100 us carrier period. T-40 measures it */ \
 }
 
 #endif /* PARAMS_8XX_SIC_H */

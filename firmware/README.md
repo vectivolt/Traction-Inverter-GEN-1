@@ -1,13 +1,14 @@
 # Traction inverter firmware (S32K396 + FS26)
 
 This is the application firmware for the 220 kW / 850 V traction inverter. It covers four SKUs:
-8XX SiC, 8XX IGBT, 4XX IGBT and 4XX SiC. It implements `docs/firmware-contract.md` (rev A.15),
+8XX SiC, 8XX IGBT, 4XX IGBT and 4XX SiC. It implements `docs/firmware-contract.md` (rev A.17),
 §8/§8a of `docs/design-basis.md`, the round-12 disposition, the ball map
 `calculations/mcu-ballmap.json`, the round-14 review of commit cfd35a7 (see "Round 14"), the
 round-15 rechecks of commit a8c75eb (see "Round 15"), the round-16 rechecks of commit 32214be (see
-"Round 16") and the round-17 closure of every open item (see "Round 17": each one is now a decision in the
-contract or a row of the target checklist `docs/target-bringup.md`). It is C11 with no dynamic memory and no
-recursion, and every loop is bounded. It uses fixed-width types and single-precision float only.
+"Round 16"), the round-17 closure of every open item (see "Round 17": each one is now a decision in the
+contract or a row of the target checklist `docs/target-bringup.md`) and the round-18 rechecks of commit 4425af9
+(see "Round 18"). It is C11 with no dynamic memory and no recursion, and every loop is bounded. It uses
+fixed-width types and single-precision float only.
 
 The Wolfspeed CRD200 package was used only to check which structure is usual for such a
 firmware. No code was taken from it.
@@ -27,7 +28,7 @@ make clean
 `make test` compiles with `-std=c11 -Wall -Wextra -Werror -Wshadow -Wdouble-promotion
 -Wmissing-prototypes -Wstrict-prototypes -Wundef -Wpointer-arith -Wcast-qual -Wvla`. Test files
 alone get `-Wno-double-promotion`, because their reference arithmetic is done in double. Current
-result: **256 tests, 2310 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
+result: **278 tests, 2534 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
 `-O2` (`make BUILD=build/asan test CFLAGS="-O1 -g -fsanitize=address,undefined"`,
 `make BUILD=build/o2 test CFLAGS=-O2`).
 
@@ -58,7 +59,7 @@ calibration record must agree with it (FW-01/02/20).
    - **FAULT_ROUTE_VALIDATED** and **OVP_ROUTE_VALIDATED**: an EOL/HIL validation record in NVM
      (`NV_REC_VALIDATION`), CRC-sealed and bound to `TI_FW_ID`, the SKU and the device UID: the pad →
      PWM fault injection passed, and the FW-06 chain was measured within 15.6 µs (checklist T-05; this image
-     is `TI_FW_ID` 0x0A0F0011).
+     is `TI_FW_ID` 0x0A0F0012, round 18).
 
    Anything missing is a DTC (`DTC_ARM_EVIDENCE` or `DTC_PWM_LOCK`), the state machine never leaves
    the inhibited state (no FS0B release, no FW-16 energisation, no `MCU_GATE_EN`), and INV_STATUS
@@ -101,13 +102,16 @@ These rules shape the code:
 - **Every sensor value has a validity flag and a sample time** (`ti_meas_t`, per-channel stale
   timers). Round 16: a phase-current triplet counts only when all three channels of one trigger arrived,
   a resolver frame only when all three channels of one epoch did, and the resolver angle expires
-  `cal_rslv_hold_us` after its newest frame whether or not a new one arrives.
+  `cal_rslv_hold_us` after its newest frame whether or not a new one arrives. Round 18: freshness is judged at
+  a time read after the sample was read, with a signed age (`ti_stale`), and a resolver frame is stamped with
+  its block start on the SDADC cadence, whatever its interrupt's latency.
 - **One parameter set per SKU.** `include/params_<sku>.h` is generated from the contract tables
-  and has 174 fields. 75 of them are `cal_*` values the contract does not fix, mostly hardware
+  and has 175 fields. 76 of them are `cal_*` values the contract does not fix, mostly hardware
   timings and tolerances. Each has its contract default and a `[min, max]` range
   (`include/cal_ranges.h`), checked at boot.
 - **Units:** see `include/ti_types.h`. Time is `uint32_t` µs or ms, compared only through
-  `ti_elapsed()`/`ti_age()`. One time domain (round 14, A12-R06, `src/hal/timer.h`): µs intervals use
+  `ti_elapsed()`/`ti_age()` — and a sensor stamp's freshness through `ti_stale()` (round 18: signed, the stamp
+  may postdate the check). One time domain (round 14, A12-R06, `src/hal/timer.h`): µs intervals use
   the raw counter `hal_time_us()`; every ms stamp comes from `hal_time_ms()` = (uint32)(us64 / 1000),
   where us64 is the counter extended to 64 bits (read at least once per 71.6 min wrap: the 1 ms task
   does), so ms wrap at 2^32 like any uint32. Never `hal_time_us() / 1000`. ADC values are 12-bit
@@ -123,20 +127,20 @@ These rules shape the code:
 
 | Directory | Lines | Contents |
 |---|---|---|
-| `include/` | 1149 | types/units, parameter struct, 4 generated SKU sets, CAL ranges |
+| `include/` | 1168 | types/units (+ `ti_stale`), parameter struct, 4 generated SKU sets, CAL ranges |
 | `src/util/` | 104 | math helpers, CRC-8 (0x1D, SAE J1850) and CRC-32 |
-| `src/hal/` | 458 | the 10 HAL interfaces (timer: the 64-bit time base), the shared resolver frame protocol (round 16) |
-| `src/sense/` | 676 | current (FW-05, stuck-channel check, lost triplets), V_DC (FW-07/18), temperatures (FW-13), HVIL (FW-09), HW_ID (FW-01/02), IGN, the LV supply (FW-33) |
-| `src/control/` | 923 | resolver (FW-10: bounded hold, amplitude planes, SWG ramp), FOC/SVPWM, MTPA/field weakening/limits and the voltage witness (FW-03/04), gains, the DC-link trim (FW-08: a regen limiter in RUN) |
-| `src/safety/` | 2102 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12, + its AMUX for FW-33), bridge sequences + DESAT hold and the ASC-exit release wait, gate power (FW-14), self-test (FW-16), arming evidence |
-| `src/comms/` | 684 | CAN command/status with E2E (FW-11), UDS DTC store, UDS SecurityAccess + the service-lock routine (FW-32) |
+| `src/hal/` | 565 | the 10 HAL interfaces (timer: the 64-bit time base), the shared resolver frame protocol (round 16; round 18: the cadence stamp, the servicing deadlines, re-acquisition) |
+| `src/sense/` | 680 | current (FW-05, stuck-channel check, lost triplets), V_DC (FW-07/18), temperatures (FW-13), HVIL (FW-09), HW_ID (FW-01/02), IGN, the LV supply (FW-33) |
+| `src/control/` | 931 | resolver (FW-10: bounded hold, amplitude planes, SWG ramp, the latency's sign), FOC/SVPWM, MTPA/field weakening/limits and the voltage witness (FW-03/04), gains, the DC-link trim (FW-08: a regen limiter in RUN) |
+| `src/safety/` | 2106 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12, + its AMUX for FW-33), bridge sequences + DESAT hold and the ASC-exit release wait (round 18: the FW-15 low wait on the bridge's own clock), gate power (FW-14), self-test (FW-16), arming evidence |
+| `src/comms/` | 686 | CAN command/status with E2E (FW-11), UDS DTC store, UDS SecurityAccess + the service-lock routine (FW-32) |
 | `src/discharge/` | 279 | FW-17/18/19, FW-02 τ, unexpected discharge |
 | `src/nvm/` | 520 | parameter sets (+ the exciter plane checks), calibration (FW-20), NVM log and queue (validation and service records) |
-| `src/app/` | 1196 | integration (+ the current-loop liveness check FW-31, the diagnostic bus) |
-| `src/platform/s32k396/` | 1914 | generated ball-map tables, the ADC map and its derived schedule, register images, REG_PROT layout, the board configuration the RM fills, drivers with RTD bodies (three SDADC DMA interrupts) |
-| `src/platform/host/` | 1937 | simulation of the card, FS26 (its oscillator tolerance and AMUX) and MCU peripherals (REG_PROT, route binding, MCU reset, per-channel eDMA, the excitation chain) |
-| `tests/` | 6718 | 31 suites (one file per module + time + sdadc + uds + scenarios), 256 tests, harness (two exact clocks, ADC-level noise) |
-| `tools/` | 365 | parameter and board-map generators |
+| `src/app/` | 1218 | integration (+ the current-loop liveness check FW-31, the diagnostic bus, the check times of FW-34) |
+| `src/platform/s32k396/` | 1920 | generated ball-map tables, the ADC map and its derived schedule, register images, REG_PROT layout, the board configuration the RM fills, drivers with RTD bodies (three SDADC DMA interrupts) |
+| `src/platform/host/` | 1991 | simulation of the card, FS26 (its oscillator tolerance and AMUX) and MCU peripherals (REG_PROT, route binding, MCU reset, per-channel eDMA, the excitation chain; round 18: ADC reads that take time, per-channel interrupt hold-off, the overrun flag, a preempting ISR) |
+| `tests/` | 7447 | 31 suites (one file per module + time + sdadc + uds + scenarios), 278 tests, harness (two exact clocks, ADC-level noise) |
+| `tools/` | 366 | parameter and board-map generators |
 
 ## What is verified where
 
@@ -177,7 +181,13 @@ These rules shape the code:
   lockout, malformed requests); the FS26 answered every 2 ms on the target's exact tick grid at its oscillator's
   −5 / 0 / +5 %; the first high-side pulse after an ASC exit behind the release deadline (SiC and IGBT); KL30
   at 35 V for 400 ms and a 24 V (and 26.5 V) jump start for 60 s as information, a longer overvoltage taking
-  the orderly ramp and recovering.
+  the orderly ramp and recovering;
+- round 18: every ADC read taking 1, 5 or 50 µs before it stamps (the target's order), also straddling the 32-bit
+  µs wrap, and the current-loop ISR preempting the 1 ms task — currents, V_DC and the resolver stay fresh; a DESAT
+  that preempts the task keeps FW-15's ≥ 1.5 ms low (also across the wrap); SDADC
+  completion interrupts held off within the deadline (stamps exact), past it (rejected, re-acquired), for exactly
+  a lap (never fresh), one channel lapping, all three stalled, a late anchor, both wraps, lost samples; the
+  resolver latency against an independent rotor at ± 3000 / 10 000 rpm and 25 / 50 µs.
 
 **Needs the target, HIL, EOL or the bench:** everything is in **[`docs/target-bringup.md`](docs/target-bringup.md)**
 — one row per open marker in the sources (RTD, RM, HW-RM, HW, EOL, REL), with the acceptance check and what
@@ -198,7 +208,7 @@ It also maps every edge case from the task to its test.
 | 07 | sense/vdc.c | vdc, scenarios | yes | T-07 (EOL gains) |
 | 08, 08b | control/dclink.c (the RUN-only regen trim), safe_state.c, fault_mgr.c, can_cmd.c, app.c (battery path at every speed; zero current under the row), state_machine.c | dclink, safe_state, fault_mgr, state_machine, scenarios | yes | T-37 (trim gains on the real bank), T-38 (rule (b), BMS) |
 | 09 | sense/hvil.c | hvil, scenarios | yes | T-38 (harness signatures) |
-| 10 | control/resolver.c, hal/sdadc_ring.c, s32k396_resolver.c, app.c | resolver, sdadc, params, calib, scenarios | yes | T-28…T-31 (SDADC/SWG/eDMA), T-07 (EOL planes), T-37 (latency) |
+| 10 | control/resolver.c, hal/sdadc_ring.c, s32k396_resolver.c, app.c | resolver, sdadc, params, calib, scenarios | yes | T-28…T-31 (SDADC/SWG/eDMA), T-07 (EOL planes), T-37 (latency), T-40 (completion latency) |
 | 11 | comms/can_cmd.c, torque.c | can_cmd, torque, scenarios | yes | T-38 (vehicle DBC) |
 | 12 | safety/fs26.c (+ the answer cadence), app.c (the answer first in the task) | fs26, scenarios | yes (model of the FS26, its oscillator tolerance) | T-32…T-34 (silicon: answer, spacing, MCU reset; OTP) |
 | 13 | sense/temp.c | temp | yes | T-38 (sensor parts) |
@@ -211,6 +221,9 @@ It also maps every edge case from the task to its test.
 | 31 | app.c (`app_task_1ms`: current-loop liveness) | scenarios | yes | T-22 (ISR rate) |
 | 32 | comms/uds.c, app.c (`service_clear`, `diag`) | uds, scenarios | yes | T-26 (diagnostic RX), T-35 (the key) |
 | 33 | sense/vsup.c, safety/fs26.c (the AMUX), app.c (`sense_slow`, `detect`) | scenarios | yes (the FS26 AMUX modelled) | T-39 (the reading, the profiles on the bench), T-37 (the bands) |
+| 34 | ti_types.h (`ti_stale`), app.c (`sense_fast`, `app_task_1ms`, `recovery`), current.c, vdc.c, resolver.c (`rslv_age`), bridge.c (`br_rec_step`) | time, current, vdc, resolver, bridge, scenarios | yes (the target's read-then-stamp order modelled) | T-36 |
+| 35 | hal/sdadc_ring.c, s32k396_resolver.c, app.c (the DTC) | sdadc, params, scenarios | yes (per-channel eDMA and interrupt model) | T-40 (latency, cadence), T-30, T-28 |
+| 36 | control/resolver.c (`rslv_theta_e_at`) | resolver | yes | T-37 (the latency's sign on HIL) |
 
 ## Round 14 (three reviews of commit cfd35a7)
 
@@ -310,6 +323,29 @@ parameter sets regenerated (`make params`: 174 fields, 75 CAL rows — the DC-li
 release and the three LV bands), the harness's plant given ADC-level noise (`docs/traceability.md`, "Round 17"),
 and the ball-map test states the V5GD pin as the contract now does.
 
+## Round 18 (rechecks of commit 4425af9)
+
+Three confirmed defects, verified against the source before the change, same rule: **fail closed**. Each change has
+regression tests that fail on the pre-fix source and pass now; each fix was also mutated once and the suite caught it
+(method, per-test results and the mutations: `docs/traceability.md`, "Round 18"). Contract §10d: FW-34…FW-36.
+
+| ID | Defect | Change | Tests |
+|---|---|---|---|
+| A16-R01 (FW-34) | Fresh samples declared stale on the target. `app_isr_current()` read `now_us` at entry; the target's `hal_adc_read_phase()` and `hal_adc_read()` stamp a sample with `hal_time_us()` when they read it — later — and `isns_update()`/`vdc_update()` computed the age `now_us − stamp` unsigned: one tick newer read 4.29e9 µs old, the currents and V_DC stale, the control lost. `rslv_age()` the same for a frame an SDADC interrupt published inside a long ISR. The host hid it: its reads stamped with the frozen clock, the ISR's entry. Found at another caller of the same comparison: the 1 ms task's FW-31 liveness check compared its start time with `t_isr_us`, which the current-loop ISR rewrites when it preempts the task (after the task read its time, during its FS26 transfers): "loop dead", the currents lost, the control-lost row. | Each freshness check reads its own time after its acquisition reads (`sense_fast`: the triplet; VOFS, V5GD, then V_DC — the checked channels last; the frame). A signed-safe helper `ti_stale(now, stamp, hold)` (`ti_types.h`): stale when the stamp is `hold` or more before now — or `hold` or more after it (no ISR's execution reaches that: a corrupt stamp is refused either way); wrap-safe; used in `isns_update`, `vdc_update`, `rslv_age` and the task's liveness check. `ti_elapsed()` stays unsigned for timers. The ISR's entry time stays its own: `t_isr_us`, the WCET reference, the FOC angle, the bridge. The same class at the FW-15 recovery timer: `br_rec_step()` timed the ≥ 1.5 ms low with the task's `now_us` against the fault ISR's newer stamp — with the DESAT hold over before the recovery started in that tick, the age wrapped and the reset pulse came ≈ 0.1 ms after the fault (the driver not reset: `DTC_FLT_RECOVERY_FAIL`); it now takes no time argument and reads its own (the FW-22 rule). The host models the target's order: `sim_adc_read_delay_ns()` (each read takes simulated time, events included, before it stamps) and `sim_fs26_xfer_hook()` (an interrupt inside the task's FS26 transfer). | time: `sensor_stamps_are_judged_with_a_signed_age`; current: `a_triplet_stamped_after_the_check_time_is_fresh`; vdc: `a_channel_stamped_after_the_check_time_is_fresh`; resolver: `a_frame_newer_than_the_check_time_is_not_aged_out`; bridge: `fw15_low_wait_runs_on_the_bridges_own_clock` (also across the µs wrap); scenarios: `samples_stamped_after_the_isr_entry_stay_fresh` (1 / 5 / 50 µs per read, across the µs wrap), `a_run_at_speed_with_the_adc_reads_taking_time`, `a_current_loop_preempting_the_task_is_not_a_dead_loop`, `fw15_low_wait_counts_from_a_fault_that_preempted_the_task` |
+| A16-R02 (FW-35) | The resolver stamp came from the completion interrupt's execution time: `t_start = now_us − period` in `hal_sd_ring_complete()`, so an interrupt served late stamped old data too new (100 µs at 10 kHz is 24° el at 10 000 rpm, 4 pole pairs); blocks since the last count were `(hw − done) % 4`, so an interrupt exactly one lap (4 periods) late read as a repeated one, and the reader's DMA-position checks were modulo 4 as well: a lap was invisible. A broken ring stayed down until reset. | The stamp is cadence-locked: block k starts at `t_org + (k − k_org)·100 µs` (unsigned, wrap-safe), the origin anchored at the first completion after (re)acquisition and moved back by any completion that comes before its block's end (a completion is never early). A block's first completion must be served within `cal_sd_irq_lat_max_us` (new CAL: 30 µs, range 5–45 µs, below half the carrier period; `docs/timing.md`), a later channel's within half a period, else the timing is ambiguous: the block is not published and the ring breaks. The reader refuses a slot the cadence says may have been rewritten (a copy ending ≥ 3 periods after the block start). A broken ring re-acquires by itself: at a completion that finds all three DMAs in one slot (TCD destination addresses on the target, `s_dma[].hw` on the host) it takes that count, numbered past every published epoch, and anchors a fresh origin at the next completion; the resolver bridges a short gap or re-primes through FW-28; each re-acquisition is one occurrence of the information DTC `DTC_RSLV_REACQUIRED` (no §6 row). Lost samples (`TI_SD_LOST`) keep the ring down until re-init — positions cannot restore carrier phase 0. The SDADC data rate and the STM share the PLL (assumption, `docs/timing.md`; T-40). | sdadc: `interrupts_held_off_within_the_deadline_keep_every_stamp_exact`, `a_late_anchor_is_moved_back_by_the_first_prompt_completion`, `an_interrupt_held_off_past_the_deadline_is_rejected_then_reacquired` (40, 60 µs), `interrupts_held_off_for_a_lap_are_detected_never_fresh`, `one_channel_lapping_while_the_others_do_not`, `all_three_stalled_together_are_detected_and_reacquired`, `the_reader_preempted_across_a_lap_never_returns_the_frame`, `stamps_are_exact_across_the_microsecond_and_epoch_wraps`, `lost_samples_keep_the_ring_down_until_init`; params: `round18_cal_defaults_and_ranges`; scenarios: `a_late_resolver_interrupt_at_speed_is_counted_and_reacquired` (SiC, IGBT) |
+| A16-R03 (FW-36) | `rslv_theta_e_at()` subtracted the chain latency: `(now − t_ref) − t_mid − cal_rslv_latency_us`, while the parameter is a positive delay (the block's angle is the rotor's that long before its mid-block reference): −12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs. The unit test encoded the wrong sign. | The latency is added: θ(now) = θ_block + ω·((now − t_ref) − t_mid + L); the header comment, the generator's description ("positive = the sample represents an earlier instant; add"), `docs/timing.md` and the T-37 row (the HIL measurement's sign convention) say so. | resolver: `latency_compensation_matches_the_true_angle_at_now` (an independent rotor model: both directions, 3000 / 10 000 rpm, 25 / 50 µs), `acquires_at_speed_after_a_reset` (corrected) |
+
+`TI_FW_ID` is 0x0A0F0012: this image needs a new EOL/HIL validation record before it arms (checklist T-05); the
+calibration record stays layout 2. The parameter sets were regenerated (`make params`: 175 fields, 76 CAL rows);
+the target checklist gained T-40 (the completion-interrupt latency distribution and the cadence against the STM),
+and T-37 states the latency's sign convention. Existing tests changed: `resolver: acquires_at_speed_after_a_reset`
+(the corrected sign); `bridge:` the three FW-15 tests' calls (`br_rec_step()` lost its time argument); `sdadc: a_frozen_channel_yields_no_frame`, `held_off_completion_interrupts_never_yield_a_fresh_frame`
+and `scenarios: a_frozen_resolver_channel_is_never_read_as_fresh` (a ring that broke now re-acquires once its
+channels are in step — it used to stay down until reset; a channel resuming out of step still never does);
+`sdadc: the_epoch_counter_wraps` (37 frames: the ring takes the DMA positions at its first completion and anchors
+at the second); every `sdadc` test now also requires each frame's stamp to be its carrier period's true start
+(± 1 µs), not only its three tags to agree.
+
 ## Decisions recorded in the contract (round 17)
 
 The former "contract contradictions and open items", by number. Each is now contract text (the section named,
@@ -354,7 +390,8 @@ in `docs/firmware-contract.md`; §10c indexes the round) or a checklist row (`do
 26. **DC-link trim** — implemented (above): FW-08.
 27. **ADC1 injected chain** — FW-06 (the sample wait: 4 µs of the 5.0 µs row); measurement: T-11.
 28. **BCTU list read-back** — checklist T-12.
-29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0011, calibration layout 2; the records: T-05, T-06, T-07.
+29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0011, calibration layout 2; the records: T-05, T-06, T-07 (round 18:
+    0x0A0F0012, §10d).
 30. **Amplitude planes** — FW-30 (round 17): the setpoint at the monitor, the floor at the winding through
     `cal_rslv_wind_per_mon` and the EOL ratio; the EOL confirmation: T-07.
 31. **Where RSX sits** — FW-30: on the amplifier side of the monitor tap (77/72.6 up, 70/72.6 down).

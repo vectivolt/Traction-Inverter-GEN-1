@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Discharge board (bolt-on, XM3 pattern)"
 Date "2026-09-23"
-Rev "A.16"
+Rev "A.17"
 Comp "Traction Inverter 220 kW pk - Discharge (HV, bolt-on), sheet 3 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: passive 66k bleeder (56 s nom / 65 s worst) + commanded active path (1.88k, 1.6 s) — NEVER energize without this board fitted"
@@ -14,7 +14,7 @@ Comment3 "3 functional sections - 35 components - cross-section links are net la
 Comment4 "Every component carries MPN + LCSC fields (CLASS = buy to class spec, ALT footprint-compatible second source in BOM)"
 $EndDescr
 Text Notes 600 7600 0    60   ~ 12
-220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.16   ·   3 sections   ·   35 components
+220 kW pk Discharge (HV, bolt-on) - 3 of 4   ·   rev A.17   ·   3 sections   ·   35 components
 Text Notes 600 7900 0    50   ~ 0
 NET NAMING: U<ref>_<PIN> = node at that IC pin   ·   R<stem>_M = series-pair midpoint   ·   R<stem>_<nm> = tap between R<stem>n/m   ·   all others are explicit design nets   ·   same name on another sheet = same net, joined only at the named connector/stud/tab
 Wire Notes Line

@@ -17,7 +17,17 @@ export const SmdFP = (n: number, hints?: string[][]) => (
     <courtyardrect pcbX={0} pcbY={0} width={`${n * 1.6 + 1.5}mm`} height="3mm" />
   </footprint>
 );
-export const Smd2FP = () => SmdFP(2, [["pin1", "anode"], ["pin2", "cathode"]]);
+// ---- 2-pin diode cell (round 18, F190) --------------------------------------------------
+// Pin NUMBERS follow the physical part: pin 1 = CATHODE, pin 2 = ANODE — the Nexperia SOD128 /
+// SOD123 pinning tables (PMEG4050EP-Q, PMEG4010EH: Table 2 "1 = K, 2 = A") and the KiCad
+// convention (Device:D and every Diode_SMD footprint: pad 1 = K, the band). Until rev A.16 the
+// generic <diode> cell numbered the ANODE as pin 1, so a KiCad user assigning a standard
+// SOD/SMA/SMC/SOD323 footprint to any of the 33 diodes got it reversed (review A16-R01, md).
+// The port NAMES stay anode/cathode: the ERC locks, the sheet generator (glyph seated by name,
+// numbers printed truthfully) and the BOM are unchanged; only the numbers moved.
+export const Diode = ({ anode, cathode, ...rest }: { name: string; anode: string; cathode: string; pcbX?: number; pcbY?: number }) => (
+  <chip {...rest} footprint={SmdFP(2)} pinLabels={{ pin1: "cathode", pin2: "anode" }} connections={{ cathode, anode }} />
+);
 export const StudFP = (d = 8.5, o = 16) => (
   <footprint>
     <platedhole portHints={["pin1"]} pcbX={0} pcbY={0} holeDiameter={`${d}mm`} outerDiameter={`${o}mm`} shape="circle" />
@@ -179,16 +189,16 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
       <resistor name={`R${p}MC`} resistance="0" footprint="0805" {...gp()} connections={{ pin1: `net.CLP_${p}`, pin2: gate }} />
       <resistor name={`R${p}GS`} resistance="10k" footprint="0805" {...gp()} connections={{ pin1: gate, pin2: ks }} />
       <resistor name={`R${p}PD`} resistance="1M" footprint="1206" {...gp()} connections={{ pin1: gate, pin2: ks }} />
-      <diode name={`D${p}Z1`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.ZK_${p}`, cathode: gate }} />
-      <diode name={`D${p}Z2`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.ZK_${p}`, cathode: ks }} />
+      <Diode name={`D${p}Z1`} {...gp()} anode={`net.ZK_${p}`} cathode={gate} />
+      <Diode name={`D${p}Z2`} {...gp()} anode={`net.ZK_${p}`} cathode={ks} />
       {/* DESAT clamp: BAT64-04 SERIES pair (real config: A=pin1, K=pin2, junction=pin3 NC).
           Anode end on DESAT, cathode end on VCC2 -> clamps DESAT to VCC2+2Vf; never a
           forward path FROM the supply INTO the DESAT node (rev A.4 review fix). */}
       <chip name={`D${p}SB`} footprint={SmdFP(3)} {...gp()} pinLabels={{ pin1: "A", pin2: "K", pin3: "M" }}
         connections={{ A: dst, K: vcc, M: `net.NC_D${p}SBM` }} />
       <resistor name={`R${p}DS`} resistance="100" footprint="0805" {...gp()} connections={{ pin1: dst, pin2: `net.DS1_${p}` }} />
-      <diode name={`D${p}S1`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.DS1_${p}`, cathode: `net.DS2_${p}` }} />
-      <diode name={`D${p}S2`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.DS2_${p}`, cathode: drain }} />
+      <Diode name={`D${p}S1`} {...gp()} anode={`net.DS1_${p}`} cathode={`net.DS2_${p}`} />
+      <Diode name={`D${p}S2`} {...gp()} anode={`net.DS2_${p}`} cathode={drain} />
       <capacitor name={`C${p}BL`} capacitance="47pF" footprint="0603" {...gp()} connections={{ pin1: dst, pin2: ks }} />
       {/* driver rail decoupling — both sides of the barrier (NSI6611 DS layout rule):
           input-side VCC1-GND1 bypass lives in each channel, not only at the LDO */}
@@ -196,8 +206,8 @@ export const GateDrive = ({ ph, side, drain, gate, ks, pwmP, pwmN, en, flt, rdy,
       <capacitor name={`C${p}B1`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       <capacitor name={`C${p}B2`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       {/* floating secondary: rectifier -> VCC ; zener splits winding return -> VEE (-5.1) */}
-      <diode name={`D${p}R`} footprint={Smd2FP()} {...gp()} connections={{ anode: wA, cathode: vcc }} />
-      <diode name={`Z${p}V`} footprint={Smd2FP()} {...gp()} connections={{ anode: vee, cathode: ks }} />
+      <Diode name={`D${p}R`} {...gp()} anode={wA} cathode={vcc} />
+      <Diode name={`Z${p}V`} {...gp()} anode={vee} cathode={ks} />
       <capacitor name={`C${p}V1`} capacitance="4.7uF" footprint="1206" {...gp()} connections={{ pin1: vcc, pin2: ks }} />
       <capacitor name={`C${p}E1`} capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: ks, pin2: vee }} />
       <resistor name={`R${p}BL`} resistance="5.1k" footprint="0805" {...gp()} connections={{ pin1: vcc, pin2: vee }} />
@@ -227,8 +237,8 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
         connections={{ S1: cs, S2: cs, S3: cs, G: `net.FG_${id}`, D: sw }} />
       <resistor name={`RF${id}G`} resistance="10" footprint="0603" {...gp()} connections={{ pin1: `net.FDR_${id}`, pin2: `net.FG_${id}` }} />
       <resistor name={`RF${id}GO`} resistance="20" footprint="0603" {...gp()} connections={{ pin1: `net.FG_${id}`, pin2: `net.FGO_${id}` }} />
-      <diode name={`DF${id}G`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FGO_${id}`, cathode: `net.FDR_${id}` }} />
-      <diode name={`ZF${id}G`} footprint={Smd2FP()} {...gp()} connections={{ anode: cs, cathode: `net.FG_${id}` }} />
+      <Diode name={`DF${id}G`} {...gp()} anode={`net.FGO_${id}`} cathode={`net.FDR_${id}`} />
+      <Diode name={`ZF${id}G`} {...gp()} anode={cs} cathode={`net.FG_${id}`} />
       <resistor name={`RF${id}GS`} resistance="51k" footprint="0603" {...gp()} connections={{ pin1: `net.FG_${id}`, pin2: cs }} />
       <resistor name={`RF${id}CS`} resistance="0.33" footprint="1210" {...gp()} connections={{ pin1: cs, pin2: "net.DGND" }} />
       <resistor name={`RF${id}SI`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: cs, pin2: `net.FSI_${id}` }} />
@@ -254,8 +264,8 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
           forward-conducted every OFF interval and had a 94 V breakdown vs the 80 V FET). */}
       <resistor name={`RF${id}SN`} resistance="100" footprint="0805" {...gp()} connections={{ pin1: sw, pin2: `net.FSN_${id}` }} />
       <capacitor name={`CF${id}SN`} capacitance="100pF" footprint="1206" {...gp()} connections={{ pin1: `net.FSN_${id}`, pin2: v12 }} />
-      <diode name={`DF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: sw, cathode: `net.FCL_${id}` }} />
-      <diode name={`ZF${id}SN`} footprint={Smd2FP()} {...gp()} connections={{ anode: v12, cathode: `net.FCL_${id}` }} />
+      <Diode name={`DF${id}SN`} {...gp()} anode={sw} cathode={`net.FCL_${id}`} />
+      <Diode name={`ZF${id}SN`} {...gp()} anode={v12} cathode={`net.FCL_${id}`} />
       {/* VCC: trickle start from the 12 V rail, then the aux winding takes over
           (the aux-only wiring could never start — startup feed added at DFM review).
           Review A.6 (F18): 2.2 k so VDD_ON (7.5 V max) is reached with the start current AND
@@ -275,10 +285,10 @@ export const FlybackChain = ({ id, v12 }: { id: "H" | "L"; v12: string }) => {
           VCC2 15.4 V nominal, 13.5-16.7 V corners (the 56k/VDD sense gave ~16.9 V once the aux
           diode drop is counted). 100 R/100 nF is the leakage-spike filter — bench knob; CF?FS is
           a soft-termination MLCC (a cracked short would force FB = 0, full duty). */}
-      <diode name={`DF${id}A`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: vcc }} />
+      <Diode name={`DF${id}A`} {...gp()} anode={`net.FAX_${id}`} cathode={vcc} />
       <capacitor name={`CF${id}A`} capacitance="47uF" footprint="1210" {...gp()} connections={{ pin1: vcc, pin2: "net.DGND" }} />
-      <diode name={`DF${id}VZ`} footprint={Smd2FP()} {...gp()} connections={{ anode: "net.DGND", cathode: vcc }} />
-      <diode name={`DF${id}FS`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.FAX_${id}`, cathode: `net.FFD_${id}` }} />
+      <Diode name={`DF${id}VZ`} {...gp()} anode={"net.DGND"} cathode={vcc} />
+      <Diode name={`DF${id}FS`} {...gp()} anode={`net.FAX_${id}`} cathode={`net.FFD_${id}`} />
       <resistor name={`RF${id}FS`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: `net.FFD_${id}`, pin2: `net.FFS_${id}` }} />
       <capacitor name={`CF${id}FS`} capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: `net.FFS_${id}`, pin2: "net.DGND" }} />
       <resistor name={`RF${id}FB1`} resistance="52.3k" footprint="0603" {...gp()} connections={{ pin1: `net.FFS_${id}`, pin2: fb }} />
@@ -337,7 +347,7 @@ export const ModNtc = ({ ph, ntcA }: { ph: string; ntcA: string }) => (
   <group>
     <resistor name={`R${ph}TS`} resistance="100" footprint="0603" {...gp()} connections={{ pin1: ntcA, pin2: `net.TMOD_${ph}` }} />
     <capacitor name={`C${ph}TF`} capacitance="2.2nF" footprint="0603" {...gp()} connections={{ pin1: `net.TMOD_${ph}`, pin2: "net.TMOD_RTN" }} />
-    <diode name={`D${ph}TP`} footprint={Smd2FP()} {...gp()} connections={{ anode: `net.TMOD_${ph}`, cathode: "net.V5GD" }} />
+    <Diode name={`D${ph}TP`} {...gp()} anode={`net.TMOD_${ph}`} cathode={"net.V5GD"} />
   </group>
 );
 

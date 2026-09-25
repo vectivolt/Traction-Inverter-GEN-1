@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)"
 Date "2026-09-23"
-Rev "A.16"
+Rev "A.17"
 Comp "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)"
@@ -44,7 +44,7 @@ CONTROL-IF   -   1 section
 Text Notes 29150 24200 0    60   ~ 0
 DC-LINK   -   1 section
 Text Notes 29160 24850 0    60   ~ 0
-rev A.16   -   24 sections   -   324 components
+rev A.17   -   24 sections   -   324 components
 Wire Notes Line
 	9100 28000 17750 28000
 Wire Notes Line
@@ -277,7 +277,7 @@ Wire Notes Line
 Text Notes 4560 660 0    79   ~ 16
 DC-INPUT / HVIL
 $Comp
-L traction-r1:D DTVSH
+L traction-r1:D_21 DTVSH
 U 1 1 5E000008
 P 6300 1150
 F 0 "DTVSH" H 6300 990 50  0000 C CNN
@@ -509,7 +509,7 @@ Wire Wire Line
 Text Label 11700 2350 0    45   ~ 0
 TMOD_RTN
 $Comp
-L traction-r1:D DUTP
+L traction-r1:D_21 DUTP
 U 1 1 5E000010
 P 11250 2750
 F 0 "DUTP" H 11250 2590 50  0000 C CNN
@@ -781,7 +781,7 @@ Wire Wire Line
 Text Label 5850 9700 0    45   ~ 0
 KS_UH
 $Comp
-L traction-r1:D DUHR
+L traction-r1:D_21 DUHR
 U 1 1 5E00001A
 P 5400 8900
 F 0 "DUHR" H 5400 8740 50  0000 C CNN
@@ -802,7 +802,7 @@ Wire Wire Line
 Text Label 5850 8900 0    45   ~ 0
 VCC_UH
 $Comp
-L traction-r1:D DUHS1
+L traction-r1:D_21 DUHS1
 U 1 1 5E00001B
 P 1750 11850
 F 0 "DUHS1" H 1750 11690 50  0000 C CNN
@@ -823,7 +823,7 @@ Wire Wire Line
 Text Label 2200 11850 0    45   ~ 0
 DS2_UH
 $Comp
-L traction-r1:D DUHS2
+L traction-r1:D_21 DUHS2
 U 1 1 5E00001C
 P 1750 12250
 F 0 "DUHS2" H 1750 12090 50  0000 C CNN
@@ -865,7 +865,7 @@ Wire Wire Line
 Text Label 2200 11050 0    45   ~ 0
 VCC_UH
 $Comp
-L traction-r1:D DUHZ1
+L traction-r1:D_21 DUHZ1
 U 1 1 5E00001E
 P 3800 10900
 F 0 "DUHZ1" H 3800 10740 50  0000 C CNN
@@ -886,7 +886,7 @@ Wire Wire Line
 Text Label 4250 10900 0    45   ~ 0
 G_UH
 $Comp
-L traction-r1:D DUHZ2
+L traction-r1:D_21 DUHZ2
 U 1 1 5E00001F
 P 3800 11300
 F 0 "DUHZ2" H 3800 11140 50  0000 C CNN
@@ -1054,7 +1054,7 @@ Wire Wire Line
 Text Label 4250 10500 0    45   ~ 0
 KS_UH
 $Comp
-L traction-r1:D ZUHV
+L traction-r1:D_21 ZUHV
 U 1 1 5E000027
 P 5400 9300
 F 0 "ZUHV" H 5400 9140 50  0000 C CNN
@@ -1288,7 +1288,7 @@ Wire Wire Line
 Text Label 5750 15200 0    45   ~ 0
 KS_UL
 $Comp
-L traction-r1:D DULR
+L traction-r1:D_21 DULR
 U 1 1 5E00002F
 P 5300 14400
 F 0 "DULR" H 5300 14240 50  0000 C CNN
@@ -1309,7 +1309,7 @@ Wire Wire Line
 Text Label 5750 14400 0    45   ~ 0
 VCC_UL
 $Comp
-L traction-r1:D DULS1
+L traction-r1:D_21 DULS1
 U 1 1 5E000030
 P 1700 17350
 F 0 "DULS1" H 1700 17190 50  0000 C CNN
@@ -1330,7 +1330,7 @@ Wire Wire Line
 Text Label 2150 17350 0    45   ~ 0
 DS2_UL
 $Comp
-L traction-r1:D DULS2
+L traction-r1:D_21 DULS2
 U 1 1 5E000031
 P 1700 17750
 F 0 "DULS2" H 1700 17590 50  0000 C CNN
@@ -1372,7 +1372,7 @@ Wire Wire Line
 Text Label 2150 16550 0    45   ~ 0
 VCC_UL
 $Comp
-L traction-r1:D DULZ1
+L traction-r1:D_21 DULZ1
 U 1 1 5E000033
 P 3700 16400
 F 0 "DULZ1" H 3700 16240 50  0000 C CNN
@@ -1393,7 +1393,7 @@ Wire Wire Line
 Text Label 4150 16400 0    45   ~ 0
 G_UL
 $Comp
-L traction-r1:D DULZ2
+L traction-r1:D_21 DULZ2
 U 1 1 5E000034
 P 3700 16800
 F 0 "DULZ2" H 3700 16640 50  0000 C CNN
@@ -1582,7 +1582,7 @@ Wire Wire Line
 Text Label 4150 16000 0    45   ~ 0
 KS_UL
 $Comp
-L traction-r1:D ZULV
+L traction-r1:D_21 ZULV
 U 1 1 5E00003D
 P 5300 14800
 F 0 "ZULV" H 5300 14640 50  0000 C CNN
@@ -1712,7 +1712,7 @@ Wire Wire Line
 Text Label 11700 16600 0    45   ~ 0
 TMOD_RTN
 $Comp
-L traction-r1:D DVTP
+L traction-r1:D_21 DVTP
 U 1 1 5E000041
 P 11250 17000
 F 0 "DVTP" H 11250 16840 50  0000 C CNN
@@ -1984,7 +1984,7 @@ Wire Wire Line
 Text Label 13850 5200 0    45   ~ 0
 KS_VH
 $Comp
-L traction-r1:D DVHR
+L traction-r1:D_21 DVHR
 U 1 1 5E00004B
 P 13400 4400
 F 0 "DVHR" H 13400 4240 50  0000 C CNN
@@ -2005,7 +2005,7 @@ Wire Wire Line
 Text Label 13850 4400 0    45   ~ 0
 VCC_VH
 $Comp
-L traction-r1:D DVHS1
+L traction-r1:D_21 DVHS1
 U 1 1 5E00004C
 P 9750 7350
 F 0 "DVHS1" H 9750 7190 50  0000 C CNN
@@ -2026,7 +2026,7 @@ Wire Wire Line
 Text Label 10200 7350 0    45   ~ 0
 DS2_VH
 $Comp
-L traction-r1:D DVHS2
+L traction-r1:D_21 DVHS2
 U 1 1 5E00004D
 P 9750 7750
 F 0 "DVHS2" H 9750 7590 50  0000 C CNN
@@ -2068,7 +2068,7 @@ Wire Wire Line
 Text Label 10200 6550 0    45   ~ 0
 VCC_VH
 $Comp
-L traction-r1:D DVHZ1
+L traction-r1:D_21 DVHZ1
 U 1 1 5E00004F
 P 11800 6400
 F 0 "DVHZ1" H 11800 6240 50  0000 C CNN
@@ -2089,7 +2089,7 @@ Wire Wire Line
 Text Label 12250 6400 0    45   ~ 0
 G_VH
 $Comp
-L traction-r1:D DVHZ2
+L traction-r1:D_21 DVHZ2
 U 1 1 5E000050
 P 11800 6800
 F 0 "DVHZ2" H 11800 6640 50  0000 C CNN
@@ -2257,7 +2257,7 @@ Wire Wire Line
 Text Label 12250 6000 0    45   ~ 0
 KS_VH
 $Comp
-L traction-r1:D ZVHV
+L traction-r1:D_21 ZVHV
 U 1 1 5E000058
 P 13400 4800
 F 0 "ZVHV" H 13400 4640 50  0000 C CNN
@@ -2491,7 +2491,7 @@ Wire Wire Line
 Text Label 13750 10700 0    45   ~ 0
 KS_VL
 $Comp
-L traction-r1:D DVLR
+L traction-r1:D_21 DVLR
 U 1 1 5E000060
 P 13300 9900
 F 0 "DVLR" H 13300 9740 50  0000 C CNN
@@ -2512,7 +2512,7 @@ Wire Wire Line
 Text Label 13750 9900 0    45   ~ 0
 VCC_VL
 $Comp
-L traction-r1:D DVLS1
+L traction-r1:D_21 DVLS1
 U 1 1 5E000061
 P 9700 12850
 F 0 "DVLS1" H 9700 12690 50  0000 C CNN
@@ -2533,7 +2533,7 @@ Wire Wire Line
 Text Label 10150 12850 0    45   ~ 0
 DS2_VL
 $Comp
-L traction-r1:D DVLS2
+L traction-r1:D_21 DVLS2
 U 1 1 5E000062
 P 9700 13250
 F 0 "DVLS2" H 9700 13090 50  0000 C CNN
@@ -2575,7 +2575,7 @@ Wire Wire Line
 Text Label 10150 12050 0    45   ~ 0
 VCC_VL
 $Comp
-L traction-r1:D DVLZ1
+L traction-r1:D_21 DVLZ1
 U 1 1 5E000064
 P 11700 11900
 F 0 "DVLZ1" H 11700 11740 50  0000 C CNN
@@ -2596,7 +2596,7 @@ Wire Wire Line
 Text Label 12150 11900 0    45   ~ 0
 G_VL
 $Comp
-L traction-r1:D DVLZ2
+L traction-r1:D_21 DVLZ2
 U 1 1 5E000065
 P 11700 12300
 F 0 "DVLZ2" H 11700 12140 50  0000 C CNN
@@ -2785,7 +2785,7 @@ Wire Wire Line
 Text Label 12150 11500 0    45   ~ 0
 KS_VL
 $Comp
-L traction-r1:D ZVLV
+L traction-r1:D_21 ZVLV
 U 1 1 5E00006E
 P 13300 10300
 F 0 "ZVLV" H 13300 10140 50  0000 C CNN
@@ -2915,7 +2915,7 @@ Wire Wire Line
 Text Label 23700 7850 0    45   ~ 0
 TMOD_RTN
 $Comp
-L traction-r1:D DWTP
+L traction-r1:D_21 DWTP
 U 1 1 5E000072
 P 23250 8250
 F 0 "DWTP" H 23250 8090 50  0000 C CNN
@@ -3187,7 +3187,7 @@ Wire Wire Line
 Text Label 17850 16200 0    45   ~ 0
 KS_WH
 $Comp
-L traction-r1:D DWHR
+L traction-r1:D_21 DWHR
 U 1 1 5E00007C
 P 17400 15400
 F 0 "DWHR" H 17400 15240 50  0000 C CNN
@@ -3208,7 +3208,7 @@ Wire Wire Line
 Text Label 17850 15400 0    45   ~ 0
 VCC_WH
 $Comp
-L traction-r1:D DWHS1
+L traction-r1:D_21 DWHS1
 U 1 1 5E00007D
 P 13750 18350
 F 0 "DWHS1" H 13750 18190 50  0000 C CNN
@@ -3229,7 +3229,7 @@ Wire Wire Line
 Text Label 14200 18350 0    45   ~ 0
 DS2_WH
 $Comp
-L traction-r1:D DWHS2
+L traction-r1:D_21 DWHS2
 U 1 1 5E00007E
 P 13750 18750
 F 0 "DWHS2" H 13750 18590 50  0000 C CNN
@@ -3271,7 +3271,7 @@ Wire Wire Line
 Text Label 14200 17550 0    45   ~ 0
 VCC_WH
 $Comp
-L traction-r1:D DWHZ1
+L traction-r1:D_21 DWHZ1
 U 1 1 5E000080
 P 15800 17400
 F 0 "DWHZ1" H 15800 17240 50  0000 C CNN
@@ -3292,7 +3292,7 @@ Wire Wire Line
 Text Label 16250 17400 0    45   ~ 0
 G_WH
 $Comp
-L traction-r1:D DWHZ2
+L traction-r1:D_21 DWHZ2
 U 1 1 5E000081
 P 15800 17800
 F 0 "DWHZ2" H 15800 17640 50  0000 C CNN
@@ -3460,7 +3460,7 @@ Wire Wire Line
 Text Label 16250 17000 0    45   ~ 0
 KS_WH
 $Comp
-L traction-r1:D ZWHV
+L traction-r1:D_21 ZWHV
 U 1 1 5E000089
 P 17400 15800
 F 0 "ZWHV" H 17400 15640 50  0000 C CNN
@@ -3694,7 +3694,7 @@ Wire Wire Line
 Text Label 25750 1950 0    45   ~ 0
 KS_WL
 $Comp
-L traction-r1:D DWLR
+L traction-r1:D_21 DWLR
 U 1 1 5E000091
 P 25300 1150
 F 0 "DWLR" H 25300 990 50  0000 C CNN
@@ -3715,7 +3715,7 @@ Wire Wire Line
 Text Label 25750 1150 0    45   ~ 0
 VCC_WL
 $Comp
-L traction-r1:D DWLS1
+L traction-r1:D_21 DWLS1
 U 1 1 5E000092
 P 21700 4100
 F 0 "DWLS1" H 21700 3940 50  0000 C CNN
@@ -3736,7 +3736,7 @@ Wire Wire Line
 Text Label 22150 4100 0    45   ~ 0
 DS2_WL
 $Comp
-L traction-r1:D DWLS2
+L traction-r1:D_21 DWLS2
 U 1 1 5E000093
 P 21700 4500
 F 0 "DWLS2" H 21700 4340 50  0000 C CNN
@@ -3778,7 +3778,7 @@ Wire Wire Line
 Text Label 22150 3300 0    45   ~ 0
 VCC_WL
 $Comp
-L traction-r1:D DWLZ1
+L traction-r1:D_21 DWLZ1
 U 1 1 5E000095
 P 23700 3150
 F 0 "DWLZ1" H 23700 2990 50  0000 C CNN
@@ -3799,7 +3799,7 @@ Wire Wire Line
 Text Label 24150 3150 0    45   ~ 0
 G_WL
 $Comp
-L traction-r1:D DWLZ2
+L traction-r1:D_21 DWLZ2
 U 1 1 5E000096
 P 23700 3550
 F 0 "DWLZ2" H 23700 3390 50  0000 C CNN
@@ -3988,7 +3988,7 @@ Wire Wire Line
 Text Label 24150 2750 0    45   ~ 0
 KS_WL
 $Comp
-L traction-r1:D ZWLV
+L traction-r1:D_21 ZWLV
 U 1 1 5E00009F
 P 25300 1550
 F 0 "ZWLV" H 25300 1390 50  0000 C CNN
@@ -4414,7 +4414,7 @@ Wire Wire Line
 Text Label 2850 22350 0    45   ~ 0
 DGND
 $Comp
-L traction-r1:D DFHA
+L traction-r1:D_21 DFHA
 U 1 1 5E0000AF
 P 6350 22200
 F 0 "DFHA" H 6350 22040 50  0000 C CNN
@@ -4435,7 +4435,7 @@ Wire Wire Line
 Text Label 6800 22200 0    45   ~ 0
 FVCC_H
 $Comp
-L traction-r1:D DFHFS
+L traction-r1:D_21 DFHFS
 U 1 1 5E0000B0
 P 10200 20300
 F 0 "DFHFS" H 10200 20140 50  0000 C CNN
@@ -4456,7 +4456,7 @@ Wire Wire Line
 Text Label 10650 20300 0    45   ~ 0
 FFD_H
 $Comp
-L traction-r1:D DFHG
+L traction-r1:D_21 DFHG
 U 1 1 5E0000B1
 P 2400 23550
 F 0 "DFHG" H 2400 23390 50  0000 C CNN
@@ -4477,7 +4477,7 @@ Wire Wire Line
 Text Label 2850 23550 0    45   ~ 0
 FDR_H
 $Comp
-L traction-r1:D DFHSN
+L traction-r1:D_21 DFHSN
 U 1 1 5E0000B2
 P 4350 22850
 F 0 "DFHSN" H 4350 22690 50  0000 C CNN
@@ -4498,7 +4498,7 @@ Wire Wire Line
 Text Label 4800 22850 0    45   ~ 0
 FCL_H
 $Comp
-L traction-r1:D DFHVZ
+L traction-r1:D_21 DFHVZ
 U 1 1 5E0000B3
 P 6350 23000
 F 0 "DFHVZ" H 6350 22840 50  0000 C CNN
@@ -4771,7 +4771,7 @@ Wire Wire Line
 Text Label 6800 21800 0    45   ~ 0
 FVCC_H
 $Comp
-L traction-r1:D ZFHG
+L traction-r1:D_21 ZFHG
 U 1 1 5E0000C0
 P 2400 23950
 F 0 "ZFHG" H 2400 23790 50  0000 C CNN
@@ -4792,7 +4792,7 @@ Wire Wire Line
 Text Label 2850 23950 0    45   ~ 0
 FG_H
 $Comp
-L traction-r1:D ZFHSN
+L traction-r1:D_21 ZFHSN
 U 1 1 5E0000C1
 P 10200 21100
 F 0 "ZFHSN" H 10200 20940 50  0000 C CNN
@@ -5218,7 +5218,7 @@ Wire Wire Line
 Text Label 14850 23350 0    45   ~ 0
 DGND
 $Comp
-L traction-r1:D DFLA
+L traction-r1:D_21 DFLA
 U 1 1 5E0000D1
 P 18350 23200
 F 0 "DFLA" H 18350 23040 50  0000 C CNN
@@ -5239,7 +5239,7 @@ Wire Wire Line
 Text Label 18800 23200 0    45   ~ 0
 FVCC_L
 $Comp
-L traction-r1:D DFLFS
+L traction-r1:D_21 DFLFS
 U 1 1 5E0000D2
 P 22200 21300
 F 0 "DFLFS" H 22200 21140 50  0000 C CNN
@@ -5260,7 +5260,7 @@ Wire Wire Line
 Text Label 22650 21300 0    45   ~ 0
 FFD_L
 $Comp
-L traction-r1:D DFLG
+L traction-r1:D_21 DFLG
 U 1 1 5E0000D3
 P 14400 24550
 F 0 "DFLG" H 14400 24390 50  0000 C CNN
@@ -5281,7 +5281,7 @@ Wire Wire Line
 Text Label 14850 24550 0    45   ~ 0
 FDR_L
 $Comp
-L traction-r1:D DFLSN
+L traction-r1:D_21 DFLSN
 U 1 1 5E0000D4
 P 16350 23850
 F 0 "DFLSN" H 16350 23690 50  0000 C CNN
@@ -5302,7 +5302,7 @@ Wire Wire Line
 Text Label 16800 23850 0    45   ~ 0
 FCL_L
 $Comp
-L traction-r1:D DFLVZ
+L traction-r1:D_21 DFLVZ
 U 1 1 5E0000D5
 P 18350 24000
 F 0 "DFLVZ" H 18350 23840 50  0000 C CNN
@@ -5575,7 +5575,7 @@ Wire Wire Line
 Text Label 18800 22800 0    45   ~ 0
 FVCC_L
 $Comp
-L traction-r1:D ZFLG
+L traction-r1:D_21 ZFLG
 U 1 1 5E0000E2
 P 14400 24950
 F 0 "ZFLG" H 14400 24790 50  0000 C CNN
@@ -5596,7 +5596,7 @@ Wire Wire Line
 Text Label 14850 24950 0    45   ~ 0
 FG_L
 $Comp
-L traction-r1:D ZFLSN
+L traction-r1:D_21 ZFLSN
 U 1 1 5E0000E3
 P 22200 22100
 F 0 "ZFLSN" H 22200 21940 50  0000 C CNN
@@ -6826,7 +6826,7 @@ Wire Wire Line
 Text Label 30700 6600 0    45   ~ 0
 DCN
 $Comp
-L traction-r1:D DASCR
+L traction-r1:D_21 DASCR
 U 1 1 5E00010D
 P 34350 1550
 F 0 "DASCR" H 34350 1390 50  0000 C CNN
@@ -6994,7 +6994,7 @@ Wire Wire Line
 Text Label 32800 3700 0    45   ~ 0
 DCN
 $Comp
-L traction-r1:D ZASC
+L traction-r1:D_21 ZASC
 U 1 1 5E000115
 P 34350 1950
 F 0 "ZASC" H 34350 1790 50  0000 C CNN
@@ -7067,7 +7067,7 @@ Wire Wire Line
 Text Label 30800 15900 0    45   ~ 0
 DGND
 $Comp
-L traction-r1:D DRH
+L traction-r1:D_21 DRH
 U 1 1 5E000118
 P 30350 14300
 F 0 "DRH" H 30350 14140 50  0000 C CNN
@@ -7088,7 +7088,7 @@ Wire Wire Line
 Text Label 30800 14300 0    45   ~ 0
 NRH
 $Comp
-L traction-r1:D DTVH
+L traction-r1:D_21 DTVH
 U 1 1 5E000119
 P 30350 14700
 F 0 "DTVH" H 30350 14540 50  0000 C CNN
@@ -7203,7 +7203,7 @@ Wire Wire Line
 Text Label 34800 15900 0    45   ~ 0
 DGND
 $Comp
-L traction-r1:D DRL
+L traction-r1:D_21 DRL
 U 1 1 5E00011E
 P 34350 14300
 F 0 "DRL" H 34350 14140 50  0000 C CNN
@@ -7224,7 +7224,7 @@ Wire Wire Line
 Text Label 34800 14300 0    45   ~ 0
 NRL
 $Comp
-L traction-r1:D DTVL
+L traction-r1:D_21 DTVL
 U 1 1 5E00011F
 P 34350 14700
 F 0 "DTVL" H 34350 14540 50  0000 C CNN
@@ -7677,7 +7677,7 @@ Wire Wire Line
 Text Label 34300 10700 0    45   ~ 0
 V15VA
 $Comp
-L traction-r1:D DB15
+L traction-r1:D_21 DB15
 U 1 1 5E000130
 P 32250 8550
 F 0 "DB15" H 32250 8390 50  0000 C CNN

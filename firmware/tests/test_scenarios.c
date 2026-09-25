@@ -1150,8 +1150,11 @@ TEST(temporary_empty_reads_never_fault)
 }
 
 /* A14-R02 at the application: one channel's DMA freezes while running (the reviewer's frozen COS buffer
- * that SIN's heartbeat kept reading as fresh). No frame is published again: the resolver goes stale at the
- * hold and stays out for the key cycle (the channel lost step). */
+ * that SIN's heartbeat kept reading as fresh). No frame is published while it is frozen: the resolver goes
+ * stale at the hold, the §6 row takes the bridge. Round 18 (A16-R02): the channel resumes in step (four
+ * periods: its slot came round), so the ring re-acquires by itself (DTC_RSLV_REACQUIRED, once) and the
+ * resolver re-primes and validates — while the row stays latched until a VCU fault reset (it used to stay
+ * dead for the key cycle). */
 TEST(a_frozen_resolver_channel_is_never_read_as_fresh)
 {
     for (uint32_t ch = 0u; ch < (uint32_t)HAL_SD_COUNT; ch++) {
@@ -1170,8 +1173,9 @@ TEST(a_frozen_resolver_channel_is_never_read_as_fresh)
         CHECK(g_app.rslv.t_frame_us == t_f); /* nothing consumed after the freeze */
         sim_sdadc_freeze((hal_sd_ch_t)ch, false);
         h_run_ms(100u);
-        CHECK(!g_app.rslv.valid && dtc_active(DTC_RSLV_STALE) && sim_sdadc_ring()->broken);
-        CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD);
+        CHECK(g_app.rslv.valid && dtc_active(DTC_RSLV_STALE) && !sim_sdadc_ring()->broken);
+        CHECK(hal_sdadc_reacquired() == 1u && dtc_occurrences(DTC_RSLV_REACQUIRED) == 1u);
+        CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD && g_app.sm.st == SM_FAULT);
     }
 }
 
@@ -1696,6 +1700,181 @@ TEST(lv_24v_jump_start_is_information_for_its_60s)
     }
 }
 
+/* ======================= round 18 ======================= */
+
+/* Every measurement the current-loop tick judges is fresh and valid, and the bridge modulates. */
+static bool tick_fresh(void)
+{
+    return g_app.isns.fresh && g_app.isns.valid && g_app.vdc.valid && !g_app.vdc.ch_stale[0] && !g_app.vdc.ch_stale[1] &&
+           g_app.rslv.valid && !g_app.rslv.stale && !fm_any(&g_app.fm) && (hal_pwm_mode() == HAL_PWM_MOD);
+}
+
+/* A16-R01, the reviewer's case: the target stamps every ADC sample when it reads it (s32k396_adc.c), after the
+ * current-loop ISR read its entry time, and the freshness checks compared the stamps with that entry time: a
+ * sample one tick newer read 2^32 us old — currents and V_DC stale, the control lost. The host clock stood
+ * still during the ISR and hid it. Now every read takes 1, 5 or 50 us (sim_adc_read_delay_ns; the SDADC
+ * interrupts run meanwhile, so a resolver frame can complete inside the tick too), at 6000 rpm under 100 Nm:
+ * every tick keeps the currents, V_DC and the resolver fresh and valid and the bridge modulating — also with
+ * one tick's reads straddling the 32-bit microsecond wrap (entry 3 us before it). */
+TEST(samples_stamped_after_the_isr_entry_stay_fresh)
+{
+    const uint32_t delay_ns[3] = {1000u, 5000u, 50000u};
+    for (unsigned w = 0u; w < 2u; w++) {
+        for (unsigned d = 0u; d < 3u; d++) {
+            sim_reset();
+            sim_nvm_wipe();
+            (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
+            (void)memset(&g_app_session, 0, sizeof g_app_session);
+            const unsigned fails0 = t_fails;
+            CHECK(run_at_epoch(6000.0f, 100.0f, (w == 0u) ? 1000000u : (WRAP_US - 3000000u)));
+            if (w == 1u) {
+                run_until_wrap_minus(3000u);
+                h_isr_only_us((uint32_t)(WRAP_US - 3u - hal_time_us64()));
+            }
+            const uint32_t per = app_isr_period_us(&g_app);
+            CHECK(tick_fresh());
+            sim_adc_read_delay_ns(delay_ns[d]);
+            bool ok = true;
+            for (unsigned k = 0u; k < 5u; k++) { /* isolated ticks: 5 reads x 50 us outlast the loop period */
+                h_isr_now();
+                ok = ok && tick_fresh() && (ti_age(hal_time_us(), g_app.isns.t_us) <= (4u * delay_ns[d] / 1000u) + 1u);
+                sim_advance_us(per);
+            }
+            sim_adc_read_delay_ns(0u);
+            CHECK(ok && ((w == 0u) || (hal_time_us64() > WRAP_US)));
+            h_isr_now(); /* a tick just before the task: 5 x 50 us reads outlast the FW-31 liveness limit itself */
+            h_run_ms(20u);
+            CHECK(g_app.sm.st == SM_RUN && !dtc_active(DTC_ISNS_STALE) && !dtc_active(DTC_VDC_STALE) &&
+                  !dtc_active(DTC_RSLV_STALE));
+            if (t_fails != fails0) {
+                printf("    ^ read delay %u ns, %s\n", delay_ns[d], (w == 0u) ? "no wrap" : "across the wrap");
+            }
+        }
+    }
+}
+
+/* A16-R01 end to end: a whole run at 6000 rpm under 100 Nm with every ADC read taking 1 us, then 5 us (the
+ * current-loop tick's reads 25 us of its 50 us period, the task's slow list 55 us): half a second each in RUN,
+ * no §6 row, no stale DTC, the torque held. */
+TEST(a_run_at_speed_with_the_adc_reads_taking_time)
+{
+    CHECK(run_at(6000.0f, 100.0f));
+    const uint32_t delay_ns[2] = {1000u, 5000u};
+    for (unsigned d = 0u; d < 2u; d++) {
+        sim_adc_read_delay_ns(delay_ns[d]);
+        bool ok = true;
+        for (uint32_t ms = 0u; ms < 500u; ms++) {
+            h_run_ms(1u);
+            ok = ok && tick_fresh() && (g_app.sm.st == SM_RUN) && (ti_absf(g_app.t_cmd_nm - 100.0f) < 1.0f);
+        }
+        CHECK(ok && !dtc_active(DTC_ISNS_STALE) && !dtc_active(DTC_VDC_STALE) && !dtc_active(DTC_RSLV_STALE));
+    }
+    sim_adc_read_delay_ns(0u);
+}
+
+static unsigned s_preempts;
+static void preempt_the_task(void)
+{
+    s_preempts++;
+    h_isr_now(); /* the current-loop trigger arrives while the task waits on its FS26 transfer */
+}
+
+/* A16-R01 in the task (the same shape, found at another caller): the 1 ms task reads its time first, then
+ * answers the FS26 — and on the target the current-loop ISR (priority 2) preempts it there. Its entry time,
+ * newer than the task's, read 2^32 us old in the liveness check (FW-31): the currents were declared lost and
+ * the resolver aged — the control-lost row at the first preemption. Now the age is signed: here the ISR runs
+ * inside every FS26 transfer for 300 ms, RUN at 1000 rpm under 100 Nm stays undisturbed. */
+TEST(a_current_loop_preempting_the_task_is_not_a_dead_loop)
+{
+    CHECK(run_at(LOW_RPM, 100.0f));
+    s_preempts = 0u;
+    sim_fs26_xfer_hook(preempt_the_task);
+    bool ok = true;
+    for (uint32_t ms = 0u; ms < 300u; ms++) {
+        h_run_ms(1u);
+        ok = ok && tick_fresh() && (g_app.sm.st == SM_RUN);
+    }
+    sim_fs26_xfer_hook(NULL);
+    CHECK(ok && s_preempts >= 300u && !dtc_active(DTC_ISNS_STALE) && !dtc_active(DTC_RSLV_STALE));
+    sim_advance_us(1000u); /* and a loop that really stopped is still caught (FW-31) */
+    app_task_1ms(&g_app);
+    CHECK(!g_app.isns.valid && fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && dtc_active(DTC_ISNS_STALE));
+}
+
+/* A16-R02 at the application: at 6000 rpm under 100 Nm the SDADC completion interrupts are held off once by
+ * 60 us (past the 30 us deadline). That block is not published, the ring re-acquires within three carrier
+ * periods, the resolver bridges the gap (shorter than cal_rslv_hold_us, also with the IGBT's 10 kHz loop) and
+ * RUN goes on: no §6 row, no DTC_RSLV_STALE — the event is one occurrence of the information DTC
+ * DTC_RSLV_REACQUIRED; a second, 100 ms later, is the second occurrence. (Before, the frame was stamped 60 us
+ * too new: the observer's acceleration check latched a resolver fault — FAULT under torque.) */
+TEST(a_late_resolver_interrupt_at_speed_is_counted_and_reacquired)
+{
+    const ti_sku_t sku[2] = {TI_SKU_8XX_SIC, TI_SKU_8XX_IGBT};
+    for (unsigned s = 0u; s < 2u; s++) {
+        sim_reset();
+        dtc_init();
+        h_setup(sku[s]);
+        h_boot();
+        CHECK(h_to_run(100.0f));
+        h_ramp_speed(6000.0f, 600u);
+        h_run_ms(20u);
+        for (unsigned n = 1u; n <= 2u; n++) {
+            sim_sdadc_irq_latency_ns(60000u);
+            h_isr_only_us(150u); /* one carrier boundary: its interrupts run 60 us late */
+            sim_sdadc_irq_latency_ns(1000u);
+            bool ok = true;
+            for (uint32_t ms = 0u; ms < 100u; ms++) {
+                h_run_ms(1u);
+                ok = ok && tick_fresh() && (g_app.sm.st == SM_RUN);
+            }
+            CHECK(ok && hal_sdadc_reacquired() == n && dtc_occurrences(DTC_RSLV_REACQUIRED) == n);
+            CHECK(!dtc_active(DTC_RSLV_STALE) && !fm_any(&g_app.fm));
+        }
+    }
+}
+
+static bool s_fault_armed;
+static uint64_t s_fault_ns;
+
+/* The driver latches FLT while the 1 ms task waits on its FS26 transfer — after the task read its time. The fault
+ * ISR runs (0.3 us later) and the task goes on past the 60 us DESAT hold before it reaches recovery(). */
+static void fault_inside_the_task(void)
+{
+    if (s_fault_armed) {
+        s_fault_armed = false;
+        s_fault_ns = sim_now_ns();
+        sim_chain_desat(true, false);
+        sim_advance_us(80u);
+    }
+}
+
+/* Round 18, the same class at the FW-15 recovery, end to end: at 10 000 rpm FLT_HS arrives while the 1 ms task
+ * waits on its FS26 transfer — after it read its time — and the task goes on past the DESAT hold before it reaches
+ * the recovery (EN low, nothing pending). br_rec_step used to time the >= 1.5 ms low with that older time against
+ * the newer fault stamp: the age wrapped, EN came back high and FLT_CLR pulsed ~0.1 ms after the fault. Now the
+ * release and the pulse come >= fw15_low_us after the fault, the driver resets and PWM-ASC follows. (The wrap:
+ * bridge: fw15_low_wait_runs_on_the_bridges_own_clock.) */
+TEST(fw15_low_wait_counts_from_a_fault_that_preempted_the_task)
+{
+    CHECK(run_at(HIGH_RPM, 0.0f));
+    const uint32_t t_task = g_app.fs.last_refresh_us + 1900u; /* the next FS26 answer, on its usual cadence */
+    h_isr_only_us(ti_age(t_task, hal_time_us()));
+    CHECK(fs26_wd_due(&g_app.fs, hal_time_us()) && (hal_time_us() == t_task));
+    s_fault_armed = true;
+    sim_fs26_xfer_hook(fault_inside_the_task);
+    app_task_1ms(&g_app); /* the task starts at t_task; the fault comes inside its first FS26 transfer */
+    sim_fs26_xfer_hook(NULL);
+    CHECK(!s_fault_armed && ti_age(g_app.t_fault_us, t_task) >= 10u && ti_age(g_app.t_fault_us, t_task) < 20u);
+    CHECK(!br_en_drop_pending(&g_app.br) && !hal_gpio_out_state(HAL_DO_MCU_GATE_EN)); /* the hold is over: EN low */
+    h_run_ms(10u);
+    const uint64_t low_ns = (uint64_t)g_app.p->fw15_low_us * 1000u;
+    const uint64_t t_clr = sim_gpio_edge_ns(HAL_DO_FLT_CLR, false, s_fault_ns);
+    const uint64_t t_en = sim_gpio_edge_ns(HAL_DO_MCU_GATE_EN, true, s_fault_ns);
+    CHECK(t_clr != UINT64_MAX && (t_clr - s_fault_ns) >= low_ns);
+    CHECK(t_en != UINT64_MAX && (t_en - s_fault_ns) >= low_ns);
+    CHECK(!dtc_active(DTC_FLT_RECOVERY_FAIL) && g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC);
+}
+
 void suite_scenarios(void)
 {
     RUN(boot_to_run_follows_section_9);
@@ -1761,4 +1940,9 @@ void suite_scenarios(void)
     RUN(lv_load_dump_35v_for_400ms_is_information_not_a_fault);
     RUN(lv_overvoltage_beyond_its_band_takes_the_orderly_ramp);
     RUN(lv_24v_jump_start_is_information_for_its_60s);
+    RUN(samples_stamped_after_the_isr_entry_stay_fresh);
+    RUN(a_run_at_speed_with_the_adc_reads_taking_time);
+    RUN(a_current_loop_preempting_the_task_is_not_a_dead_loop);
+    RUN(a_late_resolver_interrupt_at_speed_is_counted_and_reacquired);
+    RUN(fw15_low_wait_counts_from_a_fault_that_preempted_the_task);
 }

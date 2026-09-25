@@ -8,7 +8,11 @@
  * code the host tests run: a frame is published only once all three channels have completed the same
  * epoch, and hal_sdadc_read_frame() copies it under a seqlock with the three DMA write positions
  * (their TCD destination addresses) checked before and after the copy. One channel's heartbeat no
- * longer vouches for the other two, and a completion between channel reads can no longer mix epochs. */
+ * longer vouches for the other two, and a completion between channel reads can no longer mix epochs.
+ * Round 18 (A16-R02): the frame's stamp is its block start on the SDADC cadence, not this interrupt's time
+ * (the SDADC data rate and the STM share the PLL: docs/timing.md); a block's first completion serviced later
+ * than cal_sd_irq_lat_max_us after the block's end breaks the ring, which then re-acquires from the three TCD
+ * destination addresses by itself. Lost samples keep it down until hal_sdadc_init(). */
 #include <string.h>
 
 #include "s32k396.h"
@@ -38,14 +42,14 @@ TI_NOCACHE static int16_t s_buf[HAL_SD_COUNT][HAL_SD_NBUF][HAL_SDADC_BLOCK_N]; /
 static hal_sd_ring_t s_ring;
 static bool s_ok;
 
-bool hal_sdadc_init(uint32_t carrier_hz)
+bool hal_sdadc_init(uint32_t carrier_hz, uint32_t irq_lat_max_us)
 {
     s_ok = false;
-    if ((carrier_hz == 0u) || (carrier_hz > 50000u)) {
-        return false;
+    if ((carrier_hz == 0u) || (carrier_hz > 50000u) || ((1000000u % carrier_hz) != 0u)) {
+        return false; /* the cadence stamp needs a whole number of microseconds per period */
     }
     (void)memset(s_buf, 0, sizeof s_buf);
-    hal_sd_ring_init(&s_ring, 1000000u / carrier_hz, 0u); /* every DMA starts in slot 0: count 0 */
+    hal_sd_ring_init(&s_ring, 1000000u / carrier_hz, irq_lat_max_us, 0u); /* every DMA starts in slot 0: count 0 */
 #ifdef TI_RTD_AVAILABLE
     /* TODO(RTD): Sdadc_Ip_Init(1/2/3, &SdadcHwUnit_n): differential inputs AN0/AN1 (board_pins),
      * decimation for ODR = 16 x carrier_hz, trigger = the SWG1 period start (via TRGMUX) so sample
@@ -70,9 +74,10 @@ void s32k_sdadc_dma_irq(hal_sd_ch_t ch)
 #ifdef TI_RTD_AVAILABLE
     /* TODO(RTD): clear the channel's INT flag. Lost samples break the block-to-epoch mapping. */
     if (((uint32_t)ch < (uint32_t)HAL_SD_COUNT) && TI_SD_LOST(ch)) {
-        s_ring.broken = true;
+        s_ring.lost = true; /* round 18: the blocks lost carrier phase 0 — no re-acquisition from positions */
     }
 #endif
+    /* TODO(HW): the latency of this interrupt after its DMA completion, distribution under load (T-40) */
     hal_sd_ring_complete(&s_ring, ch, hal_time_us());
 }
 
@@ -98,6 +103,7 @@ const volatile int16_t *hal_sd_dma_block(hal_sd_ch_t ch, uint32_t slot)
 }
 
 bool hal_sdadc_read_frame(hal_sd_frame_t *f) { return s_ok && hal_sd_ring_read(&s_ring, f); }
+uint32_t hal_sdadc_reacquired(void) { return s_ring.n_reacq; }
 
 /* ---------------- SWG1 ---------------- */
 bool hal_swg_start(uint32_t freq_hz, uint8_t amplitude_code)

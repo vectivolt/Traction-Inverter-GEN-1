@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.15)
+# Hardware → firmware contract (rev A.17)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -776,6 +776,8 @@ Every item of the firmware's former list of "contract contradictions and open it
 "round 17" text of §2, FW-03/04/05/06/07/08/08b, §4c, FW-11/12, §6, §7, §8, §9 and §10–10b, listed per item in
 the README), or the silicon / RM / HIL / EOL checklist `firmware/docs/target-bringup.md`. Nothing is left as
 "the contract should say".
+Round 18 (rev A.17, the rechecks of 4425af9) adds FW-34…FW-36 — sample freshness, the resolver time base, the
+latency sign — in §10d.
 
 - **FW-31** Current-loop liveness (round 16, named in round 17). The 1 ms task checks that the current-loop
   interrupt ran within `cal_isns_stale_us` (200 µs, range 50–1000); otherwise the phase currents count as lost
@@ -804,7 +806,51 @@ the README), or the silicon / RM / HIL / EOL checklist `firmware/docs/target-bri
   that — §5, "FW-33 LV supply supervision"; checklist T-39.
 - **Image identity.** `TI_FW_ID` 0x0A0F0011: round 17 changes the image (zero current under the battery-lost
   row, the RUN-only DC-link trim, FW-32, the FW-12 refresh cadence, the FW-06a release wait, FW-33). A new
-  EOL/HIL validation record is required before it arms (FW-24); the calibration record stays layout 2.
+  EOL/HIL validation record is required before it arms (FW-24); the calibration record stays layout 2. (Round 18
+  moves the image to 0x0A0F0012, §10d.)
+
+## 10d. Round-18 requirements (rev A.17 — rechecks of 4425af9)
+
+- **FW-34** A sample's freshness is judged at or after its acquisition (A16-R01). The target stamps a sample
+  when it reads it — in the current-loop ISR, after the ISR read its entry time — and a higher-priority
+  interrupt may publish a newer stamp while a lower context holds an older time. Every freshness check (phase
+  currents, the V_DC channels, the resolver frame's age, the 1 ms task's current-loop liveness) therefore uses
+  a time read after the acquisition reads, and the age is signed: a stamp that postdates the check time by an
+  ISR's execution is fresh, never 2^32 µs old; a stamp the hold or more before it — or implausibly the hold or
+  more after it — is stale. The same holds for a timer whose start a higher-priority context stamps: the FW-15
+  recovery's ≥ 1.5 ms low runs from the fault ISR's stamp on the bridge's own clock, read when it is compared —
+  never the 1 ms task's earlier time (the rule of FW-22: the bridge reads its own time, never a caller's
+  stamp). The PWM-ASC entry's dead-time reference is the same: with the PWM already inhibited, the bridge
+  counts the dead time from the newer of its own turn-off stamp — every turn-off it makes, and the hardware inhibit the
+  fault ISR notes on entry — and the caller's, so a task whose time predates a fault that preempted it cannot shorten it. The ISR's entry time stays the ISR's own: its liveness stamp (FW-31), its WCET reference, the angle the
+  FOC uses (the currents were sampled at its trigger) and every bridge action. The host simulation models the
+  target's order (each ADC read takes simulated time before it stamps, the other interrupts running meanwhile);
+  the checks hold with 1, 5 and 50 µs per read, across the 32-bit microsecond wrap, with the current-loop ISR
+  preempting the task, and with a fault preempting it before its FW-15 recovery.
+- **FW-35** The resolver frame's time stamp is independent of interrupt latency (A16-R02). Block k starts at
+  t_origin + (k − k0)·T_carrier on the SDADC cadence — unsigned and wrap-safe; the SDADC data rate and the
+  microsecond timer derive from the same PLL and the carrier period is a whole number of microseconds
+  (checklist T-30, T-40) — anchored at the first completion after (re)acquisition and moved back by any
+  completion that comes before its block's end on that cadence (a completion is never early). The first
+  completion of each block must be serviced within `cal_sd_irq_lat_max_us` of the block's end (30 µs, range
+  5–45 µs: below half the 100 µs carrier period), a later channel's within half a period; otherwise the timing
+  is ambiguous — the 4-slot ring may have lapped, which slot arithmetic cannot see — the block is not published
+  and the ring breaks. The reader refuses a frame whose slot the cadence says may have been rewritten. A broken
+  ring re-acquires by itself from the DMA write positions once all three channels write the same slot, with a
+  fresh origin; the resolver re-primes through FW-28 when the gap outlasts its hold; each re-acquisition is one
+  occurrence of an information DTC (`DTC_RSLV_REACQUIRED`) that selects no safe state by itself. Lost samples
+  (the DMA error or FIFO-overrun flag) are no ambiguity — the blocks no longer start at carrier phase 0 — and
+  keep the ring down until it is re-initialised. The completion-interrupt latency distribution and the
+  cadence are target measurements (checklist T-40); the latency of the completion that anchored the origin is
+  the residual until a prompter one moves it back.
+- **FW-36** The resolver chain latency is compensated with its physical sign (A16-R03). `cal_rslv_latency_us`
+  is a positive delay: the block's angle is the rotor's that long before its mid-block reference, so the
+  extrapolation to the control instant adds it — θ(now) = θ_block + ω·((now − t_ref) − t_mid + L). It was
+  subtracted (−12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs). The calibration measures it with this
+  sign — the reported angle lagging the rotor is positive (checklist T-37) — and a test with an independent rotor
+  model (both directions, two speeds, two delays) checks the compensated angle against the true angle at `now`.
+- **Image identity.** `TI_FW_ID` 0x0A0F0012 (round 18): a new EOL/HIL validation record is required before
+  this image arms (FW-24); the calibration record stays layout 2.
 
 ## 11. What this contract does not close
 

@@ -361,9 +361,34 @@ ok(same(C("UEXD.OUT1"), "VREX_P") && same(C("UEXD.OUT2"), "VREX_N"), "resolver H
   ok(same(C("JVEH.R1"), "VREX_PC") && same(C("JVEH.R2"), "VREX_NC") && same(C("TVSM1.K"), "MT1_F") && same(C("TVSM1.A"), "AGND") && same(C("TVSM2.K"), "MT2_F") && same(C("TVSM2.A"), "AGND"),
     "resolver drive reaches the vehicle connector on VREX_PC/NC; motor-temp clamps K on the line, A on AGND");
   ok(near(V(CARD, "RSXP"), 2.2) && near(V(CARD, "RSXN"), 2.2), "RSX 2.2 R (amplitude at the resolver >= 6.5 V pp with the PTCs, back-drive pulse bounded)");
-  ok(same(C("DEXP.anode"), "VREX_PX") && same(C("DEXP.cathode"), "VEXD") && same(C("DEXN.anode"), "VREX_NX") && same(C("DEXN.cathode"), "VEXD"),
-    "round 17: rated Schottky diversion from each protected node to VEXD (back-drive with the rail absent no longer relies on the ALM2402 reverse diodes)");
+  ok(same(C("DEXP.anode"), "VREX_P") && same(C("DEXP.cathode"), "VEXD") && same(C("DEXN.anode"), "VREX_N") && same(C("DEXN.cathode"), "VEXD"),
+    "round 18 (A16-R02, F191): the rated Schottky diversion sits on the AMPLIFIER node (in parallel with the ALM2402 upper diode) — round 17 drew it on the protected node");
+  for (const [x, rsx] of [["VREX_PX", "RSXP"], ["VREX_NX", "RSXN"]]) {   // graph cut: the only path from the PTC node to VEXD passes RSX
+    const m = members(x);
+    ok(!m.some((q) => /^DEX/.test(q)) && m.some((q) => q.startsWith(`${rsx}.`)),
+      `${x}: no DEX on the protected node — the rail-charging loop from the harness passes ${rsx} 2.2 R (the resistance the back-drive row divides by), F191`, m.join(","));
+  }
 }
+// ---------- round 18 (A16-R01 md, F190): diode pin NUMBERS follow the part — cathode = pin 1, anode = pin 2 ----------
+// Nexperia SOD128/SOD123 pinning tables (PMEG4050EP-Q, PMEG4010EH Table 2: 1 = K, 2 = A) and KiCad's Device:D /
+// Diode_SMD convention (pad 1 = K). Every 2-pin part with anode/cathode ports, on every board; a reverted cell fails here.
+for (const b of ["power", "capbank", "discharge", "control-card"]) {
+  const byComp = new Map();
+  for (const q of loadCircuit(b).ports) { if (!byComp.has(q.ref)) byComp.set(q.ref, []); byComp.get(q.ref).push(q); }
+  const bad = [];
+  let n = 0;
+  for (const [ref, ps] of byComp) {
+    if (ps.length !== 2) continue;
+    const isK = (q) => /^(K|cathode)$/i.test(q.name ?? "");   // port NAMES only: tscircuit hints every passive's pads anode/cathode too
+    const isA = (q) => /^(A|anode)$/i.test(q.name ?? "");
+    const k = ps.find(isK), a = ps.find(isA);
+    if (!k || !a) continue;
+    n++;
+    if (Number(k.pin_number) !== 1 || Number(a.pin_number) !== 2) bad.push(`${ref}:K=${k.pin_number}/A=${a.pin_number}`);
+  }
+  if (n > 0) ok(!bad.length, `[${b}] all ${n} two-pin diodes number the cathode as pin 1 (F190: Nexperia pinning tables, KiCad Device:D pad 1 = K)`, bad.join(","));
+}
+
 // the feedback network senses the amplifier output (loop stability), the monitor the protected node
 ok(same(C("REXB2.pin1"), "VREX_P") && same(C("REXB3.pin1"), "VREX_P") && same(C("REXB4.pin1"), "VREX_N"), "exciter feedback stays on the amplifier outputs");
 ok(near(V(CARD, "REXM1"), 18e3) && near(V(CARD, "REXM3"), 18e3) && near(V(CARD, "REXM2"), 42.2e3) && near(V(CARD, "REXM4"), 84.5e3)
@@ -662,9 +687,9 @@ ok(same(C("DIGN.anode"), "KL15") && same(C("DIGN.cathode"), "IGN_D") && same(C("
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
   const bad = Object.entries({ DTVSC: /^TPSMC33A-VR$/, DTVSC2: /^TPSMC18A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CLVC3: /^EEH-ZC1H101P$/,
-    FLVC: /^0680L5000-05$/, FVBH: /^MF-LSMF300\/24X-2$/, FVBL: /^MF-LSMF300\/24X-2$/, ULDO15: /^NCV4276CDSADJR4G$/, ULDOEX: /^NCV4276CDTADJRKG$/, DIGN: /^US1M$/, DREVC: /^STPS5L60S$/ })
+    FLVC: /^0680L5000-05$/, FVBH: /^MF-LSMF300\/24X-2$/, FVBL: /^MF-LSMF300\/24X-2$/, ULDO15: /^NCV4276CDSADJR4G$/, ULDOEX: /^NCV4276CDTADJRKG$/, DIGN: /^US1M$/, DREVC: /^STPS5L60S$/, RSXP: /^ESR18EZPF2R20$/, RSXN: /^ESR18EZPF2R20$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
-  ok(!bad.length, `${sku}: round-17 LV-entry parts resolve (33 V/18 V TVS pair, 33 V power-board TVS, 100 uF hybrid bulk, 5 A slow-blow FLVC, D2PAK-5 ULDO15, US1M KL15 blocking diode)`, bad.join(", "));
+  ok(!bad.length, `${sku}: round-17/18 parts resolve (33 V/18 V TVS pair, 33 V power-board TVS, 100 uF hybrid bulk, 5 A slow-blow FLVC, D2PAK-5 ULDO15, US1M KL15 blocking diode, anti-surge RSX — F194)`, bad.join(", "));
 }
 
 // ---------- report ----------

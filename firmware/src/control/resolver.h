@@ -73,11 +73,14 @@ void rslv_init(rslv_t *r);
 void rslv_update(rslv_t *r, const int16_t exc[HAL_SDADC_BLOCK_N], const int16_t sn[HAL_SDADC_BLOCK_N],
                  const int16_t cs[HAL_SDADC_BLOCK_N], float ts_s, uint32_t t_us, const rslv_cal_t *c,
                  const ti_params_t *p);
-/* A14-R01: every control tick. Withdraws the angle once the newest frame is cal_rslv_hold_us old. */
+/* A14-R01: every control tick. Withdraws the angle once the newest frame is cal_rslv_hold_us old. Round 18
+ * (A16-R01): now_us is read after the frame read, and the age is signed (ti_stale) — the task's older time
+ * against a frame the current-loop ISR published meanwhile is not an expiry. */
 void rslv_age(rslv_t *r, uint32_t now_us, const ti_params_t *p);
 float rslv_theta_e(const rslv_t *r, const rslv_cal_t *c);  /* motor electrical, [0, 2pi), at the last block */
-/* Motor electrical angle extrapolated to now_us (the current loop runs twice per carrier period)
- * minus the chain latency cal_rslv_latency_us. */
+/* Motor electrical angle extrapolated to now_us (the current loop runs twice per carrier period). The chain
+ * latency cal_rslv_latency_us is a positive delay: the block's angle is the rotor's that long before its
+ * mid-block reference, so the extrapolation adds it (round 18, A16-R03: it was subtracted). */
 float rslv_theta_e_at(const rslv_t *r, const rslv_cal_t *c, uint32_t now_us, const ti_params_t *p);
 float rslv_omega_e(const rslv_t *r, const rslv_cal_t *c);  /* motor electrical rad/s */
 float rslv_speed_rpm(const rslv_t *r, const rslv_cal_t *c); /* mechanical */

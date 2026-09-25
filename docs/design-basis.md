@@ -411,15 +411,15 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.14)
+## 11. Verification status (current release: rev A.17)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
 - geometric pin-verify **2057/2057 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
-- structural ERC **954 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- structural ERC **969 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **157 PASS / 15 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — round 17);
+- numeric worst-case verification **157 PASS / 17 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — rounds 17–18);
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -434,6 +434,32 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11q. Rev A.17 — round 18: three rechecks of 4425af9 (summary)
+
+Three independent rechecks of the A.16 push, all right on what they found ([`review-A17-disposition.md`](review-A17-disposition.md),
+register F190–F198). Verified against the source and the archived datasheets before any edit; an Opus adversarial
+cross-check of every exciter number then found four further errors of ours, and a Sonnet audit of the 15 bound diode
+part numbers confirmed the pin convention. **Hardware (two zero-count changes):** the round-17 diversion Schottky had been
+drawn on the *protected* node, so a harness fault with VEXD absent charged the empty rail through PTC → DEX with no RSX in
+the loop (27–99 A, TVS dark) while its row divided by 2.2 Ω — the anodes now sit on the amplifier output node (4.7 A /
+60 µs through RSX, judged by I²t; ERC graph cut); RSX becomes an anti-surge 0.5 W 1206 (it carries the amplifier's 0.93 A
+source limit during a powered negative fault). **Pin numbers:** the generic diode cell had numbered the anode as pin 1 on
+all 35 two-pin diodes; Nexperia's pinning tables and KiCad's `Device:D` / `Diode_SMD` footprints put the cathode on pin 1 —
+the shared cell now does too (numbers, not nets; ERC-locked on every board; KiCad-10 netlist proof PASS). **Analysis:**
+the NCV4276C's 40 V output rating was credited as reverse-current evidence it does not give (QP-RX-05 a release gate
+again, VR-33); the exciter TVS/PTC rows had claimed PASS "at any source impedance" on a trip-time bound that exists only
+at ≥ 8 A and on a 9 J allowance that is ≈ 5.3 J once the exponential test pulse is converted — recomputed at their worst
+corners, and the cross-check's own finding, a sustained short to the normal 12.6–16 V battery with the ECU asleep
+leaving 1.5–3.8 W in the TVS after the PTC trips, is a computed WARN row closed by a layout rule (TVS island with the PTC
+thermally coupled on it), the QP-RX-04 sweep (release gate), IR-42 and VR-17, with the fail-safe end state written
+down; IR-16 → 0.05 / 0.29 / 0.22 Ω; the gain band over the bound ±5 % C0G tolerances (1.98–2.18) and the hold current at
+the CAL ceiling (48 mA, 69 %). **Firmware (FW-34…36):** on the target the HAL stamped fresh samples after the ISR had
+read its clock, so unsigned ages declared them stale (the host model hid it — it now reproduces it); the resolver ring
+stamped blocks from the completion-interrupt time and could not see a whole-ring lap (cadence-locked stamps, a
+servicing-deadline CAL, self re-acquisition); the chain-latency compensation had the wrong sign and its test encoded it.
+Three further instances of the same class were found and closed while fixing (the task's liveness check, the FW-15 recovery timer, the PWM-ASC dead-time reference), each with a fail-before test; firmware 278 tests / 2534 checks / 0 failed in all three build flavours (host, −O2, ASan/UBSan), target-check 48 markers; on the pre-fix tree 98 failing checks (+2 for the PWM-ASC dead-time item), 16 mutations each caught; TI_FW_ID 0x0A0F0012; new CAL cal_sd_irq_lat_max_us 30 µs (5–45); DTC_RSLV_REACQUIRED (information). Counts: ERC 969 · verify 157/17/0 · sim 23/6/0 · 2057/2057 pins + KiCad-10 proof · 686 components /
+236 BOM lines, 8XX SiC ₹72,983 @1k (+₹2: the anti-surge RSX pair) · 107 datasheets. Marine forks at A.17. No power-stage change.
 
 ## 11p. Rev A.16 — round 17: gap closure (summary)
 

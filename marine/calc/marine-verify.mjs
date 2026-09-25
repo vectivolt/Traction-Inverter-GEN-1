@@ -5,7 +5,7 @@
 // sinusoidal-PWM averages (calculations/loss-model.mjs igbtLoss — re-checked below, not edited),
 // with two marine additions for continuous duty: switching energy ∝ V^1.3 instead of linear, and
 // the transistor/diode heat sharing one coldplate footprint. Road-mirrored protection numbers (FW-05/06/16, ASC entry,
-// DESAT corners, §6 release rule, barrier register) follow Road rev A.16 (marine/design-basis.md §9).
+// DESAT corners, §6 release rule, barrier register) follow Road rev A.17 (marine/design-basis.md §9).
 // Run: node marine/calc/marine-verify.mjs
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

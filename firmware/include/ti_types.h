@@ -8,7 +8,8 @@
  *   torque       Nm   float;  power W float
  *   angle        rad  electrical unless suffixed _mech; wrapped to [0, 2*pi)
  *   time         us   uint32_t free-running microseconds, wraps every 71.6 min — compare only with
- *                     ti_elapsed()/ti_age() (unsigned subtraction), never with < or >
+ *                     ti_elapsed()/ti_age() (unsigned subtraction), never with < or >; a SENSOR stamp's
+ *                     freshness with ti_stale() (signed: the stamp may postdate the check, round 18)
  *                ms   uint32_t for slow timers (1 kHz task), same wrap rules; only from hal_time_ms()
  *                     (hal/timer.h: us64 / 1000), never hal_time_us() / 1000 (A12-R06)
  *   ADC          code uint16_t 12-bit, 0..4095 = VREFL..VREFH (VREF5 = 5.0 V, ratiometric)
@@ -58,6 +59,18 @@ static inline bool ti_elapsed(uint32_t now, uint32_t since, uint32_t duration)
 static inline uint32_t ti_age(uint32_t now, uint32_t since)
 {
     return (uint32_t)(now - since);
+}
+
+/* Round 18 (A16-R01): freshness of a SENSOR stamp against a check time. The stamp may postdate `now`: the
+ * target stamps a sample when it reads it, after an ISR read its entry time, and a higher-priority interrupt
+ * may publish a newer stamp while a lower context holds an older time. So the age is signed: stale when the
+ * stamp is `hold` or more before now — and when it is `hold` or more after it, which no ISR's execution
+ * reaches (a corrupt stamp is refused either way). Wrap-safe for stamps within 2^31 us (±35 min) of now.
+ * Timers (a start the same context wrote) keep ti_elapsed(). */
+static inline bool ti_stale(uint32_t now, uint32_t stamp, uint32_t hold)
+{
+    const uint32_t age = now - stamp;
+    return (age >= hold) && ((0u - age) >= hold);
 }
 
 static inline float ti_code_to_v(uint16_t code)

@@ -85,10 +85,30 @@ TEST(dtc_time_stamps_across_the_microsecond_wrap)
     CHECK(dtc_times(DTC_V5GD, &first, &last) && first == 0u && last == 5u);
 }
 
+/* Round 18 (A16-R01): a sensor stamp against its check time. The target stamps a sample after the ISR read its
+ * entry time, so a stamp may postdate the check by an ISR's execution: that is fresh (ti_elapsed read it as
+ * 2^32 us old); `hold` or more before the check is stale, and so is `hold` or more after it (no sample is
+ * from the future) — also straddling the 32-bit wrap either way. */
+TEST(sensor_stamps_are_judged_with_a_signed_age)
+{
+    const uint32_t hold = 200u;
+    const uint32_t nows[3] = {1000000u, 0xFFFFFFF0u, 5u}; /* plain; just before and just after the wrap */
+    for (uint32_t k = 0u; k < 3u; k++) {
+        const uint32_t n = nows[k];
+        CHECK(!ti_stale(n, n, hold) && !ti_stale(n, n - (hold - 1u), hold) && ti_stale(n, n - hold, hold));
+        CHECK(!ti_stale(n, n + 1u, hold) && !ti_stale(n, n + 50u, hold) && !ti_stale(n, n + (hold - 1u), hold));
+        CHECK(ti_stale(n, n + hold, hold) && ti_stale(n, n + 0x80000000u, hold) && ti_stale(n, n - 0x7FFFFFFFu, hold));
+        CHECK(ti_elapsed(n, n + 1u, hold)); /* the timer helper keeps its unsigned meaning */
+    }
+    CHECK(!ti_stale(2u, 0xFFFFFFFEu, 10u) && !ti_stale(0xFFFFFFFEu, 2u, 10u)); /* 4 us apart across the wrap */
+    CHECK(ti_stale(12u, 0xFFFFFFFEu, 10u));
+}
+
 void suite_time(void)
 {
     RUN(us64_extension_survives_repeated_wraps);
     RUN(sim_clock_across_the_microsecond_wrap);
     RUN(can_freshness_across_the_microsecond_wrap);
     RUN(dtc_time_stamps_across_the_microsecond_wrap);
+    RUN(sensor_stamps_are_judged_with_a_signed_age);
 }

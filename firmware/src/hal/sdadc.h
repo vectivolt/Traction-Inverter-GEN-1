@@ -10,7 +10,11 @@
  * Round 16 (A14-R02): the application reads one coherent FRAME — the three blocks of one epoch and
  * that epoch's time stamp, copied together — or nothing. The frame protocol (sdadc_ring.c) is the same
  * code on both platforms; the platform supplies the buffers, the per-channel completion interrupt and
- * each channel's DMA write position. */
+ * each channel's DMA write position.
+ * Round 18 (A16-R02): the stamp is the block's start on the SDADC cadence (the DMA completes exactly every
+ * period; the data rate and the microsecond timer share one PLL), not the completion interrupt's time, and
+ * a completion serviced later than irq_lat_max_us after its block's end breaks the ring (a lap of the ring
+ * is indistinguishable from a delay in slot arithmetic); a broken ring re-acquires by itself. */
 #ifndef HAL_SDADC_H
 #define HAL_SDADC_H
 
@@ -24,10 +28,14 @@ typedef enum { HAL_SD_EXC = 0, HAL_SD_SIN, HAL_SD_COS, HAL_SD_COUNT } hal_sd_ch_
 typedef struct {
     int16_t blk[HAL_SD_COUNT][HAL_SDADC_BLOCK_N]; /* signed codes, full scale +/-32767 = +/-VREFP */
     uint32_t epoch; /* acquisition epoch: carrier periods every channel has completed (wraps) */
-    uint32_t t_us;  /* start of the epoch (carrier phase 0), hal_time_us() domain */
+    uint32_t t_us;  /* start of the epoch (carrier phase 0) on the cadence, hal_time_us() domain */
 } hal_sd_frame_t;
 
-bool hal_sdadc_init(uint32_t carrier_hz);
+/* carrier_hz: a whole number of microseconds per period (the cadence stamp); irq_lat_max_us: the servicing
+ * deadline of a block's first completion (cal_sd_irq_lat_max_us, below half a period). */
+bool hal_sdadc_init(uint32_t carrier_hz, uint32_t irq_lat_max_us);
+/* Round 18: the ring's re-acquisitions since init (the first frame published again after a break). */
+uint32_t hal_sdadc_reacquired(void);
 
 /* The newest coherent frame not returned before. false: none — no new epoch, a channel has not
  * completed it, its slot may have been rewritten during the copy, or a channel lost step — and *f is
@@ -36,17 +44,24 @@ bool hal_sdadc_read_frame(hal_sd_frame_t *f);
 
 /* ---- the frame protocol both platforms share (sdadc_ring.c) ---- */
 typedef struct {
-    volatile uint32_t done[HAL_SD_COUNT];   /* blocks each channel's DMA completed (its own interrupt) */
-    volatile uint32_t t_start[HAL_SD_NBUF]; /* start of the block in each slot (its first completion) */
-    volatile uint32_t t_epoch;              /* start of the published epoch (written before it) */
-    volatile uint32_t epoch;                /* newest epoch EVERY channel completed */
-    volatile bool broken;                   /* a channel lost step: nothing is published until re-init */
-    uint32_t taken;                         /* newest epoch the reader returned */
+    volatile uint32_t done[HAL_SD_COUNT]; /* blocks each channel's DMA completed (its own interrupt) */
+    volatile uint32_t t_epoch;            /* start of the published epoch (written before it) */
+    volatile uint32_t epoch;              /* newest epoch EVERY channel completed */
+    volatile uint32_t t_org;              /* round 18: the cadence origin — block k_org starts at t_org */
+    volatile uint32_t k_org;
+    volatile bool anchored;               /* t_org/k_org set (the first completion after (re)acquisition) */
+    volatile bool synced;                 /* done[] match the DMA positions */
+    volatile bool broken;                 /* nothing is published or read (from init or a break until a frame) */
+    volatile bool relock;                 /* broken by an ambiguity: the next frame counts a re-acquisition */
+    volatile bool lost;                   /* samples lost (platform DMA/FIFO error): down until re-init */
+    volatile uint32_t n_reacq;            /* re-acquisitions since init */
+    uint32_t taken;                       /* newest epoch the reader returned */
     uint32_t period_us;
+    uint32_t lat_us;                      /* a block's first completion is serviced within this of its end */
 } hal_sd_ring_t;
 
 /* count0: the block count the DMA rings start at (slot = count % NBUF; the target starts at 0). */
-void hal_sd_ring_init(hal_sd_ring_t *r, uint32_t period_us, uint32_t count0);
+void hal_sd_ring_init(hal_sd_ring_t *r, uint32_t period_us, uint32_t lat_us, uint32_t count0);
 /* The major-loop interrupt of one channel (it outranks the reader). */
 void hal_sd_ring_complete(hal_sd_ring_t *r, hal_sd_ch_t ch, uint32_t now_us);
 /* The reader (current-loop ISR): see hal_sdadc_read_frame(). */

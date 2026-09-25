@@ -119,6 +119,31 @@ TEST(ov_compare_code)
     CHECK(code_v(0.5f + 526.0f / 455.839f) < h4 && code_v(0.5f + 533.0f / 455.839f) >= h4);
 }
 
+/* Round 18 (A16-R01): the target stamps a V_DC conversion when it reads it, after the ISR read its entry time.
+ * Channels stamped up to 50 us after the check time are fresh (they read 2^32 us old: V_DC invalid, HV
+ * unknown); one cal_vdc_stale_us before it is stale — also across the 32-bit wrap. */
+TEST(a_channel_stamped_after_the_check_time_is_fresh)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const uint16_t c[2] = {code_v(0.5f + 800.0f / 455.839f), code_v(0.5f + 800.0f / 455.839f)};
+    const uint32_t nows[2] = {5000u, 0xFFFFFFFCu};
+    const uint32_t ahead[3] = {1u, 5u, 50u};
+    for (unsigned n = 0u; n < 2u; n++) {
+        for (unsigned k = 0u; k < 3u; k++) {
+            vdc_t s;
+            vdc_init(&s);
+            const uint32_t t[2] = {nows[n] + ahead[k], nows[n] + (ahead[k] / 2u)};
+            vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), nows[n], CAL, p);
+            CHECK(!s.ch_stale[0] && !s.ch_stale[1] && s.valid && (s.hv == TI_HV_PRESENT));
+        }
+        vdc_t s;
+        vdc_init(&s);
+        const uint32_t t[2] = {nows[n], nows[n] - p->cal_vdc_stale_us};
+        vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), nows[n], CAL, p);
+        CHECK(!s.ch_stale[0] && s.ch_stale[1] && !s.valid);
+    }
+}
+
 void suite_vdc(void)
 {
     RUN(nominal_pair_valid);
@@ -129,4 +154,5 @@ void suite_vdc(void)
     RUN(stale_channel_invalid);
     RUN(bms_cross_check_3_percent_with_contactors_closed);
     RUN(ov_compare_code);
+    RUN(a_channel_stamped_after_the_check_time_is_fresh);
 }

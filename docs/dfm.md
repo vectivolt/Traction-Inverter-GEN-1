@@ -107,13 +107,23 @@ test on back-to-back rig).
   on the power board (the two nets are V15S and V15 — keep the labels).
 - **Bias-LDO ballast R5LB/R5LC (A.13)** — 2512, 0.45 W each: on the same 2 oz copper as the LDO, ≥ 5 mm from
   the UCC12051-Q1 and the AMC1311; the LDO input cap C5Lx1 sits between the ballast and the LDO IN pin.
-- **Resolver excitation protection (A.13, topology corrected A.14, unidirectional TVS A.15, 3 kW TVS + rated back-drive diodes A.16)** — from the
-  amplifier outwards: RSXP/RSXN (2.2 Ω 1206) → protected node (TVSEP/TVSEN SMDJ8.5A-HRA — 3 kW, AEC-Q101, same SMC pad since round 17; DEXP/DEXN PMEG4050EP-Q Schottky from the node to VEXD as the rated back-drive path — **cathode on the node,
-  anode to the AGND star** with a wide short trace — the polarity matters now; the REXM monitor taps here) →
-  FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
-  amplifier side of the PTC — a fault from the connector reaches the clamp only through the PTC (A13-R01). The
-  feedback resistors REXB stay at the amplifier outputs. The PTCs need ~2 mm of free air (they self-heat when
-  tripped).
+- **Resolver excitation protection (A.13, topology corrected A.14, unidirectional TVS A.15, 3 kW TVS + rated back-drive diodes A.16, diodes on the amplifier node + TVS island A.17)** — from the
+  amplifier outwards: amplifier output node VREX_P/N (DEXP/DEXN PMEG4050EP-Q Schottky from HERE to VEXD — the rated
+  back-drive path, in parallel with the ALM2402's own upper diode; **pin 1 = cathode on VEXD, pin 2 = anode on the
+  amplifier node** — round 18 moved it off the protected node so the harness charging loop passes RSX; the REXB
+  feedback resistors also stay here) → RSXP/RSXN (2.2 Ω 1206, **ROHM ESR18EZPF2R20 anti-surge 0.5 W** since round 18 —
+  it carries the amplifier's 0.93 A source limit during a negative fault) → protected node (TVSEP/TVSEN SMDJ8.5A-HRA —
+  3 kW, AEC-Q101, SMC — **cathode on the node, anode to the AGND star** with a wide short trace; the REXM monitor
+  taps here) → FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
+  amplifier side of the PTC — a fault from the connector reaches the clamp only through the PTC (A13-R01).
+  **Round 18 layout rule (F193, verification-report "Sensing A.17" WARN rows):** each TVS sits on its own
+  **≥ 3 cm² 2 oz copper island with a thermal-via array** to the inner AGND copper (target ≤ 40 K/W junction-to-ambient
+  — the sheet's 8 × 8 mm pads give 75 K/W), and **FEXP/FEXN are placed with their pads on that island**, next to the TVS
+  (thermal coupling ≈ 50 K/W from TVS power to PTC body): a sustained mid-impedance short of the line to the 12.6–24 V
+  battery while the ECU sleeps leaves 1.5–4 W in the TVS that nothing else interrupts, and the PTC's hold current
+  extrapolates to ≈ 0 above ≈ 95–105 °C, so the TVS's heat trips it (the PolyZen principle). The PTC body still keeps
+  ~2 mm of free air above and beside it (it self-heats when tripped; only its pads share the island). QP-RX-04's sweep
+  measures the coupling on the real layout.
 - **Motor-temperature protection (A.13)** — FMT (0603 fuse) first from the connector, then TVSM (SMA) to AGND,
   then the 1 k into the buffer; keep the fuse away from the LDO heat so its rating holds.
 - **KL30 entry (round 17, load-dump let-through)** — from JVEH: FLVC (Bel 0680L5000-05, 2410 ceramic slow-blow fuse; it

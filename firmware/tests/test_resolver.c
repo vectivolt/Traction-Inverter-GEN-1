@@ -140,8 +140,10 @@ TEST(acquires_at_speed_after_a_reset)
     const float a0 = rslv_theta_e_at(&r, &c, r.t_ref_us, &q);
     const float a1 = rslv_theta_e_at(&r, &c, r.t_ref_us + 50u, &q);
     CHECK_NEAR(ti_wrap_pi(a1 - a0), 4.0 * w * 50e-6, 1e-3);
+    /* round 18 (A16-R03): a 50 us chain latency means the block's angle is 50 us older than its reference, so
+     * 50 us after the reference the rotor is 100 us past it — the latency is added (it used to cancel the 50 us) */
     q.cal_rslv_latency_us = 50.0f;
-    CHECK_NEAR(ti_wrap_pi(rslv_theta_e_at(&r, &c, r.t_ref_us + 50u, &q) - a0), 0.0, 1e-3);
+    CHECK_NEAR(ti_wrap_pi(rslv_theta_e_at(&r, &c, r.t_ref_us + 50u, &q) - a0), 4.0 * w * 100e-6, 1e-3);
 }
 
 TEST(missed_blocks_bridged_long_gap_reacquires)
@@ -320,6 +322,92 @@ TEST(swg_trim_ramps_readies_and_saturates)
     CHECK(rslv_swg_trim(0u, &r) == 0u && r.exc_ready && !r.swg_sat);
 }
 
+/* ======================= round 18 ======================= */
+
+/* A16-R03 against an independent oracle: a rotor turning at constant speed w, theta(t) = theta0 + w t, seen
+ * through a resolver chain that delays it by L — each block carries the angle the rotor had L before the block's
+ * mid-sampling instant, and is stamped at its start, as the ring does. With cal_rslv_latency_us = L the angle
+ * the current loop gets at `now` (0.5 to 0.75 carrier periods after the block completed) must be the rotor's
+ * angle AT `now`: both directions, 3000 and 10 000 rpm, L = 25 and 50 us. The old sign was off by 2 w L — 3.6 deg
+ * el at 3000 rpm and 25 us, 24 deg at 10 000 rpm and 50 us (4 pole pairs). */
+TEST(latency_compensation_matches_the_true_angle_at_now)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const rslv_cal_t c = cal_nom(); /* motor 4 pole pairs, resolver 1: resolver angle = mechanical */
+    const float rpm[2] = {3000.0f, 10000.0f};
+    const float dir[2] = {1.0f, -1.0f};
+    const float lat_us[2] = {25.0f, 50.0f};
+    const double t_mid_us = 100.0 * 15.0 / 16.0 / 2.0; /* the mean of 16 samples over the 100 us period */
+    for (unsigned s = 0u; s < 2u; s++) {
+        for (unsigned d = 0u; d < 2u; d++) {
+            for (unsigned l = 0u; l < 2u; l++) {
+                const unsigned fails0 = t_fails;
+                ti_params_t q = *p;
+                q.cal_rslv_latency_us = lat_us[l];
+                const double w = (double)(dir[d] * rpm[s] / TI_RPM_PER_RAD_S); /* rad/s, resolver = mechanical */
+                const double th0 = 0.7;
+                rslv_t r;
+                rslv_init(&r);
+                r.exc_ready = true;
+                int16_t e[N];
+                int16_t sn[N];
+                int16_t cs[N];
+                uint32_t tb = 0u;
+                for (unsigned i = 0u; i < 300u; i++) { /* 30 ms: acquired and settled */
+                    tb = 1000u + (100u * i);
+                    const double seen = th0 + (w * (((double)tb + t_mid_us - (double)lat_us[l]) * 1e-6));
+                    block((float)seen, 1.0f, 20000.0f, 24.0f, e, sn, cs);
+                    rslv_update(&r, e, sn, cs, 1e-4f, tb, &c, &q);
+                }
+                CHECK(r.valid && !r.trk_fault && !r.acc_fault);
+                double worst = 0.0;
+                for (uint32_t x = 100u; x <= 175u; x += 25u) { /* the current loop after the block completed */
+                    const uint32_t now = tb + x;
+                    const double truth = 4.0 * (th0 + (w * ((double)now * 1e-6))); /* motor electrical, zero 0 */
+                    const double err = ti_wrap_pi((float)((double)rslv_theta_e_at(&r, &c, now, &q) - truth));
+                    worst = (fabs(err) > worst) ? fabs(err) : worst;
+                }
+                CHECK_NEAR(worst * 180.0 / 3.14159265358979, 0.0, 0.3); /* deg el */
+                if (t_fails != fails0) {
+                    printf("    ^ %.0f rpm, direction %+.0f, latency %.0f us\n", (double)rpm[s], (double)dir[d],
+                           (double)lat_us[l]);
+                }
+            }
+        }
+    }
+}
+
+/* A16-R01 at the resolver: a frame published after the check time was read — the task's time against a frame
+ * the current-loop ISR consumed meanwhile, or a frame read late in a long ISR — is fresh; one `hold` or more
+ * before the check (or implausibly far after it) is stale, also across the 32-bit microsecond wrap. */
+TEST(a_frame_newer_than_the_check_time_is_not_aged_out)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const rslv_cal_t c = cal_nom();
+    const uint32_t epochs[2] = {1000u, 0xFFFFF000u};
+    for (unsigned ep = 0u; ep < 2u; ep++) {
+        rslv_t r;
+        rslv_init(&r);
+        r.exc_ready = true;
+        const uint32_t t_last = frames(&r, &c, p, epochs[ep], 0.4f, 0.0f, 40u, 1.0f, 18000.0f);
+        CHECK(r.valid);
+        rslv_age(&r, t_last - 30u, p); /* the check time read 30 us before this frame's start was stamped */
+        CHECK(r.valid && !r.stale);
+        rslv_age(&r, t_last - (p->cal_rslv_hold_us - 1u), p);
+        CHECK(r.valid && !r.stale);
+        rslv_age(&r, t_last + p->cal_rslv_hold_us - 1u, p);
+        CHECK(r.valid && !r.stale);
+        rslv_age(&r, t_last + p->cal_rslv_hold_us, p);
+        CHECK(!r.valid && r.stale);
+        rslv_t q;
+        rslv_init(&q);
+        q.exc_ready = true;
+        const uint32_t t_q = frames(&q, &c, p, epochs[ep], 0.4f, 0.0f, 40u, 1.0f, 18000.0f);
+        rslv_age(&q, t_q - p->cal_rslv_hold_us, p); /* a stamp a whole hold in the future: not plausible */
+        CHECK(!q.valid && q.stale);
+    }
+}
+
 void suite_resolver(void)
 {
     RUN(standstill_angles);
@@ -335,4 +423,6 @@ void suite_resolver(void)
     RUN(validity_expires_without_new_frames_and_reacquires_from_scratch);
     RUN(winding_plane_flags_what_the_monitor_cannot_see);
     RUN(swg_trim_ramps_readies_and_saturates);
+    RUN(latency_compensation_matches_the_true_angle_at_now);
+    RUN(a_frame_newer_than_the_check_time_is_not_aged_out);
 }

@@ -3,7 +3,7 @@
 // energy). Carries the always-on passive bleeder + the commanded active discharge, and takes
 // V15 / QDIS_CMD / DGND from the power board over a 4-way header.
 // RULE (also in the title block): never energize the inverter without this board fitted.
-import { StudFP, AxialFP, TO247_4L, Header, SmdFP, Smd2FP, IsoBias18, gp } from "../packages/cells";
+import { StudFP, AxialFP, TO247_4L, Header, SmdFP, IsoBias18, gp } from "../packages/cells";
 
 const NO_ROUTE = process.env.TSCI_NO_ROUTE === "1";
 

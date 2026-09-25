@@ -195,6 +195,31 @@ TEST(lost_sample_is_invalid_and_keeps_its_last_stamp)
     CHECK(s.valid && s.fresh && s.t_us == 5050u);
 }
 
+/* Round 18 (A16-R01): the target stamps the triplet when it reads it — after the ISR read its entry time. A
+ * triplet whose stamp is 1, 5 or 50 us AFTER the check time is fresh (it was 2^32 us old, the currents
+ * invalid, the control lost); one cal_isns_stale_us before it is still stale, also across the 32-bit wrap. */
+TEST(a_triplet_stamped_after_the_check_time_is_fresh)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const isns_cal_t cal[3] = {CAL_NOM, CAL_NOM, CAL_NOM};
+    const uint16_t c[3] = {code_of_v(2.5f + 2.22e-3f * 100.0f), code_of_v(2.5f - 2.22e-3f * 50.0f),
+                           code_of_v(2.5f - 2.22e-3f * 50.0f)};
+    const uint32_t nows[2] = {5000u, 0xFFFFFFFEu};
+    const uint32_t ahead[3] = {1u, 5u, 50u};
+    for (unsigned n = 0u; n < 2u; n++) {
+        for (unsigned k = 0u; k < 3u; k++) {
+            isns_t s;
+            isns_init(&s);
+            isns_update(&s, c, nows[n] + ahead[k], nows[n], cal, p);
+            CHECK(s.fresh && s.valid);
+        }
+        isns_t s;
+        isns_init(&s);
+        isns_update(&s, c, nows[n] - p->cal_isns_stale_us, nows[n], cal, p);
+        CHECK(!s.fresh && !s.valid);
+    }
+}
+
 void suite_current(void)
 {
     RUN(lost_sample_is_invalid_and_keeps_its_last_stamp);
@@ -206,4 +231,5 @@ void suite_current(void)
     RUN(overcurrent_4xx_threshold);
     RUN(offset_self_test);
     RUN(activity_catches_a_stuck_channel_where_current_is_asked);
+    RUN(a_triplet_stamped_after_the_check_time_is_fresh);
 }

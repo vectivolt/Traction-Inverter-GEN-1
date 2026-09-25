@@ -9,6 +9,23 @@
 #define FLT_HS_BIT 0x1u
 #define FLT_LS_BIT 0x2u
 
+/* Round 18 (FW-34 class): every PWM turn-off the bridge makes is stamped on its own clock; br_enter_pwm_asc() counts
+ * the dead time from the newer of that stamp and the caller's — a fault ISR that inhibited the PWM after the 1 ms task
+ * read its time can no longer shorten the wait (the task's older time read as "long ago"). */
+static void pwm_off(bridge_t *b)
+{
+    hal_pwm_force_off();
+    b->t_pwm_off_us = hal_time_us();
+}
+
+void br_note_pwm_off(bridge_t *b, uint32_t t_us)
+{
+    const uint32_t now = hal_time_us();
+    if (ti_age(now, t_us) < ti_age(now, b->t_pwm_off_us)) {
+        b->t_pwm_off_us = t_us; /* the newer stamp */
+    }
+}
+
 void br_init(bridge_t *b, const ti_params_t *p)
 {
     *b = (bridge_t){0};
@@ -19,7 +36,7 @@ void br_init(bridge_t *b, const ti_params_t *p)
     hal_gpio_write(HAL_DO_ASC_REQ, false);
     hal_gpio_write(HAL_DO_FLT_CLR, false);
     hal_gpio_write(HAL_DO_QDIS, false);
-    hal_pwm_force_off();
+    pwm_off(b);
     b->mode = BR_DISARMED;
 }
 
@@ -61,7 +78,7 @@ void br_service(bridge_t *b)
     hal_crit_enter();
     observe(b);
     if (b->en_drop_pending && !b->hold_active) {
-        hal_pwm_force_off();
+        pwm_off(b);
         hal_gpio_write(HAL_DO_MCU_GATE_EN, false);
         b->en_drop_pending = false;
         b->mode = BR_DISARMED;
@@ -73,7 +90,7 @@ bool br_en_drop_pending(const bridge_t *b) { return b->en_drop_pending; }
 
 void br_spo(bridge_t *b, bool en_low_req)
 {
-    hal_pwm_force_off(); /* never delayed: the FAULT0/2 input has already done it in hardware */
+    pwm_off(b); /* never delayed: the FAULT0/2 input has already done it in hardware */
     if (en_low_req) {
         en_low(b);
     }
@@ -85,7 +102,7 @@ bool br_arm_idle(bridge_t *b)
     if ((b->mode == BR_ASC) || b->en_drop_pending) {
         return false; /* leave ASC only through br_exit_asc(); never arm inside a DESAT hold */
     }
-    hal_pwm_force_off();
+    pwm_off(b);
     hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
     b->mode = BR_IDLE;
     return true;
@@ -98,7 +115,7 @@ bool br_modulate(bridge_t *b, const float duty[3], const ti_params_t *p)
     }
     for (uint32_t i = 0u; i < 3u; i++) {
         if (!ti_finite(duty[i]) || (duty[i] < 0.0f) || (duty[i] > 1.0f)) {
-            hal_pwm_force_off(); /* the guard: nothing non-finite reaches the registers */
+            pwm_off(b); /* the guard: nothing non-finite reaches the registers */
             b->mode = BR_IDLE;
             return false;
         }
@@ -146,8 +163,15 @@ void br_enter_pwm_asc(bridge_t *b, uint32_t t_hs_off_us, const ti_params_t *p)
     }
     /* 1) high sides off (the eFlexPWM fault did it in hardware on the FW-06 path) */
     if (hal_pwm_mode() == HAL_PWM_MOD) {
-        hal_pwm_force_off();
-        t_hs_off_us = hal_time_us();
+        pwm_off(b);
+        t_hs_off_us = b->t_pwm_off_us;
+    } else {
+        /* round 18: the bridge's own turn-off stamp (its force-off, or the hardware inhibit the fault ISR noted) wins
+         * over an older caller's stamp — the 1 ms task's time predates a fault that preempted it */
+        const uint32_t now = hal_time_us();
+        if (ti_age(now, b->t_pwm_off_us) < ti_age(now, t_hs_off_us)) {
+            t_hs_off_us = b->t_pwm_off_us;
+        }
     }
     /* 2) latch: the rising edge is the ASC request; the line stays high while in ASC */
     if (hal_gpio_out_state(HAL_DO_ASC_REQ)) {
@@ -174,14 +198,14 @@ bool br_exit_asc(bridge_t *b, bool allowed)
     hal_gpio_write(HAL_DO_ASC_REQ, false);
     b->t_asc_clear_us = asc_clear_pulse(); /* 1) while PWM-ASC still holds the low sides */
     b->asc_cleared_recently = true;
-    hal_pwm_force_off(); /* 2) next state: SPO here; modulation resumes through br_modulate() */
+    pwm_off(b); /* 2) next state: SPO here; modulation resumes through br_modulate() */
     b->mode = BR_IDLE;
     return true;
 }
 
 void br_rec_start(bridge_t *b, uint32_t t_fault_us)
 {
-    hal_pwm_force_off();
+    pwm_off(b);
     en_low(b); /* inside the DESAT hold this only records the drop (br_service carries it out) */
     hal_gpio_write(HAL_DO_ASC_REQ, false);
     br_asc_clear_pulse(); /* always: a set latch would bring ASC back at the reset edge */
@@ -190,13 +214,16 @@ void br_rec_start(bridge_t *b, uint32_t t_fault_us)
     b->mode = BR_DISARMED;
 }
 
-br_rec_t br_rec_step(bridge_t *b, uint32_t now_us, const ti_params_t *p)
+br_rec_t br_rec_step(bridge_t *b, const ti_params_t *p)
 {
     switch (b->rec) {
     case BR_REC_WAIT_LOW:
-        hal_pwm_force_off();
+        pwm_off(b);
         br_service(b); /* a drop still pending happens before the reset edge, never after it */
-        if (!b->en_drop_pending && ti_elapsed(now_us, b->rec_t_fault_us, p->fw15_low_us)) {
+        /* round 18 (A16-R01 class): the low time counts on the bridge's own clock, read here — never a caller's
+         * stamp, which the fault ISR's newer rec_t_fault_us can postdate (the unsigned age then wraps and the
+         * FW-15 low wait was skipped) */
+        if (!b->en_drop_pending && ti_elapsed(hal_time_us(), b->rec_t_fault_us, p->fw15_low_us)) {
             hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
             br_flt_clear_pulse();
             b->rec_t_pulse_us = hal_time_us();

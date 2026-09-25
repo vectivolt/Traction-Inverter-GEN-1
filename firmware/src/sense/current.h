@@ -16,7 +16,10 @@
  *  - round 16 (A14-R03): a sample whose triplet did not arrive complete (hal_adc_read_phase false) is
  *    LOST: isns_lost() makes the measurement invalid and not fresh and clears ch_valid, so nothing of
  *    the previous sample feeds FOC, the OC backstop or the activity check; the DTC is ISNS_STALE (not
- *    an open wire). t_us keeps the last complete triplet's time. */
+ *    an open wire). t_us keeps the last complete triplet's time.
+ *  - round 18 (A16-R01): isns_update's now_us is a time read AFTER hal_adc_read_phase() — the target stamps
+ *    the triplet when it reads it, later than the ISR entry — and the age is signed (ti_stale): a stamp
+ *    that postdates the check by an ISR's execution is fresh, never 2^32 us old. */
 #ifndef CURRENT_H
 #define CURRENT_H
 

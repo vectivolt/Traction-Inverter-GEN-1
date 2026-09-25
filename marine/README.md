@@ -114,7 +114,7 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.16** (review rounds 7–17: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.17** (review rounds 7–18: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
 V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
 re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,
@@ -124,7 +124,11 @@ round 16/A.15; back-drive diversion and a 3 kW TVS closing both round-16 rows, r
 the LV entry rebuilt from absorption to let-through (new 33 V-class TVS network, a hybrid-polymer
 bulk cap, a rerated fuse, a rated WAKE1 clamp, round 17/A.16), ADC-map, any-speed contactor-loss
 and deterministic phase-current/resolver acquisition firmware, current-loop-liveness and LV
-supply-supervision firmware (round 17/A.16), V_DC-bias LDO ballast, UCC14141-Q1 certificate; list
+supply-supervision firmware (round 17/A.16), the back-drive diversion moved onto the amplifier node so its
+charging loop passes RSX, diode pin numbers aligned to the parts and KiCad (cathode = pin 1), the exciter TVS/PTC
+rows recomputed at their worst corners with the ECU-asleep sustained short as a bench gate, an anti-surge RSX, and
+the acquisition-time firmware fixes (fresh samples no longer aged against an earlier ISR clock, cadence-locked
+resolver frames, the chain-latency sign; round 18/A.17), V_DC-bias LDO ballast, UCC14141-Q1 certificate; list
 in design-basis §9). It adds:
 
 - the marine kit, about ₹27–56k per cell:

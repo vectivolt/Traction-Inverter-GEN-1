@@ -1,4 +1,4 @@
-# Simulation report (rev A.16 · generated 2026-09-25)
+# Simulation report (rev A.17 · generated 2026-09-25)
 
 Numerical time/frequency-domain simulations of the drawn circuits at the actual operating
 conditions (`calculations/sim-verify.mjs`). These complement — not replace — the closed-form

@@ -44,6 +44,10 @@ void sim_adc_require_slow_start(bool on);
 /* Round 16 (A14-R03): bit k set = phase channel k (U, V, W) delivers no new conversion, as a stopped
  * converter or BCTU does: hal_adc_read_phase() returns false and writes nothing. 0 = healthy. */
 void sim_adc_phase_stop(uint8_t mask);
+/* Round 18 (A16-R01): each hal_adc_read()/hal_adc_read_phase() takes ns of simulated time before it stamps,
+ * as the target reads the register and then hal_time_us(): every stamp is later than the ISR entry. The
+ * clock runs events meanwhile (a DMA completion, the fault ISR). 0 (default) = the old frozen-clock model. */
+void sim_adc_read_delay_ns(uint32_t ns);
 void sim_set_phase_currents(float ia, float ib, float ic); /* nominal HC5FW scaling */
 void sim_set_link_v(float v_ch1, float v_ch2);            /* nominal divider + VOFS 0.5 V */
 void sim_set_vofs(float v_pin);
@@ -91,6 +95,11 @@ void sim_sdadc_freeze(hal_sd_ch_t ch, bool frozen);
 void sim_sdadc_delay_ns(hal_sd_ch_t ch, uint32_t ns);
 void sim_sdadc_irq_latency_ns(uint32_t ns);
 void sim_sdadc_complete_now(hal_sd_ch_t ch); /* its DMA completes now; the interrupt runs at once */
+/* Round 18 (A16-R02): that channel's next completion interrupt comes ns later than the latency (once; its DMA runs
+ * on, later completions fold into the pending interrupt). sim_sdadc_overrun(): the target's DMA/FIFO error flag —
+ * samples lost, the ring stays down until hal_sdadc_init(). */
+void sim_sdadc_irq_hold_ns(hal_sd_ch_t ch, uint32_t ns);
+void sim_sdadc_overrun(void);
 void sim_sdadc_read_hook(sim_sd_hook_fn fn);
 void sim_sdadc_count_base(uint32_t count0);  /* block counters start here at the next hal_sdadc_init() */
 void sim_sdadc_tag(bool on);                 /* sample 0 of every block = its carrier period (& 0x3FFF) */
@@ -190,6 +199,9 @@ uint8_t sim_fs26_wd_err_cnt(void);
 uint8_t sim_fs26_state(void);
 uint32_t sim_fs26_crc_errors(void);
 void sim_fs26_corrupt_next_miso(void); /* flips a bit of the next response */
+/* Round 18: fn runs inside every FS26 SPI transfer — a higher-priority interrupt (the current-loop ISR)
+ * preempting the 1 ms task after it read its time. NULL (default): none. */
+void sim_fs26_xfer_hook(sim_isr_fn fn);
 
 /* ---------------- CAN / NVM / misc ---------------- */
 void sim_can_inject(uint8_t bus, const hal_can_frame_t *f);

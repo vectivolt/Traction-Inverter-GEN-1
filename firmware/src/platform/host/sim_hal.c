@@ -41,6 +41,7 @@ static bool s_wd_level;
 static bool s_slow_model;   /* the target's slow list: nothing converted before its first start */
 static bool s_slow_started;
 static uint8_t s_phase_stop; /* bit k: phase channel k delivers no new conversion (round 16 injection) */
+static uint32_t s_adc_read_ns; /* round 18: a read takes this long, then stamps (the target's order) */
 
 typedef enum { HVIL_M_CLOSED = 0, HVIL_M_OPEN, HVIL_M_SHORT_GND, HVIL_M_SHORT_BAT } hvil_mode_t;
 static hvil_mode_t s_hvil;
@@ -419,6 +420,17 @@ bool hal_adc_init(void)
 
 void sim_adc_require_slow_start(bool on) { s_slow_model = on; }
 void sim_adc_phase_stop(uint8_t mask) { s_phase_stop = (uint8_t)(mask & 0x7u); }
+void sim_adc_read_delay_ns(uint32_t ns) { s_adc_read_ns = ns; }
+
+/* Round 18 (A16-R01): the target reads the data register, then stamps with hal_time_us() (s32k396_adc.c), so
+ * every stamp is later than the ISR entry; the clock moves on by the read's time first (events included: a
+ * higher-priority interrupt may run meanwhile). 0 = the old frozen-clock model. */
+static void adc_read_time(void)
+{
+    if (s_adc_read_ns > 0u) {
+        sim_advance_ns(s_adc_read_ns);
+    }
+}
 
 /* The phase currents (BCTU) and V_DC (continuous) convert on hardware triggers; the rest only once
  * software has started the slow list. */
@@ -443,6 +455,7 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
     if (sig >= HAL_ADC_COUNT) {
         return false;
     }
+    adc_read_time();
     if (slow_unconverted(sig)) {
         *code = 0u;
         *t_us = 0u;
@@ -455,6 +468,7 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
 
 bool hal_adc_read_phase(uint16_t codes[3], uint32_t *t_us)
 {
+    adc_read_time();
     if (s_phase_stop != 0u) {
         return false; /* hal/adc.h round 16: no complete triplet, nothing written */
     }
@@ -576,6 +590,7 @@ static struct {
     uint64_t irq_ns;
     bool frozen;
     uint32_t delay_ns;
+    uint32_t hold_ns; /* round 18: this channel's next interrupt comes that much later (once) */
 } s_dma[HAL_SD_COUNT];
 
 static uint64_t sd_period_ns(void) { return 1000000000ull / s_carrier_hz; }
@@ -643,7 +658,8 @@ static void dma_complete(uint32_t ch, uint64_t t_ns)
     s_dma[ch].next_ns = ((s_dma[ch].blk + 1u) * sd_period_ns()) + s_dma[ch].delay_ns;
     if (!s_dma[ch].pend) {
         s_dma[ch].pend = true;
-        s_dma[ch].irq_ns = t_ns + s_irq_lat_ns;
+        s_dma[ch].irq_ns = t_ns + s_irq_lat_ns + s_dma[ch].hold_ns;
+        s_dma[ch].hold_ns = 0u;
     }
 }
 
@@ -683,11 +699,14 @@ static void sd_run(uint64_t until_ns)
     }
 }
 
-bool hal_sdadc_init(uint32_t carrier_hz)
+bool hal_sdadc_init(uint32_t carrier_hz, uint32_t irq_lat_max_us)
 {
+    if ((carrier_hz == 0u) || ((1000000u % carrier_hz) != 0u)) {
+        return false; /* as the target: the cadence stamp needs a whole number of microseconds per period */
+    }
     s_carrier_hz = carrier_hz;
     const uint64_t period = sd_period_ns();
-    hal_sd_ring_init(&s_ring, (uint32_t)(period / 1000u), s_sd_base);
+    hal_sd_ring_init(&s_ring, (uint32_t)(period / 1000u), irq_lat_max_us, s_sd_base);
     (void)memset(s_sdbuf, 0, sizeof s_sdbuf);
     for (uint32_t c = 0u; c < (uint32_t)HAL_SD_COUNT; c++) {
         s_dma[c].hw = s_sd_base;
@@ -704,6 +723,8 @@ bool hal_sdadc_read_frame(hal_sd_frame_t *f)
     sd_run(s_now);
     return s_sd_on && hal_sd_ring_read(&s_ring, f);
 }
+
+uint32_t hal_sdadc_reacquired(void) { return s_ring.n_reacq; }
 
 uint32_t hal_sd_dma_slot(hal_sd_ch_t ch)
 {
@@ -747,6 +768,20 @@ void sim_sdadc_irq_latency_ns(uint32_t ns)
     for (uint32_t c = 0u; c < (uint32_t)HAL_SD_COUNT; c++) { /* pending interrupts: no later than the new latency */
         s_dma[c].irq_ns = min_u64(s_dma[c].irq_ns, s_now + ns);
     }
+}
+
+void sim_sdadc_irq_hold_ns(hal_sd_ch_t ch, uint32_t ns)
+{
+    if ((uint32_t)ch < (uint32_t)HAL_SD_COUNT) {
+        sd_run(s_now);
+        s_dma[ch].hold_ns = ns;
+    }
+}
+
+void sim_sdadc_overrun(void)
+{
+    sd_run(s_now);
+    s_ring.lost = true; /* the target driver's DMA/FIFO error flag (TI_SD_LOST) */
 }
 
 void sim_sdadc_complete_now(hal_sd_ch_t ch)
@@ -812,10 +847,15 @@ bool sim_swg_running(void) { return s_swg_run; }
 uint8_t sim_swg_code(void) { return s_swg_code; }
 
 /* ================= SPI (FS26) ================= */
+static sim_isr_fn s_spi_hook;
+void sim_fs26_xfer_hook(sim_isr_fn fn) { s_spi_hook = fn; }
 bool hal_fs26_spi_init(void) { return true; }
 bool hal_fs26_xfer(uint32_t tx, uint32_t *rx)
 {
     s_now += 10000u; /* 32 bits at 4 MHz + CS framing */
+    if (s_spi_hook != NULL) {
+        s_spi_hook(); /* round 18: an interrupt that preempts the caller while it waits on the transfer */
+    }
     return sim_fs26_xfer(tx, rx);
 }
 
@@ -1000,6 +1040,7 @@ void sim_reset_at_us(uint64_t t_us)
     s_slow_model = false;
     s_slow_started = false;
     s_phase_stop = 0u;
+    s_adc_read_ns = 0u;
     s_hvil = HVIL_M_CLOSED;
     (void)memset(&P, 0, sizeof P);
     pwm_regs_reset();
@@ -1020,6 +1061,7 @@ void sim_reset_at_us(uint64_t t_us)
     s_sd_base = 0u;
     s_irq_lat_ns = 1000u; /* 1 us from DMA completion to its handler */
     s_sd_hook = NULL;
+    s_spi_hook = NULL;
     (void)memset(s_dma, 0, sizeof s_dma);
     (void)memset(&s_ring, 0, sizeof s_ring);
     (void)memset(s_rx_h, 0, sizeof s_rx_h);

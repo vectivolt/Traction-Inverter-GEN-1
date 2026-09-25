@@ -376,11 +376,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.16**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.17**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14, then A.15, then A.16 in the same pass, on 2026-09-25; no Marine unit is built or
+then A.14, then A.15, then A.16, then A.17 (round 18, the rechecks of 4425af9) in the same pass, on 2026-09-25; no Marine unit is built or
 type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
-review rounds 7–17 (`../docs/review-A7-disposition.md` … `../docs/review-A16-disposition.md`). It has the same PCBs and
+review rounds 7–18 (`../docs/review-A7-disposition.md` … `../docs/review-A17-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -388,9 +388,9 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.16 brought** (Road `design-basis.md` §11i–§11p; A.12 = round 13,
+**What A.9–A.17 brought** (Road `design-basis.md` §11i–§11q; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
-`review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17,
+`review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17, `review-A16-disposition.md`; A.17 = round 18 (rechecks of 4425af9),
 `review-A16-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
@@ -580,6 +580,16 @@ move with the automotive line.
   native/modern flow is wanted. KiCad 10.0.6 cannot resolve symbols from that EasyEDA-import folder
   at all (a CLI-verification dead end for that one folder, not a design defect). No power-stage
   change.
+- **A.17.** Round 18 (three independent rechecks of the A.16 push 4425af9, Road `review-A17-disposition.md`, F190–F198):
+  the round-17 diversion Schottky had been drawn on the protected node (its charging loop bypassed RSX: 27–99 A
+  instead of the modelled 5 A) — moved onto the amplifier node, zero parts; every two-pin diode now numbers its
+  cathode as pin 1 (the parts' and KiCad's convention); the exciter TVS/PTC rows recomputed at their worst corners
+  (the 8 A / 20 ms bound applies only to a direct short; a sustained mid-impedance short with the ECU asleep is a
+  bench gate with a layout rule); RSX an anti-surge 0.5 W part; the NCV4276C 40 V output rating no longer credited
+  as reverse-current evidence (release gate + VR-33); firmware: fresh samples no longer aged against the earlier
+  ISR clock on the target, cadence-locked resolver frames with a servicing deadline and self re-acquisition, the
+  resolver chain-latency sign corrected (FW-34…36). Marine: the shared card inherits all of it; no marine cell
+  change.
 
 | Change | M8 | M10 |
 |---|---|---|
@@ -621,7 +631,7 @@ insulation-coordination study; conformal coating is the marine baseline anyway (
 
 ## 10. Firmware — Marine additions to the Road contract
 
-The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), kept at the current Road rev — FW-01…FW-33 as of A.16)
+The Road contract ([`docs/firmware-contract.md`](../docs/firmware-contract.md), kept at the current Road rev — FW-01…FW-36 as of A.17)
 applies unchanged, with Marine parameter-set values. FW-05 trips at 1.25 × √2 × the 110 % current in
 instantaneous amperes: ±583 A (M8) / ±525 A (M10). The FW-16 QDIS top-up is §7's. The marine build
 adds:
@@ -750,10 +760,11 @@ suit insulation monitors, and automotive vibration design already exceeds class 
    - terminal-fault test on the resolver excitation and motor-temperature lines, VEXD
      off/cranking/on and both polarities, PTC/TVS/reverse-rail currents measured separately
      (Road gate ㉘, shared control card, widened round 15/A.14, re-scoped round 16/A.15, closed on
-     paper round 17/A.16 — the back-drive is now a rated Schottky diversion and the TVS energy is
-     PASS at the upgraded SMDJ8.5A-HRA; only the 35 V/PTC-current corner stays an accepted double
-     event, so the bench keeps the clearing-time measurement as a characterisation, not this
-     release gate);
+     paper round 17/A.16 for the sheet-bounded single fault; round 18/A.17 restored two release
+     gates — the reverse rail current into the exciter LDO (the diversion now passes RSX) and the
+     sustained-short impedance sweep with the ECU asleep, where the tripped PTC's trickle leaves
+     1.5–4 W in the TVS — and the 35 V/PTC-current corner stays an accepted double event; Marine
+     inherits both gates unchanged, the card being shared);
    - coldplate Rth (shared with Road).
 8. **Before the Road PCB layout (which M8 inherits):** decide the creepage strategy, PD2 sealed
    or PD3.
