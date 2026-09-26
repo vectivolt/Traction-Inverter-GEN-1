@@ -587,7 +587,8 @@ export default () => (
         fail-safe outcome (a TVS that fails short trips the PTC; FW-10 reports the line), not a PASS on paper. Round 16: the TVS is UNIDIRECTIONAL (SMCJ8.5A, cathode on
         the node): the excitation never goes below ground (4-8 V around VMID), so a negative harness fault is
         carried by the TVS forward diode at -0.7...-1.2 V (I_FSM 200 A) and the amplifier's lower output diode
-        sees < 0.3 A through RSX instead of 4.4 A (A14-R02). Positive clamp ~10.4-11.5 V: below the 12.1 V
+        sees < 0.3 A through RSX instead of 4.4 A (A14-R02). Positive clamp ≈ 8.6-9.8 V with the SMDJ7.0A-HRA of round 19
+        (10.4-11.5 V with the 8.5 V class of rounds 16-18): well below the 12.1 V
         rail + a diode while VEXD is up; with VEXD absent/cranking the rail (26.7 uF, CLDE + CEXD) charges
         through RSX and DEXP/DEXN (round 17/18, below) — 4.8 A peak decaying with tau = 59 us, rail then ~10 V,
         under the 18 V abs max — until the PTC trips; the ALM2402's own diode envelope is not published
@@ -607,7 +608,8 @@ export default () => (
         harness fault charged the rail through PTC -> DEX directly — RSX was not in that path although the model
         divided by it (5 A / 59 us was the RSX model; the drawn loop was bounded only by the PTC's 0.35 R: ~40-60 A).
         The anode now sits on the AMPLIFIER node (VREX_P): the rail-charging loop is PTC -> VREX_PX -> RSX 2.2 R ->
-        DEX -> VEXD, so the 4.8 A / 59 us / 0.28 mC exponential IS the circuit (ERC graph cut: no DEX on the
+        DEX -> VEXD, so the RSX-limited exponential IS the circuit — ≈ 3.9 A / 60 us / 0.23 mC with the 7.0 V clamp
+        (4.8 A / 0.28 mC with the 8.5 V class; round 20 F207 aligned these figures) — (ERC graph cut: no DEX on the
         protected node), the TVS keeps clamping the protected node meanwhile (total PTC current ~37 A at 24 V / 0 R)
         and the amplifier's own diode carries only the residual above the Schottky's knee. NCV4276C V_Q abs max
         40 V covers the NODE voltage only — the reverse current into ULDOEX with its input at 0 V / cranking /

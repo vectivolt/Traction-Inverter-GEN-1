@@ -376,11 +376,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.17**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.19**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14, then A.15, then A.16, then A.17 (round 18, the rechecks of 4425af9) in the same pass, on 2026-09-25; no Marine unit is built or
+then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18 and A.19 (rounds 19–20) on 2026-09-26; no Marine unit is built or
 type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
-review rounds 7–18 (`../docs/review-A7-disposition.md` … `../docs/review-A17-disposition.md`). It has the same PCBs and
+review rounds 7–20 (`../docs/review-A7-disposition.md` … `../docs/review-A19-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -388,7 +388,7 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.17 brought** (Road `design-basis.md` §11i–§11q; A.12 = round 13,
+**What A.9–A.19 brought** (Road `design-basis.md` §11i–§11s; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
 `review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17, `review-A16-disposition.md`; A.17 = round 18 (rechecks of 4425af9),
 `review-A16-disposition.md`):
@@ -602,6 +602,11 @@ move with the automotive line.
   `marine-verify.mjs` §7 — the kit's isolated 11.4–12 V rail is the low-V_P case (3.8–4.3 W in the TVS with the 8.5 V
   class once the PTC has tripped and the card sleeps, 2.0–2.5 W with the SMDJ7.0A-HRA the shared card carries since this
   round, F203) — with QP-MA-11 (the sweep on the kit) and the Marine kit requirement below. No marine cell change.
+- **A.19.** Round 20 (three rechecks of the A.18 push 00f6252, Road `review-A19-disposition.md`, F205–F207): nothing on
+  the circuit — the exciter TVS alternate (the 8.5 V class, wrongly called "same electricals") and the Road 4XX discharge
+  alternate (a 470 Ω copied into the 220 Ω row) corrected with ERC locks, the target checklist's firmware ID aligned, and
+  every 8.5 V-era figure re-derived from the shared model. Marine: M8 uses the 8XX build (its 470 Ω discharge row was
+  right); the shared card's TVS alternate correction applies; no marine cell change.
 
 | Change | M8 | M10 |
 |---|---|---|

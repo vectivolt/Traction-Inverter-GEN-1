@@ -690,6 +690,13 @@ for (const [sku, k] of Object.entries(SKUS)) {
     FLVC: /^0680L5000-05$/, FVBH: /^MF-LSMF300\/24X-2$/, FVBL: /^MF-LSMF300\/24X-2$/, ULDO15: /^NCV4276CDSADJR4G$/, ULDOEX: /^NCV4276CDTADJRKG$/, DIGN: /^US1M$/, DREVC: /^STPS5L60S$/, RSXP: /^ESR18EZPF2R20$/, RSXN: /^ESR18EZPF2R20$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-17/18 parts resolve (33 V/18 V TVS pair, 33 V power-board TVS, 100 uF hybrid bulk, 5 A slow-blow FLVC, D2PAK-5 ULDO15, US1M KL15 blocking diode, anti-surge RSX — F194)`, bad.join(", "));
+  // round 20 (A18-D01/R01, A18-R02; F205/F206): an ALTERNATE must be the same protection configuration as the primary —
+  // the exciter TVS alternate names the primary's voltage class; a discharge-resistor alternate carries the row's value
+  const rule = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref));
+  const tv = rule("TVSEP"), cls = /^SMDJ(\d+\.\d)A/.exec(tv?.mpn ?? "")?.[1];
+  ok(!!cls && new RegExp(`SMDJ${cls.replace(".", "\\.")}A`).test(tv?.alt ?? ""), `${sku}: the exciter TVS alternate is the primary's voltage class (SMDJ${cls}A) — F205`, tv?.alt ?? "none");
+  const rd = rule("RDIS1"), v = String(rd?.value ?? (/-(\d+)R/.exec(rd?.mpn ?? "")?.[1] ?? "")).replace(/\s*R$/, "");   // the 8XX row carries its value in the MPN only
+  ok(!!rd && !!v && (rd.alt ?? "").includes(`-${v}R`), `${sku}: the discharge-resistor alternate carries the row's value (${v} R) — F206`, rd?.alt ?? "none");
 }
 
 // ---------- report ----------

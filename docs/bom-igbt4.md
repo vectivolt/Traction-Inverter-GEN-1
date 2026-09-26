@@ -1,4 +1,4 @@
-# Traction Inverter — 4XX · IGBT (HCG600FH120D3E1EA), 250–500 V bus — BOM (rev A.18, generated 2026-09-26)
+# Traction Inverter — 4XX · IGBT (HCG600FH120D3E1EA), 250–500 V bus — BOM (rev A.19, generated 2026-09-26)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -49,7 +49,7 @@ CSV: [`docs/bom-discharge-igbt4.csv`](bom-discharge-igbt4.csv). Top cost lines:
 | 1 | HCM75S12T4K3 | SiC MOSFET 1200 V 75 mR TO-247-4L | 350 | 1200 V >=5 A SiC FET in TO-247-4L with t |
 | 1 | VOW3120-X017T | opto gate driver | 190 | Broadcom HCNW3120-500E (widebody, V_IORM |
 | 1 | IPL1-104-01-L-S-K | discharge-board control link | 125 | IPL1-104-01-L-S-RA-K (right angle) |
-| 4 | SQP10-220RJB15 | TT/Welwyn SQP statement: 'will not burn or emit incandescent | 112 | Yageo SQP10AJB-470R only with the same n |
+| 4 | SQP10-220RJB15 | TT/Welwyn SQP statement: 'will not burn or emit incandescent | 112 | Yageo SQP10AJB-220R only with the same n |
 | 2 | STUD-M6 | discharge-board bolt terminal onto the cap bank / busbar | 36 | M8 |
 | 12 | R2512-15k-2W | 15 k 2512 2 W thick film | 36 | - |
 | 2 | MLCC-10uF-25V-X7R | UCC14141-Q1 VIN bulk 2 x 10 uF | 3 | any X7R 25 V |

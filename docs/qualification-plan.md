@@ -1673,7 +1673,8 @@ and when the PTC tripped (by current or by the TVS's heat), and the RSX temperat
   island/coupling as the corrective action and IR-42 raised with the OEM.
 - **Sweep, awake.** The RSX body stays ≤ 155 °C (ROHM ESR operating limit) and the amplifier reaches OTF, recovers,
   and is parametrically unchanged (QP-RX-01 afterwards).
-- **Clamp.** The protected node stays ≤ 12.8 V while VEXD is up (10.7 V predicted at 24 V / 15.6 A), and never
+- **Clamp.** The protected node stays ≤ 12.8 V while VEXD is up (8.8 V predicted at 24 V / 17.8 A with the 7.0 V
+  clamp; 10.7 V / 15.6 A with the 8.5 V class of rounds 16–18), and never
   above the 18 V output abs max.
 - **Double event, 35 V at ≥ 0.37 Ω.** The node stays ≤ 12.8 V (9.1 V / 37 A predicted with the 7.0 V clamp), and the
   TVS energy is ≤ 5.3 J (≈ 0.08 J predicted on the typical trip curve; 7.6 J if the PTC took the full 20 ms at 40 A —
@@ -1726,9 +1727,9 @@ VBATC, the ULDOEX input and output, and both ALM2402 outputs; an SMU (12 V / 1 A
 RSX / ALM2402-diode path. The reverse rail current into ULDOEX, and the VEXD peak.
 
 **Pass** —
-- The total envelope is ≤ the row's: peak ≤ 5.0 A, τ ≈ 60 µs, 0.28–0.30 mC (99 % by 280 µs), the protected node
-  held at 11.0–11.6 V by the TVS meanwhile. That puts ≈ 0.15 mJ in the Schottky and 1.5 mJ in RSX. A larger envelope
-  is CONDITIONAL.
+- The total envelope is ≤ the row's (7.0 V clamp, round 19/20): peak ≤ 4.0 A, τ ≈ 60 µs, ≈ 0.23 mC (99 % by 280 µs),
+  the protected node held at ≈ 9.1 V by the TVS meanwhile. That puts ≈ 0.12 mJ in the Schottky and ≈ 1.0 mJ in RSX
+  (the 8.5 V class: 5.0 A, 0.28–0.30 mC, 11.0–11.6 V, 0.15 / 1.5 mJ). A larger envelope is CONDITIONAL.
 - The Schottky I²t is ≤ 1 mA²s (0.7 mA²s predicted against the 20 A²s of its 70 A / 8.3 ms I_FSM point — the
   criterion is I²t, not peak against a 140× wider pulse; round 18).
 - The RSX / ALM2402-diode share is recorded. The row's premise is that the internal diodes (≈ 0.8 V at 5 A)

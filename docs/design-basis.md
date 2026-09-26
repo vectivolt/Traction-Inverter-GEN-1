@@ -411,13 +411,13 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.18)
+## 11. Verification status (current release: rev A.19)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
 
 - geometric pin-verify **2057/2057 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
-- structural ERC **969 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
+- structural ERC **977 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
 - numeric worst-case verification **156 PASS / 18 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — rounds 17–19);
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
@@ -435,12 +435,27 @@ reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
 
+## 11s. Rev A.19 — round 20: three rechecks of 00f6252 (summary)
+
+Three independent rechecks of the A.18 push ([`review-A19-disposition.md`](review-A19-disposition.md), register F205–F207).
+All three close the round-19 resolver-origin and high-current findings (the callback-derived origin is gone; the boundary
+behaviour is the declared 3 µs uncertainty) and ask for no hardware change; what they found is metadata and prose of ours:
+the exciter TVS alternate still read "SMDJ8.5A (same electricals)" after the round-19 class change — a different protection
+configuration that cannot inherit the 7.0 V parked-short calculation (→ the plain SMDJ7.0A, proto only, the 8.5 V class
+excluded); the 4XX discharge-resistor row carried the 8XX 470 Ω alternate (four 470 Ω: 3.1 s to 60 V against the 2 s
+target; → SQP10AJB-220R); the target checklist rows T-05/T-06 still named TI_FW_ID 0x0A0F0012 (→ 0x0A0F0013); and 8.5 V-era
+figures survived in the card comments, the README gate, §11r, the F199 row, two QP predictions and — broader than the
+reviewers said — the back-drive row's evaluation conditions (0 / 0.29 Ω, printing PTC totals over 40 A beside a PASS), all
+re-derived from the shared model at the IR-16 allocations. Two ERC locks keep the alternates honest (the TVS alternate's
+voltage class, the discharge alternate's value). Counts: ERC 977 · verify 156/18/0 · sim 23/6/0 · Marine 87/23/0 ·
+2057/2057 pins + KiCad-10 proof · BOM totals unchanged · firmware code unchanged (290 / 2705 / 0). Marine forks at A.19.
+
 ## 11r. Rev A.18 — round 19: three rechecks of e315bf1 (summary)
 
 Three independent rechecks of the A.17 push, all right, plus one defect of our own ([`review-A18-disposition.md`](review-A18-disposition.md),
 register F199–F202). **Analysis:** the exciter PTC-current row had been evaluated at 24 V while IR-16 allowed 0.05 Ω up to the
 26 V jump start (41.6 A cold at 26 V, over the PTC's 40 A) — the row now runs every permitted voltage and the harness minima are
-computed at the verifier's own 5 % margin and rounded up (IR-16: 0.09 Ω at ≤ 26 V, 0.33 Ω at 35 V, 0.25 Ω negative); the ≥ 8 A
+computed at the verifier's own 5 % margin and rounded up (IR-16 with the 7.0 V clamp: 0.08 Ω at ≤ 24 V, 0.14 Ω at 26 V, 0.37 Ω at 35 V, 0.26 Ω negative — the 8.5 V-class interim values 0.09 / 0.33 / 0.25 Ω were superseded within the round); the ≥ 8 A
 TVS-energy PASS rested on an I⁻² trip-time law that no sheet states — the assumption is explicit, the row a WARN, and the measured
 clearing waveform (trip ≤ 20 ms, ∫v·i ≤ 5.3 J) is a release criterion of QP-RX-04 with VR-16 asking Bourns for the envelope above
 8 A; the round-18 "unprotected window" row had printed 1–200 Ω for a criterion error (energy where the PTC trips, steady-state

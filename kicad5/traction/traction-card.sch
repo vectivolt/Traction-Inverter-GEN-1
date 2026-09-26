@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-23"
-Rev "A.18"
+Rev "A.19"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -46,7 +46,7 @@ CARD-IF   -   1 section
 Text Notes 33450 21900 0    60   ~ 0
 VEHICLE-IF   -   1 section
 Text Notes 33460 22550 0    60   ~ 0
-rev A.18   -   26 sections   -   301 components
+rev A.19   -   26 sections   -   301 components
 Wire Notes Line
 	33400 23500 37850 23500
 Wire Notes Line
