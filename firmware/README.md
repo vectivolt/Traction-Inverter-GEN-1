@@ -1,14 +1,14 @@
 # Traction inverter firmware (S32K396 + FS26)
 
 This is the application firmware for the 220 kW / 850 V traction inverter. It covers four SKUs:
-8XX SiC, 8XX IGBT, 4XX IGBT and 4XX SiC. It implements `docs/firmware-contract.md` (rev A.17),
+8XX SiC, 8XX IGBT, 4XX IGBT and 4XX SiC. It implements `docs/firmware-contract.md` (rev A.18),
 §8/§8a of `docs/design-basis.md`, the round-12 disposition, the ball map
 `calculations/mcu-ballmap.json`, the round-14 review of commit cfd35a7 (see "Round 14"), the
 round-15 rechecks of commit a8c75eb (see "Round 15"), the round-16 rechecks of commit 32214be (see
 "Round 16"), the round-17 closure of every open item (see "Round 17": each one is now a decision in the
-contract or a row of the target checklist `docs/target-bringup.md`) and the round-18 rechecks of commit 4425af9
-(see "Round 18"). It is C11 with no dynamic memory and no recursion, and every loop is bounded. It uses
-fixed-width types and single-precision float only.
+contract or a row of the target checklist `docs/target-bringup.md`), the round-18 rechecks of commit 4425af9
+(see "Round 18") and the round-19 rechecks of commit e315bf1 (see "Round 19"). It is C11 with no dynamic memory
+and no recursion, and every loop is bounded. It uses fixed-width types and single-precision float only.
 
 The Wolfspeed CRD200 package was used only to check which structure is usual for such a
 firmware. No code was taken from it.
@@ -28,7 +28,7 @@ make clean
 `make test` compiles with `-std=c11 -Wall -Wextra -Werror -Wshadow -Wdouble-promotion
 -Wmissing-prototypes -Wstrict-prototypes -Wundef -Wpointer-arith -Wcast-qual -Wvla`. Test files
 alone get `-Wno-double-promotion`, because their reference arithmetic is done in double. Current
-result: **278 tests, 2534 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
+result: **290 tests, 2705 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
 `-O2` (`make BUILD=build/asan test CFLAGS="-O1 -g -fsanitize=address,undefined"`,
 `make BUILD=build/o2 test CFLAGS=-O2`).
 
@@ -59,7 +59,7 @@ calibration record must agree with it (FW-01/02/20).
    - **FAULT_ROUTE_VALIDATED** and **OVP_ROUTE_VALIDATED**: an EOL/HIL validation record in NVM
      (`NV_REC_VALIDATION`), CRC-sealed and bound to `TI_FW_ID`, the SKU and the device UID: the pad →
      PWM fault injection passed, and the FW-06 chain was measured within 15.6 µs (checklist T-05; this image
-     is `TI_FW_ID` 0x0A0F0012, round 18).
+     is `TI_FW_ID` 0x0A0F0013, round 19).
 
    Anything missing is a DTC (`DTC_ARM_EVIDENCE` or `DTC_PWM_LOCK`), the state machine never leaves
    the inhibited state (no FS0B release, no FW-16 energisation, no `MCU_GATE_EN`), and INV_STATUS
@@ -104,9 +104,10 @@ These rules shape the code:
   a resolver frame only when all three channels of one epoch did, and the resolver angle expires
   `cal_rslv_hold_us` after its newest frame whether or not a new one arrives. Round 18: freshness is judged at
   a time read after the sample was read, with a signed age (`ti_stale`), and a resolver frame is stamped with
-  its block start on the SDADC cadence, whatever its interrupt's latency.
+  its block start on the SDADC cadence, whatever its interrupt's latency. Round 19: that cadence is dated by the
+  SWG start, never by a completion, and a ring whose DMA lost the carrier phase is restarted, not re-guessed.
 - **One parameter set per SKU.** `include/params_<sku>.h` is generated from the contract tables
-  and has 175 fields. 76 of them are `cal_*` values the contract does not fix, mostly hardware
+  and has 177 fields. 78 of them are `cal_*` values the contract does not fix, mostly hardware
   timings and tolerances. Each has its contract default and a `[min, max]` range
   (`include/cal_ranges.h`), checked at boot.
 - **Units:** see `include/ti_types.h`. Time is `uint32_t` µs or ms, compared only through
@@ -127,20 +128,20 @@ These rules shape the code:
 
 | Directory | Lines | Contents |
 |---|---|---|
-| `include/` | 1168 | types/units (+ `ti_stale`), parameter struct, 4 generated SKU sets, CAL ranges |
+| `include/` | 1180 | types/units (+ `ti_stale`), parameter struct, 4 generated SKU sets, CAL ranges |
 | `src/util/` | 104 | math helpers, CRC-8 (0x1D, SAE J1850) and CRC-32 |
-| `src/hal/` | 565 | the 10 HAL interfaces (timer: the 64-bit time base), the shared resolver frame protocol (round 16; round 18: the cadence stamp, the servicing deadlines, re-acquisition) |
+| `src/hal/` | 632 | the 10 HAL interfaces (timer: the 64-bit time base), the shared resolver frame protocol (round 16; round 18: the cadence stamp, the servicing deadlines, re-acquisition; round 19: the SWG-start origin, the re-sync from the clock, `lost` and the producer restart) |
 | `src/sense/` | 680 | current (FW-05, stuck-channel check, lost triplets), V_DC (FW-07/18), temperatures (FW-13), HVIL (FW-09), HW_ID (FW-01/02), IGN, the LV supply (FW-33) |
 | `src/control/` | 931 | resolver (FW-10: bounded hold, amplitude planes, SWG ramp, the latency's sign), FOC/SVPWM, MTPA/field weakening/limits and the voltage witness (FW-03/04), gains, the DC-link trim (FW-08: a regen limiter in RUN) |
-| `src/safety/` | 2106 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12, + its AMUX for FW-33), bridge sequences + DESAT hold and the ASC-exit release wait (round 18: the FW-15 low wait on the bridge's own clock), gate power (FW-14), self-test (FW-16), arming evidence |
-| `src/comms/` | 686 | CAN command/status with E2E (FW-11), UDS DTC store, UDS SecurityAccess + the service-lock routine (FW-32) |
+| `src/safety/` | 2134 | state machine, §6 matrix, fault manager (FW-15), FS26 (FW-12, + its AMUX for FW-33), bridge sequences + DESAT hold and the ASC-exit release wait (round 18: the FW-15 low wait on the bridge's own clock), gate power (FW-14), self-test (FW-16), arming evidence |
+| `src/comms/` | 687 | CAN command/status with E2E (FW-11), UDS DTC store, UDS SecurityAccess + the service-lock routine (FW-32) |
 | `src/discharge/` | 279 | FW-17/18/19, FW-02 τ, unexpected discharge |
 | `src/nvm/` | 520 | parameter sets (+ the exciter plane checks), calibration (FW-20), NVM log and queue (validation and service records) |
-| `src/app/` | 1218 | integration (+ the current-loop liveness check FW-31, the diagnostic bus, the check times of FW-34) |
-| `src/platform/s32k396/` | 1920 | generated ball-map tables, the ADC map and its derived schedule, register images, REG_PROT layout, the board configuration the RM fills, drivers with RTD bodies (three SDADC DMA interrupts) |
-| `src/platform/host/` | 1991 | simulation of the card, FS26 (its oscillator tolerance and AMUX) and MCU peripherals (REG_PROT, route binding, MCU reset, per-channel eDMA, the excitation chain; round 18: ADC reads that take time, per-channel interrupt hold-off, the overrun flag, a preempting ISR) |
-| `tests/` | 7447 | 31 suites (one file per module + time + sdadc + uds + scenarios), 278 tests, harness (two exact clocks, ADC-level noise) |
-| `tools/` | 366 | parameter and board-map generators |
+| `src/app/` | 1229 | integration (+ the current-loop liveness check FW-31, the diagnostic bus, the check times of FW-34, the resolver producer restart of FW-35) |
+| `src/platform/s32k396/` | 1961 | generated ball-map tables, the ADC map and its derived schedule, register images, REG_PROT layout, the board configuration the RM fills, drivers with RTD bodies (three SDADC DMA interrupts) |
+| `src/platform/host/` | 2044 | simulation of the card, FS26 (its oscillator tolerance and AMUX) and MCU peripherals (REG_PROT, route binding, MCU reset, per-channel eDMA, the excitation chain; round 18: ADC reads that take time, per-channel interrupt hold-off, the overrun flag, a preempting ISR; round 19: the DMA blocks triggered by the SWG start, its start latency) |
+| `tests/` | 7893 | 31 suites (one file per module + time + sdadc + uds + scenarios), 290 tests, harness (two exact clocks, ADC-level noise) |
+| `tools/` | 368 | parameter and board-map generators |
 
 ## What is verified where
 
@@ -187,7 +188,13 @@ These rules shape the code:
   that preempts the task keeps FW-15's ≥ 1.5 ms low (also across the wrap); SDADC
   completion interrupts held off within the deadline (stamps exact), past it (rejected, re-acquired), for exactly
   a lap (never fresh), one channel lapping, all three stalled, a late anchor, both wraps, lost samples; the
-  resolver latency against an independent rotor at ± 3000 / 10 000 rpm and 25 / 50 µs.
+  resolver latency against an independent rotor at ± 3000 / 10 000 rpm and 25 / 50 µs;
+- round 19: the resolver cadence dated by the SWG start — first completions 0–800 µs late (accepted within the deadline
+  + the 3 µs uncertainty with exact stamps, rejected beyond), a SWG start latency of 1–3 µs inside the declared
+  uncertainty, a constant 40 / 60 µs delay never published, a delay rejected once never absorbed after the break (also
+  as the FOC angle at 10 000 rpm), a channel paused one period, a DMA stall and 2^32 µs of silence against the clock,
+  an early completion, an interrupt late inside the origin's uncertainty (no false loss), the restart limit per key
+  cycle across an MCU reset.
 
 **Needs the target, HIL, EOL or the bench:** everything is in **[`docs/target-bringup.md`](docs/target-bringup.md)**
 — one row per open marker in the sources (RTD, RM, HW-RM, HW, EOL, REL), with the acceptance check and what
@@ -222,7 +229,7 @@ It also maps every edge case from the task to its test.
 | 32 | comms/uds.c, app.c (`service_clear`, `diag`) | uds, scenarios | yes | T-26 (diagnostic RX), T-35 (the key) |
 | 33 | sense/vsup.c, safety/fs26.c (the AMUX), app.c (`sense_slow`, `detect`) | scenarios | yes (the FS26 AMUX modelled) | T-39 (the reading, the profiles on the bench), T-37 (the bands) |
 | 34 | ti_types.h (`ti_stale`), app.c (`sense_fast`, `app_task_1ms`, `recovery`), current.c, vdc.c, resolver.c (`rslv_age`), bridge.c (`br_rec_step`) | time, current, vdc, resolver, bridge, scenarios | yes (the target's read-then-stamp order modelled) | T-36 |
-| 35 | hal/sdadc_ring.c, s32k396_resolver.c, app.c (the DTC) | sdadc, params, scenarios | yes (per-channel eDMA and interrupt model) | T-40 (latency, cadence), T-30, T-28 |
+| 35 | hal/sdadc_ring.c, s32k396_resolver.c (`hal_swg_start`: the origin; `hal_sdadc_restart`), app.c (the restart, the DTC) | sdadc, params, scenarios | yes (per-channel eDMA and interrupt model, triggered by the SWG) | T-40 (latency from the carrier boundary, cadence), T-41 (the flags wired to `lost`), T-42 (the SWG start latency), T-30, T-28 |
 | 36 | control/resolver.c (`rslv_theta_e_at`) | resolver | yes | T-37 (the latency's sign on HIL) |
 
 ## Round 14 (three reviews of commit cfd35a7)
@@ -346,6 +353,37 @@ channels are in step — it used to stay down until reset; a channel resuming ou
 at the second); every `sdadc` test now also requires each frame's stamp to be its carrier period's true start
 (± 1 µs), not only its three tags to agree.
 
+## Round 19 (rechecks of commit e315bf1)
+
+One confirmed defect — all three rechecks reproduced it (A17-R01, register F201) — verified against the source before the
+change, same rule: **fail closed**. The regression tests fail on the pre-fix source (108 checks in 17 tests) and pass now;
+every mechanism was mutated once and the suite caught it (method, per-test results and the mutations:
+`docs/traceability.md`, "Round 19"). Contract §10d: FW-35 rewritten.
+
+| ID | Defect | Change | Tests |
+|---|---|---|---|
+| A17-R01 (FW-35) | The resolver ring dated its cadence from a completion callback's own execution time (`sdadc_ring.c` 147–150: `t_org = now_us − period_us` at the first completion after (re)acquisition, moved back by an earlier one). A late anchoring callback became the reference: block 1 stamped 29–800 µs too new with the ring unbroken (80 µs = 19.2° el at 10 000 rpm, 4 pole pairs); a constant 40 / 60 µs delay passed the 30 µs deadline forever (every frame 40 / 60 µs too new); after a break the re-anchor absorbed the very delay just rejected (at the application: the FOC angle 5.3° el behind at 10 000 rpm); `resync()` took its counts from equal DMA slots modulo 4, never the acquisition phase; and an early completion moved the origin to itself. | The origin is the **SWG start**: the SDADCs are triggered by the SWG period start, so `hal_swg_start()` (both platforms) brackets the generator enable with two `hal_time_us64()` reads inside PRIMASK and anchors the ring (`hal_sd_ring_anchor`: t_org the later read, k_org the first carrier period's block, uncertainty u = the bracket + 1 µs + `cal_swg_start_lat_us`, new CAL 2 µs [0, 20], T-42; u ≥ a quarter period is `lost`); running, it only changes the amplitude. The ring never anchors itself (an unanchored ring counts nothing) and judges EVERY completion against the absolute cadence, u added on both sides: a block's first completion within [−u, `cal_sd_irq_lat_max_us` + u], a later channel's within [−u, T/2 + u]; early or late breaks the ring. `t_org += late` is gone. A broken ring **re-syncs from the clock** — the counts are the block that ended within [−u, T/2 + u] of the completion — the DMA positions only confirming them (every DMA past it; a later channel still on it waits for its own completion); the completing DMA behind one past the block, a DMA elsewhere, or four periods without agreement is a DMA out of phase: `lost`, as are the platform's DMA error, FIFO-overrun and trigger-miss flags (T-41). A lost ring stays down until the **synchronized producer restart** `hal_sdadc_restart()` (DMA rings re-armed, the SWG restarted at its present code and re-anchored), which the 1 ms task requests at most `cal_rslv_restart_max` (new CAL: 3 [0, 10]) times per key cycle — counted in the retained session, so an MCU reset inside the key cycle does not refill it — each one occurrence of `DTC_RSLV_REACQUIRED`; beyond it the resolver stays invalid (FW-28). Times are 64-bit: the clock-derived index holds across the 32-bit wrap and any silence; the origin is re-based by whole periods at each publication. The host simulation triggers the DMA blocks from the SWG start and anchors as the target does (`sim_swg_start_latency_ns()`). | sdadc: `the_first_completion_is_judged_against_the_swg_start` (0, 29, 30, 31, 33, 34, 40, 60, 80, 800 µs), `the_swg_start_latency_stays_inside_the_declared_uncertainty` (1–3 µs), `a_constant_completion_delay_is_never_published` (40, 60 µs), `a_rejected_delay_is_never_absorbed_after_a_break`, `a_channel_paused_one_period_is_lost_not_taken_for_a_late_one`, `a_late_interrupt_inside_the_origins_uncertainty_is_no_phase_loss`, `an_early_completion_breaks_the_ring`, `the_origin_and_the_clock_index_hold_across_the_32bit_wrap`, `the_anchor_refuses_an_origin_too_uncertain`, `nothing_counts_before_the_swg_start`; params: `round19_cal_defaults_and_ranges`; scenarios: `a_late_completion_after_a_break_never_dates_the_angle`, `resolver_producer_restarts_are_bounded_per_key_cycle` |
+
+`TI_FW_ID` is 0x0A0F0013: this image needs a new EOL/HIL validation record before it arms (checklist T-05); the
+calibration record stays layout 2. The parameter sets were regenerated (`make params`: 177 fields, 78 CAL rows; the
+`cal_sd_irq_lat_max_us` description now says its reference is the carrier boundary, so the SDADC's output latency counts
+in it). The target checklist gained T-41 (every SDADC/eDMA flag of lost or shifted samples wired to `lost`, and the
+restart path of `hal_sdadc_init()`) and T-42 (the SWG start latency, the first block's phase 0, LDOS updates keeping the
+boundaries, the SGEN flags); T-40 now measures the completion latency from the carrier boundary; T-28's lost samples wait
+for the restart. Existing tests changed: `sdadc: a_frozen_channel_yields_no_frame` (a frozen channel is `lost` — found
+behind the clock during the freeze — and nothing comes back without the restart; round 18 re-acquired the in-step
+resume), `all_three_stalled_together_are_detected_and_reacquired` (the 5-period DMA stall is `lost`, then the restart; the
+8-period one and the held interrupts re-sync), `a_completion_between_channel_reads_never_mixes_epochs` (the DMAs moving
+on during the copy are now a 2 µs preemption across a boundary with the interrupts pending — the forced early completion
+it used is refused now), `a_late_channel_holds_the_frame_back_and_the_stamp_is_the_first` (the stamp exactly the block
+start), `the_epoch_counter_wraps` (+ the re-base invariant), `lost_samples_keep_the_ring_down_until_init` → `…until_a_restart`;
+`a_late_anchor_is_moved_back_by_the_first_prompt_completion` removed — it proved the round-18 origin correction, which is
+gone (its case, a 25 µs latency from the start, is inside the first-completion sweep: exact stamps from the first frame);
+every `sdadc` test now requires each frame's stamp within ± 3 µs of its period's true start on the SWG's cadence;
+`scenarios: a_frozen_resolver_channel_is_never_read_as_fresh` (lost, one restart, one DTC occurrence, no ring
+re-acquisition; each iteration a cold start), `resolver_frames_stopping_withdraws_the_angle_at_the_hold` (comment: the
+re-sync or the restart). Test infrastructure: `h_rotor_theta_e()` in the harness.
+
 ## Decisions recorded in the contract (round 17)
 
 The former "contract contradictions and open items", by number. Each is now contract text (the section named,
@@ -391,7 +429,7 @@ in `docs/firmware-contract.md`; §10c indexes the round) or a checklist row (`do
 27. **ADC1 injected chain** — FW-06 (the sample wait: 4 µs of the 5.0 µs row); measurement: T-11.
 28. **BCTU list read-back** — checklist T-12.
 29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0011, calibration layout 2; the records: T-05, T-06, T-07 (round 18:
-    0x0A0F0012, §10d).
+    0x0A0F0012, round 19: 0x0A0F0013, §10d).
 30. **Amplitude planes** — FW-30 (round 17): the setpoint at the monitor, the floor at the winding through
     `cal_rslv_wind_per_mon` and the EOL ratio; the EOL confirmation: T-07.
 31. **Where RSX sits** — FW-30: on the amplifier side of the monitor tap (77/72.6 up, 70/72.6 down).

@@ -1466,7 +1466,7 @@ All of §7 runs on F-RX with the selected resolver, the harness replica, and FW 
 to VEXD sits, in parallel with the ALM2402's own upper diode — round 18 moved it off the protected node so the
 harness charging loop passes RSX) through RSX 2.2 Ω (ROHM ESR18EZPF2R20 anti-surge since round 18) to the protected
 node, then through the PTC MF-MSMF020/33X to the connector. Two parts hang on the protected node:
-- the TVS SMDJ8.5A-HRA to AGND;
+- the TVS SMDJ7.0A-HRA to AGND (round 19, F203: the 8.5A of rounds 17–18 left the parked-trickle case unclosable);
 - the monitor tap.
 
 **Gate ㉘ since round 18** (README ㉘): the sheet-bounded single fault (fault current ≥ 8 A — the ISO 16750-2 direct
@@ -1623,15 +1623,19 @@ resistor 0–100 Ω (≥ 50 W) for step 2b; the card's sleep control (V5A off / 
 
 **Steps**
 1. Energy-limited first: 24 V at a 2 A limit. Check the clamp and the monitoring.
-2. **Single fault.** Apply 24 V for 60 s to EXC+ and EXC− in turn, in each PTC state, with the source directly at
-   the connector (0 Ω external — the row's bound) and with the harness replica.
+2. **Single fault.** Apply 16 V, 24 V and 26 V (the ISO 16750-2:2023 jump start, IR-02) for 60 s to EXC+ and EXC− in
+   turn, in each PTC state, with the source directly at the connector (0 Ω external — expected to exceed I_max at 24
+   and 26 V, recorded), at the IR-16 minima (0.08 / 0.14 Ω) and with the harness replica. Record I_PTC(t), V_TVS(t)
+   and ∫v·i (the ≥ 8 A release criterion below).
 2b. **Sustained-short impedance sweep, ECU asleep (RELEASE GATE, round 18, F193).** With the card in LPOFF (V5A = 0,
    so the ALM2402 SDN is low and ULDOEX is inhibited — nothing sinks the fault current), apply 12.6, 14.4, 16 and
    24 V to EXC+ and EXC− in turn through external series resistances 0, 0.5, 1, 1.35, 2, 3, 5, 10, 20, 35, 70 and
    100 Ω, each for 10 min or until the TVS lead temperature has settled, whichever is later; abort a point at a
    TVS lead temperature of 150 °C and record the time. Repeat the 12.6 V / 20 Ω and 16 V / 5 Ω points at −40 °C
    and 85 °C chamber. Then repeat the 12.6 V and 24 V sweeps with the card awake (ALM2402 driving) and record the
-   RSX body temperature.
+   RSX body temperature. **Marine (QP-MA-11):** the same sweep at the kit rail 11.4 / 12.0 / 13.2 V and the ship
+   bus 18 / 24 / 31.2 V (marine/verification-report.md §7: 5.2 W at 12.0 V, 8.3 W at 11.4 V — the platform's
+   worst case).
 3. **Double event, characterisation.** Apply 35 V for 400 ms with source + harness at the interface-requirements
    allocation (IR-16: exciter-line fault source + harness impedance ≥ 0.29 Ω at 35 V since round 18).
 4. Repeat each 10 times per line (plan), cooling to 25 °C between repetitions.
@@ -1643,11 +1647,20 @@ buffer status; for step 2b at every (voltage, resistance) point: the settled TVS
 and when the PTC tripped (by current or by the TVS's heat), and the RSX temperature awake.
 
 **Pass** —
-- **Single fault, 24 V.** I_PTC peak ≤ 40 A with the harness replica (36.7 A predicted cold at the IR-16 minimum
-  0.05 Ω); at a true 0 Ω the prediction is 40.7–41.8 A — recorded, not judged (IR-16).
-- **Clearing time and TVS energy**, at 24 V and 35 V, against the SMDJ8.5A-HRA's **5.3 J** (the 10 ms point converted
-  from the exponential test pulse to a rectangular one and derated to 85 °C; 6.5 J at 25 °C — round 18, F193):
-  - **fault current ≥ 8 A and ≤ 20 ms** — PASS inside the sheet's bound: ≤ 1.7 J at the 8 A point, 0.13 J at 37 A.
+- **Single fault, 16 / 24 / 26 V.** I_PTC peak ≤ 40 A at the IR-16 minima (0.08 Ω at ≤ 24 V, 0.14 Ω at 26 V: 37.9 A
+  and 37.4 A predicted cold — round 19, F199: the round-18 row was evaluated at 24 V only); at a true 0 Ω the prediction
+  is 46 A at 24 V and 52 A at 26 V with the 7.0 V clamp — recorded, not judged (IR-16).
+- **Clearing time and TVS energy**, at 16 / 24 / 26 V and 35 V, against the SMDJ7.0A-HRA's **5.3 J** at 10 ms (the point
+  converted from the exponential test pulse to a rectangular one and derated to 85 °C; 6.5 J at 25 °C — round 18, F193)
+  and E_cap(t) beyond it (≈ 7.1 J at 20 ms on the plain SMDJ sheet's Z_th Fig. 6 — round 19):
+  - **fault current ≥ 8 A (RELEASE CRITERION since round 19, F200)** — with a stiff supply (≤ 10 mΩ) plus the harness
+    replica at R_ext = 0 / 0.14 / 0.5 / 1.33 Ω, at 16 / 24 / 26 V (+31.2 V for Marine, QP-MA-11), at −40 / 23 / 85 °C and
+    post-trip (re-fault within 1 h, R up to R_1max), on ≥ 5 parts from each of 2 lots: record i(t) and v_TVS(t), from
+    them E_TVS = ∫v·i, q = ∫i, t_trip (i below 50 % of I0) and I_peak. Accept if E_TVS ≤ 0.5·E_cap(t), t_trip ≤ 20 ms for
+    I0 ≥ 8 A, I_peak ≤ 40 A at the IR-16 allocation, and R stays within R_min–R_1max after 100 trips at the worst point.
+    The sheet bounds only the 8 A point (20 ms); above it the verifier's figure (≤ 1.4 J at the 7.0 V clamp, 0.13 J at
+    37 A) rests on the ASSUMED transfer of the maximum curve to a stiff source — this measurement closes the row
+    ("Sensing A.15" WARN), together with VR-16.
   - **fault current ≥ 8 A and > 20 ms** — FAIL (the sheet's only maximum trip time is exceeded).
   - **fault current < 8 A** (step 2b) — judged by the sweep criteria below, not by a clearing time.
   - **TVS energy > 5.3 J** — FAIL.
@@ -1662,21 +1675,21 @@ and when the PTC tripped (by current or by the TVS's heat), and the RSX temperat
   and is parametrically unchanged (QP-RX-01 afterwards).
 - **Clamp.** The protected node stays ≤ 12.8 V while VEXD is up (10.7 V predicted at 24 V / 15.6 A), and never
   above the 18 V output abs max.
-- **Double event, 35 V at ≥ 0.29 Ω.** The node stays ≤ 12.8 V (11.1 V / 37 A predicted), and the TVS energy is
-  ≤ 5.3 J (0.09 J predicted on the typical trip curve; 8.9 J if the PTC took the full 20 ms at 40 A — the double
-  event is bounded only by the typical curve, F193). The outcome must be fail-safe: the PTC may fail open (above I_max its survival
+- **Double event, 35 V at ≥ 0.37 Ω.** The node stays ≤ 12.8 V (9.1 V / 37 A predicted with the 7.0 V clamp), and the
+  TVS energy is ≤ 5.3 J (≈ 0.08 J predicted on the typical trip curve; 7.6 J if the PTC took the full 20 ms at 40 A —
+  the double event is bounded only by the typical curve, F193). The outcome must be fail-safe: the PTC may fail open (above I_max its survival
   is not warranted), and FW-10 must then report a resolver fault. The ALM2402, the buffer and the MCU pads must
   be undamaged.
 - **After the trip.** The TVS holds V_BR·P_d/(V_S − V_BR): ≈ 0.6 W at 24 V, 0.3 W at 35 V — 1.5–3.8 W at 12.6–16 V
   (step 2b) — with its lead temperature inside the SMDJ steady-state rating for the measured value.
-- **TVS after the test.** V_BR stays in 9.44–10.40 V, with leakage within the SMDJ-HRA I_R.
+- **TVS after the test.** V_BR stays in 7.78–8.60 V, with leakage within the SMDJ-HRA I_R (200 µA at 7.0 V).
 - **Survival.** The ALM2402 and the buffer are unharmed: QP-RX-01 amplitudes unchanged, no OT flag.
 
 **Record** — all waveforms; clearing time per (state, voltage); TVS energy and temperature. The PTC data answers
 the questions in vendor-requests.md (Bourns — clearing time across 15–40 A; behaviour above the 33 V V_max).
 
 **On fail** —
-- Single-fault clamp or energy: the TVS package (the 5.0SMDJ8.5A was the round-16 fallback).
+- Single-fault clamp or energy: the TVS package (the 5.0SMDJ series on the DO-218 pad is the fallback).
 - A PTC current above 40 A at the IR-16 harness minimum: a series element or a PTC with a higher I_max.
 - Sweep (2b): first the layout — island area, via count, PTC placement on the island (the coupling is the lever; a
   PTC with a lower trip current does not exist at 33 V, and no TVS voltage removes the trickle window — verification-report
@@ -1749,7 +1762,7 @@ allocation yet (§14); without it the record reads "not allocated".
 **Steps** — energy-limited first; then −24 V for 60 s per line with VEXD on and off.
 
 **Pass** —
-- The protected node stays at −0.7 … −1.2 V. The SMDJ8.5A-HRA forward current is ≤ its I_FSM of 300 A; ≈ 27 A is
+- The protected node stays at −0.7 … −1.2 V. The SMDJ7.0A-HRA forward current is ≤ its I_FSM of 300 A; ≈ 27 A is
   predicted until the PTC trips.
 - The amplifier's lower diode carries ≤ 0.3 A through RSX (≈ 0.23 A / 114 mW predicted).
 - The PTC clears, as in QP-RX-04, and the ALM2402 is unharmed.
@@ -3308,6 +3321,48 @@ Pass is the class surveyor's acceptance, with the Road functional set after each
 
 ---
 
+### QP-MA-11 · Marine exciter terminal-fault sweep at the ship's voltages (gate ㉘ on the Marine kit; RELEASE GATE, round 19)
+
+**Closes** — marine/verification-report.md §7 "Exciter terminal fault on the Marine LV" (PTC current PASS at the kit-loom
+minimum, sustained-short WARN, sub-8 A window INFO); the Marine kit requirement "≥ 0.27 Ω on the exciter fault loop — a routing/segregation
+rule for the kit harness" (marine/design-basis.md §12); Road F193/F199/F200 as they apply to the shared card.
+
+**DUT** — the Road card in the Marine kit (the shared PCB, HW A.18), fed from the kit's isolated 24 → 12 V converter
+(≈ 5 A limit) and, for the ship-bus cases, from a bench source at the bus voltage through the kit loom replica.
+
+**Fixture and instruments** — as QP-RX-04 (F-RX; I-CP on the PTC, TVS and RSX leads; I-TC on the TVS lead and the PTC;
+I-LVS at the protected node, VEXD and the kit rail); the kit loom replica (length and cross-section as built).
+
+**Steps**
+1. Energy-limited first (24 V at a 2 A limit).
+2. **Direct short, ship bus.** 18, 24 and 31.2 V through the loom replica and through 0.27 Ω, for 60 s, EXC+ and EXC− in
+   turn, PTC cold / hot / post-trip. Record I_PTC(t), V_TVS(t), ∫v·i and the trip time.
+3. **Sustained short, card asleep (the platform's worst case).** With the card in LPOFF and the kit rail live, short each
+   line to the kit rail at 11.4, 12.0 and 13.2 V (the low-V_P case that set the 7.0 V TVS class, F203: 2.0–2.5 W
+   predicted uncapped, ≤ 132 °C junction coupled) through 0, 0.5, 2, 5, 10, 20 and 35 Ω, 10 min or until the TVS lead
+   temperature settles (abort at 150 °C, record the time); then the ship bus at 18, 24 and 31.2 V through 0.5, 2, 5, 10,
+   20, 35, 70 and 100 Ω. Repeat the 12.0 V / 0 Ω and 24 V / 20 Ω points at −25 °C and 55 °C (the marine cabinet
+   range). Then repeat the 12.0 V and 24 V sweeps with the card awake.
+
+**Measure** — as QP-RX-04, plus the kit converter's output during the fault (current, foldback) and the RSX temperature
+awake.
+
+**Pass**
+- **Direct short.** I_PTC ≤ 40 A through the loom replica (≤ 38 A predicted at 0.27 Ω, 31.2 V cold corner, 7.0 V clamp) and the trip
+  time ≤ 20 ms at ≥ 8 A with ∫v·i ≤ 5.3 J (the Road release criterion).
+- **Sustained short, asleep.** As QP-RX-04 step 2b: TVS lead ≤ 125 °C at every settled point and nothing damaged; a point
+  where the PTC trips on the TVS's heat within 60 s, TVS undamaged, is CONDITIONAL (the island coupling is re-run into
+  the rows); a destroyed TVS is FAIL unless the end state is the fail-safe one (TVS short, PTC tripped and holding on the
+  follow-on ≈ 14 A at 12 V / the converter's limit, FW-10 fault at key-on) — then CONDITIONAL with the layout island's
+  pair transfers and the Marine operating concept (card awake while the rail is present) as corrective actions; the
+  round-19 class (SMDJ7.0A-HRA) is the shared card's.
+- **Awake.** RSX ≤ 155 °C, the amplifier reaches OTF and recovers, parametrically unchanged (QP-RX-01 afterwards).
+
+**Record** — the sweep table per voltage; the kit converter's behaviour; the loom replica's measured resistance.
+
+**On fail** — first the layout (the pair's transfers: island, vias, PTC placement) and the loom (segregation, or a series
+element in the kit — ours to add); then the shared-card TVS class (the 6.5A buys 6–9 °C for +0.014 Ω; xcheck19).
+
 ## 13. Traceability
 
 ### 13.1 README gates → QP
@@ -3342,7 +3397,7 @@ Pass is the class surveyor's acceptance, with the Road functional set after each
 | ㉕ | Resolver bench: amplitude; KL30 short at the SDADC pins | QP-RX-01, QP-RX-03 (and QP-RX-02) |
 | ㉖ | Discharge resistor, no-flame closed by the TT statement; fail-open time characterised | QP-DS-03 |
 | ㉗ | LV entry vs the OEM test-B R_i | QP-LV-03 |
-| ㉘ | Terminal-fault bench (characterisation since round 17; QP-RX-04 step 2b and the QP-RX-05 reverse-current measurement release gates since round 18) | QP-RX-04, QP-RX-05, QP-RX-06, QP-RX-07, QP-RX-08 |
+| ㉘ | Terminal-fault bench (characterisation since round 17; QP-RX-04 step 2b and the QP-RX-05 reverse-current measurement release gates since round 18; the ≥ 8 A clearing measurement a release criterion and the Marine sweep since round 19) | QP-RX-04, QP-RX-05, QP-RX-06, QP-RX-07, QP-RX-08, QP-MA-11 |
 | Target evidence | Fault-route injection with the CPU halted, the ≤ 15.6 µs chain, REG_PROT, WCET | QP-FW-01, QP-FW-02, QP-FW-03, QP-FW-04, QP-EOL-05 |
 
 ### 13.2 verification-report.md WARN rows → QP
@@ -3379,6 +3434,8 @@ Pass is the class surveyor's acceptance, with the Road functional set after each
 | 21 | Sensing | Hall ratiometric ref vs ADC ref (G-07, F180) | QP-TH-06, QP-EOL-06 |
 | 22 | Sensing | Resolver drive @9 V KL30 (G-04, F177) | QP-RX-02 |
 | 23 | Sensing A.15 | Exciter TVS energy (split into single fault / load-dump-coincident; G-02, F175) | QP-RX-04 |
+| 23b | Sensing A.15 | Exciter TVS energy at fault currents ≥ 8 A — WARN since round 19 (the I⁻² trip-time law is an assumption; F200) | QP-RX-04 step 2 (release criterion), VR-16 |
+| 23c | Sensing A.17 / Marine §7 | Sub-8 A window and the sustained short with the card asleep (F193); the Marine kit rail (5.2 W at 12 V) | QP-RX-04 step 2b, QP-MA-11 |
 | 24 | Sensing A.15 | Source-impedance allocation (now "Exciter PTC current vs I_max 40 A": single fault PASS, 35 V INFO; G-02) | QP-RX-04 |
 | 25 | Sensing A.15 | Exciter back-drive with VEXD absent (now the rated diversion; G-01, F174) | QP-RX-05 |
 | 26 | Sensing A.15 | Exciter PTC hold current (G-03, F176) | QP-RX-07 |

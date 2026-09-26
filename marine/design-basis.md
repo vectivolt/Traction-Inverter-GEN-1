@@ -590,6 +590,18 @@ move with the automotive line.
   ISR clock on the target, cadence-locked resolver frames with a servicing deadline and self re-acquisition, the
   resolver chain-latency sign corrected (FW-34…36). Marine: the shared card inherits all of it; no marine cell
   change.
+- **A.18.** Round 19 (three independent rechecks of the A.17 push e315bf1, Road `review-A18-disposition.md`, F199–F202):
+  the exciter PTC-current row had been evaluated at 24 V while the interface allowed 26 V (41.6 A cold at 26 V / 0.05 Ω:
+  the harness minima are now computed at every permitted voltage at a 5 % margin — Road IR-16 0.09 / 0.33 / 0.25 Ω); the
+  ≥ 8 A TVS-energy row rested on an I⁻² trip-time law no sheet states — an explicit assumption now, a WARN closed by the
+  measured clearing waveform (QP-RX-04 step 2 release criterion) and VR-16; the round-18 window row had printed 1–200 Ω
+  for a criterion error (energy where the PTC trips, power where it never does: 14–83 Ω at 24 V); firmware: the resolver
+  ring's time origin is anchored to the SWG start on the microsecond timer instead of the first completion callback, so an
+  over-budget first or re-acquired callback can no longer become the reference (FW-35 rewritten). **Marine-specific:** the
+  exciter terminal-fault model (`calculations/exciter-fault.mjs`, shared) is run at the ship's voltages in
+  `marine-verify.mjs` §7 — the kit's isolated 11.4–12 V rail is the low-V_P case (3.8–4.3 W in the TVS with the 8.5 V
+  class once the PTC has tripped and the card sleeps, 2.0–2.5 W with the SMDJ7.0A-HRA the shared card carries since this
+  round, F203) — with QP-MA-11 (the sweep on the kit) and the Marine kit requirement below. No marine cell change.
 
 | Change | M8 | M10 |
 |---|---|---|
@@ -697,6 +709,19 @@ suit insulation monitors, and automotive vibration design already exceeds class 
   lab and class fees for M8, then an extension for M10.
 
 ## 12. Business case, roadmap, open gates
+
+**Exciter terminal fault on the Marine LV (round 19 / A.18).** The shared card's resolver-excitation protection (RSX →
+SMDJ7.0A-HRA on the protected node since round 19 → MF-MSMF020/33X per line) is evaluated at the ship's voltages in
+[`verification-report.md`](verification-report.md) §7: a direct short of an excitation line to the ship bus (18–31.2 V)
+stays inside the PTC's 40 A only with **≥ 0.27 Ω on the fault loop** — a battery-backed bus will not present that, so it is
+a **routing/segregation rule for the kit harness** (the resolver pair never runs with the 24 V bus) or a series element in
+the kit, ours either way, not an OEM allocation; a sustained short to the **kit's 11.4–12 V rail with the card asleep**
+leaves the tripped PTC as a thermostat passing V_BR·min(P_d/(V_S − V_BR), I_trip) into the TVS — 3.8–4.3 W with the
+8.5 V class of round 18, the low-V_P case that drove the Road round-19 class change to **SMDJ7.0A-HRA** on the shared card
+(2.0–2.5 W, and ≤ 132 °C junction with the PTC coupled on the TVS island, where the 8.5 V class stayed at 148–171 °C —
+`xcheck19`); closed on the bench by **QP-MA-11** (the QP-RX-04 sweep at the ship's voltages, −25 / 55 °C points) with the
+Road layout island (the pair's transfers) inherited on the card; the Marine operating concept keeps the card awake while
+the rail is present (the awake amplifier sinks the trickle), an operating measure, not a closure.
 
 **Planning cost per cell** (ex-works, Road cost-rollup method, RFQ ±25 %):
 

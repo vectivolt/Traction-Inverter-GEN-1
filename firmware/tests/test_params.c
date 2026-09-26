@@ -192,6 +192,26 @@ TEST(round18_cal_defaults_and_ranges)
     CHECK(ti_params_validate(&p) >= 1u);
 }
 
+/* Round 19 (A17-R01): the SWG start latency that the resolver cadence's origin allows for (2 us, range 0-20: the re-sync
+ * window of half a period + twice the uncertainty stays inside the 100 us period) and the synchronized producer
+ * restarts per key cycle (3, range 0-10) are range-checked CALs. */
+TEST(round19_cal_defaults_and_ranges)
+{
+    for (int k = TI_SKU_8XX_SIC; k < TI_SKU_COUNT; k++) {
+        const ti_params_t *q = ti_params_get((ti_sku_t)k);
+        CHECK(q->cal_swg_start_lat_us == 2u && q->cal_rslv_restart_max == 3u && ti_params_validate(q) == 0u);
+    }
+    ti_params_t p = *ti_params_get(TI_SKU_8XX_SIC);
+    p.cal_swg_start_lat_us = 20u;
+    p.cal_rslv_restart_max = 0u;
+    CHECK(ti_params_validate(&p) == 0u);
+    p.cal_swg_start_lat_us = 21u;
+    CHECK(ti_params_validate(&p) >= 1u);
+    p.cal_swg_start_lat_us = 2u;
+    p.cal_rslv_restart_max = 11u;
+    CHECK(ti_params_validate(&p) >= 1u);
+}
+
 void suite_params(void)
 {
     RUN(all_skus_validate);
@@ -205,4 +225,5 @@ void suite_params(void)
     RUN(round16_cal_defaults_and_ranges);
     RUN(exciter_planes_and_trim_headroom);
     RUN(round18_cal_defaults_and_ranges);
+    RUN(round19_cal_defaults_and_ranges);
 }

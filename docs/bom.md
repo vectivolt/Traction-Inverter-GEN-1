@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.17, generated 2026-09-25)
+# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.18, generated 2026-09-26)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -112,8 +112,8 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 55,986 | 76.7% |
-| drive + control ICs | 7,286 | 10.0% |
-| capacitors | 5,024 | 6.9% |
+| drive + control ICs | 7,330 | 10.0% |
+| capacitors | 4,980 | 6.8% |
 | magnetics | 2,195 | 3.0% |
 | connectors + sensors | 1,606 | 2.2% |
 | misc | 429 | 0.6% |

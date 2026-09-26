@@ -1079,7 +1079,9 @@ static uint32_t stop_and_watch(void)
  * weakening. The angle is withdrawn at the hold, the §6 "resolver invalid" row takes the bridge (SPO
  * below n_x, PWM-ASC above), the torque permission goes (FAULT), DTC_RSLV_STALE, and the last speed is
  * kept only for the §6 column (cal_speed_hold_ms). When frames return the resolver re-acquires (not at
- * the first frame), the row stays latched, and a VCU fault reset below n_x brings torque back. */
+ * the first frame), the row stays latched, and a VCU fault reset below n_x brings torque back. (Round 19: the
+ * converters resume behind the SWG's cadence by the stall — in phase only after a whole number of laps — so the
+ * ring re-syncs from the clock or, out of phase, is lost and the 1 ms task restarts the producer.) */
 TEST(resolver_frames_stopping_withdraws_the_angle_at_the_hold)
 {
     const float rpm[3] = {0.0f, LOW_RPM, HIGH_RPM};
@@ -1151,14 +1153,16 @@ TEST(temporary_empty_reads_never_fault)
 
 /* A14-R02 at the application: one channel's DMA freezes while running (the reviewer's frozen COS buffer
  * that SIN's heartbeat kept reading as fresh). No frame is published while it is frozen: the resolver goes
- * stale at the hold, the §6 row takes the bridge. Round 18 (A16-R02): the channel resumes in step (four
- * periods: its slot came round), so the ring re-acquires by itself (DTC_RSLV_REACQUIRED, once) and the
- * resolver re-primes and validates — while the row stays latched until a VCU fault reset (it used to stay
- * dead for the key cycle). */
+ * stale at the hold, the §6 row takes the bridge. Round 19 (A17-R01): the ring's re-sync finds the frozen DMA
+ * behind the clock — out of phase, with no platform flag: `lost` (round 18 re-acquired it from equal positions
+ * once its slot came round) — and the 1 ms task requests the synchronized producer restart: one of the key
+ * cycle's cal_rslv_restart_max, one occurrence of DTC_RSLV_REACQUIRED, no ring re-acquisition. The resolver
+ * re-primes and validates while the row stays latched until a VCU fault reset. */
 TEST(a_frozen_resolver_channel_is_never_read_as_fresh)
 {
     for (uint32_t ch = 0u; ch < (uint32_t)HAL_SD_COUNT; ch++) {
         sim_reset();
+        (void)memset(&g_app_session, 0, sizeof g_app_session); /* a power cycle: the restart budget is per key cycle */
         dtc_init();
         CHECK(run_at(LOW_RPM, 100.0f));
         const uint32_t per = app_isr_period_us(&g_app);
@@ -1173,8 +1177,9 @@ TEST(a_frozen_resolver_channel_is_never_read_as_fresh)
         CHECK(g_app.rslv.t_frame_us == t_f); /* nothing consumed after the freeze */
         sim_sdadc_freeze((hal_sd_ch_t)ch, false);
         h_run_ms(100u);
-        CHECK(g_app.rslv.valid && dtc_active(DTC_RSLV_STALE) && !sim_sdadc_ring()->broken);
-        CHECK(hal_sdadc_reacquired() == 1u && dtc_occurrences(DTC_RSLV_REACQUIRED) == 1u);
+        CHECK(g_app.rslv.valid && dtc_active(DTC_RSLV_STALE) && !sim_sdadc_ring()->broken && !hal_sdadc_lost());
+        CHECK(hal_sdadc_reacquired() == 0u && g_app_session.rslv_restarts == 1u &&
+              dtc_occurrences(DTC_RSLV_REACQUIRED) == 1u);
         CHECK(fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && hal_pwm_mode() != HAL_PWM_MOD && g_app.sm.st == SM_FAULT);
     }
 }
@@ -1833,6 +1838,67 @@ TEST(a_late_resolver_interrupt_at_speed_is_counted_and_reacquired)
     }
 }
 
+/* A17-R01 at the application (the reviewers' consequence). At 10 000 rpm, 4 pole pairs, one burst of SDADC
+ * completions held off 60 us breaks the ring, and every completion after it comes 25 us late — inside the 30 us
+ * deadline. Round 18 re-anchored the origin at the first completion after the break, so from then on every frame
+ * was stamped 25 us too new: the angle the FOC uses lagged the rotor by 6 deg el, for good, with nothing flagged.
+ * Judged against the SWG-start origin, the angle stays within 3 deg el of the rotor model's before, across and
+ * after the break (the simulation's own error at this speed is about 1.9 deg): one re-acquisition, no restart. */
+TEST(a_late_completion_after_a_break_never_dates_the_angle)
+{
+    CHECK(run_at(HIGH_RPM, 0.0f));
+    const float lim = 3.0f * (TI_PI / 180.0f);
+    float emax = 0.0f;
+    bool valid = true;
+    for (uint32_t ms = 0u; ms < 200u; ms++) {
+        if (ms == 50u) {
+            sim_sdadc_irq_latency_ns(60000u);
+            h_isr_only_us(150u); /* one carrier boundary: its completions served 60 us late */
+            sim_sdadc_irq_latency_ns(25000u);
+        }
+        h_run_ms(1u);
+        valid = valid && g_app.rslv.valid;
+        const float e = ti_absf(ti_wrap_pi(rslv_theta_e_at(&g_app.rslv, &g_app.cal.rslv, hal_time_us(), g_app.p) -
+                                           h_rotor_theta_e()));
+        emax = (e > emax) ? e : emax;
+    }
+    CHECK(valid && emax < lim && !fm_any(&g_app.fm));
+    CHECK(hal_sdadc_reacquired() == 1u && g_app_session.rslv_restarts == 0u && !hal_sdadc_lost());
+    if (emax >= lim) {
+        printf("    ^ the angle off by up to %.1f deg el\n", (double)(emax * (180.0f / TI_PI)));
+    }
+}
+
+/* A17-R01: the synchronized producer restart is bounded. Lost samples (the platform's DMA/FIFO error flag) keep the
+ * ring down; the 1 ms task restarts the producer — the DMA rings re-armed, the SWG restarted at the trim's present
+ * code and re-anchored — at most cal_rslv_restart_max (3) times per key cycle, each one occurrence of
+ * DTC_RSLV_REACQUIRED, and the resolver re-primes each time. A fourth loss is not restarted: the resolver stays
+ * invalid (FW-28, the §6 row), also across an MCU reset inside the key cycle — its own start re-arms the converters,
+ * the budget stays spent (retained with the key cycle). */
+TEST(resolver_producer_restarts_are_bounded_per_key_cycle)
+{
+    CHECK(run_at(LOW_RPM, 50.0f));
+    const uint8_t code = g_app.swg_amp;
+    for (uint32_t n = 1u; n <= 4u; n++) {
+        sim_sdadc_overrun();
+        h_run_ms(30u);
+        const uint32_t m = (n <= 3u) ? n : 3u;
+        CHECK(g_app_session.rslv_restarts == m && dtc_occurrences(DTC_RSLV_REACQUIRED) == m);
+        CHECK(hal_sdadc_lost() == (n == 4u) && g_app.rslv.valid == (n <= 3u) && sim_swg_code() == code);
+    }
+    h_run_ms(200u);
+    CHECK(hal_sdadc_lost() && !g_app.rslv.valid && g_app_session.rslv_restarts == 3u);
+    CHECK(dtc_occurrences(DTC_RSLV_REACQUIRED) == 3u && fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID));
+    CHECK(hal_pwm_mode() != HAL_PWM_MOD);
+    sim_fs26_mcu_reset(); /* an MCU reset inside the key cycle */
+    h_boot();
+    h_run_ms(60u);
+    CHECK(!g_app.cold_start && g_app.rslv.valid && !hal_sdadc_lost() && g_app_session.rslv_restarts == 3u);
+    sim_sdadc_overrun();
+    h_run_ms(60u);
+    CHECK(hal_sdadc_lost() && !g_app.rslv.valid && g_app_session.rslv_restarts == 3u);
+}
+
 static bool s_fault_armed;
 static uint64_t s_fault_ns;
 
@@ -1944,5 +2010,7 @@ void suite_scenarios(void)
     RUN(a_run_at_speed_with_the_adc_reads_taking_time);
     RUN(a_current_loop_preempting_the_task_is_not_a_dead_loop);
     RUN(a_late_resolver_interrupt_at_speed_is_counted_and_reacquired);
+    RUN(a_late_completion_after_a_break_never_dates_the_angle);
+    RUN(resolver_producer_restarts_are_bounded_per_key_cycle);
     RUN(fw15_low_wait_counts_from_a_fault_that_preempted_the_task);
 }

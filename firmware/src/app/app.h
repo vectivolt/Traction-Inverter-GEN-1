@@ -29,11 +29,10 @@
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0F0012u /* rev A.17, round 18: a new image (sensor freshness judged after the reads, the
-                              * resolver stamp on the SDADC cadence with the servicing deadline and the ring's
-                              * re-acquisition, the resolver latency added, not subtracted) needs its own
-                              * EOL/HIL validation record before it arms; the FW-20 calibration record stays
-                              * layout 2. Round 17 was 0x0A0F0011 */
+#define TI_FW_ID 0x0A0F0013u /* rev A.18, round 19: a new image (the resolver cadence dated by the SWG start, never
+                              * by a completion; re-sync from the clock; the synchronized producer restart) needs its
+                              * own EOL/HIL validation record before it arms; the FW-20 calibration record stays
+                              * layout 2. Round 18 was 0x0A0F0012, round 17 0x0A0F0011 */
 
 typedef struct {
     const ti_params_t *p;
@@ -117,6 +116,7 @@ typedef struct {
 typedef struct {
     uint32_t magic;
     uint32_t key_cycle;
+    uint32_t rslv_restarts; /* round 19: resolver producer restarts this key cycle (cal_rslv_restart_max) */
 } app_session_t;
 
 extern app_t g_app;

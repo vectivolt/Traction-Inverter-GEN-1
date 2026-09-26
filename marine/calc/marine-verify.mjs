@@ -11,6 +11,7 @@ import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { igbtLoss, MOD } from "../../calculations/loss-model.mjs";
+import * as EX from "../../calculations/exciter-fault.mjs";   // round 19 (A.18): the Road exciter terminal-fault model, run at the ship's voltages
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const f = (x, d = 1) => Number(x.toFixed(d));
 
@@ -419,6 +420,28 @@ for (const [id, s] of LAUNCH) {
     ["US1M DESAT diodes (series string)", "V_RRM 1000 V each; 2 in series on the Road card", "string ≥ V_max + turn-off overshoot", "PASS", "3 in series (≈1500 V peak, leakage sharing at 100 °C)"],
   ];
   for (const [part, rating, lim, m8, m10] of B) add(sec, part, rating, lim, m8, `M10: ${m10}`);
+}
+
+// ============ 7. EXCITER TERMINAL FAULT ON THE MARINE LV — the shared control card at the ship's voltages (round 19 / A.18) ============
+// The card is the Road card (RSX → the exciter TVS on the protected node — SMDJ7.0A-HRA since round 19, F203 — → MF-MSMF020/33X per line). The Marine kit feeds it from an
+// isolated 24→12 V converter (60 W, ≈ 5 A limit) on a ship 24 V bus of 18–31.2 V (design-basis §11 "Control power"), so a resolver
+// excitation line can be shorted to the kit's 12 V rail (11.4–13.2 V) or to the ship bus. Same model as Road "Sensing A.17"
+// (calculations/exciter-fault.mjs): the tripped PTC keeps passing P_d/(V_S − V_BR), and the TVS carries it for as long as the fault lasts.
+{
+  const sec = "Exciter terminal fault on the Marine LV — shared card, the QP-RX-04 sweep at the ship's voltages (round 19)";
+  const fx = (x, d = 1) => Number(x.toFixed(d));
+  const VS = [[12.0, "kit 12 V rail, nominal"], [11.4, "kit rail −5 %"], [13.2, "kit rail +10 %"], [18, "ship bus, battery-fed −25 %"], [24, "ship bus nominal"], [28, "ship bus, charging"], [31.2, "ship bus, battery-fed +30 %"]];
+  const MA_IR = 0.27;   // Marine harness allocation: the kit's own loom — the resistance that keeps the cold-corner direct short ≤ 38 A at 31.2 V with the SMDJ7.0A-HRA (0.269 Ω), rounded up
+  const rMin = Object.fromEntries(VS.map(([v]) => [v, EX.rExtMin(v)]));
+  const iAt = (v) => EX.iCold(v, MA_IR);
+  judge(sec, "PTC current vs I_max 40 A — direct short of an excitation line to the kit rail or the ship bus, with the Marine harness minimum 0.27 Ω (kit loom)", VS.filter(([v]) => v >= 18).map(([v, w]) => `${v} V (${w}): ${fx(iAt(v), 1)} A`).join(" · ") + ` · the 12 V rail: ${fx(EX.iCold(12, 0), 1)} A at 0 Ω (the converter limits at ≈ 5 A first)`, "40 A (MF-MSMF020/33X I_max) — judged at 95 %", Math.max(...VS.filter(([v]) => v >= 18).map(([v]) => iAt(v))) / 40, 0.95,
+    `bare thresholds at 38 A, cold V_BR,min corner: ${VS.filter(([v]) => v >= 18).map(([v]) => `${v} V ${fx(Math.max(rMin[v], 0), 3)} Ω`).join(", ")} — the kit loom is ours to build: ≥ 0.27 Ω on the fault loop is the Marine kit requirement (design-basis §12) — a battery-backed bus will not present it, so it is a ROUTING/SEGREGATION rule for the kit harness (the resolver pair never runs with the 24 V bus) or a series element in the kit`);
+  const tr = (v) => EX.pTrickle(v);
+  add(sec, `Sustained short with the card asleep — TVS power after the PTC has tripped (${EX.TVS}: V_BR,max ${EX.VBR[1]} V; P_d 0.8 W at 23 °C; capped at V_BR·I_trip), and the never-trip region`, VS.map(([v, w]) => `${v} V (${w}): ${fx(tr(v), 2)} W`).join(" · ") + ` · never-trip region (I < 0.4 A) up to ${fx(EX.VBR[1] * 0.4, 1)} W at 23 °C`, `steady state ${fx(EX.pSs(23, EX.RTH_JA), 2)} W at 23 °C / ${fx(EX.pSs(85, EX.RTH_JA), 2)} W at 85 °C on the sheet's pads (75 K/W); ≈ ${fx(EX.pSs(85, 40), 1)} W on the Road layout island (40 K/W)`, "WARN",
+    `the kit's 11.4–12 V rail is the low-V_P case that drove the round-19 class change (F203): with the 8.5A the trickle was 3.8–4.3 W (capped at V_BR·I_trip — round 18's 5.2 W was the uncapped formula) and the coupled junction 148–171 °C; with the SMDJ7.0A-HRA it is ${fx(tr(11.4), 1)} / ${fx(tr(12), 1)} W uncapped and the coupled junction ≤ ${fx(EX.coupledTj(11.4, 85, 125), 0)} °C at 11.4 V / 85 °C ambient / T_t 125 °C (Road "Sensing A.17" coupled-island row). A TVS that fails (short) trips the PTC on the follow-on ${fx(12 / (0.35 + 0.5), 1)} A and the line is dead until repair (FW-10 reports it at key-on). Closure for Marine: the Road layout rule (dfm.md: TVS island with the PTC coupled, the PAIR's transfers specified) is inherited with the card; the sweep at the ship's voltages is QP-MA-11 (−25 / 55 °C points); the Marine operating concept keeps the card awake while the rail is present (the awake amplifier sinks ≤ 0.7 A — an operating measure, not a closure: it reaches OTF at 1.8 W in a hot cabinet). Uncoupled worst case at any voltage: V_BR·I_trip = ${fx(EX.VBR[1] * 0.4, 1)} W at 23 °C (≈ ×1.4 at −40 °C, I_trip ≈ 0.58 A assumed)`);
+  const w = (v) => EX.win(v);
+  add(sec, "Sub-8 A window — external resistance for which the TVS is unprotected on paper (typical /33X trip curve; energy > the 5.3 J rectangular allowance where the PTC trips, power > the 23 °C steady state where it never does)", VS.filter(([v]) => v >= 12).map(([v]) => { const [lo, hi] = w(v); return `${v} V: ${lo === null ? "none" : `≈ ${fx(lo, 0)}–${fx(hi, 0)} Ω`}`; }).join(" · "), "the sheet's only maximum trip time (20 ms) applies at ≥ 8 A: external ≤ " + [12, 18, 24, 31.2].map((v) => `${fx(Math.max(EX.rExt8(v), 0), 2)} Ω at ${v} V`).join(", "), "INFO",
+    "same closure as the row above; at the 12 V rail the fault current never reaches 8 A (the converter limits at ≈ 5 A), so on the kit rail EVERY short is in the unbounded region — the 12 V case is entirely a trickle/never-trip case");
 }
 
 // ---------------- render ----------------

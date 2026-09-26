@@ -104,7 +104,15 @@ void sim_sdadc_read_hook(sim_sd_hook_fn fn);
 void sim_sdadc_count_base(uint32_t count0);  /* block counters start here at the next hal_sdadc_init() */
 void sim_sdadc_tag(bool on);                 /* sample 0 of every block = its carrier period (& 0x3FFF) */
 const hal_sd_ring_t *sim_sdadc_ring(void);
-uint64_t sim_sdadc_period_index(void);       /* the carrier period now being acquired */
+/* Round 19 (A17-R01): the converters are triggered by the SWG, as on the target: nothing is acquired before
+ * hal_swg_start(), and carrier period k (block k of every channel, k = 0 the first) starts at t0 + k x period, t0 =
+ * the SWG enable + the start latency below — the DMA block boundaries derive from the SWG start, not from sim time
+ * 0. hal_sdadc_init() stops the SWG and re-arms the DMAs (a frozen one runs again); hal_swg_start() anchors the
+ * ring as the target does. The start latency (default 0) is what cal_swg_start_lat_us declares; a test sets 1-3 us
+ * to prove it stays inside the declared uncertainty. */
+void sim_swg_start_latency_ns(uint32_t ns);
+uint64_t sim_sdadc_period_index(void);        /* the carrier period now being acquired, counted from the SWG start */
+uint64_t sim_sdadc_block_start_ns(uint64_t k); /* the true start of carrier period k (every stamp's reference) */
 
 /* ---------------- safety chain ---------------- */
 #define SIM_STUCK_FS0B_TERM 0x0001u    /* AND input sees FS0B permissive */

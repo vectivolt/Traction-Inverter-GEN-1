@@ -13,8 +13,13 @@
  * each channel's DMA write position.
  * Round 18 (A16-R02): the stamp is the block's start on the SDADC cadence (the DMA completes exactly every
  * period; the data rate and the microsecond timer share one PLL), not the completion interrupt's time, and
- * a completion serviced later than irq_lat_max_us after its block's end breaks the ring (a lap of the ring
- * is indistinguishable from a delay in slot arithmetic); a broken ring re-acquires by itself. */
+ * a completion serviced later than irq_lat_max_us after its block's end breaks the ring.
+ * Round 19 (A17-R01): the cadence's ORIGIN is the SWG start, never a completion. hal_swg_start() brackets the
+ * generator enable with two 64-bit time reads and anchors the ring (hal_sd_ring_anchor): the first carrier
+ * period starts at the later read within +/- unc_us (the bracket + cal_swg_start_lat_us). Every completion —
+ * the first included — is judged against that origin; after an ambiguity the counts come from the clock and
+ * the DMA positions only confirm them. A DMA out of phase with the clock is `lost`: down until a synchronized
+ * producer restart (hal_sdadc_restart), which the application requests. */
 #ifndef HAL_SDADC_H
 #define HAL_SDADC_H
 
@@ -32,10 +37,18 @@ typedef struct {
 } hal_sd_frame_t;
 
 /* carrier_hz: a whole number of microseconds per period (the cadence stamp); irq_lat_max_us: the servicing
- * deadline of a block's first completion (cal_sd_irq_lat_max_us, below half a period). */
-bool hal_sdadc_init(uint32_t carrier_hz, uint32_t irq_lat_max_us);
+ * deadline of a block's first completion (cal_sd_irq_lat_max_us, below half a period); swg_start_lat_us: the SWG
+ * enable to the first block's carrier phase 0 (cal_swg_start_lat_us, round 19). Stops the SWG: the converters and
+ * their DMA are (re)armed with the generator stopped, and hal_swg_start() starts them and dates the cadence. */
+bool hal_sdadc_init(uint32_t carrier_hz, uint32_t irq_lat_max_us, uint32_t swg_start_lat_us);
 /* Round 18: the ring's re-acquisitions since init (the first frame published again after a break). */
 uint32_t hal_sdadc_reacquired(void);
+/* Round 19: a DMA lost the carrier phase (the ring's clock/position check, or the platform's DMA error, FIFO
+ * overrun or trigger-miss flag): nothing is published until hal_sdadc_restart(). */
+bool hal_sdadc_lost(void);
+/* Round 19: the synchronized producer restart — the DMA rings re-armed, the SWG restarted at its present code and
+ * the ring re-anchored (hal_sdadc_init + hal_swg_start); the re-acquisition count is kept. */
+bool hal_sdadc_restart(void);
 
 /* The newest coherent frame not returned before. false: none — no new epoch, a channel has not
  * completed it, its slot may have been rewritten during the copy, or a channel lost step — and *f is
@@ -47,13 +60,15 @@ typedef struct {
     volatile uint32_t done[HAL_SD_COUNT]; /* blocks each channel's DMA completed (its own interrupt) */
     volatile uint32_t t_epoch;            /* start of the published epoch (written before it) */
     volatile uint32_t epoch;              /* newest epoch EVERY channel completed */
-    volatile uint32_t t_org;              /* round 18: the cadence origin — block k_org starts at t_org */
+    volatile uint64_t t_org;              /* round 19: block k_org starts at t_org +/- unc_us (64-bit us) */
     volatile uint32_t k_org;
-    volatile bool anchored;               /* t_org/k_org set (the first completion after (re)acquisition) */
-    volatile bool synced;                 /* done[] match the DMA positions */
+    volatile uint32_t unc_us;             /* round 19: the origin's uncertainty (the SWG start bracket) */
+    uint32_t n_wait;                      /* round 19: re-sync attempts without agreement (producer only) */
+    volatile bool anchored;               /* round 19: t_org/k_org set by hal_sd_ring_anchor(), never by a completion */
+    volatile bool synced;                 /* done[] match the clock and the DMA positions */
     volatile bool broken;                 /* nothing is published or read (from init or a break until a frame) */
     volatile bool relock;                 /* broken by an ambiguity: the next frame counts a re-acquisition */
-    volatile bool lost;                   /* samples lost (platform DMA/FIFO error): down until re-init */
+    volatile bool lost;                   /* a DMA out of phase with the carrier: down until a producer restart */
     volatile uint32_t n_reacq;            /* re-acquisitions since init */
     uint32_t taken;                       /* newest epoch the reader returned */
     uint32_t period_us;
@@ -62,8 +77,12 @@ typedef struct {
 
 /* count0: the block count the DMA rings start at (slot = count % NBUF; the target starts at 0). */
 void hal_sd_ring_init(hal_sd_ring_t *r, uint32_t period_us, uint32_t lat_us, uint32_t count0);
-/* The major-loop interrupt of one channel (it outranks the reader). */
-void hal_sd_ring_complete(hal_sd_ring_t *r, hal_sd_ch_t ch, uint32_t now_us);
+/* Round 19: the SWG start (the platform's hal_swg_start): block k_org — the first carrier period, count0 + 1 —
+ * starts at t_org_us (64-bit, hal_time_us64() domain) within +/- unc_us. unc_us >= period/4 cannot date the
+ * cadence: the ring is lost. */
+void hal_sd_ring_anchor(hal_sd_ring_t *r, uint64_t t_org_us, uint32_t k_org, uint32_t unc_us);
+/* The major-loop interrupt of one channel (it outranks the reader); now_us: hal_time_us64() at its entry. */
+void hal_sd_ring_complete(hal_sd_ring_t *r, hal_sd_ch_t ch, uint64_t now_us);
 /* The reader (current-loop ISR): see hal_sdadc_read_frame(). */
 bool hal_sd_ring_read(hal_sd_ring_t *r, hal_sd_frame_t *f);
 

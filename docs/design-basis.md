@@ -411,7 +411,7 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.17)
+## 11. Verification status (current release: rev A.18)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
@@ -419,7 +419,7 @@ Three independent verification layers gate every release (see
 - geometric pin-verify **2057/2057 (100 %) in both shipped KiCad variants** (21 pages; the MCU numbered by physical ball since A.13; the native variant checked with the orientation matrix applied since A.14; ball-number and matrix mutations detected);
 - structural ERC **969 checks, 0 fail**, with a lock-in for every fixed finding (by net, pin number and
   first-match MPN per SKU; mutation-tested);
-- numeric worst-case verification **157 PASS / 17 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — rounds 17–18);
+- numeric worst-case verification **156 PASS / 18 WARN / 0 FAIL** across all four SKUs (every remaining WARN names a numbered vendor request, interface requirement or qualification procedure — rounds 17–19);
 - operating-point simulation (`sim-verify.mjs`, S1–S10 on the shared `loss-model.mjs`)
   **23 PASS / 6 WARN / 0 FAIL**.
 
@@ -434,6 +434,34 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11r. Rev A.18 — round 19: three rechecks of e315bf1 (summary)
+
+Three independent rechecks of the A.17 push, all right, plus one defect of our own ([`review-A18-disposition.md`](review-A18-disposition.md),
+register F199–F202). **Analysis:** the exciter PTC-current row had been evaluated at 24 V while IR-16 allowed 0.05 Ω up to the
+26 V jump start (41.6 A cold at 26 V, over the PTC's 40 A) — the row now runs every permitted voltage and the harness minima are
+computed at the verifier's own 5 % margin and rounded up (IR-16: 0.09 Ω at ≤ 26 V, 0.33 Ω at 35 V, 0.25 Ω negative); the ≥ 8 A
+TVS-energy PASS rested on an I⁻² trip-time law that no sheet states — the assumption is explicit, the row a WARN, and the measured
+clearing waveform (trip ≤ 20 ms, ∫v·i ≤ 5.3 J) is a release criterion of QP-RX-04 with VR-16 asking Bourns for the envelope above
+8 A; the round-18 "unprotected window" row had printed 1–200 Ω for a criterion error (energy where the PTC trips, steady-state
+power where it never does: 14–83 Ω at 24 V). The exciter fault model is one shared module (`calculations/exciter-fault.mjs`)
+run for Road and for the **Marine port at the ship's voltages**: the kit's isolated 12 V rail is the platform's worst
+sustained-short case (5.2 W in the TVS at 12.0 V, 8.3 W at 11.4 V once the PTC has tripped and the card sleeps) — a Marine kit
+requirement (≥ 0.25 Ω on the fault loop; the loom is ours) and QP-MA-11 carry it. **Hardware (one zero-cost change, F203):** TVSEP/TVSEN move from SMDJ8.5A-HRA to **SMDJ7.0A-HRA** on the same pad — the
+Opus cross-check (xcheck19) refuted round 18's "coupling does not help once the PTC has tripped": the tripped PTC is a
+thermostat and the island's heat replaces its own I·(V_S − V_BR), but the benefit scales with (V_S − V_BR)/V_BR, which only
+the TVS class sets; with the 8.5 V class the junction still reached 148–171 °C at a parked 12.0–12.6 V battery or the Marine
+11.4–12 V rail, with the 7.0 V class ≤ 132 °C coupled and 1.7–2.5 W uncoupled (3.8–4.3 W before, the trickle capped at
+V_BR·I_trip). Every dark condition keeps ≥ 2.4 V margin; the cost is +0.043 Ω on each IR-16 harness allocation (0.08 / 0.14 /
+0.37 / 0.26 Ω — the 24 V figure now needs an OEM statement; a 0.1 Ω pulse-rated 2512 per line is the fallback). dfm.md
+specifies the island for the PAIR (TVS↔PTC transfer, the PTC's own path), not a TVS-alone R_thJA. **Firmware (FW-35
+rewritten):** the resolver ring had anchored its time origin on the first completion callback's own execution time, so an
+over-budget or constantly-late callback became the reference and a resync re-anchored the same way; the origin is now the SWG
+start instant on the microsecond timer (the SDADC blocks are triggered by the SWG period start) with a declared uncertainty,
+the ring never anchors itself, every completion is judged against the absolute cadence, resync derives the block from the
+clock and checks each DMA slot against it, and an ambiguity triggers a synchronized producer restart. Firmware: firmware 290 tests / 2705 checks / 0 failed in all three build flavours (host, −O2, ASan/UBSan), target-check 52 markers (T-41, T-42 new); on the pre-fix ring 108 failing checks in the 17 round-19 tests, 16 mutations each caught; TI_FW_ID 0x0A0F0013; new CALs cal_swg_start_lat_us 2 µs (0–20, HIL T-42) and cal_rslv_restart_max 3 (0–10); origin uncertainty 3 µs (bracket + 1 µs timer resolution + the start-latency CAL) = 0.72° el at 10 000 rpm; an anchor with u ≥ 25 µs is refused. Counts: ERC 969 ·
+verify 156/18/0 · sim 23/6/0 · Marine 87/23/0 · 2057/2057 pins + KiCad-10 proof · BOM unchanged. Marine forks at A.18. No
+power-stage change.
 
 ## 11q. Rev A.17 — round 18: three rechecks of 4425af9 (summary)
 

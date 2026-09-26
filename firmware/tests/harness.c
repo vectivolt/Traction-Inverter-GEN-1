@@ -151,12 +151,16 @@ static float noise_a(void)
     return (((float)(s_noise >> 8) / 16777216.0f) - 0.5f) * 1.1f;
 }
 
-static void plant_currents(void)
+float h_rotor_theta_e(void)
 {
     const float th_r = s_theta0 + (H.speed_rpm / TI_RPM_PER_RAD_S) * (float)(int64_t)(sim_now_ns() - s_theta_t) * 1e-9f;
+    return ti_wrap_2pi((th_r * (float)h_cal.rslv.motor_pp / (float)h_cal.rslv.resolver_pp) - h_cal.rslv.zero_rad);
+}
+
+static void plant_currents(void)
+{
     const float th = g_app.rslv.valid ? rslv_theta_e_at(&g_app.rslv, &g_app.cal.rslv, hal_time_us(), g_app.p)
-                                      : ((th_r * (float)h_cal.rslv.motor_pp / (float)h_cal.rslv.resolver_pp) -
-                                         h_cal.rslv.zero_rad);
+                                      : h_rotor_theta_e();
     float d = 0.0f;
     float q = 0.0f;
     if (hal_pwm_mode() == HAL_PWM_MOD) {

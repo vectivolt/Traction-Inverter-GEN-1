@@ -1,4 +1,4 @@
-# Hardware → firmware contract (rev A.17)
+# Hardware → firmware contract (rev A.18)
 
 The hardware protects what software cannot react to in time; firmware owns every operating
 limit. This file is the contract between the two for **every SKU of the platform**. Each
@@ -778,6 +778,8 @@ the README), or the silicon / RM / HIL / EOL checklist `firmware/docs/target-bri
 "the contract should say".
 Round 18 (rev A.17, the rechecks of 4425af9) adds FW-34…FW-36 — sample freshness, the resolver time base, the
 latency sign — in §10d.
+Round 19 (rev A.18, the rechecks of e315bf1) rewrites FW-35 in §10d: the resolver cadence's origin is the SWG start,
+never a completion; re-sync from the clock; the synchronized producer restart.
 
 - **FW-31** Current-loop liveness (round 16, named in round 17). The 1 ms task checks that the current-loop
   interrupt ran within `cal_isns_stale_us` (200 µs, range 50–1000); otherwise the phase currents count as lost
@@ -809,7 +811,7 @@ latency sign — in §10d.
   EOL/HIL validation record is required before it arms (FW-24); the calibration record stays layout 2. (Round 18
   moves the image to 0x0A0F0012, §10d.)
 
-## 10d. Round-18 requirements (rev A.17 — rechecks of 4425af9)
+## 10d. Round-18 requirements (rev A.17 — rechecks of 4425af9; FW-35 rewritten in round 19, rev A.18 — rechecks of e315bf1)
 
 - **FW-34** A sample's freshness is judged at or after its acquisition (A16-R01). The target stamps a sample
   when it reads it — in the current-loop ISR, after the ISR read its entry time — and a higher-priority
@@ -827,30 +829,51 @@ latency sign — in §10d.
   target's order (each ADC read takes simulated time before it stamps, the other interrupts running meanwhile);
   the checks hold with 1, 5 and 50 µs per read, across the 32-bit microsecond wrap, with the current-loop ISR
   preempting the task, and with a fault preempting it before its FW-15 recovery.
-- **FW-35** The resolver frame's time stamp is independent of interrupt latency (A16-R02). Block k starts at
-  t_origin + (k − k0)·T_carrier on the SDADC cadence — unsigned and wrap-safe; the SDADC data rate and the
-  microsecond timer derive from the same PLL and the carrier period is a whole number of microseconds
-  (checklist T-30, T-40) — anchored at the first completion after (re)acquisition and moved back by any
-  completion that comes before its block's end on that cadence (a completion is never early). The first
-  completion of each block must be serviced within `cal_sd_irq_lat_max_us` of the block's end (30 µs, range
-  5–45 µs: below half the 100 µs carrier period), a later channel's within half a period; otherwise the timing
-  is ambiguous — the 4-slot ring may have lapped, which slot arithmetic cannot see — the block is not published
-  and the ring breaks. The reader refuses a frame whose slot the cadence says may have been rewritten. A broken
-  ring re-acquires by itself from the DMA write positions once all three channels write the same slot, with a
-  fresh origin; the resolver re-primes through FW-28 when the gap outlasts its hold; each re-acquisition is one
-  occurrence of an information DTC (`DTC_RSLV_REACQUIRED`) that selects no safe state by itself. Lost samples
-  (the DMA error or FIFO-overrun flag) are no ambiguity — the blocks no longer start at carrier phase 0 — and
-  keep the ring down until it is re-initialised. The completion-interrupt latency distribution and the
-  cadence are target measurements (checklist T-40); the latency of the completion that anchored the origin is
-  the residual until a prompter one moves it back.
+- **FW-35** The resolver frame's time stamp is independent of interrupt latency (A16-R02), and so is its origin
+  (round 19, A17-R01). The SDADCs are triggered by the SWG period start (TRGMUX), so block k starts at
+  t_org + (k − k_org)·T_carrier on the carrier cadence, where t_org is the **SWG start** on the microsecond timer:
+  `hal_swg_start()` brackets the generator enable with two reads of the 64-bit timer (PRIMASK: nothing runs between
+  them) and anchors the ring at the later read; k_org is the first carrier period's block. The origin is uncertain by
+  ± u = the bracket (+ 1 µs of timer resolution) + `cal_swg_start_lat_us` (the SGEN's start to its first period plus
+  the TRGMUX/SDADC trigger latency: 2 µs, range 0–20 µs; checklist T-42) — 3 µs by default, which bounds every stamp's
+  error (0.7° el at 10 000 rpm, 4 pole pairs); an anchor with u ≥ T_carrier/4 is refused (lost). No completion ever
+  sets or moves the origin, and an unanchored ring counts and publishes nothing. **Every** completion — the first after
+  the start and the first after a break included — is judged against the absolute cadence, u added on both sides: a
+  block's first completion must come within [−u, `cal_sd_irq_lat_max_us` + u] of the block's end (30 µs, range 5–45 µs,
+  measured from the carrier boundary: the SDADC's own output latency counts in it — checklist T-40), a later channel's
+  within [−u, T_carrier/2 + u]. Earlier is impossible (a completion never precedes its block's end); later is ambiguous —
+  the 4-slot ring may have lapped, or the channel holds another period's block — so the block is not published and the
+  ring breaks. The reader refuses a frame whose slot the cadence says may have been rewritten. A broken ring re-syncs
+  from the clock — the block that ended within [−u, T_carrier/2 + u] of a completion — with the DMA write positions only
+  confirming it: every DMA past that block, or a later channel still on it (its own completion decides). A DMA
+  anywhere else, the completing DMA still on the block while another is past it, or no agreement within four carrier
+  periods of completions is a DMA out of phase with the carrier: the ring is **lost**. Equal DMA positions alone
+  establish nothing. The platform sets `lost` as well for the eDMA error, the SDADC FIFO overrun and a missed or
+  erroneous conversion trigger, so a channel cannot resume out of phase silently (checklist T-41). A lost ring stays
+  down until a **synchronized producer restart** — the DMA rings re-armed, the SWG restarted at its present amplitude
+  code and re-anchored (the demodulation takes its phase from the EXC channel, so the re-phased excitation is
+  harmless; the trim goes on from its code) — which the application requests at most `cal_rslv_restart_max` times per
+  key cycle (3, range 0–10; the count is retained across an MCU reset inside the key cycle). Each restart and each
+  re-acquisition after a break is one occurrence of the information DTC `DTC_RSLV_REACQUIRED`, which selects no safe
+  state by itself; while frames are absent the resolver ages out (FW-28) and re-primes when they return; beyond the
+  restart limit it stays invalid for the key cycle (FW-28, the §6 "resolver invalid" row). Times are 64-bit, so the
+  clock-derived block index holds across the 32-bit microsecond wrap and any silence. The SWG start latency and the
+  first block's carrier phase 0 (T-42), and the completion latency and the cadence against the STM (T-40, T-30), are
+  target measurements. Round 18's residual — the origin carrying the latency of the completion that anchored it — is
+  gone: a late first completion, a constant delay and a delay rejected once are judged against the SWG start every
+  time and never become the reference.
 - **FW-36** The resolver chain latency is compensated with its physical sign (A16-R03). `cal_rslv_latency_us`
   is a positive delay: the block's angle is the rotor's that long before its mid-block reference, so the
   extrapolation to the control instant adds it — θ(now) = θ_block + ω·((now − t_ref) − t_mid + L). It was
   subtracted (−12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs). The calibration measures it with this
   sign — the reported angle lagging the rotor is positive (checklist T-37) — and a test with an independent rotor
   model (both directions, two speeds, two delays) checks the compensated angle against the true angle at `now`.
+- **CALs** (round 18, round 19): `cal_sd_irq_lat_max_us` 30 µs [5, 45]; `cal_swg_start_lat_us` 2 µs [0, 20] (the
+  origin's uncertainty is the enable bracket + 1 µs + this); `cal_rslv_restart_max` 3 [0, 10] per key cycle. Each is
+  range-checked at every boot (`ti_params_validate` ⇒ DTC_PARAMS_INVALID, no arming).
 - **Image identity.** `TI_FW_ID` 0x0A0F0012 (round 18): a new EOL/HIL validation record is required before
-  this image arms (FW-24); the calibration record stays layout 2.
+  this image arms (FW-24); the calibration record stays layout 2. Round 19 (FW-35's origin) moves the image to
+  **0x0A0F0013**: a new EOL/HIL validation record again, the calibration record still layout 2.
 
 ## 11. What this contract does not close
 

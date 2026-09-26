@@ -114,7 +114,7 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.17** (review rounds 7–18: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.18** (review rounds 7–19: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
 V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
 re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,
@@ -128,7 +128,10 @@ supply-supervision firmware (round 17/A.16), the back-drive diversion moved onto
 charging loop passes RSX, diode pin numbers aligned to the parts and KiCad (cathode = pin 1), the exciter TVS/PTC
 rows recomputed at their worst corners with the ECU-asleep sustained short as a bench gate, an anti-surge RSX, and
 the acquisition-time firmware fixes (fresh samples no longer aged against an earlier ISR clock, cadence-locked
-resolver frames, the chain-latency sign; round 18/A.17), V_DC-bias LDO ballast, UCC14141-Q1 certificate; list
+resolver frames, the chain-latency sign; round 18/A.17), the exciter TVS moved to the 7.0 V class so the tripped
+PTC's trickle at the kit's 12 V rail stays inside the coupled island's reach, the exciter fault model run at the ship's
+voltages with a kit-loom rule and QP-MA-11, the resolver ring anchored to the SWG start (round 19/A.18), V_DC-bias LDO
+ballast, UCC14141-Q1 certificate; list
 in design-basis §9). It adds:
 
 - the marine kit, about ₹27–56k per cell:

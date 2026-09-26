@@ -226,6 +226,8 @@ typedef struct {
     float cal_rslv_wind_per_mon;   /* A14-N01: monitor -> winding allowance (PTCs cold) */
     uint8_t cal_swg_code_init;     /* A14-N01: SWG code at start; the trim ramps up from it */
     uint32_t cal_sd_irq_lat_max_us; /* A16-R02: servicing deadline of a resolver block's first SDADC completion */
+    uint32_t cal_swg_start_lat_us;  /* A17-R01: SWG enable -> the first SDADC block's carrier phase 0 (the origin) */
+    uint8_t cal_rslv_restart_max;   /* A17-R01: synchronized resolver producer restarts per key cycle */
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */

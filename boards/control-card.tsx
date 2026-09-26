@@ -577,7 +577,7 @@ export default () => (
         reverse output diodes are pulse-rated only, DS 8.3.6). Per line, from the amplifier outwards:
           OUT --RSX 2.2R-- VREX_xX --FEXP (PTC 0.2 A, 33 V)-- VREX_xC (vehicle connector)
                              |
-                           TVSEx (SMCJ8.5CA) to AGND
+                           TVSEx (SMDJ7.0A-HRA since round 19; SMCJ8.5CA/8.5A, SMDJ8.5A-HRA before) to AGND
         The TVS sits on the PROTECTED (amplifier) side of the PTC, so an external battery fault can reach
         the clamp only THROUGH the PTC — the round-14 drawing had the TVS on the connector node, where the
         fault current bypassed the PTC (A13-R01). Round 18: the single-fault rows are bounded by the sheet's
@@ -613,7 +613,13 @@ export default () => (
         40 V covers the NODE voltage only — the reverse current into ULDOEX with its input at 0 V / cranking /
         inhibited is a release gate (QP-RX-05, VR-33), not a datasheet closure. Dark in normal operation: the
         node swings 0.6-4.4 V, the rail is 12.1 V; dark during a rail-present fault too (the amplifier sinks <= 0.75 A
-        through RSX, so its output stays below VEXD + 0.45 V while the SMDJ8.5A-HRA clamps the protected node). */}
+        through RSX, so its output stays below VEXD + 0.45 V while the TVS clamps the protected node).
+        Round 19 (F203, xcheck19): TVSEP/TVSEN are SMDJ7.0A-HRA (V_RWM 7.0 V, V_BR 7.78-8.60 V) instead of the 8.5A class: a
+        line shorted to a 12-16 V battery with the card ASLEEP leaves V_BR x P_d/(V_S - V_BR) in the TVS once the PTC has
+        tripped (the tripped PTC is a thermostat at ~0.8 W) — 3.8-4.3 W with the 8.5A at 11.4-12.6 V, 1.7-2.5 W with the 7.0A,
+        and with the PTC coupled on the TVS copper island (dfm.md) the junction stays <= 132 C (8.5A: 148-171 C). The lower
+        clamp keeps every dark condition (rail present: <= 9.8 V at 40 A; VMID stuck high: 7.07 V < 7.49 V) and costs
+        +0.043 R on each harness allocation (IR-16: 0.08 / 0.14 / 0.37 R at 24 / 26 / 35 V). */}
     <Diode name="DEXP" {...gp()} anode="net.VREX_P" cathode="net.VEXD" />
     <Diode name="DEXN" {...gp()} anode="net.VREX_N" cathode="net.VEXD" />
     <chip name="FEXP" footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "A", pin2: "B" }} connections={{ A: "net.VREX_PX", B: "net.VREX_PC" }} />

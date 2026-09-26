@@ -112,18 +112,24 @@ test on back-to-back rig).
   back-drive path, in parallel with the ALM2402's own upper diode; **pin 1 = cathode on VEXD, pin 2 = anode on the
   amplifier node** — round 18 moved it off the protected node so the harness charging loop passes RSX; the REXB
   feedback resistors also stay here) → RSXP/RSXN (2.2 Ω 1206, **ROHM ESR18EZPF2R20 anti-surge 0.5 W** since round 18 —
-  it carries the amplifier's 0.93 A source limit during a negative fault) → protected node (TVSEP/TVSEN SMDJ8.5A-HRA —
-  3 kW, AEC-Q101, SMC — **cathode on the node, anode to the AGND star** with a wide short trace; the REXM monitor
-  taps here) → FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
+  it carries the amplifier's 0.93 A source limit during a negative fault) → protected node (TVSEP/TVSEN **SMDJ7.0A-HRA**
+  since round 19 (F203; SMDJ8.5A-HRA in rounds 17–18) — 3 kW, AEC-Q101, SMC — **cathode on the node, anode to the AGND
+  star** with a wide short trace; the REXM monitor taps here) → FEXP/FEXN (Bourns MF-MSMF020/33X, **1812**) → the vehicle connector. The TVS must sit on the
   amplifier side of the PTC — a fault from the connector reaches the clamp only through the PTC (A13-R01).
-  **Round 18 layout rule (F193, verification-report "Sensing A.17" WARN rows):** each TVS sits on its own
-  **≥ 3 cm² 2 oz copper island with a thermal-via array** to the inner AGND copper (target ≤ 40 K/W junction-to-ambient
-  — the sheet's 8 × 8 mm pads give 75 K/W), and **FEXP/FEXN are placed with their pads on that island**, next to the TVS
-  (thermal coupling ≈ 50 K/W from TVS power to PTC body): a sustained mid-impedance short of the line to the 12.6–24 V
-  battery while the ECU sleeps leaves 1.5–4 W in the TVS that nothing else interrupts, and the PTC's hold current
-  extrapolates to ≈ 0 above ≈ 95–105 °C, so the TVS's heat trips it (the PolyZen principle). The PTC body still keeps
-  ~2 mm of free air above and beside it (it self-heats when tripped; only its pads share the island). QP-RX-04's sweep
-  measures the coupling on the real layout.
+  **Round 18/19 layout rule (F193, F203; verification-report "Sensing A.17"):** each TVS sits on its own **≥ 3 cm² 2 oz
+  copper island with a thermal-via array** to the inner AGND copper, and **FEXP/FEXN are placed with their pads on that
+  island**, next to the TVS. The rule is written for the PAIR, not for the TVS alone (round 19, xcheck19 §1h): the design
+  numbers are a TVS-to-PTC transfer of ≈ 40 K/W (k_TP), a TVS junction-to-ambient of ≈ 55 K/W (R_thJL 15 + island 40) and
+  a PTC body-to-ambient of ≈ 90 K/W. Why the pair: a sustained short of the line to a 12–16 V battery while the ECU sleeps
+  leaves the tripped PTC as a thermostat at its switching temperature, passing P_d/(V_S − V_BR) (capped at I_trip) into the
+  TVS indefinitely — 1.7–2.5 W with the 7.0 V class (3.8–4.3 W with the 8.5 V class of round 18). Coupled, every watt the
+  island carries from the TVS into the PTC replaces a watt of the PTC's own I·(V_S − V_BR), so the trickle current falls; and
+  where the PTC would never trip on current alone (< 0.4 A), its hold current extrapolates to ≈ 0 above ≈ 92–105 °C, so the
+  TVS's heat trips it (the PolyZen principle). The model puts the TVS junction at ≤ 132 °C for the 7.0A at 11.4 V / 85 °C /
+  T_t 125 °C (148–171 °C with the 8.5A — the reason the class moved). Caution: a LOWER island resistance alone raises the
+  coupled junction (T_J − T_A → (T_t − T_A)·(1 + R_thJL·V_BR/(R_isl·V_S)) as the PTC's own path vanishes) — the pair's two
+  transfers are what QP-RX-04 step 2b measures, not a TVS-alone R_thJA. The PTC body still keeps ~2 mm of free air above and
+  beside it (only its pads share the island).
 - **Motor-temperature protection (A.13)** — FMT (0603 fuse) first from the connector, then TVSM (SMA) to AGND,
   then the 1 k into the buffer; keep the fuse away from the LDO heat so its rating holds.
 - **KL30 entry (round 17, load-dump let-through)** — from JVEH: FLVC (Bel 0680L5000-05, 2410 ceramic slow-blow fuse; it

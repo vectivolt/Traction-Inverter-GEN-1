@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-23"
-Rev "A.17"
+Rev "A.18"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -46,7 +46,7 @@ CARD-IF   -   1 section
 Text Notes 33450 21900 0    60   ~ 0
 VEHICLE-IF   -   1 section
 Text Notes 33460 22550 0    60   ~ 0
-rev A.17   -   26 sections   -   301 components
+rev A.18   -   26 sections   -   301 components
 Wire Notes Line
 	33400 23500 37850 23500
 Wire Notes Line
@@ -4722,11 +4722,11 @@ L traction-r1:D_21 TVSEN
 U 1 1 5E00022B
 P 33450 7000
 F 0 "TVSEN" H 33450 6840 50  0000 C CNN
-F 1 "SMDJ8.5A-HRA" H 33450 7170 50  0000 C CNN
+F 1 "SMDJ7.0A-HRA" H 33450 7170 50  0000 C CNN
 F 2 "SMC" H 33450 7000 50  0001 C CNN
 F 3 "~" H 33450 7000 50  0001 C CNN
 F 4 "CLASS" H 33450 7000 50  0001 C CNN "LCSC"
-F 5 "SMDJ8.5A-HRA" H 33450 7000 50  0001 C CNN "MPN"
+F 5 "SMDJ7.0A-HRA" H 33450 7000 50  0001 C CNN "MPN"
 	1    33450 7000
 	1    0    0    -1  
 $EndComp
@@ -4743,11 +4743,11 @@ L traction-r1:D_21 TVSEP
 U 1 1 5E00022C
 P 33450 5800
 F 0 "TVSEP" H 33450 5640 50  0000 C CNN
-F 1 "SMDJ8.5A-HRA" H 33450 5970 50  0000 C CNN
+F 1 "SMDJ7.0A-HRA" H 33450 5970 50  0000 C CNN
 F 2 "SMC" H 33450 5800 50  0001 C CNN
 F 3 "~" H 33450 5800 50  0001 C CNN
 F 4 "CLASS" H 33450 5800 50  0001 C CNN "LCSC"
-F 5 "SMDJ8.5A-HRA" H 33450 5800 50  0001 C CNN "MPN"
+F 5 "SMDJ7.0A-HRA" H 33450 5800 50  0001 C CNN "MPN"
 	1    33450 5800
 	1    0    0    -1  
 $EndComp

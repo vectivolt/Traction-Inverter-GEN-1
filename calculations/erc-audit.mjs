@@ -581,7 +581,7 @@ ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "C
 // round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 33 V-stand-off TVS (-VR, round 17 let-through) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMDJ8\.5A-HRA$/, TVSEN: /^SMDJ8\.5A-HRA$/, DEXP: /^PMEG4050EP-Q/, DEXN: /^PMEG4050EP-Q/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC33A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMDJ7\.0A-HRA$/, TVSEN: /^SMDJ7\.0A-HRA$/, DEXP: /^PMEG4050EP-Q/, DEXN: /^PMEG4050EP-Q/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC33A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC33A/33CA-VR since round 17, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMDJ8.5A-HRA unidirectional + PMEG4050EP-Q diversion + MF-MSMF020/33X)`, bad.join(", "));
 }

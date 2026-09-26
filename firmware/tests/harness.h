@@ -64,6 +64,7 @@ bool h_run_until(sm_state_t st, uint32_t max_ms);
 bool h_to_armed(void);                  /* through FW-16 and precharge to ARMED_ZERO_TORQUE */
 bool h_to_run(float torque_nm);
 void h_set_speed(float rpm);
+float h_rotor_theta_e(void);            /* round 19: the model rotor's motor electrical angle now, [0, 2pi) */
 void h_ramp_speed(float rpm, uint32_t ms); /* linear, within the resolver acceleration plausibility */
 void h_isr_only_us(uint32_t us);        /* advance time running only the current ISR */
 void h_tick(void);                      /* one tick of the grid (its ISRs, then the task): no VCU frame, no plant step */

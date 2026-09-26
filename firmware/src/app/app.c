@@ -68,6 +68,7 @@ static void key_cycle_init(app_t *a)
         return;
     }
     a->cold_start = true;
+    g_app_session.rslv_restarts = 0u; /* round 19: the budget is per key cycle, kept across an MCU reset inside it */
     uint32_t kc = 0u;
     (void)nv_read(NV_REC_KEYCYCLE, &kc, (uint16_t)sizeof kc);
     a->key_cycle = kc + 1u;
@@ -197,7 +198,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     br_init(&a->br, p); /* §9 step 1: every enable low, ASC_CLR latch high */
     gp_init(&a->gp);
     (void)hal_adc_init();
-    (void)hal_sdadc_init(CARRIER_HZ, p->cal_sd_irq_lat_max_us);
+    (void)hal_sdadc_init(CARRIER_HZ, p->cal_sd_irq_lat_max_us, p->cal_swg_start_lat_us);
     (void)hal_fs26_spi_init();
     (void)hal_can_init(HAL_CAN_VEHICLE);
     (void)hal_can_init(HAL_CAN_DIAG);
@@ -534,10 +535,19 @@ static void sense_slow(app_t *a, uint32_t t_ms)
      * for a bounded time (inertia) — never angle feedback; then unknown = the n >= n_x column */
     a->speed_known = a->rslv.valid || (a->rslv_seen && !ti_elapsed(t_ms, a->speed_valid_ms, a->p->cal_speed_hold_ms));
     /* round 18 (A16-R02): each re-acquisition of the resolver frame ring is one occurrence of an information
-     * DTC (its count and first/last stamps); no §6 row — while frames are absent the FW-28 age-out acts */
+     * DTC (its count and first/last stamps); no §6 row — while frames are absent the FW-28 age-out acts.
+     * Round 19 (A17-R01): a ring whose DMA lost the carrier phase (the clock/position check, or the platform's error
+     * flags) stays down until a synchronized producer restart: at most cal_rslv_restart_max per key cycle, each one
+     * occurrence of the same DTC; beyond that the resolver stays invalid (FW-28) for the key cycle. */
     const uint32_t n_reacq = hal_sdadc_reacquired();
-    if (n_reacq != a->sd_reacq) {
-        a->sd_reacq = n_reacq;
+    bool reacq = (n_reacq != a->sd_reacq);
+    a->sd_reacq = n_reacq;
+    if (hal_sdadc_lost() && (g_app_session.rslv_restarts < a->p->cal_rslv_restart_max)) {
+        g_app_session.rslv_restarts++;
+        (void)hal_sdadc_restart(); /* the SWG restarts at a->swg_amp: the trim goes on from it */
+        reacq = true;
+    }
+    if (reacq) {
         dtc_set(DTC_RSLV_REACQUIRED, t_ms);
     } else {
         dtc_pass(DTC_RSLV_REACQUIRED);
