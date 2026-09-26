@@ -11,8 +11,10 @@ pad table of each was re-read and compared with the datasheet numbers below. Lay
 (0.10), F.SilkS outline clipped ≥ 0.20 mm from copper (0.12), pin-1 mark on SilkS and Fab, F.CrtYd (0.05)
 = body/pads + 0.25 (SMD) or + 0.50 (large THT), 0.01 grid.
 
-Legend: **DEFECT** = the schematic/symbol must change; **PICK≠MAP** = the standard footprint the datasheet
-supports differs from the one `calculations/footprints.mjs` currently maps (the parallel generator).
+Legend: **DEFECT** = the schematic/symbol had to change; **PICK≠MAP** = the standard footprint the datasheet
+supports differed from the one `calculations/footprints.mjs` mapped BEFORE rev A.21. Every DEFECT and PICK≠MAP row was
+acted on in rev A.21 (commit 6a8841f): the map carries the picks listed here, the two thermal pads are symbol pins 15 / 17,
+QLVS is bound to the SOT-223 land whose tab is pad 4, and the SQP10 code maps to `Yageo_SQP10_P55.88`.
 
 ## A. Footprints drawn from the datasheets (18 files)
 
