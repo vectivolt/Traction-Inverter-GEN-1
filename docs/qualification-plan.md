@@ -7,7 +7,9 @@ recorded, and the design action if it fails. No hardware is built yet.
 **Baseline.** The plan is written against the rev A.15 schematic set plus the round-17 gap closure that is in the
 working tree ([`review-A16-disposition.md`](review-A16-disposition.md), gap register G-01…G-14). At that state:
 - the verification report stands at 143 PASS · 15 WARN · 0 FAIL;
-- the firmware image is `TI_FW_ID` 0x0A0F0011, and the calibration record stays layout 2.
+- the firmware image is `TI_FW_ID` 0x0A0F0011, and the calibration record stays layout 2 (historical — the round-17
+  state this plan was written against; the CURRENT baseline every procedure tests is §0.2: rev A.20 hardware,
+  `TI_FW_ID` 0x0A0F0013, calibration layout 2 — round 22, A20-N01).
 
 Round 17 is still being completed: its "LV input" and "Firmware" sections are placeholders. If the LV-input study
 (G-11) changes the LV-entry parts, QP-LV-03 follows it.
@@ -92,10 +94,10 @@ Round 17 is still being completed: its "LV input" and "Firmware" sections are pl
 | Tag | Meaning |
 |---|---|
 | **8S / 8I / 4I / 4S** | 8XX SiC ([`bom.md`](bom.md), RHWID 10 k) · 8XX IGBT ([`bom-igbt.md`](bom-igbt.md), 4.7 k) · 4XX IGBT ([`bom-igbt4.md`](bom-igbt4.md), 2.2 k) · 4XX SiC on request ([`bom-sic4.md`](bom-sic4.md), 22 k). Marine builds are in §12. |
-| **HW A.15+** | Hardware built from the rev A.15 schematic set with the round-17 part changes: DEXP/DEXN PMEG4050EP-Q, TVSEP/TVSEN SMDJ8.5A-HRA, RFS4 ESR18EZPF1001. The record carries the PCB fabrication revision, the assembly serial, and the date code of every barrier and safety part in design-basis §6a. |
-| **FW** | The production image `TI_FW_ID` 0x0A0F0011, built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
+| **HW A.20+** | Hardware built from the **rev A.20** schematic set and the SKU's BOM: the round-17 parts DEXP/DEXN PMEG4050EP-Q (on the amplifier node since round 18) and RFS4 ESR18EZPF1001, RSXP/RSXN ESR18EZPF2R20 (round 18) and TVSEP/TVSEN **SMDJ7.0A-HRA** (round 19). An A.15–A.17 build carries SMDJ8.5A-HRA — a different exciter protection configuration whose terminal-fault results do not transfer (F205); it is not a DUT for QP-RX-04/05/QP-MA-11 (round 22, A20-N01 — this row said "A.15+ … SMDJ8.5A-HRA" until then). The record carries the PCB fabrication revision, the assembly serial, and the date code of every barrier and safety part in design-basis §6a. |
+| **FW** | The production image `TI_FW_ID` **0x0A0F0013** (round 19; 0x0A0F0011 was the round-17 image and 0x0A0F0012 round 18 — a validation record for either does not arm the current image, T-06), built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
 | **CAL** | The FW-20 calibration record, layout 2, sealed to the card's device UID, the SKU, the f_sw and a non-zero motor ID. On benches without a motor, the ID is the test motor or the S6 screening motor (0.35 mH / 25 mΩ). The nominal record carries motor_id 0 and never arms (T-07). |
-| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for 0x0A0F0011 and this card, written by QP-EOL-05 (T-05). Any change of `TI_FW_ID` invalidates it (T-06). |
+| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for **0x0A0F0013** and this card — genuinely measured and sealed by QP-EOL-05 (T-05) on the image actually flashed; an older record is never relabelled. Any change of `TI_FW_ID` invalidates it (T-06). |
 | **OTP** | An FS2633D variant programmed per design-basis §8a, with `cal_fs26_prog_id` set to its M_PROGID. The default 0xFFFF never arms (T-34). |
 
 Firmware in the loop energises a gate only with **CAL + VAL + OTP** present (FW-24; target-bringup "What always
@@ -2817,7 +2819,7 @@ neighbours.
 **Pass** —
 - V_ID lies within ±4 % of its nominal: 0.90 V (4I), 1.60 V (8I), 2.50 V (8S), 3.44 V (4S). Open (> 4.6 V) and
   short (< 0.2 V) are rejected.
-- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0011, and M_PROGID equals `cal_fs26_prog_id`.
+- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0013 (the current image, §0.2), and M_PROGID equals `cal_fs26_prog_id`.
 
 **Record** — V_ID per unit. The distribution against the window edges is reviewed per lot.
 
@@ -2920,7 +2922,7 @@ serial-linked kit record.
 - FW-24 (FAULT_ROUTE_VALIDATED, OVP_ROUTE_VALIDATED);
 - target-bringup T-05, T-06 and T-27 (the device UID as the serial);
 - firmware README item 22;
-- the round-17 image `TI_FW_ID` 0x0A0F0011 ("needs a new EOL/HIL validation record before it arms");
+- the current image `TI_FW_ID` 0x0A0F0013 (round 19; the round-17 0x0A0F0011 and every later change of the ID "needs a new EOL/HIL validation record before it arms");
 - F166; interface-requirements (EOL/calibration — the EOL/HIL arming-evidence record, the OEM's rig).
 
 **DUT** — every card at card EOL, FW and OTP. Any later image change repeats this QP.
@@ -2936,7 +2938,7 @@ serial-linked kit record.
    - the SKU;
    - flags FAULT_ROUTE_VALIDATED | OVP_ROUTE_VALIDATED;
    - hw_serial = the device UID;
-   - fw_id = 0x0A0F0011;
+   - fw_id = 0x0A0F0013 (the image flashed on this card — T-05; §0.2);
    - ovp_chain_ns = the card segment measured + the QP-FW-02 (a) DV maximum;
    - CRC-32.
 5. Reboot, and read INV_STATUS byte 15.
@@ -3575,15 +3577,18 @@ These are observations. None of the source documents was changed; each one needs
    - This plan uses the verifier values.
 6. **Texts not yet updated for the round-17 part changes.**
    - [`dfm.md`](dfm.md) §4 still gives RFS4's terminal rule for the 0603 ESR03 (≤ 132 °C at 0.30 W); RFS4 is now
-     the 1206 ESR18. QP-TH-04 records the ESR18's termination temperature.
+     the 1206 ESR18. QP-TH-04 records the ESR18's termination temperature. Resolved in round 22: dfm §4 now states the
+     ESR18's own Fig. 4 line (knee 125 °C for 1 kΩ ≤ R; fillet ≤ 137 °C at 0.30 W, ≤ 126 °C at 0.48 W).
    - The verification-report row "RFS4 with FAULT_OUT shorted to KL30 and FS1B asserted" still states the ESR03
-     limit (0.27 W at 85 °C).
-   - Interface-requirements (LV supply — 24 V jump start) still cites RFS4 at 1.47× nameplate.
+     limit (0.27 W at 85 °C). Resolved in round 22: the row's limit is the ESR18's 0.41 W at 85 °C (2.0 W for 5 s).
+   - Interface-requirements (LV supply — 24 V jump start) still cites RFS4 at 1.47× nameplate. Resolved: the 1.47× figure is
+     no longer in interface-requirements (checked round 22).
    - Interface-requirements (harness — exciter-line fault impedance ≥ 0.27 Ω at 35 V) is written as a single-fault
      requirement, while the round-17 rows treat the 35 V case as a double event (INFO). Resolved in rounds 18–19: IR-16 is
      ≥ 0.37 Ω at 35 V (0.29 Ω in round 18) and names the double event (round 21, F208).
    - Vendor-requests (Bourns and Littelfuse, exciter rows) describe the round-16 SMCJ8.5A; its own round-17 note
-     says so.
+     says so. Resolved in round 22: VR-17 rewritten for the SMDJ7.0A-HRA (the round-19 narrowing, F204); VR-15/VR-16 were
+     re-scoped in rounds 18–19.
 7. **Stale MGJ2 PO gate.** [`dfm.md`](dfm.md) §5 still names the MGJ2D150505SC certificate as a PO gate. The part
    was replaced by the UCC12050 / UCC12051-Q1 in A.11; the verification report now marks its MGJ2 line stale.
    QP-HV-01 checks the fitted parts.

@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB } from "./parts-db.mjs";
+import { SIZE } from "./footprints.mjs";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "calculations", "out", "pages");
 mkdirSync(OUT, { recursive: true });
@@ -135,6 +136,9 @@ for (const side of ["power", "capbank", "disch", "card"]) {
   const j = JSON.parse(readFileSync(
     join(ROOT, "dist", "boards", side === "card" ? "control-card" : side === "disch" ? "discharge" : side === "capbank" ? "capbank" : "power", "circuit.json"), "utf8"));
   const comps = j.filter(e => e.type === "source_component");
+  // round 22 (F210): the imperial size the sheet DRAWS (pad extents — bom-gen's drawn-size table) rides along so the
+  // KiCad generators can bind a footprint to a chip passive whose parts-db rule carries no size code
+  const drawnSize = new Map(j.filter(e => e.type === "pcb_component").map(p => [p.source_component_id, SIZE[`${(+p.width).toFixed(2)}x${(+p.height).toFixed(2)}`] ?? null]));
   const ports = j.filter(e => e.type === "source_port");
   const nets = new Map(j.filter(e => e.type === "source_net").map(n => [n.source_net_id, n.name]));
   const traces = j.filter(e => e.type === "source_trace");
@@ -218,7 +222,7 @@ for (const side of ["power", "capbank", "disch", "card"]) {
     const rule = DB.find(r => r.m.test(name));
     const v = c.ftype === "simple_resistor" ? (Number(c.resistance) === 0 ? "0R" : eng(Number(c.resistance), ""))
       : c.ftype === "simple_capacitor" ? eng(Number(c.capacitance), "F") : (rule?.mpn ?? name);
-    return { value: String(v).replace(/[^\x20-\x7E]/g, "") || (rule?.mpn ?? name), mpn: rule?.mpn ?? null };
+    return { value: String(v).replace(/[^\x20-\x7E]/g, "") || (rule?.mpn ?? name), mpn: rule?.mpn ?? null, size: drawnSize.get(c.source_component_id) ?? null };
   };
   // Diode ports must reach the sheet named A/C so the glyph seats the anode semantically.
   const pinName = (c, p) => {

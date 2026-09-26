@@ -569,9 +569,11 @@ export default () => (
     <resistor name="RLDE2" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VEXVA", pin2: "net.AGND" }} />
     <capacitor name="CLDEC" capacitance="270pF" footprint="0603" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.VEXVA" }} />
     <capacitor name="CLDE" capacitance="22uF" footprint="1210" {...gp()} connections={{ pin1: "net.VEXD", pin2: "net.AGND" }} />
-    <chip name="UEXD" footprint={SmdFP(14)} {...gp()}
-      pinLabels={{ pin1: "IN1N", pin2: "IN1P", pin3: "SDN", pin4: "IN2P", pin5: "IN2N", pin6: "GND1", pin7: "NC7", pin8: "NC8", pin9: "OUT2", pin10: "VCCO2", pin11: "VCC", pin12: "VCCO1", pin13: "OUT1", pin14: "GND2" }}
-      connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VEXD", VCC: "net.VEXD", VCCO1: "net.VEXD", OUT1: "net.VREX_P", GND2: "net.AGND" }} />
+    {/* Round 22 (F212): the PWP exposed pad is a real terminal — ALM2402-Q1 DS p.3 "connect the Exposed Pad to ground … must not be
+        connected to any other pin than ground" — so the symbol carries it as pin 15 on AGND and the KiCad HTSSOP-14 land nets its pad 15. */}
+    <chip name="UEXD" footprint={SmdFP(15)} {...gp()}
+      pinLabels={{ pin1: "IN1N", pin2: "IN1P", pin3: "SDN", pin4: "IN2P", pin5: "IN2N", pin6: "GND1", pin7: "NC7", pin8: "NC8", pin9: "OUT2", pin10: "VCCO2", pin11: "VCC", pin12: "VCCO1", pin13: "OUT1", pin14: "GND2", pin15: "PAD" }}
+      connections={{ IN1N: "net.EXN1", IN1P: "net.VMID_REX", SDN: "net.EXSD", IN2P: "net.VMID_REX", IN2N: "net.EXN2", GND1: "net.AGND", NC7: "net.NC_EXD7", NC8: "net.NC_EXD8", OUT2: "net.VREX_N", VCCO2: "net.VEXD", VCC: "net.VEXD", VCCO1: "net.VEXD", OUT1: "net.VREX_P", GND2: "net.AGND", PAD: "net.AGND" }} />
     <resistor name="RSDN" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.EXSD" }} />
     {/* Round 14 (F04) / round 15 (A13-R01, R02): terminal-fault protection of the ALM2402 outputs (abs max 18 V;
         reverse output diodes are pulse-rated only, DS 8.3.6). Per line, from the amplifier outwards:

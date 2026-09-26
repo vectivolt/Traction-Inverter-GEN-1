@@ -5,7 +5,7 @@
   "description": "Traction Inverter — 220 kW peak / 120 kW cont, 800 V-class SiC (EconoDUAL 3), ASIL-D-capable (schematic set + BOM)",
   "scripts": {
     "build": "TSCI_NO_ROUTE=1 tsci build boards/power.tsx --ignore-placement-drc --ignore-routing-drc && TSCI_NO_ROUTE=1 tsci build boards/capbank.tsx --ignore-placement-drc --ignore-routing-drc && TSCI_NO_ROUTE=1 tsci build boards/discharge.tsx --ignore-placement-drc --ignore-routing-drc && TSCI_NO_ROUTE=1 tsci build boards/control-card.tsx --ignore-placement-drc --ignore-routing-drc",
-    "sheets": "node calculations/pages.mjs && node calculations/kicad5-gen.mjs && node calculations/kicad5-verify.mjs && node calculations/kicad-sch-gen.mjs && node calculations/kicad-sch-verify.mjs && node calculations/kicad5-print.mjs && node calculations/sheets-to-pdf.mjs",
+    "sheets": "node calculations/pages.mjs && node calculations/kicad-fp-gen.mjs && node calculations/kicad5-gen.mjs && node calculations/kicad5-verify.mjs && node calculations/kicad-sch-gen.mjs && node calculations/kicad-sch-verify.mjs && node calculations/kicad5-print.mjs && node calculations/sheets-to-pdf.mjs",
     "bom": "node calculations/bom-gen.mjs",
     "bom:igbt": "BOM_VARIANT=igbt8 node calculations/bom-gen.mjs",
     "bom:igbt4": "BOM_VARIANT=igbt4 node calculations/bom-gen.mjs",

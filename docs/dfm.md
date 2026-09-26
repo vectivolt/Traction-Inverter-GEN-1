@@ -69,6 +69,10 @@ test on back-to-back rig).
 
 ## 4. Rules for the layout phase (so DFM survives it)
 
+The layout engineer's single entry point is [`layout-handoff.md`](layout-handoff.md) (round 22): the KiCad project with every
+symbol bound to a footprint in the shipped `traction.pretty`, the stack/copper facts, the creepage basis, the rules below by block,
+the open decisions and the first-article measurements the layout must keep possible. The rules here remain the source they cite.
+
 - 0603 minimum passive (0402 only where loop area forces it — currently none).
 - The BOM generator reads each chip passive's drawn size from the built footprint and refuses a parts-db rule that orders another size (round 16), so a sheet/BOM package disagreement cannot reach the buyer.
 - Fiducials 3×/board + 2× local at the MCU; testpoints on every rail, PWM, FLT/RDY, SPI,
@@ -91,10 +95,16 @@ test on back-to-back rig).
   check only — a 4XX bank fitted with its own discharge board reads 0.71 s, inside the 8XX ±20 % band
   (round 12, R1-F24/R2-F28).
 - ROHM ESR anti-surge parts carry fault-hold power, so their fillet (terminal) temperature is part of the
-  rating (DS Fig. 2/4). RASCG (ESR03 2.2 k, 1 kΩ < R row) is full-rated to 110 °C and allows ≤ 138 °C at
-  its 0.12 W; RFS4 is an **ESR18 1206 (0.5 W at 70 °C) since round 17** — 0.30 W with FS1B held at 18 V,
-  0.48 W for the 24 V / 60 s jump start (0.96× of its rating; the 0603 ESR03 it replaces ran at 1.47×). Keep both off the bias-module, shunt and busbar hot spots; check on the
-  thermal first article.
+  rating (ESR series Rev.012 p.3, Fig. 2 for the ESR03, Fig. 4 for the ESR18: full rated power up to a terminal-temperature
+  knee, then linear to zero at 155 °C; the knee is 130 °C (ESR03) / 125 °C (ESR18) for 1 kΩ ≤ R ≤ 10 MΩ and 110 °C / 105 °C
+  for 1 Ω ≤ R < 1 kΩ). RASCG (ESR03 2.2 k, the 1 kΩ ≤ R line, knee 130 °C) at its 0.12 W (36 % of 0.33 W) may run its fillet to
+  146 °C; the design keeps ≤ 138 °C (the figure derived on the 110 °C line in round 12 — kept as the conservative limit).
+  RFS4 is an **ESR18 1206 (0.5 W at 70 °C) since round 17** — 0.30 W with FS1B held at 18 V, 0.48 W for the 24 V / 60 s
+  jump start (0.96× of its rating; the 0603 ESR03 it replaces ran at 1.47×): on the ESR18's 1 kΩ ≤ R line (knee 125 °C) its
+  fillet may reach 137 °C at 0.30 W and 126 °C at 0.48 W (round 22 — this sentence had carried only the ESR03 figure, QP §15
+  item 6). RSXP/RSXN (ESR18 2.2 Ω, the 1 Ω ≤ R line, knee 105 °C) carry 8 mW in service; their fault duty is the 5 s
+  overload rating, not a fillet-temperature case. Keep all of them off the bias-module, shunt and busbar hot spots; QP-TH-04
+  measures the RFS4 and RASCG fillets on the thermal first article.
 
 - **UCC14141-Q1 (PSASC/PSQD, A.12)** — TI SLUSF10B §9.5.1: the 100 nF (CxxIB) at pins 6/7–8 and the
   COUT 100 nF at pins 28/29–30/31 on the IC side with no via between cap and pin, the 10 µF bulk parts

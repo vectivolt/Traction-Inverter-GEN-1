@@ -6,8 +6,8 @@
 //      lib_symbol_mismatch, duplicate_reference, and the other stub/label construction defects listed in FAIL.
 //      kicad-cli's ERC does not run the annotation test (two "R1" pass it and merge into one netlist component),
 //      so duplicate references are checked here from the sheets and by the netlist component count.
-//      IGNORED: footprint_link_issues — footprint fields are package names (R0603, MAPBGA289...); no footprint
-//      library is shipped. Every other type is counted and printed (heuristics: power_pin_not_driven — no symbol
+//      JUDGED since round 22 (F210): footprint_link_issues — every F2 is "traction:<name>" in the shipped traction.pretty
+//      (a FAIL except on an off-board part); every symbol pin number must have a pad of that number. Every other type is counted and printed (heuristics: power_pin_not_driven — no symbol
 //      has a power-output pin; ground_pin_not_ground — a GND-named pin on an isolated-domain return such as DCN).
 //  (b) netlist export (kicadxml) per board compared with circuit.json: same components, same net names (KiCad's
 //      "/" local-label prefix stripped), same REF.pin membership in every net; no-connect flags only on pins
@@ -15,12 +15,15 @@
 //  (c) the MCU's netlist pins are physical balls, each the manifest ball (calculations/mcu-ballmap.json) of its label.
 // Run: node calculations/kicad-sch-verify.mjs [--dir <folder>]      (KICAD_CLI overrides the kicad-cli path)
 
-import { readFileSync, mkdtempSync, cpSync, copyFileSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, mkdtempSync, cpSync, copyFileSync, rmSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { loadCircuit } from "./circuit-net.mjs";
+import { DB } from "./parts-db.mjs";
+import { isOffBoard, LIB as FP_LIB } from "./footprints.mjs";
+const offBoard = (ref) => isOffBoard(DB.find((r) => r.m.test(ref)));
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const arg = (k) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : undefined; };
@@ -30,7 +33,7 @@ const BOARDS = [["traction-power", "power"], ["traction-capbank", "capbank"], ["
 const MCU = "UMCU";
 const FAIL = new Set(["label_dangling", "unconnected_wire_endpoint", "lib_symbol_issues", "lib_symbol_mismatch", "duplicate_reference",
   "wire_dangling", "no_connect_dangling", "no_connect_connected", "multiple_net_names", "label_multiple_wires", "endpoint_off_grid"]);
-const IGNORED = new Set(["footprint_link_issues"]);
+const IGNORED = new Set();   // round 22 (F210): footprint_link_issues is judged — a FAIL except on an off-board part
 
 if (!existsSync(CLI)) { console.log(`FAIL: kicad-cli not found at ${CLI} (install KiCad 9/10 or set KICAD_CLI)`); process.exit(1); }
 for (const f of ["traction.kicad_pro", "traction.kicad_sch", "sym-lib-table", "traction.kicad_sym", ...BOARDS.map(([s]) => `${s}.kicad_sch`)])
@@ -41,6 +44,10 @@ for (const f of ["traction.kicad_pro", "traction.kicad_sch", "sym-lib-table", "t
 const WORK = mkdtempSync(join(tmpdir(), "kicad-sch-verify-"));
 cpSync(DIR, WORK, { recursive: true });
 for (const [s] of BOARDS) copyFileSync(join(WORK, "traction.kicad_pro"), join(WORK, `${s}.kicad_pro`));
+// the footprint library and its table travel with the project (KIPRJMOD = the work copy)
+for (const f of ["fp-lib-table"]) { if (!existsSync(join(DIR, f))) { console.log(`FAIL: ${f} missing in ${DIR}`); process.exit(1); } copyFileSync(join(DIR, f), join(WORK, f)); }
+mkdirSync(join(WORK, `${FP_LIB}.pretty`), { recursive: true });   // the work copy may already carry it
+for (const f of readdirSync(join(DIR, `${FP_LIB}.pretty`))) copyFileSync(join(DIR, `${FP_LIB}.pretty`, f), join(WORK, `${FP_LIB}.pretty`, f));
 const cli = (...a) => {
   const r = spawnSync(CLI, a, { cwd: WORK, encoding: "utf8" });
   if (r.status !== 0) { console.log(`FAIL: kicad-cli ${a.join(" ")}\n${r.stdout}${r.stderr}`); process.exit(1); }
@@ -78,7 +85,8 @@ function netlist(file) {
   const warn = cli("sch", "export", "netlist", "--format", "kicadxml", "-o", `${file}.xml`, `${file}.kicad_sch`);
   const x = readFileSync(join(WORK, `${file}.xml`), "utf8");
   const comps = new Map([...x.matchAll(/<comp ref="([^"]*)">([\s\S]*?)<\/comp>/g)].map((m) => [ent(m[1]),
-    { part: attr(m[2].match(/<libsource [^>]*>/)?.[0] ?? "", "part"), fields: new Set([...m[2].matchAll(/<field name="([^"]*)"/g)].map((f) => f[1])) }]));
+    { part: attr(m[2].match(/<libsource [^>]*>/)?.[0] ?? "", "part"), footprint: ent(m[2].match(/<footprint>([^<]*)<\/footprint>/)?.[1] ?? ""),
+      fields: new Set([...m[2].matchAll(/<field name="([^"]*)"/g)].map((f) => f[1])) }]));
   const libpins = new Map([...x.matchAll(/<libpart lib="[^"]*" part="([^"]*)">([\s\S]*?)<\/libpart>/g)].map((m) => [ent(m[1]),
     new Map([...m[2].matchAll(/<pin [^>]*\/>/g)].map((p) => [attr(p[0], "num"), attr(p[0], "name")]))]));
   const nets = [...x.matchAll(/<net code="\d+" name="([^"]*)"[^>]*>([\s\S]*?)<\/net>/g)].map((m) => ({ name: ent(m[1]),
@@ -97,6 +105,9 @@ function erc(file, openOk) {
       // allowed only on a pin circuit.json leaves open ("Symbol REF Pin N [...]")
       const m = where.match(/Symbol (\S+) Pin (\S+) \[/);
       if (!m || !openOk(`${m[1]}.${m[2]}`)) fail(`${file} ERC pin_not_connected on a connected pin: ${where}`);
+    } else if (v.type === "footprint_link_issues") {
+      const ref = where.match(/Symbol (\S+)/)?.[1];
+      if (!ref || !offBoard(ref)) fail(`${file} ERC footprint_link_issues: ${v.description} — ${where}`);
     } else if (FAIL.has(v.type)) fail(`${file} ERC ${v.type}: ${v.description} — ${where}`);
   }
   return bySheet;
@@ -121,6 +132,23 @@ for (const [file, board] of BOARDS) {
   if (miss.length || extra.length) fail(`${file}: components missing [${miss.slice(0, 10)}] extra [${extra.slice(0, 10)}]`);
   const bare = [...x.comps].filter(([, c]) => !c.fields.has("MPN") || !c.fields.has("LCSC")).map(([r]) => r);
   if (bare.length) fail(`${file}: components without MPN/LCSC fields [${bare.slice(0, 10)}]`);
+  // footprints (round 22, F210): every symbol resolves in traction.pretty and every pin NUMBER has a pad of that number
+  let bound = 0; const padOnly = [];
+  for (const [ref, c] of x.comps) {
+    if (offBoard(ref)) { if (c.footprint) fail(`${file}: ${ref} is off-board but carries footprint ${c.footprint}`); continue; }
+    const m = new RegExp(`^${FP_LIB}:(.+)$`).exec(c.footprint);
+    if (!m) { fail(`${file}: ${ref} has no ${FP_LIB} footprint (field "${c.footprint}")`); continue; }
+    const fp = join(WORK, `${FP_LIB}.pretty`, `${m[1]}.kicad_mod`);
+    if (!existsSync(fp)) { fail(`${file}: ${ref} footprint ${m[1]} is not in ${FP_LIB}.pretty`); continue; }
+    const pads = new Set([...readFileSync(fp, "utf8").matchAll(/\(pad "([^"]*)"/g)].map((p) => p[1]).filter(Boolean));
+    const pins = [...(x.libpins.get(c.part) ?? new Map()).keys()];
+    const nopad = pins.filter((p) => !pads.has(p));
+    if (nopad.length) fail(`${file}: ${ref} (${m[1]}) symbol pins with no pad of that number: ${nopad.slice(0, 8).join(",")}`);
+    const extra = [...pads].filter((p) => !pins.includes(p));
+    if (extra.length && ref !== MCU) padOnly.push(`${ref}:${extra.join("/")}`);   // the MCU's open balls are the manifest's 159 (docs/mcu-pin-manifest.md), not listed here
+    bound++;
+  }
+  if (padOnly.length) console.log(`${"".padEnd(18)}pads with no symbol pin (thermal/mechanical, no net): ${padOnly.join(" ")}`);
   // nets
   const byName = new Map();
   let nc = 0, loose = 0, named = 0, junctions = 0;
@@ -149,7 +177,7 @@ for (const [file, board] of BOARDS) {
   for (const [name, got] of byName) fail(`${file}: net ${name} {${fmt(got)}} is not in circuit.json`);
   const e = erc(file, (k) => g.open.has(k));
   res[file] = { g, x, refs };
-  console.log(`${file.padEnd(17)} ${String(x.comps.size).padStart(3)}/${g.refs.size} components · ${named}/${g.nets.size} nets by name + members`
+  console.log(`${file.padEnd(17)} ${String(x.comps.size).padStart(3)}/${g.refs.size} components · ${bound} footprints bound · ${named}/${g.nets.size} nets by name + members`
     + `${g.anon.length ? ` · ${junctions}/${g.anon.length} junctions` : ""} · ${nc} no-connect flags · ${loose} unflagged open pins`
     + `${x.warn ? " · kicad-cli: 'annotation errors' (references not ending in a digit)" : ""}`);
   for (const [path, c] of e) console.log(`${"".padEnd(18)}ERC ${path === "/" ? "" : `${path} `}${typeCounts(c)}`);
@@ -187,4 +215,4 @@ for (const [file, board] of BOARDS) {
 
 rmSync(WORK, { recursive: true, force: true });
 if (fails.length) { console.log(`\nFAIL (${fails.length}):`); fails.slice(0, 40).forEach((f) => console.log("  " + f)); process.exit(1); }
-console.log(`PASS: KiCad ${version} reads all ${BOARDS.length} board sheets + the root; netlists equal circuit.json (ignored: ${[...IGNORED]})`);
+console.log(`PASS: KiCad ${version} reads all ${BOARDS.length} board sheets + the root; netlists equal circuit.json; every on-board symbol is bound to a ${FP_LIB}.pretty footprint whose pads cover its pin numbers (ERC footprint_link_issues 0 except off-board parts)`);

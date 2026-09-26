@@ -615,8 +615,11 @@ for (const [sku, k] of Object.entries(SKUS)) {
 // R1-F05/R2-F26: the ALM2402 is bought as the 14-pin PWP package the symbol draws
 {
   const rule = DB.find((r) => r.m.test("UEXD"));
-  ok(rule && /^HTSSOP14/.test(rule.fp ?? "") && CARD.comps.find((c) => c.name === "UEXD") && CARD.pinNet.get("UEXD.#14") !== undefined && CARD.pinNet.get("UEXD.#15") === undefined,
-    "UEXD BOM package is the 14-pin PWP (symbol has 14 pins, no pin 15)", rule?.fp);
+  // round 22 (F212): the PWP exposed pad is carried as pin 15 on AGND (ALM2402-Q1 DS p.3: "connect the Exposed Pad to ground …
+  // must not be connected to any other pin than ground"), so the KiCad HTSSOP-14 land's pad 15 gets its net
+  ok(rule && /^HTSSOP14/.test(rule.fp ?? "") && CARD.comps.find((c) => c.name === "UEXD") && CARD.pinNet.get("UEXD.#14") !== undefined
+    && CARD.pinNet.get("UEXD.#15") !== undefined && CARD.pinNet.get("UEXD.#16") === undefined && same(C("UEXD.PAD"), "AGND"),
+    "UEXD BOM package is the 14-pin PWP + exposed pad: 15 symbol pins, pin 15 = PAD on AGND", rule?.fp);
 }
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";

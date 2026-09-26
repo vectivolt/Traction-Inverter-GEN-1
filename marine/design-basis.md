@@ -376,11 +376,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.20**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.21**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19 and A.20 (rounds 19–21) on 2026-09-26; no Marine unit is built or
+then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19, A.20 and A.21 (rounds 19–22) on 2026-09-26; no Marine unit is built or
 type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
-review rounds 7–21 (`../docs/review-A7-disposition.md` … `../docs/review-A20-disposition.md`). It has the same PCBs and
+review rounds 7–22 (`../docs/review-A7-disposition.md` … `../docs/review-A21-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -388,11 +388,11 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.20 brought** (Road `design-basis.md` §11i–§11t; A.12 = round 13,
+**What A.9–A.21 brought** (Road `design-basis.md` §11i–§11u; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
 `review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17, `review-A16-disposition.md`; A.17 = round 18 (rechecks of 4425af9),
 `review-A17-disposition.md`; A.18 = round 19, `review-A18-disposition.md`; A.19 = round 20, `review-A19-disposition.md`;
-A.20 = round 21, `review-A20-disposition.md`):
+A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -614,6 +614,14 @@ A.20 = round 21, `review-A20-disposition.md`):
   last 8.5 V-era figures in live text aligned to the shared model. Marine: the Road cross-references to the §7 sweep now quote
   its current figures (2.0 / 2.5 W at 12.0 / 11.4 V on the kit rail; kit loom ≥ 0.27 Ω — the 0.25 Ω of round 19 was interim);
   no marine cell change.
+- **A.21.** Round 22 (three rechecks of the A.20 push 0ff44d9, Road `review-A21-disposition.md`, F209–F213): the reviewers'
+  one item (the qualification plan's §0.2 DUT baseline still at SMDJ8.5A-HRA / 0x0A0F0011) corrected; the layout handoff
+  furnished on the user's question — every KiCad symbol bound to a footprint in a shipped `traction.pretty` (standard
+  patterns copied from KiCad 10, the module, isolators, transformer, connectors, can, fuse, choke, resistor and crystal
+  drawn from the archived datasheets), the KiCad proof extended to pads-per-pin, `docs/layout-handoff.md` written; the proof
+  caught the NCV4276C regulators coded as 3-lead DPAK (5-lead only), the two thermal pads without a pin and the 2-pad
+  crystal. Marine: M8 inherits the footprint-bound Road sets and the handoff document (the M10 power board is its own
+  layout, §2 creepage); no marine cell change.
 
 | Change | M8 | M10 |
 |---|---|---|

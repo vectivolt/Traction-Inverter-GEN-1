@@ -12,12 +12,15 @@
 // Run:    node calculations/kicad-sch-gen.mjs        (after kicad5-gen.mjs; proved by kicad-sch-verify.mjs)
 // Self-test only: --out <dir> writes there (no zip); --mutate mcu-mirror|mcu-swap corrupts the MCU on purpose.
 
-import { readFileSync, writeFileSync, mkdirSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, unlinkSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { REV } from "./rev.mjs";
+import { DB } from "./parts-db.mjs";
+import { isOffBoard, LIB as FP_LIB } from "./footprints.mjs";
+const offBoard = (ref) => isOffBoard(DB.find((r) => r.m.test(ref)));   // round 22 (F210): no footprint, excluded from the board
 import { loadCircuit } from "./circuit-net.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -211,7 +214,7 @@ for (const b of boards) {
   for (const c of sh.comps) {
     const paths = [`/${ROOT_UUID}/${b.sheetUuid}`, `/${b.fileUuid}`];   // in the hierarchy, and the board opened on its own
     out.push(`\t(symbol (lib_id ${q(`${LIB}:${c.lib}`)}) (at ${mm(c.x)} ${mm(c.y)} 0)${MUTATE === "mcu-mirror" && c.ref === MCU ? " (mirror y)" : ""} (unit 1)`,
-      "\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)", `\t\t(uuid ${q(uuid(`${f}:sym:${c.ref}`))})`,
+      `\t\t(exclude_from_sim no) (in_bom yes) (on_board ${offBoard(c.ref) ? "no" : "yes"}) (dnp no)`, `\t\t(uuid ${q(uuid(`${f}:sym:${c.ref}`))})`,
       ...c.fields.map((fl) => `\t\t${prop(fl)}`),
       `\t\t(instances (project ${q(PROJECT)}${paths.map((p) => ` (path ${q(p)} (reference ${q(c.ref)}) (unit 1))`).join("")}))`, "\t)");
   }
@@ -261,6 +264,9 @@ for (const b of boards) {
 // project, and a project library identical to the embedded lib_symbols: KiCad's ERC checks every symbol against
 // its library (lib_symbol_issues / lib_symbol_mismatch); the sheets still open with no library at all
 writeFileSync(join(OUT, "traction.kicad_pro"), `${JSON.stringify({ meta: { filename: "traction.kicad_pro", version: 3 } }, null, 2)}\n`);
+// round 22 (F210): a project file beside each board sheet, so one board opens as a standalone project for its own PCB
+// (each board is a separate PCB; kicad-sch-verify proves them the same way)
+for (const b of boards) writeFileSync(join(OUT, `${b.name}.kicad_pro`), `${JSON.stringify({ meta: { filename: `${b.name}.kicad_pro`, version: 3 } }, null, 2)}\n`);
 writeFileSync(join(OUT, "traction.kicad_sym"), ["(kicad_symbol_lib", "\t(version 20241209)", '\t(generator "traction_kicad_sch_gen")', '\t(generator_version "9.0")',
   ...[...SYMS.values()].map((s) => libSymbol(s, "")), ")", ""].join("\n"));
 writeFileSync(join(OUT, "sym-lib-table"), `(sym_lib_table\n\t(version 7)\n\t(lib (name ${q(LIB)})(type "KiCad")(uri "\${KIPRJMOD}/traction.kicad_sym")(options "")(descr "Traction Inverter symbols (generated; identical to the lib_symbols embedded in every sheet)"))\n)\n`);
@@ -269,18 +275,22 @@ writeFileSync(join(OUT, "README.txt"), `KICAD 9/10 SET (rev ${REV}). Open tracti
 so a net joins other boards only through the named connector/stud/tab, never by name across sheets.
 Every sheet embeds its symbols (no library needed to open it); traction.kicad_sym + sym-lib-table are an identical
 project library so KiCad's symbol-library checks pass. The MCU (UMCU) numbers its pins by BGA ball (H5, J7, ...);
-every other part by its footprint pad. Footprint fields name the package (R0603, MAPBGA289, ...); no footprint
-library is shipped. Generated from the same sheets as the KiCad 5 set (kicad5/ in the repository, for KiCad 5-8 and EasyEDA;
+every other part by its footprint pad. Footprint fields read "traction:<name>" and resolve in the shipped traction.pretty (fp-lib-table included):
+patterns copied verbatim from the KiCad 10 libraries or drawn from the archived datasheets (traction.pretty/README.md, SOURCES.json,
+MANIFEST.md) — "Update PCB from Schematic" needs nothing else; the LEM sensors USNSU/V/W are off-board (no footprint, excluded from the board).
+Open traction-<board>.kicad_pro (power, capbank, disch, card) to lay out ONE board as its own PCB; docs/layout-handoff.md is the
+layout engineer's entry point (stack, copper, creepage basis, rules by block, open decisions). Generated from the same sheets as the KiCad 5 set (kicad5/ in the repository, for KiCad 5-8 and EasyEDA;
 KiCad 10 resolves none of its symbols) by calculations/kicad-sch-gen.mjs, and proved with kicad-cli (ERC + netlist
 export compared net by net with circuit.json) by calculations/kicad-sch-verify.mjs.
 `);
-const FILES = ["traction.kicad_pro", "traction.kicad_sch", ...boards.map((b) => `${b.name}.kicad_sch`), "traction.kicad_sym", "sym-lib-table", "README.txt"];
+const FILES = ["traction.kicad_pro", "traction.kicad_sch", ...boards.flatMap((b) => [`${b.name}.kicad_sch`, `${b.name}.kicad_pro`]), "traction.kicad_sym", "sym-lib-table", "fp-lib-table", "README.txt"];
 if (SHIP) {                                             // packaged while generating, so the zip never drifts
   const zip = join(ROOT, "kicad", "Traction-Inverter-KiCad-modern.zip");
   const members = FILES.map((f) => join(OUT, f));
   try { unlinkSync(zip); } catch {}
-  execFileSync("touch", ["-t", `${rootSch.tb.Date.replace(/-/g, "")}0000`, ...members]);
-  execFileSync("zip", ["-qX", "-j", zip, ...members]);
+  const pretty = readdirSync(join(OUT, `${FP_LIB}.pretty`)).map((f) => join(OUT, `${FP_LIB}.pretty`, f));
+  execFileSync("touch", ["-t", `${rootSch.tb.Date.replace(/-/g, "")}0000`, ...members, ...pretty]);
+  execFileSync("zip", ["-qX", "-r", zip, ...FILES, `${FP_LIB}.pretty`], { cwd: OUT });
 }
 stats.forEach((s) => console.log(s));
 console.log(`\n${FILES.length} files · ${boards.length} board sheets + root · ${SYMS.size} symbols → ${OUT}${SHIP ? " + kicad/Traction-Inverter-KiCad-modern.zip" : ""}${MUTATE ? ` (MUTATED: ${MUTATE})` : ""}`);

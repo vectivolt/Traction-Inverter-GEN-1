@@ -322,7 +322,7 @@ review). Each has regression tests that fail on the pre-fix source and pass now 
 | FW-06a — ASC exit | After its 1 µs ASC_CLR pulse the firmware waited 1 µs, so the first high-side pulse came 2.0 µs after the clear's falling edge — before the low sides' ASC release (≤ 1.07 µs: design-verify Safety A.8, VOW3120 t_pHL 0.5 + DASCR 0.08 + NSI6611 t_ASC_f 0.48 µs + 11 ns of logic) plus their turn-off (the dead time, 1.0 µs SiC / 2.5 µs IGBT): deadlines 2.07 / 3.57 µs. The contract still quoted 7.5 / 0.75 µs for the ASC entry/release. | The first HS pulse waits `cal_asc_release_ns` (1.5 µs; range 1.07–5 µs, never below the release) + the SKU dead time from the falling edge, + one µs timer count: 4.0 µs SiC, 5.0 µs IGBT on the host. The contract's ASC figures follow the verifier row: LS start ≥ 4.42 µs, entry ≤ 7.56 µs, release ≤ 1.06 µs (1.07 µs with the logic). | bridge: `asc_exit_only_when_allowed_and_hs_after_the_release`; scenarios: `asc_exit_first_high_side_pulse_after_the_release_deadline` (after an MCU reset at 10 000 rpm, SiC and IGBT) |
 | FW-33 — LV supply (let-through LV entry) | The firmware did not read VSUP: a load dump or a jump start left no record, and an overvoltage of any length was never acted on (the FS26's VSUPOV is only an interrupt, and INTB is unused). | VSUP through the FS26 AMUX (VSUP / 14, set at every boot), every 1 ms. Above 20 V is information — RUN and the torque unchanged (no derate), `DTC_LV_OVERVOLTAGE` stamped over the event — for `cal_vsup_ld_ms` (500 ms, range 400–1000) above `cal_vsup_jump_max_v` (27 V, range 24.5–30: IR-03 test B, 35 V / 400 ms) and for `cal_vsup_jump_ms` (65 s, range 60–120 s) at or below it (IR-02, 24 V / 60 s). Longer is `DTC_LV_OV_SUSTAINED` and the §6 command-lost ramp — the HVIL-open path — until KL30 is back. | scenarios: `lv_load_dump_35v_for_400ms_is_information_not_a_fault`, `lv_overvoltage_beyond_its_band_takes_the_orderly_ramp`, `lv_24v_jump_start_is_information_for_its_60s` (24 V and 26.5 V) |
 
-`TI_FW_ID` is 0x0A0F0011: this image needs a new EOL/HIL validation record before it arms (checklist T-05);
+`TI_FW_ID` was 0x0A0F0011 in round 17 (0x0A0F0012 round 18, **0x0A0F0013 since round 19** — the current image): every change of the ID needs a new EOL/HIL validation record before it arms (checklist T-05);
 the calibration record stays layout 2. It was introduced in this round and never validated, so the FS26,
 ASC-exit and LV changes ship under the same identity. Also in this round: the markers of the platform code were consolidated to one per
 bring-up item (47, each a row of `docs/target-bringup.md`; `make target-check` fails on drift either way), the
@@ -428,7 +428,7 @@ in `docs/firmware-contract.md`; §10c indexes the round) or a checklist row (`do
 26. **DC-link trim** — implemented (above): FW-08.
 27. **ADC1 injected chain** — FW-06 (the sample wait: 4 µs of the 5.0 µs row); measurement: T-11.
 28. **BCTU list read-back** — checklist T-12.
-29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0011, calibration layout 2; the records: T-05, T-06, T-07 (round 18:
+29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0013 (round 19; 0x0A0F0011 round 17, 0x0A0F0012 round 18), calibration layout 2; the records: T-05, T-06, T-07 (round 18:
     0x0A0F0012, round 19: 0x0A0F0013, §10d).
 30. **Amplitude planes** — FW-30 (round 17): the setpoint at the monitor, the floor at the winding through
     `cal_rslv_wind_per_mon` and the EOL ratio; the EOL confirmation: T-07.

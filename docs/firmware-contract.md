@@ -806,7 +806,7 @@ never a completion; re-sync from the clock; the synchronized producer restart.
   overvoltage is information for as long as the vehicle interface allows — above 27 V for 500 ms (IR-03 test B),
   at or below it for 65 s (IR-02 jump start), each a range-checked CAL — and the §6 command-lost ramp beyond
   that — §5, "FW-33 LV supply supervision"; checklist T-39.
-- **Image identity.** `TI_FW_ID` 0x0A0F0011: round 17 changes the image (zero current under the battery-lost
+- **Image identity.** `TI_FW_ID` 0x0A0F0013 since round 19 (0x0A0F0011 round 17, 0x0A0F0012 round 18): round 17 changed the image (zero current under the battery-lost
   row, the RUN-only DC-link trim, FW-32, the FW-12 refresh cadence, the FW-06a release wait, FW-33). A new
   EOL/HIL validation record is required before it arms (FW-24); the calibration record stays layout 2. (Round 18
   moves the image to 0x0A0F0012, §10d.)

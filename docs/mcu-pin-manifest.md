@@ -2,7 +2,7 @@
 
 **Package:** 289-MAPBGA (17 x 17, rows A-H J-N P R T U). **Source:** NXP EV-INVERTERGEN3 S32K396-HPWR-MC schematic SPF-91122 rev C, sheets 8-13 (MCU symbol ball numbers and pin functions); ball-to-name pairing anchored on the S32K39 DS supply balls J6 E7 B8 E9 G13 E11 F1 H5; FS26 48 pins verified against FS26 DS Table 3.
 
-Every connected ball is drawn on the control-card sheet with the label `<ball>_<signal>`; the 158 unused GPIO
+Every connected ball is drawn on the control-card sheet with the label `<ball>_<signal>`; the 159 unused GPIO
 balls are left open (pads unconnected in layout). The ERC (`erc-audit.mjs`, round 13) asserts that every
 `UMCU` pin label starts with a ball listed here, sits on the net listed here, and — for signal balls — that
 the required peripheral function is in that ball's alternate-function list.

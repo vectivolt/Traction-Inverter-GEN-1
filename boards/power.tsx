@@ -176,9 +176,10 @@ export default () => (
     <capacitor name="C5G1" capacitance="1uF" footprint="0805" {...gp()} connections={{ pin1: "net.V12L", pin2: "net.DGND" }} />
     <capacitor name="C5G2" capacitance="10uF" footprint="1206" {...gp()} connections={{ pin1: "net.V5GD", pin2: "net.DGND" }} />
     {/* V15 boost for the reinforced sense-bias modules */}
-    <chip name="UB15" footprint={SmdFP(16)} {...gp()}
-      pinLabels={{ pin1: "SW1", pin2: "VIN1", pin3: "EN", pin4: "SS", pin5: "SYNC", pin6: "AGND", pin7: "COMP", pin8: "FB", pin9: "FREQ", pin10: "NC1", pin11: "PGND1", pin12: "PGND2", pin13: "PGND3", pin14: "NC2", pin15: "SW2", pin16: "SW3" }}
-      connections={{ SW1: "net.B15SW", VIN1: "net.V12L", EN: "net.V12L", SS: "net.B15SS", SYNC: "net.DGND", AGND: "net.DGND", COMP: "net.B15CO", FB: "net.B15FB", FREQ: "net.B15FQ", NC1: "net.DGND", PGND1: "net.DGND", PGND2: "net.DGND", PGND3: "net.DGND", NC2: "net.DGND", SW2: "net.B15SW", SW3: "net.B15SW" }} />
+    {/* Round 22 (F212): the RTE PowerPAD "must be soldered to AGND" (TPS55340 DS, Layout) — pin 17 on DGND (the device AGND net) nets the WQFN-16 land's pad 17. */}
+    <chip name="UB15" footprint={SmdFP(17)} {...gp()}
+      pinLabels={{ pin1: "SW1", pin2: "VIN1", pin3: "EN", pin4: "SS", pin5: "SYNC", pin6: "AGND", pin7: "COMP", pin8: "FB", pin9: "FREQ", pin10: "NC1", pin11: "PGND1", pin12: "PGND2", pin13: "PGND3", pin14: "NC2", pin15: "SW2", pin16: "SW3", pin17: "PAD" }}
+      connections={{ SW1: "net.B15SW", VIN1: "net.V12L", EN: "net.V12L", SS: "net.B15SS", SYNC: "net.DGND", AGND: "net.DGND", COMP: "net.B15CO", FB: "net.B15FB", FREQ: "net.B15FQ", NC1: "net.DGND", PGND1: "net.DGND", PGND2: "net.DGND", PGND3: "net.DGND", NC2: "net.DGND", SW2: "net.B15SW", SW3: "net.B15SW", PAD: "net.DGND" }} />
     {/* soft-start + switching-frequency programming (RTE16 required pins): 80.6k -> ~580 kHz */}
     <capacitor name="CB15S" capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: "net.B15SS", pin2: "net.DGND" }} />
     <resistor name="RB15Q" resistance="80.6k" footprint="0603" {...gp()} connections={{ pin1: "net.B15FQ", pin2: "net.DGND" }} />

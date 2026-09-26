@@ -411,7 +411,7 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.20)
+## 11. Verification status (current release: rev A.21)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
@@ -434,6 +434,29 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11u. Rev A.21 — round 22: three rechecks of 0ff44d9, and the layout handoff (summary)
+
+Three independent rechecks of the A.20 push ([`review-A21-disposition.md`](review-A21-disposition.md), register F209–F213) close
+F208 and find one MINOR item of ours: the qualification plan's general DUT table still defined the hardware as A.15+ with the
+SMDJ8.5A-HRA and the production image as 0x0A0F0011 (→ A.20+, SMDJ7.0A-HRA, 0x0A0F0013, with the A.15–A.17 build named as a
+different protection configuration; the last stale IDs in the firmware README and contract with it — F209). The user's question
+this round — why the schematic is "still not production ready" and not furnished for PCB layout — was answered by inspecting
+the handoff as a layout engineer receives it: the reviewers' NOT READY is bench, target and vendor evidence that needs a built
+board, and the circuit has carried no open defect for three rounds, but every KiCad symbol carried a bare package code and no
+footprint library shipped, so Update PCB from Schematic could not run. **Closed (F210):** `calculations/footprints.mjs` binds
+every code to one footprint in a shipped project library (`kicad/traction/traction.pretty`: 45 patterns copied verbatim from
+the KiCad 10.0.6 libraries with their names and sha256 recorded, 18 drawn pad by pad from the archived datasheets by an Opus
+agent and documented in `MANIFEST.md`), `fp-lib-table` and per-board project files ship in every set and zip, the generator
+refuses an unbound part, and `kicad-sch-verify` now judges footprint links and proves every symbol pin number has a pad of that
+number. That proof, with a Sonnet audit of 31 part groups' pin numbers against their datasheets, found three real land defects
+before any layout: the five NCV4276C regulators coded as 3-lead DPAKs where the family is 5-lead only (F211), the ALM2402 and
+TPS55340 thermal pads with no symbol pin (now pins 15 / 17 on ground, F212) and the two-terminal Kyocera crystal on a 4-pad
+pattern (F213). A second Sonnet agent collected every layout-relevant rule into [`layout-handoff.md`](layout-handoff.md) —
+stack and copper facts, the creepage basis (PD2/OVC II provisional), rules by block, the open decisions with their owners and the
+first-article access the layout must keep — and surfaced four document inconsistencies, all corrected (F209). Counts: ERC 977 ·
+verify 156/18/0 · sim 23/6/0 · Marine 87/23/0 · pin-verify 2059/2059 (the two pad pins) · KiCad proof PASS with every on-board
+symbol bound · BOM totals unchanged · firmware unchanged (290 / 2705 / 0). Marine forks at A.21.
 
 ## 11t. Rev A.20 — round 21: three rechecks of 551c405 (summary)
 

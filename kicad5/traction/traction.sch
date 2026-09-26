@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW pk - schematic set"
 Date "2026-09-23"
-Rev "A.20"
+Rev "A.21"
 Comp "Traction Inverter"
 Comment1 "Power board sheet 1 - Cap bank sheet 2 - Discharge board sheet 3 - Control card sheet 4"
 Comment2 "800 V-class, 120 kW cont / 220 kW pk, ASIL-D-capable architecture"

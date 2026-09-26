@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name traction)(type KiCad)(uri ${KIPRJMOD}/traction.pretty)(options "")(descr "Traction Inverter GEN-1 footprints (generated + datasheet-drawn)"))
+)

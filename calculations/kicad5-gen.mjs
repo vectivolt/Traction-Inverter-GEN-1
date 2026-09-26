@@ -10,10 +10,14 @@
 // Output: kicad5/traction/*.sch + traction-r1.lib + traction.pro (+ SHIP zip)
 // Run:    node calculations/kicad5-gen.mjs
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, readdirSync, existsSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DB, OVERRIDES, SAFETY_ROWS, DISCHARGE_ROWS } from "./parts-db.mjs";
+import { footprintOf, fpId, LIB as FP_LIB } from "./footprints.mjs";
+// round 22 (F210): every symbol's F2 is "traction:<footprint>" — footprintOf THROWS when a rule resolves to nothing,
+// so a sheet cannot be written with an unbound part; off-board parts (OffBoard) get an empty field on purpose
+const fpField = (c) => fpId(footprintOf(DB.find((r) => r.m.test(c.designator)), c.size, c.designator));
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "calculations/out/pages");
@@ -939,7 +943,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
         body += `$Comp\nL ${LIB_NAME}:${nm} ${c.designator}\nU 1 1 ${nextId()}\nP ${cx} ${cyy}\n`
           + `F 0 "${c.designator}" H ${cx} ${cyy - 160} 50  0000 C CNN\n`
           + `F 1 "${valueText(c.designator, c.value)}" H ${cx} ${cyy + 170} 50  0000 C CNN\n`
-          + `F 2 "${DB.find((r) => r.m.test(c.designator))?.fp ?? ""}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
+          + `F 2 "${fpField(c)}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
           + `F 4 "${lc.lcsc ?? lc.status}" H ${cx} ${cyy} 50  0001 C CNN "LCSC"\n`
           + `F 5 "${mpn}" H ${cx} ${cyy} 50  0001 C CNN "MPN"\n`
           + `\t1    ${cx} ${cyy}\n\t1    0    0    -1  \n$EndComp\n`;
@@ -953,7 +957,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
         body += `$Comp\nL ${LIB_NAME}:${nm} ${c.designator}\nU 1 1 ${nextId()}\nP ${cx} ${cyy}\n`
           + `F 0 "${c.designator}" H ${cx} ${cyy - 160} 50  0000 C CNN\n`
           + `F 1 "${valueText(c.designator, c.value)}" H ${cx} ${cyy + 170} 50  0000 C CNN\n`
-          + `F 2 "${DB.find((r) => r.m.test(c.designator))?.fp ?? ""}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
+          + `F 2 "${fpField(c)}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
           + `F 4 "${lc.lcsc ?? lc.status}" H ${cx} ${cyy} 50  0001 C CNN "LCSC"\n`
           + `F 5 "${mpn}" H ${cx} ${cyy} 50  0001 C CNN "MPN"\n`
           + `\t1    ${cx} ${cyy}\n\t1    0    0    -1  \n$EndComp\n`;
@@ -971,7 +975,7 @@ for (const [side, pgs] of Object.entries(BOARDS)) {
         body += `$Comp\nL ${LIB_NAME}:${nm} ${c.designator}\nU 1 1 ${nextId()}\nP ${cx} ${cyy}\n`
           + `F 0 "${c.designator}" H ${cx - s.halfW - 100} ${cyy - s.halfH - 100} 50  0000 R CNN\n`
           + `F 1 "${valueText(c.designator, c.value)}" H ${cx - s.halfW - 100} ${cyy + s.halfH + 130} 50  0000 R CNN\n`
-          + `F 2 "${DB.find((r) => r.m.test(c.designator))?.fp ?? ""}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
+          + `F 2 "${fpField(c)}" H ${cx} ${cyy} 50  0001 C CNN\nF 3 "~" H ${cx} ${cyy} 50  0001 C CNN\n`
           + `F 4 "${lc.lcsc ?? lc.status}" H ${cx} ${cyy} 50  0001 C CNN "LCSC"\n`
           + `F 5 "${mpn}" H ${cx} ${cyy} 50  0001 C CNN "MPN"\n`
           + `\t1    ${cx} ${cyy}\n\t1    0    0    -1  \n$EndComp\n`;
@@ -1068,6 +1072,8 @@ writeFileSync(join(OUT_NATIVE, "sym-lib-table"), SYM_TABLE);
 writeFileSync(join(OUT_NATIVE, "traction-cache.lib"), rawLib);
 writeFileSync(join(OUT_NATIVE, "README.txt"),
   `NATIVE KICAD 5 VARIANT (round 15, A13-R05). Same sheets as ../traction/, un-mirrored symbol library: KiCad 5\napplies each component's orientation matrix to the library pin before adding its position. Open traction.sch\nin KiCad 5.1.x. For EasyEDA import use ../traction/ instead. Both are verified by calculations/kicad5-verify.mjs.\n`);
+const FP_NOTE = `\nFOOTPRINTS (round 22, F210): every symbol's F2 field is "${FP_LIB}:<name>" and resolves in ${FP_LIB}.pretty, shipped here\nwith fp-lib-table (patterns copied verbatim from the KiCad 10 libraries or drawn from the archived datasheets — see\n${FP_LIB}.pretty/README.md, SOURCES.json and MANIFEST.md). Off-board parts (the LEM sensors USNSU/V/W on the busbar) carry\nno footprint on purpose. calculations/kicad-sch-verify.mjs proves every symbol pin has a pad of its number.\n`;
+for (const d of [OUT, OUT_NATIVE]) appendFileSync(join(d, "README.txt"), FP_NOTE);
 // Package for EasyEDA import as part of GENERATING (zips must not drift behind the sheets).
 {
   const { execFileSync } = await import("node:child_process");
@@ -1076,15 +1082,16 @@ writeFileSync(join(OUT_NATIVE, "README.txt"),
   const members = [...files.map((f) => join(OUT, `${f}.sch`)),
     join(OUT, `${LIB_NAME}.lib`), join(OUT, `${LIB_NAME}.dcm`),
     join(OUT, "traction.pro"), join(OUT, "traction.sch"), join(OUT, "sym-lib-table"), join(OUT, "traction-cache.lib")];
-  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members]);
-  execFileSync("zip", ["-qX", "-j", zip, ...members, join(OUT, "README.txt")]);
+  const pretty = (d) => readdirSync(join(d, `${FP_LIB}.pretty`)).map((f) => join(d, `${FP_LIB}.pretty`, f));
+  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members, join(OUT, "fp-lib-table"), ...pretty(OUT)]);
+  execFileSync("zip", ["-qX", "-r", zip, ...members.map((m) => m.slice(OUT.length + 1)), "README.txt", "fp-lib-table", `${FP_LIB}.pretty`], { cwd: OUT });
   console.log("   packaged → kicad5/Traction-Inverter-SHIP.zip (EasyEDA-import variant)");
   const zipN = join(ROOT, "kicad5", "Traction-Inverter-KiCad5-native.zip");
   try { unlinkSync(zipN); } catch {}
   const membersN = [...files.map((f) => join(OUT_NATIVE, `${f}.sch`)), join(OUT_NATIVE, `${LIB_NAME}.lib`), join(OUT_NATIVE, `${LIB_NAME}.dcm`),
     join(OUT_NATIVE, "traction.pro"), join(OUT_NATIVE, "traction.sch"), join(OUT_NATIVE, "sym-lib-table"), join(OUT_NATIVE, "traction-cache.lib"), join(OUT_NATIVE, "README.txt")];
-  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN]);
-  execFileSync("zip", ["-qX", "-j", zipN, ...membersN]);
+  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN, join(OUT_NATIVE, "fp-lib-table"), ...pretty(OUT_NATIVE)]);
+  execFileSync("zip", ["-qX", "-r", zipN, ...membersN.map((m) => m.slice(OUT_NATIVE.length + 1)), "fp-lib-table", `${FP_LIB}.pretty`], { cwd: OUT_NATIVE });
   console.log("   packaged → kicad5/Traction-Inverter-KiCad5-native.zip (native KiCad 5 variant)");
 }
 console.log(`\n${files.length} sheets · ${totalComps} components · ${totalLabels} labels · ${lib.size} symbols → kicad5/traction/`);

@@ -1,4 +1,4 @@
-# Traction Inverter — Full unit cost @1,000 units (rev A.20)
+# Traction Inverter — Full unit cost @1,000 units (rev A.21)
 
 Complete ex-works build cost per inverter at a 1,000-unit run (India assembly, India+China
 supply chain), on top of the generated electronics BOM (`docs/bom.md`, **₹72,983 @1k** across
