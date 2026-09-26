@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.19, generated 2026-09-26)
+# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.20, generated 2026-09-26)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the

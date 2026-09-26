@@ -7,7 +7,7 @@
 	(title_block
 		(title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)")
 		(date "2026-09-23")
-		(rev "A.19")
+		(rev "A.20")
 		(company "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4")
 		(comment 1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost")
 		(comment 2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain")
@@ -6143,7 +6143,7 @@
 	(text "VDC-RECEIVE   -   2 sections" (exclude_from_sim no) (at 849.63 541.02 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "4ce71f84-07ba-4d3e-9769-35e368fe2399"))
 	(text "CARD-IF   -   1 section" (exclude_from_sim no) (at 849.63 548.64 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "de9ef889-3aa1-4e51-a29d-ddddfb0a964f"))
 	(text "VEHICLE-IF   -   1 section" (exclude_from_sim no) (at 849.63 556.26 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "275e365f-cd23-43a8-a88c-af5b1a245624"))
-	(text "rev A.19   -   26 sections   -   301 components" (exclude_from_sim no) (at 849.884 572.77 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "65c798b2-1da6-471b-bfb4-eb4191d4d0d9"))
+	(text "rev A.20   -   26 sections   -   301 components" (exclude_from_sim no) (at 849.884 572.77 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "65c798b2-1da6-471b-bfb4-eb4191d4d0d9"))
 	(text "NET NAMING" (exclude_from_sim no) (at 849.884 600.964 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "fa6fa291-6eaa-49c3-a531-0eab7cbaabc4"))
 	(text "internal junctions are named for what they join" (exclude_from_sim no) (at 849.884 607.568 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "79805aa5-5d74-4d7d-aa06-88b3e7d4f44f"))
 	(text "U<ref>_<PIN>     node at that IC pin        e.g. UIVDC_VINP" (exclude_from_sim no) (at 849.63 618.49 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "4b7c1722-7093-46e8-8cc9-6d884845288a"))

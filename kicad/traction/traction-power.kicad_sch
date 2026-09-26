@@ -7,7 +7,7 @@
 	(title_block
 		(title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)")
 		(date "2026-09-23")
-		(rev "A.19")
+		(rev "A.20")
 		(company "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4")
 		(comment 1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost")
 		(comment 2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)")
@@ -6056,7 +6056,7 @@
 	(text "GATE-POWER   -   2 sections" (exclude_from_sim no) (at 740.41 599.44 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "1ccf1a78-8e46-4c9d-b416-cdcd8afaa52a"))
 	(text "CONTROL-IF   -   1 section" (exclude_from_sim no) (at 740.41 607.06 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "af49c8bc-d48a-473c-8dd5-b7ceed5fce9f"))
 	(text "DC-LINK   -   1 section" (exclude_from_sim no) (at 740.41 614.68 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "eacce8a6-8948-4e36-b6eb-2358d3ab487c"))
-	(text "rev A.19   -   24 sections   -   324 components" (exclude_from_sim no) (at 740.664 631.19 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "ddc1809b-1d32-4305-9bf4-342afe9aa701"))
+	(text "rev A.20   -   24 sections   -   324 components" (exclude_from_sim no) (at 740.664 631.19 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "ddc1809b-1d32-4305-9bf4-342afe9aa701"))
 	(text "NET NAMING" (exclude_from_sim no) (at 232.664 715.264 0) (effects (font (size 2.0066 2.0066) (bold yes)) (justify left bottom)) (uuid "e66f7446-0771-42ce-9fd7-a2dbf1a0fc7b"))
 	(text "internal junctions are named for what they join" (exclude_from_sim no) (at 232.664 721.868 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "b9072a8f-cee3-4176-9744-5b00c6ee31df"))
 	(text "U<ref>_<PIN>     node at that IC pin        e.g. UIVDC_VINP" (exclude_from_sim no) (at 232.41 732.79 0) (effects (font (size 1.524 1.524)) (justify left bottom)) (uuid "bb2e8672-7f24-476f-8437-0b76872d715b"))

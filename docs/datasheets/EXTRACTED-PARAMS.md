@@ -551,7 +551,7 @@ Why: the round-16 conditional row needed 6.3 J at the 20 ms PTC bound for the 35
 | V_F | 430 typ / **490 mV max at 5 A** (25 °C) | 0.47 V max at 3 A | 0.60 V max at 3 A | tables |
 | I_FSM (8.3 ms) | **70 A** | 75 A | 50 A | tables |
 | I_R | 60 typ / 300 µA max at 40 V, 25 °C (graph at 125 °C) | 400 µA at 25 °C / **40 mA at 125 °C** | — | tables |
-| Duty here | 4.9 A peak, τ 59 µs, 0.29 mC once per fault; 8–12 V reverse in service | | | verifier row |
+| Duty here | ≈ 3.9 A peak, τ ≈ 60 µs, 0.23 mC once per fault with the 7.0 V clamp of round 19 (4.9 A / 0.29 mC at the 8.5 V class; round 21 F208); 8–12 V reverse in service | | | verifier row |
 
 The SBR's 40 mA hot leakage into a permanently reverse-biased node (0.4 W, a DC offset into the amplifier) makes it the second
 choice; the onsemi NRVBS3040MFST1G / NRVB340MFST1G codes named in the round-17 brief could not be found and were not bound.

@@ -411,7 +411,7 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.19)
+## 11. Verification status (current release: rev A.20)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
@@ -434,6 +434,22 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11t. Rev A.20 — round 21: three rechecks of 551c405 (summary)
+
+Three independent rechecks of the A.19 push ([`review-A20-disposition.md`](review-A20-disposition.md), register F208). All three
+close the round-20 items — the corrected alternates are in the emitted BOM files, the target checklist's firmware ID matches the
+header, the firmware trees are identical to A.18, and the revised diversion figures reproduce independently (9.02 V at the
+protected node, 3.84 A through RSX, 34.8 / 36.1 A total PTC current at 24 / 35 V, τ 59.9 µs, 0.231 mC) — and ask for no hardware
+change. Their one finding is documentation, confirmed and broader than reported: README gate ㉘ still quoted the round-18 IR-16
+figure for the 35 V double event (≥ 0.29 Ω, an 8.5 V-class value; the current 0.37 Ω keeps the cold-corner PTC current at 37.9 A
+where 0.29 Ω gives 42.6 A, over the 40 A I_max), and so did QP-RX-04's own step-3 fixture instruction; the remaining 8.5 V-era
+figures in live text — the QP's post-trip pass criterion, its Marine cross-reference (the uncapped 5.2 / 8.3 W of round 18 where
+the current sweep gives 2.0 / 2.5 W), QP-RX-05's rail figure, VR-33's envelope, the gate's trickle and sweep resistances, the card
+comment and the RSX BOM description (the "4.8–4.9 A" the second review named) and the round-18/19 narratives — now read the
+7.0 V-class value from the shared model with the old one marked historical beside it. Counts unchanged: ERC 977 · verify 156/18/0 ·
+sim 23/6/0 · Marine 87/23/0 · 2057/2057 pins + KiCad-10 proof · BOM totals unchanged (one description) · firmware unchanged
+(290 / 2705 / 0). Marine forks at A.20.
 
 ## 11s. Rev A.19 — round 20: three rechecks of 00f6252 (summary)
 
@@ -461,8 +477,9 @@ clearing waveform (trip ≤ 20 ms, ∫v·i ≤ 5.3 J) is a release criterion of 
 8 A; the round-18 "unprotected window" row had printed 1–200 Ω for a criterion error (energy where the PTC trips, steady-state
 power where it never does: 14–83 Ω at 24 V). The exciter fault model is one shared module (`calculations/exciter-fault.mjs`)
 run for Road and for the **Marine port at the ship's voltages**: the kit's isolated 12 V rail is the platform's worst
-sustained-short case (5.2 W in the TVS at 12.0 V, 8.3 W at 11.4 V once the PTC has tripped and the card sleeps) — a Marine kit
-requirement (≥ 0.25 Ω on the fault loop; the loom is ours) and QP-MA-11 carry it. **Hardware (one zero-cost change, F203):** TVSEP/TVSEN move from SMDJ8.5A-HRA to **SMDJ7.0A-HRA** on the same pad — the
+sustained-short case (5.2 W in the TVS at 12.0 V, 8.3 W at 11.4 V by the uncapped 8.5 V-class formula the sweep first ran with —
+2.0 / 2.5 W at the 7.0 V class after F203/F204 — once the PTC has tripped and the card sleeps) — a Marine kit
+requirement (≥ 0.27 Ω on the fault loop at the 7.0 V class, 0.25 Ω interim; the loom is ours) and QP-MA-11 carry it. **Hardware (one zero-cost change, F203):** TVSEP/TVSEN move from SMDJ8.5A-HRA to **SMDJ7.0A-HRA** on the same pad — the
 Opus cross-check (xcheck19) refuted round 18's "coupling does not help once the PTC has tripped": the tripped PTC is a
 thermostat and the island's heat replaces its own I·(V_S − V_BR), but the benefit scales with (V_S − V_BR)/V_BR, which only
 the TVS class sets; with the 8.5 V class the junction still reached 148–171 °C at a parked 12.0–12.6 V battery or the Marine
@@ -486,7 +503,7 @@ cross-check of every exciter number then found four further errors of ours, and 
 part numbers confirmed the pin convention. **Hardware (two zero-count changes):** the round-17 diversion Schottky had been
 drawn on the *protected* node, so a harness fault with VEXD absent charged the empty rail through PTC → DEX with no RSX in
 the loop (27–99 A, TVS dark) while its row divided by 2.2 Ω — the anodes now sit on the amplifier output node (4.7 A /
-60 µs through RSX, judged by I²t; ERC graph cut); RSX becomes an anti-surge 0.5 W 1206 (it carries the amplifier's 0.93 A
+60 µs through RSX at the 8.5 V class, ≈ 3.9 A since round 19, judged by I²t; ERC graph cut); RSX becomes an anti-surge 0.5 W 1206 (it carries the amplifier's 0.93 A
 source limit during a powered negative fault). **Pin numbers:** the generic diode cell had numbered the anode as pin 1 on
 all 35 two-pin diodes; Nexperia's pinning tables and KiCad's `Device:D` / `Diode_SMD` footprints put the cathode on pin 1 —
 the shared cell now does too (numbers, not nets; ERC-locked on every board; KiCad-10 netlist proof PASS). **Analysis:**
@@ -494,9 +511,9 @@ the NCV4276C's 40 V output rating was credited as reverse-current evidence it do
 again, VR-33); the exciter TVS/PTC rows had claimed PASS "at any source impedance" on a trip-time bound that exists only
 at ≥ 8 A and on a 9 J allowance that is ≈ 5.3 J once the exponential test pulse is converted — recomputed at their worst
 corners, and the cross-check's own finding, a sustained short to the normal 12.6–16 V battery with the ECU asleep
-leaving 1.5–3.8 W in the TVS after the PTC trips, is a computed WARN row closed by a layout rule (TVS island with the PTC
+leaving 1.5–3.8 W in the TVS after the PTC trips (8.5 V class; 0.9–1.7 W since round 19), is a computed WARN row closed by a layout rule (TVS island with the PTC
 thermally coupled on it), the QP-RX-04 sweep (release gate), IR-42 and VR-17, with the fail-safe end state written
-down; IR-16 → 0.05 / 0.29 / 0.22 Ω; the gain band over the bound ±5 % C0G tolerances (1.98–2.18) and the hold current at
+down; IR-16 → 0.05 / 0.29 / 0.22 Ω (the round-18 values; 0.08 / 0.14 / 0.37 / 0.26 Ω since round 19); the gain band over the bound ±5 % C0G tolerances (1.98–2.18) and the hold current at
 the CAL ceiling (48 mA, 69 %). **Firmware (FW-34…36):** on the target the HAL stamped fresh samples after the ISR had
 read its clock, so unsigned ages declared them stale (the host model hid it — it now reproduces it); the resolver ring
 stamped blocks from the completion-interrupt time and could not see a whole-ring lap (cadence-locked stamps, a

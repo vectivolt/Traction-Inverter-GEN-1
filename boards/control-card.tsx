@@ -590,7 +590,8 @@ export default () => (
         sees < 0.3 A through RSX instead of 4.4 A (A14-R02). Positive clamp ≈ 8.6-9.8 V with the SMDJ7.0A-HRA of round 19
         (10.4-11.5 V with the 8.5 V class of rounds 16-18): well below the 12.1 V
         rail + a diode while VEXD is up; with VEXD absent/cranking the rail (26.7 uF, CLDE + CEXD) charges
-        through RSX and DEXP/DEXN (round 17/18, below) — 4.8 A peak decaying with tau = 59 us, rail then ~10 V,
+        through RSX and DEXP/DEXN (round 17/18, below) — ≈ 3.9 A peak decaying with tau ≈ 60 us with the 7.0 V clamp
+        (4.8 A / ~10 V with the 8.5 V class of rounds 16-18; round 21 F208), rail then ≈ 8.6 V,
         under the 18 V abs max — until the PTC trips; the ALM2402's own diode envelope is not published
         (DS 8.3.6: pulsed use), which is why the Schottky carries it — gate 28 measures it with VEXD off/cranking/on. The monitor
         (REXM) taps the protected node — the winding sees that minus the PTC/harness drop (x0.964 cold,

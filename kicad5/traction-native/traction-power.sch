@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter 220 kW — Power board (3x EconoDUAL 3 SiC)"
 Date "2026-09-23"
-Rev "A.19"
+Rev "A.20"
 Comp "Traction Inverter 220 kW pk - Power (HV), sheet 1 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: 3x HCS600FH120D3C1 (1200 V/600 A EconoDUAL 3) + gate drive + iso sensing (link cans: sheet 2)"
@@ -44,7 +44,7 @@ CONTROL-IF   -   1 section
 Text Notes 29150 24200 0    60   ~ 0
 DC-LINK   -   1 section
 Text Notes 29160 24850 0    60   ~ 0
-rev A.19   -   24 sections   -   324 components
+rev A.20   -   24 sections   -   324 components
 Wire Notes Line
 	9100 28000 17750 28000
 Wire Notes Line

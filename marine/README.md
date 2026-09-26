@@ -114,7 +114,7 @@ standard cell in chopper mode with external resistors (≈260–300 kW per cell)
 
 ## What changes from the Road series
 
-**M8** keeps the Road PCBs, frozen at **rev A.19** (review rounds 7–20: safety logic, ASC, gate
+**M8** keeps the Road PCBs, frozen at **rev A.20** (review rounds 7–21: safety logic, ASC, gate
 supply, bias binding, LV feed switch, SPO energy rule (now applied at every speed), resolver,
 V_DC bias, Hall interface, LV-entry TVS, barrier-part orderability, MCU pin freeze (reopened and
 re-closed against NXP's own netlist), DESAT-hold/keep_hv/arming-evidence firmware,

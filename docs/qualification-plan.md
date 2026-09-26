@@ -1473,7 +1473,8 @@ node, then through the PTC MF-MSMF020/33X to the connector. Two parts hang on th
 short), the PTC hold and the 35 V double event stay characterisations (§0.1 item 3). Two measurements are RELEASE
 GATES again (F192, F193): the reverse rail current into ULDOEX (QP-RX-05 — the NCV4276C's 40 V output rating covers
 the node voltage only, VR-33) and the sustained-short impedance sweep with the ECU asleep (QP-RX-04 step 2b — below
-8 A the PTC's trip time is a typical curve and the tripped PTC's trickle leaves 1.5–4 W in the TVS; dfm.md layout
+8 A the PTC's trip time is a typical curve and the tripped PTC's trickle leaves 0.9–1.7 W in the TVS at 12.6–16 V with the
+7.0 V clamp, 1.5–3.8 W with the 8.5 V class of round 18; dfm.md layout
 rule, IR-42, VR-17).
 
 ### QP-RX-01 · Excitation amplitude planes and SWG trim with the selected resolver (gate ㉕, amplitude)
@@ -1605,7 +1606,7 @@ method).
 - *Sensing A.13* "Exciter terminal fault — clamp at the protected node during the PTC trip window" (BENCH);
 - *Sensing A.15* "Exciter TVS energy — single fault …" and "… — load-dump-coincident fault …" (PASS since round
   17);
-- *Sensing A.15* "Exciter PTC current vs I_max 40 A — single fault at 24 V with the IR-16 minimum harness (0.05 Ω)"
+- *Sensing A.15* "Exciter PTC current vs I_max 40 A — single fault at every permitted voltage … with the IR-16 minimum harness (0.08 Ω at ≤ 24 V, 0.14 Ω at 26 V)"
   (PASS) and "… — load-dump-coincident fault (35 V)" (INFO, double event);
 - *Sensing A.17* "Exciter TVS/PTC coordination BELOW the 8 A bound — a sustained short through external resistance"
   and "Sustained exciter short to the NORMAL battery (12.6–16 V) with the ECU asleep" (both WARN — step 2b closes them);
@@ -1634,10 +1635,11 @@ resistor 0–100 Ω (≥ 50 W) for step 2b; the card's sleep control (V5A off / 
    TVS lead temperature of 150 °C and record the time. Repeat the 12.6 V / 20 Ω and 16 V / 5 Ω points at −40 °C
    and 85 °C chamber. Then repeat the 12.6 V and 24 V sweeps with the card awake (ALM2402 driving) and record the
    RSX body temperature. **Marine (QP-MA-11):** the same sweep at the kit rail 11.4 / 12.0 / 13.2 V and the ship
-   bus 18 / 24 / 31.2 V (marine/verification-report.md §7: 5.2 W at 12.0 V, 8.3 W at 11.4 V — the platform's
+   bus 18 / 24 / 31.2 V (marine/verification-report.md §7: 2.0 W at 12.0 V, 2.5 W at 11.4 V with the 7.0 V clamp, 5.2 / 8.3 W being round 18's uncapped 8.5 V-class figure, F204 — the platform's
    worst case).
 3. **Double event, characterisation.** Apply 35 V for 400 ms with source + harness at the interface-requirements
-   allocation (IR-16: exciter-line fault source + harness impedance ≥ 0.29 Ω at 35 V since round 18).
+   allocation (IR-16: exciter-line fault source + harness impedance ≥ 0.37 Ω at 35 V since round 19, F199/F203 — 37.9 A
+   predicted cold; round 18's 0.29 Ω was the 8.5 V-class figure and would give 42.6 A, over the PTC's 40 A — round 21, F208).
 4. Repeat each 10 times per line (plan), cooling to 25 °C between repetitions.
 5. After the tests, run the QP-RX-01 amplitude check.
 
@@ -1681,8 +1683,8 @@ and when the PTC tripped (by current or by the TVS's heat), and the RSX temperat
   the double event is bounded only by the typical curve, F193). The outcome must be fail-safe: the PTC may fail open (above I_max its survival
   is not warranted), and FW-10 must then report a resolver fault. The ALM2402, the buffer and the MCU pads must
   be undamaged.
-- **After the trip.** The TVS holds V_BR·P_d/(V_S − V_BR): ≈ 0.6 W at 24 V, 0.3 W at 35 V — 1.5–3.8 W at 12.6–16 V
-  (step 2b) — with its lead temperature inside the SMDJ steady-state rating for the measured value.
+- **After the trip.** The TVS holds V_BR·P_d/(V_S − V_BR): ≈ 0.45 W at 24 V, 0.26 W at 35 V — 0.9–1.7 W at 12.6–16 V
+  with the 7.0 V clamp (0.6 / 0.3 / 1.5–3.8 W with the 8.5 V class of rounds 16–18; step 2b) — with its lead temperature inside the SMDJ steady-state rating for the measured value.
 - **TVS after the test.** V_BR stays in 7.78–8.60 V, with leakage within the SMDJ-HRA I_R (200 µA at 7.0 V).
 - **Survival.** The ALM2402 and the buffer are unharmed: QP-RX-01 amplitudes unchanged, no OT flag.
 
@@ -1734,7 +1736,7 @@ RSX / ALM2402-diode path. The reverse rail current into ULDOEX, and the VEXD pea
   criterion is I²t, not peak against a 140× wider pulse; round 18).
 - The RSX / ALM2402-diode share is recorded. The row's premise is that the internal diodes (≈ 0.8 V at 5 A)
   carry only the residual above the Schottky's 0.49 V; a share that contradicts this is CONDITIONAL.
-- VEXD stays ≤ 18 V abs (≈ 10.5 V predicted).
+- VEXD stays ≤ 18 V abs (≈ 8.6 V predicted, ≤ 9.1 V, with the 7.0 V clamp; ≈ 10.5 V with the 8.5 V class).
 - **Reverse rail current into ULDOEX (RELEASE GATE, F192 / VR-33).** In every input state of step 4 the current
   into the regulator's OUT pin is ≤ 100 mA at any VEXD up to 12 V and returns to the leakage floor once the
   diversion pulse has ended (steps 2–3: the shunt current after 300 µs); VBATC does not rise (no back-powering that
@@ -3436,7 +3438,7 @@ element in the kit — ours to add); then the shared-card TVS class (the 6.5A bu
 | 22 | Sensing | Resolver drive @9 V KL30 (G-04, F177) | QP-RX-02 |
 | 23 | Sensing A.15 | Exciter TVS energy (split into single fault / load-dump-coincident; G-02, F175) | QP-RX-04 |
 | 23b | Sensing A.15 | Exciter TVS energy at fault currents ≥ 8 A — WARN since round 19 (the I⁻² trip-time law is an assumption; F200) | QP-RX-04 step 2 (release criterion), VR-16 |
-| 23c | Sensing A.17 / Marine §7 | Sub-8 A window and the sustained short with the card asleep (F193); the Marine kit rail (5.2 W at 12 V) | QP-RX-04 step 2b, QP-MA-11 |
+| 23c | Sensing A.17 / Marine §7 | Sub-8 A window and the sustained short with the card asleep (F193); the Marine kit rail (2.0 W at 12 V with the 7.0 V clamp; 5.2 W was the uncapped 8.5 V-class figure) | QP-RX-04 step 2b, QP-MA-11 |
 | 24 | Sensing A.15 | Source-impedance allocation (now "Exciter PTC current vs I_max 40 A": single fault PASS, 35 V INFO; G-02) | QP-RX-04 |
 | 25 | Sensing A.15 | Exciter back-drive with VEXD absent (now the rated diversion; G-01, F174) | QP-RX-05 |
 | 26 | Sensing A.15 | Exciter PTC hold current (G-03, F176) | QP-RX-07 |
@@ -3578,7 +3580,8 @@ These are observations. None of the source documents was changed; each one needs
      limit (0.27 W at 85 °C).
    - Interface-requirements (LV supply — 24 V jump start) still cites RFS4 at 1.47× nameplate.
    - Interface-requirements (harness — exciter-line fault impedance ≥ 0.27 Ω at 35 V) is written as a single-fault
-     requirement, while the round-17 rows treat the 35 V case as a double event (INFO).
+     requirement, while the round-17 rows treat the 35 V case as a double event (INFO). Resolved in rounds 18–19: IR-16 is
+     ≥ 0.37 Ω at 35 V (0.29 Ω in round 18) and names the double event (round 21, F208).
    - Vendor-requests (Bourns and Littelfuse, exciter rows) describe the round-16 SMCJ8.5A; its own round-17 note
      says so.
 7. **Stale MGJ2 PO gate.** [`dfm.md`](dfm.md) §5 still names the MGJ2D150505SC certificate as a PO gate. The part
