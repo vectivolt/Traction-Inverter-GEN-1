@@ -194,6 +194,7 @@ typedef struct {
     bool gpio1_slotted;     /* wrong OTP: GPIO1 high at power-up */
     float osc_error;        /* fail-safe oscillator off by this fraction (FFSOSC_ACC ±5 %, DS Table 143): every
                                watchdog window lasts nominal / (1 + osc_error) */
+    bool flt_err_stuck;     /* round 23: FLT_ERR_CNT never counts down (a fault the FS26 keeps counting): no release */
 } sim_fs26_cfg_t;
 void sim_fs26_config(const sim_fs26_cfg_t *c);
 void sim_fs26_mcu_reset(void); /* WD reaction RSTB + FS0B: FS26 keeps its INIT registers and FS_GPIO1 */
@@ -214,8 +215,11 @@ void sim_fs26_xfer_hook(sim_isr_fn fn);
 /* ---------------- CAN / NVM / misc ---------------- */
 void sim_can_inject(uint8_t bus, const hal_can_frame_t *f);
 bool sim_can_pop_tx(uint8_t bus, hal_can_frame_t *f);
+/* Round 23 (FW-40): the next n hal_can_tx() on that bus fail, the frame not sent — the target's one TX mailbox busy. */
+void sim_can_tx_busy(uint8_t bus, uint32_t n);
 void sim_nvm_set_write_polls(uint32_t polls);
 void sim_nvm_power_loss(void); /* tears an in-progress write and aborts it */
+void sim_nvm_power_loss_bytes(uint32_t n); /* round 23: the same, the first n bytes of the write landed (the rest old) */
 uint32_t sim_nvm_writes_done(void);
 void sim_nvm_wipe(void);
 uint32_t sim_wdog_kicks(void);

@@ -1,8 +1,8 @@
 /* calib.h — FW-20 calibration record: versioned, CRC-32 and range checked, bound to the hardware
  * serial, the SKU (FW-02) and a motor ID. Any failure => no torque. Contents: current offset/gain/
  * sign per phase, V_DC gain/offset per channel, resolver gains/offsets/phase/electrical zero and
- * pole pairs, the motor data the §6 energy rule and n_x need, motor temperature sensor type, an
- * optional MTPA table and the selected f_sw. */
+ * pole pairs, the motor data the §6 energy rule and n_x need (round 23, FW-45: with the L_d/L_q saturation maps),
+ * motor temperature sensor type, an optional MTPA table, the selected f_sw and (FW-46) the torque-ripple table. */
 #ifndef CALIB_H
 #define CALIB_H
 
@@ -17,7 +17,7 @@
  * monitor plane) where version 1 held an EOL code count: a version-1 record is refused (no torque).
  * TODO(EOL): the EOL station that measures and seals this record (current/V_DC gains and offsets, resolver
  * trim, monitor gain and EOL ratio, motor data) is not in this repository; calib_seal is its side. */
-#define CALIB_LAYOUT_VERSION 2u
+#define CALIB_LAYOUT_VERSION 4u /* round 23: layout 4 — FW-45's saturation maps (motor_t) and FW-46's ripple table; a layout-3 record is refused (no torque). Layout 3: the gap closure's CAL parameters */
 
 #define CAL_ERR_MISSING 0x001u
 #define CAL_ERR_VERSION 0x002u
@@ -41,6 +41,7 @@ typedef struct {
     motor_t motor;
     temp_mt_cal_t mt;
     mtpa_lut_t mtpa;
+    int16_t ripple_ff[TQ_RIPPLE_N]; /* round 23 (FW-46): the i_q feed-forward over one electrical period, 0.01 A */
     uint32_t crc32; /* over every byte above */
 } calib_t;
 

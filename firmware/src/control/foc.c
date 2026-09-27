@@ -72,10 +72,10 @@ static float integrate(float xi, float e, float v, float v_u, float ki_ts, float
     return ti_clampf(xi, -lim, lim);
 }
 
-static void pi_axes(foc_t *f, float ed, float eq, float ffd, float ffq, const gain_set_t *g)
+static void pi_axes(foc_t *f, float ed, float eq, float ffd, float ffq, float kp_d, float kp_q, const gain_set_t *g)
 {
-    const float vd_u = (g->kp_v_per_a * ed) + f->xi_d + ffd;
-    const float vq_u = (g->kp_v_per_a * eq) + f->xi_q + ffq;
+    const float vd_u = (kp_d * ed) + f->xi_d + ffd;
+    const float vq_u = (kp_q * eq) + f->xi_q + ffq;
     f->vd = ti_clampf(vd_u, -f->vmax, f->vmax);
     const float vq_lim = sqrtf(ti_maxf((f->vmax * f->vmax) - (f->vd * f->vd), 0.0f));
     f->vq = ti_clampf(vq_u, -vq_lim, vq_lim);
@@ -98,9 +98,18 @@ bool foc_step(foc_t *f, const float iabc[3], float theta_e, float omega_e, float
     foc_clarke(iabc, &ia, &ib);
     foc_park(ia, ib, theta_e, &f->id, &f->iq);
     f->vmax = p->cal_mod_index_max * vdc * (1.0f / TI_SQRT3);
-    const float ffd = -omega_e * m->lq_h * f->iq;
-    const float ffq = omega_e * ((m->ld_h * f->id) + m->psi_wb);
-    pi_axes(f, f->id_ref - f->id, f->iq_ref - f->iq, ffd, ffq, g);
+    /* round 23 (FW-45): the speed voltages from the maps' flux linkages (the apparent inductance), and per axis the
+     * proportional gain scaled by the differential inductance at the measured current over the unsaturated one, in
+     * [FOC_KP_FLOOR, 1]: the crossover gains.c placed stays put as the machine saturates (pole-zero cancellation: the
+     * integral gain R wc needs no scaling, the zero R / L follows the pole). Exactly the fixed gain for a flat map. */
+    float dd;
+    float dq;
+    const float pd = motor_sat(m->ld_map_h, ti_absf(f->id), m->i_map_a, &dd);
+    const float pq = motor_sat(m->lq_map_h, ti_absf(f->iq), m->i_map_a, &dq);
+    const float ffd = -omega_e * (m->lq_h * pq) * f->iq;
+    const float ffq = omega_e * (((m->ld_h * pd) * f->id) + m->psi_wb);
+    pi_axes(f, f->id_ref - f->id, f->iq_ref - f->iq, ffd, ffq, g->kp_v_per_a * ti_clampf(dd, FOC_KP_FLOOR, 1.0f),
+            g->kp_v_per_a * ti_clampf(dq, FOC_KP_FLOOR, 1.0f), g);
     float va;
     float vb;
     foc_ipark(f->vd, f->vq, theta_e + (omega_e * g->delay_s), &va, &vb);
@@ -123,7 +132,8 @@ bool foc_step(foc_t *f, const float iabc[3], float theta_e, float omega_e, float
 
 float foc_omega_model(const foc_t *f, const motor_t *m, bool *valid)
 {
-    const float flux = (m->ld_h * f->id) + m->psi_wb;
+    float dd;
+    const float flux = ((m->ld_h * motor_sat(m->ld_map_h, ti_absf(f->id), m->i_map_a, &dd)) * f->id) + m->psi_wb; /* FW-45 */
     *valid = !f->sat && (ti_absf(flux) > (0.2f * m->psi_wb));
     return *valid ? ((f->vq - (m->rs_ohm * f->iq)) / flux) : 0.0f;
 }

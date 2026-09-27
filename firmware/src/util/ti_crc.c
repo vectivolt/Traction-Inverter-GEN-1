@@ -13,15 +13,19 @@ uint8_t ti_crc8_1d(const uint8_t *data, size_t len, uint8_t init, uint8_t xorout
     return (uint8_t)(crc ^ xorout);
 }
 
-uint32_t ti_crc32(const void *data, size_t len)
+static uint32_t crc32_reflected(const void *data, size_t len, uint32_t poly)
 {
     const uint8_t *p = (const uint8_t *)data;
     uint32_t crc = 0xFFFFFFFFu;
     for (size_t i = 0u; i < len; i++) {
         crc ^= p[i];
         for (uint8_t b = 0u; b < 8u; b++) {
-            crc = ((crc & 1u) != 0u) ? ((crc >> 1) ^ 0xEDB88320u) : (crc >> 1);
+            crc = ((crc & 1u) != 0u) ? ((crc >> 1) ^ poly) : (crc >> 1);
         }
     }
     return crc ^ 0xFFFFFFFFu;
 }
+
+uint32_t ti_crc32(const void *data, size_t len) { return crc32_reflected(data, len, 0xEDB88320u); }
+
+uint32_t ti_crc32c(const void *data, size_t len) { return crc32_reflected(data, len, 0x82F63B78u); }

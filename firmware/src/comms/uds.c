@@ -3,6 +3,10 @@
 
 #include <string.h>
 
+#include "uds_capture.h"
+#include "uds_diag.h"
+#include "uds_update.h"
+
 #define SID_SA 0x27u
 #define SID_RC 0x31u
 #define SA_SEED 0x01u
@@ -110,14 +114,38 @@ static bool routine_control(uds_t *u, const uint8_t *m, uint8_t n, hal_can_frame
 
 bool uds_handle(uds_t *u, const hal_can_frame_t *rq, uint32_t seed, hal_can_frame_t *rsp)
 {
-    if ((rq->id != UDS_ID_REQ) || (rq->len < 2u) || ((rq->data[0] & 0xF0u) != 0u)) {
+    if (uds_capture_handle(rq, rsp)) {
+        return true; /* FW-41: the waveform capture's DIDs and routines (src/diag/uds_capture.h) */
+    }
+    if (uds_diag_rx(u, rq)) {
+        return false; /* FW-40: 0x14/0x19/0x22/0x2A and their flow control; the response goes out from uds_diag_tick */
+    }
+    if ((rq->id != UDS_ID_REQ) || (rq->len < 2u) || (rq->len > HAL_CAN_MAX_LEN) || ((rq->data[0] & 0xF0u) != 0u)) {
         return false; /* not ours, or not a single frame: no response */
     }
-    const uint8_t n = rq->data[0];
-    if ((n == 0u) || (n > 7u) || (n > (rq->len - 1u))) {
-        return false;
+    const uint8_t *m;
+    uint32_t n;
+    if (rq->data[0] != 0u) { /* the classic single frame: 1..7 bytes */
+        n = rq->data[0];
+        m = &rq->data[1];
+        if ((n > 7u) || (n > (uint32_t)(rq->len - 1u))) {
+            return false;
+        }
+    } else { /* the CAN-FD escape single frame (ISO 15765-2: SF_DL in byte 1, 8..62 bytes) — round 23, second pass: the
+              * programming services' short blocks (an image whose last block is 8..62 bytes) arrive this way; before,
+              * only the FW-40 services (uds_diag_rx above) parsed it and every other service dropped the frame */
+        if (rq->len <= 8u) {
+            return false;
+        }
+        n = rq->data[1];
+        m = &rq->data[2];
+        if ((n < 1u) || (n > (uint32_t)(rq->len - 2u))) {
+            return false;
+        }
     }
-    const uint8_t *m = &rq->data[1];
+    if (upd_uds_claims(m, n)) {
+        return upd_uds(u, m, n, rsp); /* FW-38: the programming services (src/boot/uds_update.h) */
+    }
     if (m[0] == SID_SA) {
         return (n < 2u) ? nrc(rsp, SID_SA, UDS_NRC_LENGTH) : security_access(u, m, n, seed, rsp);
     }

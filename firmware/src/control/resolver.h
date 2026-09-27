@@ -13,8 +13,8 @@
  *   - A14-R01: validity expires. rslv_age() runs on every control tick, new frame or not: the angle
  *     may be extrapolated from the newest coherent frame for at most cal_rslv_hold_us, then it is
  *     withdrawn (stale) and the observer re-acquires from scratch when frames return (priming, then
- *     SETTLE_BLOCKS). The speed is not held here: the application holds the last valid speed only
- *     for the bounded §6 column decision (cal_speed_hold_ms), never as angle feedback.
+ *     SETTLE_BLOCKS). The speed is not held here: the application bounds it after the last valid one only
+ *     for the §6 column decision (round 23: |n_last| + cal_speed_accel_max_rpm_s x t), never as angle feedback.
  *   - A14-N01: amplitude planes. The monitor taps the protected node (after RSX, before the PTC and
  *     the harness). mon_vpp is that plane; the SWG trim holds it at cal_rslv_exc_target_vpp, ramping
  *     up from cal_swg_code_init. The winding gets mon_vpp * cal_rslv_wind_per_mon (the cold allowance)
@@ -66,7 +66,8 @@ typedef struct {
     bool have_frame;
     uint32_t t_frame_us; /* start of the newest coherent frame */
     uint32_t t_ref_us;   /* start of the last block the observer consumed */
-    float t_mid_us;      /* theta refers to t_ref_us + t_mid_us (the block's mean sampling instant) */
+    float t_mid_us;      /* theta refers to t_ref_us + t_mid_us: round 23 (item 7), the demodulator's weighted centroid of
+                          * the samples (the projection onto the lagged carrier), not their mean instant (resolver.c) */
 } rslv_t;
 
 void rslv_init(rslv_t *r);

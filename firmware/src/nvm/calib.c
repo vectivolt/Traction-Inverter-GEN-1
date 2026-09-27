@@ -25,6 +25,11 @@ void calib_nominal(calib_t *c, const ti_params_t *p, const uint8_t serial[8])
     c->rslv = (rslv_cal_t){.ratio_nom = 0.8f, .exc_code_per_vpp = 2500.0f, .sin_gain = 1.0f, .cos_gain = 1.0f,
                            .motor_pp = 4u, .resolver_pp = 1u};
     c->motor = motor_screening();
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) { /* round 23 (FW-45): flat maps — the scalars (no saturation) */
+        c->motor.ld_map_h[k] = c->motor.ld_h;
+        c->motor.lq_map_h[k] = c->motor.lq_h;
+    }
+    c->motor.i_map_a = p->i_crest_a;
     c->mt = (temp_mt_cal_t){.type = TEMP_MT_PT1000, .r25_ohm = 10000.0f, .b_k = 3435.0f};
     calib_seal(c);
 }
@@ -35,6 +40,30 @@ void calib_seal(calib_t *c)
 }
 
 static bool in(float x, float lo, float hi) { return (x >= lo) && (x <= hi); }
+
+/* Round 23 (FW-45): each point in the inductance class range, non-increasing with the current (saturation only lowers it)
+ * beyond MOTOR_MAP_RISE_TOL — the FW-39 routine's points scatter by about 0.1 % on a machine that does not saturate, and
+ * a strict rule refused every such commit (found by the service tool) — and the last >= 0.3 x the first (a sanity bound,
+ * the current loop's gain floor). */
+#define MOTOR_MAP_RISE_TOL 0.02f /* a rise between neighbouring points inside this is measurement scatter, not physics */
+static bool map_ok(const float map[MOTOR_MAP_N])
+{
+    bool ok = map[MOTOR_MAP_N - 1u] >= (0.3f * map[0]);
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        ok = ok && in(map[k], 20e-6f, 5e-3f) && ((k == 0u) || (map[k] <= ((1.0f + MOTOR_MAP_RISE_TOL) * map[k - 1u])));
+    }
+    return ok;
+}
+
+/* Round 23 (FW-46): every entry within the CAL's ceiling (30 A); the build's cal_ripple_ff_max_a bounds what is applied */
+static bool ripple_ok(const int16_t tab[TQ_RIPPLE_N])
+{
+    bool ok = true;
+    for (uint32_t k = 0u; k < TQ_RIPPLE_N; k++) {
+        ok = ok && (tab[k] >= -3000) && (tab[k] <= 3000);
+    }
+    return ok;
+}
 
 static bool ranges_ok(const calib_t *c, const ti_params_t *p)
 {
@@ -62,7 +91,7 @@ static bool ranges_ok(const calib_t *c, const ti_params_t *p)
     for (uint32_t i = 1u; ok && (i < c->mtpa.n); i++) {
         ok = c->mtpa.t_nm[i] > c->mtpa.t_nm[i - 1u];
     }
-    return ok;
+    return ok && map_ok(m->ld_map_h) && map_ok(m->lq_map_h) && (m->i_map_a == p->i_crest_a) && ripple_ok(c->ripple_ff);
 }
 
 uint32_t calib_check(const calib_t *c, const ti_params_t *p, const uint8_t serial[8])

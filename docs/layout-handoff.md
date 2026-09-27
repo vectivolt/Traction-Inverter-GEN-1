@@ -38,9 +38,9 @@ Interboard links, each a named connector/stud/tab drawn on both mating sheets an
 
 | Item | Where | What it is |
 |---|---|---|
-| KiCad 9/10 project | `kicad/traction/traction.kicad_pro` (zip: `kicad/Traction-Inverter-KiCad-modern.zip`) | root sheet + four board sheets; every sheet embeds its symbols; `traction.kicad_sym` + `sym-lib-table` |
+| KiCad 10 project (**KiCad 10.0.6 or later**) | `kicad/traction/traction.kicad_pro` (zip: `kicad/Traction-Inverter-KiCad-modern.zip`) | root sheet + four board sheets; every sheet embeds its symbols; `traction.kicad_sym` + `sym-lib-table`. The schematic files are the KiCad 9 format and open in KiCad 9, but the footprint library is the KiCad 10 format (copied from the 10.0.6 libraries) — KiCad 5–9 cannot load it, so the footprint-enabled handoff is KiCad 10 only (round 23, A21-R02) |
 | Per-board projects | `kicad/traction/traction-power.kicad_pro`, `-capbank`, `-disch`, `-card` | the same project file beside each board sheet: open one to lay out that board as its own PCB (each board is a separate PCB; nets cross boards only through the named connector, stud or tab) |
-| Footprint library | `kicad/traction/traction.pretty/` + `fp-lib-table` (and the same in `kicad5/traction/`, `kicad5/traction-native/` and their zips) | ONE library, nickname `traction`, at `${KIPRJMOD}/traction.pretty` — nothing from your own library tables is needed |
+| Footprint library | `kicad/traction/traction.pretty/` + `fp-lib-table` (the KiCad 5 / EasyEDA sets in `kicad5/` name the same footprints in their F2 fields but ship no library — they are schematic and import sets, not a layout handoff) | ONE library, nickname `traction`, at `${KIPRJMOD}/traction.pretty` — nothing from your own library tables is needed |
 | Footprint field | every on-board symbol: `traction:<name>` | the generator refuses to write a sheet with an unbound part (`calculations/footprints.mjs`, `kicad5-gen.mjs`) |
 | Standard patterns (45 files) | `traction.pretty/SOURCES.json` | copied VERBATIM from the KiCad 10.0.6 libraries, names kept, sha256 recorded (KiCad libraries licence CC-BY-SA 4.0 with the KiCad exception); the picks that the datasheets decided are in MANIFEST.md §B (TPS55340 RTE0016C EP 1.68 × 1.68, VY1 disc D 16.0, VY2 disc D 12.5, the 5-lead DPAK/D2PAK lands, XAL4040, VSSOP-8 2.3 × 2 mm for the Nexperia DC package, SOT-223 with the tab as pad 4, PMEG4010EH on SOD-123F) |
 | Datasheet-drawn patterns (18 files, 17 referenced) | `traction.pretty/MANIFEST.md` | one row per pattern: part, datasheet page/figure, pitch/pad/hole sizes, pad-number ↔ pin-number map, and every doubt — the EconoDUAL 3 module (aux pins 1/2 and 5–9 at HIITIO's positions on rows 58.4 mm apart; the four M6 power terminals as Ø6.4 clearance holes with Ø12 pads where the laminated busbar bolts — the PCB cut-out around them is your call), UCC14141-Q1 DWN-36, AMC1311B DWV (rows 10.9 mm apart: TI's 9.1 mm creepage, which is why KiCad's SOIC-8W was not used), VOW3120 SMD-8 wide (10 mm pad gap), TDK VGT12EEM (SMD, 4 + 4 gull-wings), Samtec IPL1 1×2 / 1×4 / 2×20 (Samtec numbers row by row: 1–20 on one row, 21–40 on the other, 21 opposite 1 — the same as the harness map), TE 770669-1 AMPSEAL (23 cavities on 3 rows, 2 NPTH pegs, the PCB edge on Fab), the Faratronic can (4 leads: two per electrode at 37.5 × 20.3 mm), the Bel 2410 fuse, TDK ACT45B (windings 1–4 and 2–3), the TT/Yageo SQP10 at **55.88 mm** lead pitch (a 48–50 mm body; the sheet helper's 38 mm is a placeholder), onsemi SMA flat-lead, the Kyocera 2-pad crystal, the NXP FS26 HLQFP48 (its own EP/mask — the TI land differs), the TI ALM2402 PWP0014H (mask-defined 1.82 × 2.86 pad opening), and the LEM HC5FW pattern for the sensor carrier |
@@ -95,7 +95,9 @@ No copper weight is stated for the card or discharge board individually — only
 | RASCG (ESR03 2.2 k) | terminal (fillet) temperature ≤138 °C at its 0.12 W is part of the part's rating | dfm.md:93-96 |
 | RFS4 (ESR18 1206, since round 17) | 0.5 W at 70 °C; fillet (terminal) temperature on the ESR18's 1 kΩ ≤ R line (ROHM ESR Rev.012 Fig. 4, knee 125 °C, zero at 155 °C): **≤ 137 °C at its 0.30 W (FS1B held), ≤ 126 °C at 0.48 W (24 V / 60 s jump start)** — measured by QP-TH-04 | dfm.md §4 (round 22) |
 
-MCU package note: "MCU remains explicitly symbolic (**no package table in the DS — bind at layout, printed on sheet**)" (source: verification-report.md:190, F45); cells.tsx also flags "mark §VERIFY before layout" for MCU/module aux-pin numbering (source: packages/cells.tsx:7).
+MCU package: bound in rev A.21 — `traction:MAPBGA-289_14x14mm_Layout17x17_P0.8mm`, whose 289 pad names equal the ball map
+(`kicad-sch-verify.mjs` proves the 130 connected balls); the round-13 "MCU remains explicitly symbolic — bind at layout" note in
+verification-report F45 and the cells.tsx "VERIFY before layout" flag are history (round 23, A21-N01).
 
 ---
 
@@ -232,6 +234,9 @@ dfm.md:135-142 (quoted): "from JVEH: FLVC (Bel 0680L5000-05, 2410 ceramic slow-b
 | H5 (V15) fed from the V15S plane, **never from the power board's 15 V bias rail of the same name** — keep the labels V15S and V15 distinct | dfm.md:106-107 |
 
 ### 4.11 MCU decoupling, crystal, SWD
+
+- **R2R (sine-wave DAC) reference (round 23, F214):** ball A9 is on its own net `VR2R` — `RR2R` 10 Ω from the VREF5 island, `CR2R1` 1 µF + `CR2R2` 100 nF at the ball; nothing else on VR2R. The SDADC/SAR references E10/F13/E6/H6 stay on VREF5 (S32K39 DS note 8: one source for every VREFH except VREFH_R2R, which must be isolated or filtered) (source: boards/control-card.tsx, dfm.md §4).
+- **SWD header `JSWD`** is the Samtec FTSH-105-01-L-DV-K — a SURFACE-MOUNT double-row 1.27 mm header (pads 0.74 × 2.79 mm, rows 4.064 mm apart, pin 1 bottom-left, odd/even across the rows; land `traction:Samtec_FTSH-105-01-L-DV-K`, drawn from the Samtec print archived as docs/datasheets/Samtec-FTSH-DV.pdf). Until round 23 it was bound to a through-hole 1.27 mm pattern (F215); the library generator now locks the mounting technology of every connector whose ordering code states it.
 
 - MCU decoupling: **12× 100 nF, 0603**, one per supply-domain tap across V5A(×6)/V3B(×2)/V11(×4); VREF5: 1 µF + 100 nF, 0603 (source: boards/control-card.tsx:333-338). DFM decision: "MCU decoupling 0603 (fewer feeders, JLC-basic)" (source: dfm.md:42).
 - Crystal: **12 pF × 2, 0603**, on XTAL/EXTAL to DGND, 40 MHz (source: boards/control-card.tsx:329-332; mcu-pin-manifest.md:131,137).

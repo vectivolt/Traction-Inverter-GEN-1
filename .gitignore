@@ -5,3 +5,8 @@ calculations/out/
 .DS_Store
 *.log
 .tscircuit/
+docs/reference/vesc/src/
+tool/bridge/build/
+tool/bridge/sim_bridge
+tool/qt/build/
+tool/qt/build-*/

@@ -89,6 +89,47 @@ TEST(dtc_time_stamps_across_the_microsecond_wrap)
  * entry time, so a stamp may postdate the check by an ISR's execution: that is fresh (ti_elapsed read it as
  * 2^32 us old); `hold` or more before the check is stale, and so is `hold` or more after it (no sample is
  * from the future) — also straddling the 32-bit wrap either way. */
+/* round 23 (T-36): the ISR-safe 64/16-bit division is exact against the 64-bit `/` and `%` (which the host has in
+ * hardware and the M7 only as libgcc's software loop) — random operands and the edges of both ranges */
+static uint64_t xs64(uint64_t *x)
+{
+    uint64_t v = *x;
+    v ^= v << 13;
+    v ^= v >> 7;
+    v ^= v << 17;
+    *x = v;
+    return v;
+}
+TEST(the_64_by_16_bit_division_is_exact_without_a_64_bit_divide)
+{
+    uint64_t x = 0x9E3779B97F4A7C15ull;
+    uint32_t bad = 0u;
+    for (uint32_t k = 0u; k < 20000u; k++) {
+        const uint64_t n = xs64(&x) >> (uint32_t)(xs64(&x) & 63u); /* every magnitude, not only huge ones */
+        const uint32_t d = 1u + (uint32_t)(xs64(&x) % 65535u);
+        uint32_t rem = 0xFFFFFFFFu;
+        const uint64_t q = ti_udiv64_16(n, d, &rem);
+        if ((q != (n / d)) || (rem != (uint32_t)(n % d))) {
+            bad++;
+        }
+    }
+    CHECK(bad == 0u);
+    const uint64_t ns[] = {0u, 1u, 999u, 1000u, 0xFFFFFFFFull, 0x100000000ull, 0x100000000ull - 1u, 0xFFFFFFFFFFFFFFFFull};
+    const uint32_t ds[] = {1u, 2u, 999u, 1000u, 65535u};
+    for (uint32_t i = 0u; i < 8u; i++) {
+        for (uint32_t j = 0u; j < 5u; j++) {
+            uint32_t rem;
+            CHECK((ti_udiv64_16(ns[i], ds[j], &rem) == (ns[i] / ds[j])) && (rem == (uint32_t)(ns[i] % ds[j])));
+        }
+    }
+    /* the millisecond domain at the 32-bit microsecond wraps (the case the header's history is about) */
+    for (uint64_t w = 1u; w <= 3u; w++) {
+        const uint64_t us = (w << 32) - 1u;
+        CHECK((ti_ms_from_us64(us) == (uint32_t)(us / 1000u)) && (ti_ms_from_us64(us + 2u) == (uint32_t)((us + 2u) / 1000u)));
+    }
+    CHECK(ti_ms_from_us64(0xFFFFFFFFFFFFFFFFull) == (uint32_t)(0xFFFFFFFFFFFFFFFFull / 1000u));
+}
+
 TEST(sensor_stamps_are_judged_with_a_signed_age)
 {
     const uint32_t hold = 200u;
@@ -111,4 +152,5 @@ void suite_time(void)
     RUN(can_freshness_across_the_microsecond_wrap);
     RUN(dtc_time_stamps_across_the_microsecond_wrap);
     RUN(sensor_stamps_are_judged_with_a_signed_age);
+    RUN(the_64_by_16_bit_division_is_exact_without_a_64_bit_divide);
 }

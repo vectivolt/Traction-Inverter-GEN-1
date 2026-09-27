@@ -79,7 +79,7 @@ const PAGES = {
   ],
   card: [
     ["CONTROL", [
-      ["MCU", [/^UMCU$/, /^Y1$/, /^CY[AB]$/, /^CMD\d+$/, /^CMA[12]$/, /^RMRST$/, /^CV25$/]],
+      ["MCU", [/^UMCU$/, /^Y1$/, /^CY[AB]$/, /^CMD\d+$/, /^CMA[12]$/, /^RMRST$/, /^CV25$/, /^RR2R$/, /^CR2R[12]$/]],   // round 23 (F214): the R2R reference filter
       ["SWD-BOOT", [/^JSWD$/, /^RBOOT$/, /^CRST$/]],
     ], ["MCU", "SWD-BOOT"]],
     ["SBC", [

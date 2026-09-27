@@ -32,6 +32,7 @@
     {"cal_can_ctr_max_jump", offsetof(ti_params_t, cal_can_ctr_max_jump), TI_CAL_U8, 1.0f, 3.0f}, \
     {"cal_bms_timeout_ms", offsetof(ti_params_t, cal_bms_timeout_ms), TI_CAL_U32, 20.0f, 500.0f}, \
     {"cal_torque_ramp_nm_s", offsetof(ti_params_t, cal_torque_ramp_nm_s), TI_CAL_F32, 200.0f, 10000.0f}, \
+    {"cal_torque_slew_nm_s", offsetof(ti_params_t, cal_torque_slew_nm_s), TI_CAL_F32, 200.0f, 20000.0f}, \
     {"cal_dir_change_rpm", offsetof(ti_params_t, cal_dir_change_rpm), TI_CAL_F32, 5.0f, 100.0f}, \
     {"cal_rslv_amp_min", offsetof(ti_params_t, cal_rslv_amp_min), TI_CAL_F32, 0.5f, 0.9f}, \
     {"cal_rslv_amp_max", offsetof(ti_params_t, cal_rslv_amp_max), TI_CAL_F32, 1.1f, 1.5f}, \
@@ -46,7 +47,7 @@
     {"cal_rslv_rate_min_rad_s", offsetof(ti_params_t, cal_rslv_rate_min_rad_s), TI_CAL_F32, 50.0f, 1000.0f}, \
     {"cal_rslv_accel_max_rad_s2", offsetof(ti_params_t, cal_rslv_accel_max_rad_s2), TI_CAL_F32, 5000.0f, 200000.0f}, \
     {"cal_rslv_latency_us", offsetof(ti_params_t, cal_rslv_latency_us), TI_CAL_F32, 0.0f, 200.0f}, \
-    {"cal_speed_hold_ms", offsetof(ti_params_t, cal_speed_hold_ms), TI_CAL_U32, 0.0f, 1000.0f}, \
+    {"cal_speed_accel_max_rpm_s", offsetof(ti_params_t, cal_speed_accel_max_rpm_s), TI_CAL_F32, 500.0f, 50000.0f}, \
     {"cal_rdy_timeout_ms", offsetof(ti_params_t, cal_rdy_timeout_ms), TI_CAL_U32, 250.0f, 1000.0f}, \
     {"cal_spo_release_a", offsetof(ti_params_t, cal_spo_release_a), TI_CAL_F32, 2.0f, 50.0f}, \
     {"cal_precharge_low_frac", offsetof(ti_params_t, cal_precharge_low_frac), TI_CAL_F32, 0.01f, 0.04f}, \
@@ -70,9 +71,11 @@
     {"cal_torque_max_nm", offsetof(ti_params_t, cal_torque_max_nm), TI_CAL_F32, 50.0f, 2000.0f}, \
     {"cal_desat_en_hold_us", offsetof(ti_params_t, cal_desat_en_hold_us), TI_CAL_U32, 55.0f, 250.0f}, \
     {"cal_vdyn_reserve_frac", offsetof(ti_params_t, cal_vdyn_reserve_frac), TI_CAL_F32, 0.0f, 0.2f}, \
+    {"cal_fw_emf_margin_frac", offsetof(ti_params_t, cal_fw_emf_margin_frac), TI_CAL_F32, 0.0f, 0.3f}, \
     {"cal_vsup_ld_ms", offsetof(ti_params_t, cal_vsup_ld_ms), TI_CAL_U32, 400.0f, 1000.0f}, \
     {"cal_vsup_jump_ms", offsetof(ti_params_t, cal_vsup_jump_ms), TI_CAL_U32, 60000.0f, 120000.0f}, \
     {"cal_vsup_jump_max_v", offsetof(ti_params_t, cal_vsup_jump_max_v), TI_CAL_F32, 24.5f, 30.0f}, \
+    {"cal_asc_oc_window_ms", offsetof(ti_params_t, cal_asc_oc_window_ms), TI_CAL_U32, 5.0f, 100.0f}, \
     {"cal_asc_release_ns", offsetof(ti_params_t, cal_asc_release_ns), TI_CAL_U32, 1070.0f, 5000.0f}, \
     {"cal_isns_act_min_a", offsetof(ti_params_t, cal_isns_act_min_a), TI_CAL_F32, 5.0f, 100.0f}, \
     {"cal_isns_act_frac", offsetof(ti_params_t, cal_isns_act_frac), TI_CAL_F32, 0.05f, 0.5f}, \
@@ -84,8 +87,18 @@
     {"cal_sd_irq_lat_max_us", offsetof(ti_params_t, cal_sd_irq_lat_max_us), TI_CAL_U32, 5.0f, 45.0f}, \
     {"cal_swg_start_lat_us", offsetof(ti_params_t, cal_swg_start_lat_us), TI_CAL_U32, 0.0f, 20.0f}, \
     {"cal_rslv_restart_max", offsetof(ti_params_t, cal_rslv_restart_max), TI_CAL_U8, 0.0f, 10.0f}, \
+    {"cal_ovs_warn_frac", offsetof(ti_params_t, cal_ovs_warn_frac), TI_CAL_F32, 0.9f, 1.0f}, \
+    {"cal_ovs_trip_frac", offsetof(ti_params_t, cal_ovs_trip_frac), TI_CAL_F32, 1.02f, 1.2f}, \
+    {"cal_ovs_hyst_frac", offsetof(ti_params_t, cal_ovs_hyst_frac), TI_CAL_F32, 0.005f, 0.05f}, \
+    {"cal_ovs_debounce_ms", offsetof(ti_params_t, cal_ovs_debounce_ms), TI_CAL_U32, 2.0f, 100.0f}, \
+    {"cal_rs_save_s", offsetof(ti_params_t, cal_rs_save_s), TI_CAL_U32, 60.0f, 3600.0f}, \
+    {"cal_isns_ofs_step_v", offsetof(ti_params_t, cal_isns_ofs_step_v), TI_CAL_F32, 0.0005f, 0.02f}, \
+    {"cal_temp_rate_win_ms", offsetof(ti_params_t, cal_temp_rate_win_ms), TI_CAL_U32, 100.0f, 250.0f}, \
+    {"cal_temp_rate_db_codes", offsetof(ti_params_t, cal_temp_rate_db_codes), TI_CAL_U8, 1.0f, 32.0f}, \
+    {"cal_ripple_ff_max_a", offsetof(ti_params_t, cal_ripple_ff_max_a), TI_CAL_F32, 0.0f, 30.0f}, \
+    {"cal_ripple_ff_fmax_hz", offsetof(ti_params_t, cal_ripple_ff_fmax_hz), TI_CAL_F32, 0.0f, 500.0f}, \
 }
 
-#define TI_CAL_RANGE_COUNT 78u
+#define TI_CAL_RANGE_COUNT 91u
 
 #endif /* CAL_RANGES_H */

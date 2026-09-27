@@ -400,6 +400,15 @@ ok(same(C("UMCU.J7_V25"), "V25") && same(C("CV25.pin1"), "V25") && same(C("CV25.
   "J7 is V25 with its 220 nF COUT_V25 to ground, not a ground ball (A12-R02)");
 ok(same(C("CBAL.pin1"), "BCTRL") && same(C("CBAL.pin2"), "DGND") && near(V(CARD, "CBAL"), 1e-9) && same(C("UMCU.F1_NMOS_CTRL"), "BCTRL"), "CNMOS 1 nF on the ballast gate (A12-R04)");
 ok(same(C("UMCU.E6_VREFH_SAR_456"), "VREF5") && same(C("UMCU.H6_VREFH_SAR_0123"), "VREF5"), "SAR reference-high balls E6/H6 on VREF5");
+// round 23 (A20-F02, F214): S32K39 DS note 8 — every VREFH except VREFH_R2R on ONE source (VREF5), VREFH_R2R isolated/filtered
+ok(same(C("UMCU.E10_VREFH_SDADC_01"), "VREF5") && same(C("UMCU.F13_VREFH_SDADC_23"), "VREF5") && same(C("UMCU.E12_VDDA_SDADC"), "V5A"),
+  "SDADC reference-high balls E10/F13 on VREF5 (one source with the SAR references, DS note 8); VDDA_SDADC on V5A = VDD_HV_A (note 4)");
+ok(same(C("UMCU.A9_VREFH_R2R"), "VR2R") && same(C("RR2R.pin1"), "VREF5") && same(C("RR2R.pin2"), "VR2R") && near(V(CARD, "RR2R"), 10)
+  && same(C("CR2R1.pin1"), "VR2R") && same(C("CR2R1.pin2"), "AGND") && near(V(CARD, "CR2R1"), 1e-6)
+  && same(C("CR2R2.pin1"), "VR2R") && same(C("CR2R2.pin2"), "AGND") && near(V(CARD, "CR2R2"), 100e-9)
+  && ![...CARD.pinNet.entries()].some(([k, n]) => n === "VR2R" && !/^(UMCU\.|RR2R\.|CR2R[12]\.)/.test(k))
+  && [...CARD.pinNet.entries()].filter(([k, n]) => n === "VR2R" && /^UMCU\.[A-U]\d/.test(k)).length === 1,
+  "VREFH_R2R (A9) isolated from the ADC references: VREF5 -> RR2R 10 R -> VR2R with CR2R1 1 uF + CR2R2 100 nF, nothing else on VR2R (DS note 8; F214)");
 ok(same(C("UMCU.B5_HWID"), "HW_ID") && same(C("UMCU.T15_NTCA"), "NTC_A") && same(C("UMCU.D5_MT2"), "MT2_SIG") && same(C("UMCU.U4_ASCREQ"), "ASC_REQ")
   && ["C12_HWID", "C14_NTCA", "D11_MT2", "T5_ASCREQ"].every((l) => C(`UMCU.${l}`) === undefined), "round-14 remap: HW_ID/NTC_A/MT2_SIG/ASC_REQ on GEN3-netlist-confirmed balls B5/T15/D5/U4");
 for (const s of ["SIN", "COS"])

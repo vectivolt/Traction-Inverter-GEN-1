@@ -47,6 +47,9 @@ typedef struct {
     uint8_t isns_stuck;  /* bit k: phase k's sensor output stuck at its zero-current level (F24) */
     bool qdis_stuck_on;  /* the QDIS path conducts whatever the command (item 9) */
     float rslv_amp;      /* resolver sin/cos amplitude scale (1 nominal) */
+    bool veh_speed_valid; /* round 23 (FW-39): the VCU's vehicle speed in VCU_CMD (default: not sent) */
+    float veh_speed_kmh;
+    void (*plant)(void);  /* round 23 (FW-39): replaces the ideal current loop at each trigger (sim_pmsm_step) */
     uint32_t t_ms;
 } h_env_t;
 

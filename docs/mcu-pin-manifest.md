@@ -51,7 +51,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | A5 | PTE1 | `VDC2_SE` | ADC1_P6 | V_DC channel 2 (was PTB0: no ADC) |
 | A7 | VDDA_SWG01 | `V5A` | — | SWG analog supply (filtered 5 V) |
 | A8 | SWG1_0 | `SWG1` | SWG1_0 | resolver excitation source |
-| A9 | VREFH_R2R | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| A9 | VREFH_R2R | `VR2R` | — | R2R (SWG) DAC reference: VREF5 through RR2R 10 Ω with CR2R1 1 µF + CR2R2 100 nF at the ball — isolated/filtered from the SDADC/SAR references as DS note 8 requires (round 23, F214; on VREF5 directly until A.21) |
 | A11 | PTA15 | `MT1_SIG` | ADC3_P4 | motor temp 1 (PTA12 absent) |
 | A12 | PTA16 | `VREXM_P` | SDADC1_AN[0] | excitation monitor + (SDADC1 AN0) |
 | A13 | PTA0 | `VDC1_SE` | ADC6_P4 | V_DC channel 1 |

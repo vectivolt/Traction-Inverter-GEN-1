@@ -14,16 +14,21 @@
  * VCU_CMD 0x101 (8 B): b0 CRC | b1 [3:0] ctr, [5:4] gear, [6] enable, [7] fault reset |
  *   b2-3 torque int16 0.1 Nm | b4 [1:0] contactors (1 open, 2 precharge, 3 closed), [2] DESAT
  *   retry authorisation, [3] discharge request, [4] shutdown | b5 coolant degC + 40 (0xFF n/a)
+ *   (round 23, FW-39: b4 [5] vehicle speed valid | b6-7 vehicle speed 0.01 km/h, unsigned — the service mode needs
+ *   it valid and zero; a sender without the field leaves [5] 0: not valid, never "stationary")
  * VCU_BMS 0x102 (8 B): b0 CRC | b1 [3:0] ctr | b2-3 pack V 0.1 V | b4-5 charge (regen) power
  *   limit 0.1 kW | b6-7 discharge power limit 0.1 kW
- * INV_STATUS 0x201 (16 B): b0 CRC | b1 [3:0] ctr, [4] self-test done, [5] keep HV (FW-08b),
- *   [6] derate, [7] fault | b2 state | b3 [1:0] bridge, [3:2] HV state, [4] zero torque,
- *   [5] discharging, [6] precharge refused, [7] speed valid | b4-5 torque 0.1 Nm | b6-7 speed rpm |
+ * INV_STATUS 0x201 (20 B, round 23; 16 B before): b0 CRC | b1 [3:0] ctr, [4] self-test done, [5] keep HV (FW-08b),
+ *   [6] derate, [7] fault | b2 state | b3 [1:0] bridge, [3:2] HV state, [4] zero torque (of the command),
+ *   [5] discharging, [6] precharge refused, [7] speed valid | b4-5 torque applied 0.1 Nm (FW-08; round 23, FW-37:
+ *   the torque the issued current references represent — below the command when the voltage or current limits it,
+ *   0 without modulation) | b6-7 speed rpm |
  *   b8-9 V_DC 0.1 V (0xFFFF invalid) | b10 module degC + 40 | b11 confirmed DTCs | b12-13 first DTC |
  *   b14 [0] no safe state proven (an SPO held with neither rule (a) nor (b), A12-R08),
  *       [1] service required: do not re-energise (stuck-on QDIS), [2] open the contactors,
  *       [3] speed limit requested (no voltage-feasible current, F23) |
- *   b15 [4:0] arming evidence missing (arm_evidence.h ARM_EV_* bits). */
+ *   b15 [4:0] arming evidence missing (arm_evidence.h ARM_EV_* bits) | b16-17 torque command 0.1 Nm (round 23: after
+ *   the limits, ramps and trims — what b4-5 is asked to be) | b18-19 reserved 0. */
 #ifndef CAN_CMD_H
 #define CAN_CMD_H
 
@@ -46,6 +51,8 @@ typedef struct {
     ti_contactor_t contactors;
     float coolant_c;
     bool coolant_valid;
+    bool vspeed_valid; /* round 23 (FW-39): the VCU vehicle speed (b4 [5], b6-7) */
+    float vspeed_kmh;
     /* BMS limits */
     bool bms_have_ctr;
     uint8_t bms_ctr;
@@ -73,7 +80,8 @@ typedef struct {
     bool discharging;
     bool precharge_refused;
     bool speed_valid;
-    float torque_nm;
+    float torque_nm;     /* the torque applied (round 23: of the issued current references) */
+    float torque_cmd_nm; /* round 23: the torque command */
     float speed_rpm;
     float vdc_v;
     bool vdc_valid;
@@ -100,6 +108,8 @@ void can_encode_vcu_cmd(hal_can_frame_t *f, uint8_t ctr, ti_gear_t gear, bool en
                         float torque_nm, ti_contactor_t cont, bool retry_auth, bool discharge, bool shutdown,
                         float coolant_c);
 void can_encode_vcu_bms(hal_can_frame_t *f, uint8_t ctr, float v_pack, float p_chg_w, float p_dis_w);
+/* Round 23 (FW-39): the vehicle speed into an encoded VCU_CMD frame (tests/HIL), the E2E CRC re-computed. */
+void can_vcu_cmd_vspeed(hal_can_frame_t *f, bool valid, float kmh);
 uint8_t can_e2e_crc(uint32_t id, const uint8_t *data, uint8_t len);
 
 #endif /* CAN_CMD_H */

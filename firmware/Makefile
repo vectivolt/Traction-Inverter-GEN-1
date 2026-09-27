@@ -12,12 +12,12 @@ BUILD   := build
 STD     := -std=c11
 WARN    := -Wall -Wextra -Werror -Wshadow -Wdouble-promotion -Wmissing-prototypes \
            -Wstrict-prototypes -Wundef -Wpointer-arith -Wcast-qual -Wvla
-CFLAGS  ?= -O1 -g
+CFLAGS  ?= -O1 -g -ffp-contract=off # round 23 (T-59): no fused multiply-add on the host — the M7 build (GCC, -std=c11) does not fuse, so the suite's rounding is the target's
 INC     := -Iinclude -Isrc/hal -Isrc/util -Isrc/sense -Isrc/control -Isrc/safety -Isrc/comms \
-           -Isrc/discharge -Isrc/nvm -Isrc/app
+           -Isrc/discharge -Isrc/nvm -Isrc/app -Isrc/diag -Isrc/boot
 
 FW_SRC   := $(wildcard src/hal/*.c src/util/*.c src/sense/*.c src/control/*.c src/safety/*.c src/comms/*.c \
-                       src/discharge/*.c src/nvm/*.c src/app/*.c)
+                       src/discharge/*.c src/nvm/*.c src/app/*.c src/diag/*.c src/boot/*.c)
 HOST_SRC := $(wildcard src/platform/host/*.c)
 TEST_SRC := $(wildcard tests/*.c)
 TGT_SRC  := $(wildcard src/platform/s32k396/*.c)
@@ -89,3 +89,4 @@ board-map:
 
 clean:
 	rm -rf $(BUILD)
+include qemu.mk # make qemu-test, make target-size: the suite on the Cortex-M7 under QEMU, the M7 footprint

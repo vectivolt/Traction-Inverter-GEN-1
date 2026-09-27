@@ -906,6 +906,7 @@ bool hal_fs26_xfer(uint32_t tx, uint32_t *rx)
 #define CANQ 32u
 static hal_can_frame_t s_rxq[2][CANQ], s_txq[2][CANQ];
 static uint32_t s_rx_h[2], s_rx_t[2], s_tx_h[2], s_tx_t[2];
+static uint32_t s_tx_busy[2]; /* FW-40: sim_can_tx_busy() */
 
 bool hal_can_init(uint8_t bus) { return bus < 2u; }
 
@@ -924,6 +925,10 @@ bool hal_can_tx(uint8_t bus, const hal_can_frame_t *f)
     if (bus >= 2u) {
         return false;
     }
+    if (s_tx_busy[bus] > 0u) {
+        s_tx_busy[bus]--;
+        return false;
+    }
     s_txq[bus][s_tx_h[bus] % CANQ] = *f;
     s_tx_h[bus]++;
     if ((s_tx_h[bus] - s_tx_t[bus]) > CANQ) {
@@ -937,6 +942,13 @@ void sim_can_inject(uint8_t bus, const hal_can_frame_t *f)
     if ((bus < 2u) && ((s_rx_h[bus] - s_rx_t[bus]) < CANQ)) {
         s_rxq[bus][s_rx_h[bus] % CANQ] = *f;
         s_rx_h[bus]++;
+    }
+}
+
+void sim_can_tx_busy(uint8_t bus, uint32_t n)
+{
+    if (bus < 2u) {
+        s_tx_busy[bus] = n;
     }
 }
 
@@ -1003,14 +1015,16 @@ hal_nvm_status_t hal_nvm_poll(void)
 
 void sim_nvm_set_write_polls(uint32_t polls) { s_nvm_polls = polls; }
 
-void sim_nvm_power_loss(void)
+void sim_nvm_power_loss_bytes(uint32_t n)
 {
     if (N.busy) {
-        (void)memcpy(s_nvm[N.slot], N.buf, N.len / 2u); /* torn: first half new, rest old */
+        (void)memcpy(s_nvm[N.slot], N.buf, (n < N.len) ? n : N.len); /* torn: the first n bytes new, rest old */
         N.busy = false;
     }
     N.last = HAL_NVM_IDLE;
 }
+
+void sim_nvm_power_loss(void) { sim_nvm_power_loss_bytes(N.len / 2u); }
 
 uint32_t sim_nvm_writes_done(void) { return s_nvm_done; }
 void sim_nvm_wipe(void) { (void)memset(s_nvm, 0xFF, sizeof s_nvm); }
@@ -1114,6 +1128,7 @@ void sim_reset_at_us(uint64_t t_us)
     (void)memset(s_rx_t, 0, sizeof s_rx_t);
     (void)memset(s_tx_h, 0, sizeof s_tx_h);
     (void)memset(s_tx_t, 0, sizeof s_tx_t);
+    (void)memset(s_tx_busy, 0, sizeof s_tx_busy);
     (void)memset(&N, 0, sizeof N);
     s_nvm_polls = 3u;
     s_kicks = 0u;

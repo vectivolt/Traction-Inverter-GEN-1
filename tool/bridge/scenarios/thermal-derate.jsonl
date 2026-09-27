@@ -1,0 +1,7 @@
+# FW-04 / FW-13: 65 degC coolant, peak torque, then a coolant-flow loss (+60 K on the modules) — the derating and the
+# FW-13 rate plausibility (see README "Findings").
+{"cmd":"coolant","c":65,"in_ms":100}
+{"cmd":"arm","in_ms":1500}
+{"cmd":"speed","rpm":3000,"ramp_rpm_s":5000,"in_ms":2500}
+{"cmd":"torque","nm":400,"in_ms":3500}
+{"cmd":"inject","fault":"overtemp","dt_c":60,"in_ms":8000}

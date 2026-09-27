@@ -102,6 +102,7 @@ static void vcu_tx(void)
     if (H.send_cmd) {
         can_encode_vcu_cmd(&f, H.ctr, H.gear, H.enable, H.fault_reset, H.torque_nm, H.contactors, H.retry_auth,
                            H.discharge, H.shutdown, H.coolant_c);
+        can_vcu_cmd_vspeed(&f, H.veh_speed_valid, H.veh_speed_kmh); /* round 23 (FW-39) */
         sim_can_inject(HAL_CAN_VEHICLE, &f);
         if (!H.freeze_ctr) {
             H.ctr = (uint8_t)((H.ctr + 1u) & 0x0Fu);
@@ -159,6 +160,10 @@ float h_rotor_theta_e(void)
 
 static void plant_currents(void)
 {
+    if (H.plant != NULL) {
+        H.plant(); /* round 23 (FW-39): a plant that responds to the voltage (the virtual PMSM) */
+        return;
+    }
     const float th = g_app.rslv.valid ? rslv_theta_e_at(&g_app.rslv, &g_app.cal.rslv, hal_time_us(), g_app.p)
                                       : h_rotor_theta_e();
     float d = 0.0f;

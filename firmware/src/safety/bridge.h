@@ -45,6 +45,7 @@ typedef struct {
     uint32_t t_hold_us;   /* first sight of the FLT that started the hold */
     bool en_drop_pending; /* an EN drop requested inside the hold */
     uint32_t t_pwm_off_us; /* round 18: the bridge's own stamp of the last PWM turn-off it made or was told of (FW-34 class) */
+    uint32_t t_asc_us;     /* round 23 (item 5): the last PWM-ASC entry, on the bridge's own clock */
 } bridge_t;
 
 void br_init(bridge_t *b, const ti_params_t *p);

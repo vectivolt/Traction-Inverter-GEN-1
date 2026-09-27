@@ -29,6 +29,7 @@ typedef struct {
     float vdc_v;
     uint32_t now_ms;
     uint32_t key_cycle;
+    nv_fault_ctx_t op; /* FW-40: the operating context a DESAT's fault record keeps (nvlog.h) */
 } fm_ctx_t;
 
 typedef struct {
@@ -45,6 +46,7 @@ typedef struct {
     bool retry_used;
     uint32_t desat_ms;
     bool desat_blocked;
+    uint8_t desat_bank; /* round 23: the bank of the record that blocks at boot (1 HS, 2 LS; 0 none or unknown) */
     uint32_t key_cycle;
 } fm_t;
 

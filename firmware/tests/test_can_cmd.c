@@ -102,17 +102,21 @@ TEST(direction_interlock)
     CHECK(can_dir_interlock(&d, TI_GEAR_R, NAN, 0.0f, p) == 0.0f);
 }
 
+/* Round 23 (FW-37): 20 bytes — b4-5 the torque applied, b16-17 the torque command beside it, b18-19 reserved. */
 TEST(status_frame_round_trip)
 {
     const can_status_t s = {.state = 7u, .bridge = 3u, .hv = TI_HV_UNKNOWN, .keep_hv = true, .self_test_done = true,
-                            .torque_nm = -12.3f, .speed_rpm = 4500.0f, .vdc_v = 712.5f, .vdc_valid = true};
+                            .torque_nm = -12.25f, .torque_cmd_nm = -15.25f, .speed_rpm = 4500.0f, .vdc_v = 712.5f,
+                            .vdc_valid = true};
     hal_can_frame_t f;
     can_status_encode(&s, 5u, &f);
-    CHECK(f.id == CAN_ID_INV_STATUS && f.len == 16u);
+    CHECK(f.id == CAN_ID_INV_STATUS && f.len == 20u);
     CHECK(can_e2e_crc(f.id, f.data, f.len) == f.data[0]);
     CHECK((f.data[1] & 0x0Fu) == 5u && (f.data[1] & 0x20u) != 0u && (f.data[1] & 0x10u) != 0u);
     CHECK((f.data[3] & 0x03u) == 3u && ((f.data[3] >> 2) & 0x03u) == (uint8_t)TI_HV_UNKNOWN);
     CHECK((uint16_t)(f.data[8] | (f.data[9] << 8)) == 7125u);
+    CHECK((int16_t)(uint16_t)(f.data[4] | (f.data[5] << 8)) == -122 && (int16_t)(uint16_t)(f.data[16] | (f.data[17] << 8)) == -152);
+    CHECK(f.data[18] == 0u && f.data[19] == 0u);
 }
 
 /* Round 14 fields of INV_STATUS: byte 14 flags, byte 15 the missing arming evidence. */

@@ -411,7 +411,7 @@ up through faults, but not through a dead 12 V system. A dead-LV coast-down is t
 open; it is energy-safe only for motors whose E_LL,pk at n_max stays below the cap rating
 (`firmware-contract.md` §6) — otherwise the HV-fed backup-bias option is required.
 
-## 11. Verification status (current release: rev A.21)
+## 11. Verification status (current release: rev A.22)
 
 Three independent verification layers gate every release (see
 [`verification-report.md`](verification-report.md)):
@@ -434,6 +434,69 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11v. Rev A.22 — round 23: three rechecks of 452de85, and the VESC program (summary)
+
+Three independent rechecks of the A.21 push ([`review-A22-disposition.md`](review-A22-disposition.md), register F214–F220). One
+carried five findings from a report we had never received; every one was taken to the source and the archived data sheets.
+**Real:** ball A9 (the R2R / sine-wave DAC reference) sat directly on VREF5 with the SDADC/SAR references where the S32K39 data
+sheet's note 8 requires an isolated or filtered VREFH_R2R — now VREF5 → RR2R 10 Ω → VR2R with 1 µF + 100 nF at the ball (a
+resistor, not a bead, so the capacitor stays outside the FS26 VREF output-capacitance window; VR-35 asks NXP for the ladder
+current; F214); the SWD header JSWD is a surface-mount Samtec FTSH -DV and the round-22 map had bound a through-hole land —
+the SMT land is drawn from the archived Samtec print and the library generator now locks the mounting technology an ordering
+code states (F215); the footprint library is a KiCad 10.0.6-format library and was mirrored into the KiCad 5 sets, which cannot
+read it — KiCad 10 is the footprint-enabled handoff, the legacy sets carry names only (F216); **the torque solver could return
+a current vector representing about twice the requested torque in field weakening on a salient motor** (i_d deepened without
+recomputing i_q, the witness checked voltage only) — an Opus agent rebuilt it as a joint solve on the torque curve (current,
+flux and voltage are convex in i_d along the curve, so bisection finds every boundary exactly; a 64-sample scan was tried and
+rejected), with torque reduction only when nothing fits, a postcondition before every return (TQ_POSTCOND → a DTC) and the
+applied torque reported in the status frame (INV_STATUS 20 B, T-38): the eight reviewer cases now deliver ±100.0000 N·m at
+112–118 A rms instead of ≈ 200 N·m at 230 A; a 20 000-case reference finds no violation; 300 tests / 2802 checks / 0 failed
+in three build flavours at that point, eight mutations caught, TI_FW_ID 0x0A0F0014 (F217; the round's final image is 0x0A0F0015, below); the no-LUT MTPA fallback converges by bisection
+(246.306 A against the 267.45 A of the old fixed point; F218). **Documentation:** the BOM intro follows the SKU (F219); the
+handoff's stale MCU note removed (F220). **Not supported by the archived data sheet:** the review's "VREFP = VAVDD ± 25 mV"
+— the S32K39 window is VDD_HV_A + 0.1 V ≥ VREFH ≥ VDD_HV_A − 1.5 V and the FS26's ±1 % LDO-to-VREF matching leaves 50 mV; a
+verifier row and VR-34 (the DC-bound wording) close it with the reviewers' routing ECO as the fallback (F220). **Also this
+round, on the user's instruction:** the VESC firmware (6.00 and master 7.01) and VESC Tool sources archived as GPL-3.0 reference
+copies (`docs/reference/vesc/`), a two-sided feature matrix against our firmware ([`firmware-vs-vesc.md`](firmware-vs-vesc.md)), and Traction Tool — an
+original offline bench/service application in Qt 6 (`tool/`; the stack decision with the Bun/Electron/Electrobun/Qt comparison in
+[`tool-stack-decision.md`](tool-stack-decision.md); the user chose the mature platform).
+
+**The gap closure (same round).** The matrix ranked ten gaps; eight were closed by Opus agents under the same fail-before/pass-after
+rule: FW-38 signed field update (an image container with Ed25519 and SHA-256, anti-rollback, A/B boot slots, UDS 0x34/0x36/0x37 over
+ISO-TP with 4 095-byte blocks, the release key never in the repository), FW-39 interlocked motor self-commissioning (Rs by two DC
+levels, Ld/Lq by current-reference injection on a DC bias, ψ / zero / direction dyno-driven; entry only through SecurityAccess, a
+rig attestation, ARMED_ZERO_TORQUE and the VCU's vehicle speed valid and zero — a new VCU_CMD signal; results staged and sealed
+through FW-20), FW-40 UDS diagnostics (0x19, 0x22, 0x2A, a gated 0x14, ISO 15765-2 over CAN-FD, 80 named DTCs generated into a
+table), FW-41 fault-triggered waveform capture (2048 × 32 B), FW-42 overspeed, FW-43 run-time statistics, FW-44 key-on offset
+adoption; gap 8 (saturation-dependent Ld/Lq in the solve) and gap 10 (ripple compensation) stay open for want of dyno maps. The
+simulator bridge written for the tool (`tool/bridge/`: the real firmware modules against a plant with dyno, link, pack, contactors
+and thermal models) ran the firmware closed-loop for the first time and found twelve defects the unit tests had not — the worst:
+field weakening decided on a fixed speed, so at a 750 V link between ≈ 6 900 rpm and n_x the bridge idled while the back-EMF
+exceeded the link and the diodes pushed ≈ 40 kW into the pack uncommanded (F222, now decided on the measured link voltage); a
+temperature-rate check that tripped on one ADC code (F221); unslewed torque steps (F223); six DTCs never set (F224); ASC chosen at
+2 000 rpm after a resolver loss because the held speed expired (F226, now a physical bound); the demodulator's 7.7 µs time centre
+(F227); the resolver debounce bypass (F228); an NVM CRC blind to torn records that end in their own CRC (F229, now CRC-32C over
+header and payload); with F225, F230–F232 — all fixed. Final image TI_FW_ID 0x0A0F0015, CAL layout 3 (188 fields / 89 rows; layout 4 with 190 / 91 after the extension's FW-45/46),
+402 tests / 4707 checks / 0 failed in three flavours, 61 target markers, the bridge's own check PASS, protocol exports
+regenerated and verified.
+
+**The extension (27 September).** Asked why the closing report still listed open items and whether they could be implemented,
+each was taken as a finding ([`review-A22-disposition.md`](review-A22-disposition.md), EXT-1…EXT-8; register F233–F239). What
+software can do was done: the suite now runs on the Cortex-M7 instruction set with the target compiler under QEMU, identical
+to the host (T-59) — which caught test code clang had accepted, showed the host's fused multiply-adds rounding differently from
+the target (now `-ffp-contract=off`), and exposed libgcc's 64-bit divide in two ISR paths (now a four-digit hardware division
+with a link-time guard); every commissioning routine is proved against the bridge, which was found never to load a committed
+record; the CAN transport is proved against the firmware over Qt's virtual bus, where it turned out to have no ISO-TP
+reassembly, and the signed update runs end to end over both transports, which found a UDS escape frame every non-diagnostic
+service dropped; the two remaining matrix gaps became capabilities (FW-45 saturation-dependent inductance tables, FW-46 a
+cogging feed-forward table — the maps themselves are dyno measurements); the licence items are closed (the corresponding
+source shipped beside the image, Qt's attributions generated from it); the root of trust is reported (DID 0xFD23, never a
+DTC); the tool transfers images. What remains needs hardware: T-05…T-07, the peripheral and timing items, a physical CAN
+adapter, the dyno maps. Final counts: 421 tests / 4937 checks / 0 failed in three flavours and on the M7 under QEMU, 63
+target markers, CAL layout 4 (190 fields / 91 rows), 80 DTCs.
+Counts: ERC 980 · verify 158/18/0 · sim 23/6/0 · Marine 87/23/0 · pin-verify 2065/2065 · KiCad proof PASS (689 components
+bound, the three LEM sensors off-board) · BOM +₹0.6 · firmware 421 / 4937 / 0 (0x0A0F0015, layout 4, 80 DTCs; the same on the Cortex-M7 under QEMU). Marine forks at A.22.
 
 ## 11u. Rev A.21 — round 22: three rechecks of 0ff44d9, and the layout handoff (summary)
 

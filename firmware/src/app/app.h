@@ -29,10 +29,19 @@
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0F0013u /* rev A.18, round 19: a new image (the resolver cadence dated by the SWG start, never
-                              * by a completion; re-sync from the clock; the synchronized producer restart) needs its
-                              * own EOL/HIL validation record before it arms; the FW-20 calibration record stays
-                              * layout 2. Round 18 was 0x0A0F0012, round 17 0x0A0F0011 */
+#define TI_FW_ID 0x0A0F0015u /* round 23, second image: the VESC gap closure FW-38..FW-44 (signed update, service-mode
+                              * commissioning, UDS 0x19/0x22/0x2A/0x14 over ISO-TP, waveform capture, overspeed, run-time
+                              * statistics, offset refresh) and the closed-loop-simulator fixes (contract 10k) — the NVM
+                              * layouts changed (fault snapshot, run-time and boot records, 64 slots) and the FW-20
+                              * record is layout 4 (FW-45/46; 190 fields / 91 rows). 0x0A0F0014 was the round-23
+                              * torque-solver image (FW-37); round 19 0x0A0F0013, round 18 0x0A0F0012, round 17 0x0A0F0011 */
+
+/* round 23 — kept below the release marker above: docs/target-bringup.md (T-06) cites that line */
+#include "offtrack.h"  /* round 23: FW-44 */
+#include "overspeed.h" /* round 23: FW-42 */
+#include "runstats.h"  /* round 23: FW-43 */
+
+#include "uds_diag.h" /* round 23: FW-40 (app_t.udsd); after TI_FW_ID so the marker above keeps its line */
 
 typedef struct {
     const ti_params_t *p;
@@ -56,6 +65,7 @@ typedef struct {
     can_cmd_t can;
     can_dir_t dir;
     uds_t uds;              /* FW-32: SecurityAccess + the service-lock routine on the diagnostic bus */
+    uds_diag_t udsd;        /* round 23 (FW-40): DTC read-out and clear, DIDs, the periodic stream (uds_diag.h) */
     dis_t dis;
     pch_t pch;
     /* safety */
@@ -89,6 +99,7 @@ typedef struct {
     bool speed_limit_req;   /* F23: no voltage-feasible current at this speed */
     /* torque path */
     float t_cmd_nm;
+    float t_act_nm;          /* round 23 (FW-37): the torque the issued current references represent (INV_STATUS b4-5) */
     volatile float id_ref;
     volatile float iq_ref;
     volatile bool mod_req;
@@ -110,6 +121,14 @@ typedef struct {
     uint32_t n_isr;
     volatile uint32_t t_isr_us; /* entry of the last current-loop ISR (round 16 liveness) */
     uint32_t sd_reacq;          /* round 18: resolver ring re-acquisitions already recorded (DTC_RSLV_REACQUIRED) */
+    volatile bool asc_oc_pending; /* round 23 (item 5): an ASC entry's over-current transient: the compare to re-arm */
+    ovs_t ovs;                  /* round 23 (FW-42): overspeed band */
+    rs_t rs;                    /* round 23 (FW-43): run-time statistics and the run-time record */
+    ofs_t ofs;                  /* round 23 (FW-44): working current calibration (tracked offsets) */
+    volatile float rip_k;       /* round 23 (FW-46): the ripple feed-forward's scale for the current-loop ISR; 0 = off */
+    float rip_mean;             /* ... the record's table: its mean (counts; not applied: a feed-forward of the ripple only) */
+    float rip_lo;               /* ... and its extremes less the mean, clamped to cal_ripple_ff_max_a */
+    float rip_hi;
 } app_t;
 
 /* Retained across an MCU reset inside a key cycle (not across power-down). */
@@ -129,5 +148,8 @@ void app_task_1ms(app_t *a);
 void app_idle(app_t *a);
 void app_fault_isr_entry(void);
 uint32_t app_isr_period_us(const app_t *a);
+/* Round 23 (item 6): the upper bound of |n| the §6 decisions use (rpm): |n| while the resolver is valid, then
+ * |n_last| + cal_speed_accel_max_rpm_s x the time since the last valid speed. */
+float app_speed_hi_rpm(const app_t *a, uint32_t t_ms);
 
 #endif /* APP_H */

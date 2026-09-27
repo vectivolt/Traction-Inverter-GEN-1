@@ -324,12 +324,16 @@ TEST(swg_trim_ramps_readies_and_saturates)
 
 /* ======================= round 18 ======================= */
 
+static void block_moving(double th0, double w, float lag_deg, float exc_ph_deg, int16_t e[N], int16_t s[N], int16_t c[N]);
+
 /* A16-R03 against an independent oracle: a rotor turning at constant speed w, theta(t) = theta0 + w t, seen
- * through a resolver chain that delays it by L — each block carries the angle the rotor had L before the block's
- * mid-sampling instant, and is stamped at its start, as the ring does. With cal_rslv_latency_us = L the angle
- * the current loop gets at `now` (0.5 to 0.75 carrier periods after the block completed) must be the rotor's
- * angle AT `now`: both directions, 3000 and 10 000 rpm, L = 25 and 50 us. The old sign was off by 2 w L — 3.6 deg
- * el at 3000 rpm and 25 us, 24 deg at 10 000 rpm and 50 us (4 pole pairs). */
+ * through a resolver chain that delays it by L — each sample carries the angle the rotor had L before it (round 23: the
+ * rotor moves within the block, sample by sample, as a resolver's signal does; the block held one angle, that of its
+ * mean sampling instant, which hid the demodulator's own reference time — item 7), and each block is stamped at its
+ * start, as the ring does. With cal_rslv_latency_us = L the angle the current loop gets at `now` (0.5 to 0.75 carrier
+ * periods after the block completed) must be the rotor's angle AT `now`: both directions, 3000 and 10 000 rpm, L = 25
+ * and 50 us. The old sign was off by 2 w L — 3.6 deg el at 3000 rpm and 25 us, 24 deg at 10 000 rpm and 50 us (4 pole
+ * pairs). */
 TEST(latency_compensation_matches_the_true_angle_at_now)
 {
     const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
@@ -337,7 +341,6 @@ TEST(latency_compensation_matches_the_true_angle_at_now)
     const float rpm[2] = {3000.0f, 10000.0f};
     const float dir[2] = {1.0f, -1.0f};
     const float lat_us[2] = {25.0f, 50.0f};
-    const double t_mid_us = 100.0 * 15.0 / 16.0 / 2.0; /* the mean of 16 samples over the 100 us period */
     for (unsigned s = 0u; s < 2u; s++) {
         for (unsigned d = 0u; d < 2u; d++) {
             for (unsigned l = 0u; l < 2u; l++) {
@@ -355,8 +358,7 @@ TEST(latency_compensation_matches_the_true_angle_at_now)
                 uint32_t tb = 0u;
                 for (unsigned i = 0u; i < 300u; i++) { /* 30 ms: acquired and settled */
                     tb = 1000u + (100u * i);
-                    const double seen = th0 + (w * (((double)tb + t_mid_us - (double)lat_us[l]) * 1e-6));
-                    block((float)seen, 1.0f, 20000.0f, 24.0f, e, sn, cs);
+                    block_moving(th0 + (w * (((double)tb - (double)lat_us[l]) * 1e-6)), w, 24.0f, 0.0f, e, sn, cs);
                     rslv_update(&r, e, sn, cs, 1e-4f, tb, &c, &q);
                 }
                 CHECK(r.valid && !r.trk_fault && !r.acc_fault);
@@ -408,6 +410,194 @@ TEST(a_frame_newer_than_the_check_time_is_not_aged_out)
     }
 }
 
+/* ======================= round 23 (item 8): the FW-10 debounce ======================= */
+
+/* Locked at 3000 rpm (resolver pp 1), frames 1000 + 100 k us at the true angle; returns the next frame's index. */
+static uint32_t locked_3000(rslv_t *r, const rslv_cal_t *c, const ti_params_t *p)
+{
+    rslv_init(r);
+    r->exc_ready = true;
+    (void)frames(r, c, p, 1000u, 0.4f, 3000.0f / TI_RPM_PER_RAD_S, 60u, 1.0f, 18000.0f);
+    return 60u;
+}
+
+/* frame k (true angle th_k + err_rad, amplitude amp) */
+static void frame_k(rslv_t *r, const rslv_cal_t *c, const ti_params_t *p, uint32_t k, float err_rad, float amp)
+{
+    const float w = 3000.0f / TI_RPM_PER_RAD_S;
+    (void)frames(r, c, p, 1000u + (100u * k), 0.4f + (w * 1e-4f * (float)k) + err_rad, w, 1u, amp, 18000.0f);
+}
+
+/* cal_rslv_debounce (3) consecutive updates is FW-10's debounce. One frame outside the amplitude window made the
+ * resolver invalid at once (the current loop then latched the control-lost row: the resolver gone for the key cycle);
+ * now it is one count and kept out of the observer — the angle is the observer's, extrapolated inside the FW-28 hold —
+ * two in a row the same, and the third in a row latches the fault. */
+TEST(one_frame_outside_the_amplitude_window_is_one_count)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const rslv_cal_t c = cal_nom();
+    rslv_t r;
+    uint32_t k = locked_3000(&r, &c, p);
+    CHECK(r.valid && r.locked);
+    frame_k(&r, &c, p, k++, 0.0f, 0.3f);
+    CHECK(r.valid && !r.amp_fault && r.n_amp == 1u);
+    for (uint32_t i = 0u; i < 10u; i++) {
+        frame_k(&r, &c, p, k++, 0.0f, 1.0f);
+    }
+    CHECK(r.valid && !r.amp_fault && r.n_amp == 0u && !r.acc_fault && !r.trk_fault);
+    frame_k(&r, &c, p, k++, 0.0f, 0.3f);
+    frame_k(&r, &c, p, k++, 0.0f, 0.3f);
+    CHECK(r.valid && !r.amp_fault); /* two in a row: still inside the debounce and the hold */
+    frame_k(&r, &c, p, k++, 0.0f, 0.3f);
+    CHECK(!r.valid && r.amp_fault); /* the third: latched */
+}
+
+/* One frame a few degrees (or 60 deg) off: the observer used to take it — its speed jumped by wn^2 err ts (18 rad/s
+ * for 3 deg at 300 Hz) and rang for several frames, so the acceleration count ran past the debounce and latched within
+ * three frames; the FW-42 overspeed check could sample the jump. Now a frame whose innovation implies more than the
+ * tracking limit or the acceleration bound is one count and kept out: the speed does not move, nothing latches, the
+ * angle keeps tracking. */
+TEST(one_frame_degrees_off_is_kept_out_of_the_observer)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const rslv_cal_t c = cal_nom();
+    const float errs[2] = {3.0f * TI_PI / 180.0f, 60.0f * TI_PI / 180.0f};
+    for (unsigned e = 0u; e < 2u; e++) {
+        rslv_t r;
+        uint32_t k = locked_3000(&r, &c, p);
+        const float w0 = r.omega;
+        frame_k(&r, &c, p, k++, errs[e], 1.0f);
+        CHECK(r.valid && !r.acc_fault && !r.trk_fault && ti_absf(r.omega - w0) < 0.5f);
+        float worst = 0.0f;
+        for (uint32_t i = 0u; i < 30u; i++) {
+            frame_k(&r, &c, p, k++, 0.0f, 1.0f);
+            const float truth = 0.4f + (w0 * 1e-4f * (float)(k - 1u));
+            worst = ti_maxf(worst, ti_absf(ti_wrap_pi(r.theta - ti_wrap_2pi(truth))));
+            CHECK(r.valid);
+        }
+        CHECK(!r.acc_fault && !r.trk_fault && worst < 0.005f);
+    }
+}
+
+/* The plausibility kept: an angle offset that stays (3 deg, and the 34 deg jump of glitch_trips_tracking) latches within
+ * the debounce; an acceleration 5x the driveline bound latches; half the bound tracks without a count. */
+TEST(persistent_offsets_and_implausible_accelerations_still_latch)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const rslv_cal_t c = cal_nom();
+    rslv_t r;
+    uint32_t k = locked_3000(&r, &c, p);
+    for (uint32_t i = 0u; i < 3u; i++) {
+        frame_k(&r, &c, p, k++, 3.0f * TI_PI / 180.0f, 1.0f);
+    }
+    CHECK((r.acc_fault || r.trk_fault) && !r.valid);
+    const float a_lim = p->cal_rslv_accel_max_rad_s2 * ((float)c.resolver_pp / (float)c.motor_pp); /* resolver el */
+    const float mult[2] = {5.0f, 0.5f};
+    for (unsigned m = 0u; m < 2u; m++) {
+        k = locked_3000(&r, &c, p);
+        const float w0 = 3000.0f / TI_RPM_PER_RAD_S;
+        const float th_k0 = 0.4f + (w0 * 1e-4f * (float)k);
+        bool latched = false;
+        for (uint32_t i = 0u; i < 100u; i++) { /* 10 ms of constant acceleration mult x a_lim */
+            const float t = 1e-4f * (float)i;
+            const float th = th_k0 + (w0 * t) + (0.5f * mult[m] * a_lim * t * t);
+            (void)frames(&r, &c, p, 1000u + (100u * (k + i)), th, 0.0f, 1u, 1.0f, 18000.0f);
+            latched = latched || r.acc_fault || r.trk_fault;
+        }
+        CHECK(latched == (m == 0u));
+    }
+}
+
+/* FW-28 bounds the extrapolation from the last frame TAKEN: frames the checks keep out do not renew the hold. With the
+ * debounce at 8 (range 1-10) out-of-window frames would otherwise keep the angle "valid" for 800 us of extrapolation,
+ * beyond cal_rslv_hold_us (500 us): the angle is withdrawn at the hold, before the debounce ends. */
+TEST(frames_kept_out_do_not_renew_the_hold)
+{
+    ti_params_t q = *ti_params_get(TI_SKU_8XX_SIC);
+    q.cal_rslv_debounce = 8u;
+    const rslv_cal_t c = cal_nom();
+    rslv_t r;
+    uint32_t k = locked_3000(&r, &c, &q);
+    const uint32_t t_last = 1000u + (100u * (k - 1u));
+    bool valid_past_hold = false;
+    for (uint32_t i = 0u; i < 7u; i++) {
+        frame_k(&r, &c, &q, k++, 0.0f, 0.3f);
+        const uint32_t now = 1000u + (100u * (k - 1u)) + 60u;
+        rslv_age(&r, now, &q);
+        valid_past_hold = valid_past_hold || (r.valid && (ti_age(now, t_last) >= q.cal_rslv_hold_us));
+    }
+    CHECK(!valid_past_hold && r.stale && !r.valid && !r.amp_fault);
+}
+
+/* ======================= round 23 (item 7): the block's reference instant ======================= */
+
+/* One carrier block with the rotor MOVING within it — sample k at t0 + k T/N sees the angle th0 + w k T/N, as a
+ * resolver does (and the host SDADC model; the block() above holds one angle for the whole block). The windings' carrier
+ * lags the excitation by lag_deg; the excitation's own phase at sample 0 is exc_ph_deg. */
+static void block_moving(double th0, double w, float lag_deg, float exc_ph_deg, int16_t e[N], int16_t s[N], int16_t c[N])
+{
+    const double lag = (double)lag_deg * 3.14159265358979 / 180.0;
+    const double pe = (double)exc_ph_deg * 3.14159265358979 / 180.0;
+    for (unsigned k = 0u; k < N; k++) {
+        const double ph = 6.28318530717959 * (double)k / (double)N;
+        const double th = th0 + (w * 1e-4 * (double)k / (double)N);
+        e[k] = (int16_t)lrint(20000.0 * sin(ph + pe));
+        s[k] = (int16_t)lrint(16000.0 * sin(th) * sin(ph + pe - lag));
+        c[k] = (int16_t)lrint(16000.0 * cos(th) * sin(ph + pe - lag));
+    }
+}
+
+/* The envelopes are the projection of each channel onto the lagged carrier, sum_k x_k sin(ph_k + ref): the sin/cos of
+ * the angle weighted by sin^2(ph_k + ref), whose centroid is NOT the samples' mean instant — with the 24 deg
+ * compensation it is 7.70 us later (T sin(2 |ref| + 2 pi/N) / (2 N sin(2 pi/N)), N 16, T 100 us). Referred to the mean,
+ * the angle at `now` led the rotor by w x 7.70 us: 1.85 deg el at 10 000 rpm (4 pole pairs) — the simulator bridge's
+ * "host model artefact", which is the firmware's own reference time (a real resolver's signal moves within the block
+ * too). With no latency (cal_rslv_latency_us 0) the angle at `now` must be the rotor's: both directions, 3000 and 10 000
+ * rpm, the nominal 24 deg (EXC at phase 0) and a 10 deg carrier lag with the EXC at 35 deg (the trim follows it). */
+TEST(the_block_angle_is_referred_to_the_demodulators_own_centroid)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const float rpm[2] = {3000.0f, 10000.0f};
+    const float dir[2] = {1.0f, -1.0f};
+    const float lag[2] = {24.0f, 10.0f};
+    const float exc_ph[2] = {0.0f, 35.0f};
+    for (unsigned g = 0u; g < 2u; g++) {
+        rslv_cal_t c = cal_nom();
+        c.phase_trim_deg = lag[g] - p->cal_rslv_phase_comp_deg; /* the EOL trim matches the chain's lag */
+        for (unsigned s = 0u; s < 2u; s++) {
+            for (unsigned d = 0u; d < 2u; d++) {
+                const unsigned fails0 = t_fails;
+                const double w = (double)(dir[d] * rpm[s] / TI_RPM_PER_RAD_S); /* rad/s, resolver = mechanical */
+                const double th0 = 0.7;
+                rslv_t r;
+                rslv_init(&r);
+                r.exc_ready = true;
+                int16_t e[N];
+                int16_t sn[N];
+                int16_t cs[N];
+                uint32_t tb = 0u;
+                for (unsigned i = 0u; i < 300u; i++) {
+                    tb = 1000u + (100u * i);
+                    block_moving(th0 + (w * (double)tb * 1e-6), w, lag[g], exc_ph[g], e, sn, cs);
+                    rslv_update(&r, e, sn, cs, 1e-4f, tb, &c, p);
+                }
+                CHECK(r.valid && !r.trk_fault && !r.acc_fault);
+                double worst = 0.0;
+                for (uint32_t x = 100u; x <= 175u; x += 25u) {
+                    const uint32_t now = tb + x;
+                    const double truth = 4.0 * (th0 + (w * ((double)now * 1e-6)));
+                    const double err = ti_wrap_pi((float)((double)rslv_theta_e_at(&r, &c, now, p) - truth));
+                    worst = (fabs(err) > worst) ? fabs(err) : worst;
+                }
+                CHECK_NEAR(worst * 180.0 / 3.14159265358979, 0.0, 0.1); /* deg el */
+                if (t_fails != fails0) {
+                    printf("    ^ %.0f rpm, direction %+.0f, lag %.0f deg\n", (double)rpm[s], (double)dir[d], (double)lag[g]);
+                }
+            }
+        }
+    }
+}
+
 void suite_resolver(void)
 {
     RUN(standstill_angles);
@@ -425,4 +615,9 @@ void suite_resolver(void)
     RUN(swg_trim_ramps_readies_and_saturates);
     RUN(latency_compensation_matches_the_true_angle_at_now);
     RUN(a_frame_newer_than_the_check_time_is_not_aged_out);
+    RUN(one_frame_outside_the_amplitude_window_is_one_count);
+    RUN(one_frame_degrees_off_is_kept_out_of_the_observer);
+    RUN(persistent_offsets_and_implausible_accelerations_still_latch);
+    RUN(frames_kept_out_do_not_renew_the_hold);
+    RUN(the_block_angle_is_referred_to_the_demodulators_own_centroid);
 }

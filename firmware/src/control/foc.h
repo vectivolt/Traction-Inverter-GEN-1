@@ -1,5 +1,6 @@
 /* foc.h — field-oriented current control: amplitude-invariant Clarke/Park (dq = phase peak A),
- * PI per axis with conditional-integration anti-windup and speed-voltage decoupling, voltage circle
+ * PI per axis with conditional-integration anti-windup and speed-voltage decoupling (round 23, FW-45: from the saturation
+ * maps' flux, the proportional gains scheduled by the maps' differential inductance), voltage circle
  * limit (d priority) at cal_mod_index_max * V_dc / sqrt(3), inverse Park advanced by the
  * sample-to-actuation delay, min-max SVPWM, dead-time compensation, and a finite/range guard on
  * every input and output: a non-finite value never reaches the PWM registers. */
@@ -8,6 +9,8 @@
 
 #include "gains.h"
 #include "motor.h"
+
+#define FOC_KP_FLOOR 0.3f /* round 23 (FW-45): the scheduled gain never below 0.3 x the unsaturated one */
 
 typedef struct {
     float id_ref;
@@ -34,7 +37,7 @@ void foc_dt_comp(float duty[3], const float iabc[3], float dt_frac, float band_a
  * input/intermediate/output or vdc <= 0; the caller then forces the PWM off. */
 bool foc_step(foc_t *f, const float iabc[3], float theta_e, float omega_e, float vdc, const motor_t *m,
               const gain_set_t *g, const ti_params_t *p);
-/* Back-EMF speed from the voltage model: w = (vq - R iq) / (Ld id + psi). */
+/* Back-EMF speed from the voltage model: w = (vq - R iq) / (Ld id + psi) (round 23, FW-45: L_d from its map). */
 float foc_omega_model(const foc_t *f, const motor_t *m, bool *valid);
 
 #endif /* FOC_H */

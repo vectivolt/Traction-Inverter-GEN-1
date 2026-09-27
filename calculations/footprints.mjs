@@ -74,7 +74,7 @@ export const KFP = {
   TabM6: K("MountingHole", "MountingHole_6.4mm_M6_Pad"),
   // connectors
   "HDR2x20-2.54": C("Samtec_IPL1-120_2x20"), "IPL1-104 (1x4 2.54 mm THT)": C("Samtec_IPL1-104_1x04"), "IPL1-102 (1x2 2.54 mm THT)": C("Samtec_IPL1-102_1x02"),
-  "HDR2x5-1.27": K("Connector_PinHeader_1.27mm", "PinHeader_2x05_P1.27mm_Vertical"),  // Samtec FTSH-105 (SWD)
+  "HDR2x5-1.27": C("Samtec_FTSH-105-01-L-DV-K"),                 // Samtec FTSH-105-01-L-DV-K is SURFACE-MOUNT (-DV): pads 0.74 × 2.79, rows 4.064 c-c (round 23, F215 — a THT 1.27 mm header pattern was bound before)
   HDR2x5: K("Connector_PinHeader_2.00mm", "PinHeader_2x05_P2.00mm_Vertical"),         // Samtec T2M-105 (2.00 mm)
   AMPSEAL23: C("TE_770669-1"),
   [OFF_BOARD]: null,

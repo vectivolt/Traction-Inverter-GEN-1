@@ -5,6 +5,7 @@
 
 #include "adc.h"
 #include "can.h"
+#include "commission.h" /* round 23: FW-39 */
 #include "dtc.h"
 #include "gpio.h"
 #include "nvlog.h"
@@ -36,12 +37,23 @@ bool TI_UDS_KEY_FN(const uint8_t seed[UDS_SA_LEN], uint8_t key[UDS_SA_LEN]);
 #define UDS_KEY_FN NULL
 #endif
 
+#include "update.h" /* FW-38 — here, not above: the release-build marker above is cited by its line number */
+#include "capture.h" /* FW-41 — also below the key-hook marker, so its cited line stays put */
+
 app_t g_app;
 TI_RETAINED app_session_t g_app_session;
 
 void app_fault_isr_entry(void) { app_isr_fault(&g_app); }
 
 uint32_t app_isr_period_us(const app_t *a) { return 500000u / a->gains.fsw_hz; }
+
+/* Round 23 (item 6): after a resolver fault the speed is bounded, not forgotten — it cannot have grown faster than the
+ * vehicle can accelerate the motor with the inverter off (cal_speed_accel_max_rpm_s: the grade, the other axle). While
+ * the resolver is valid the bound is |n| (its age at most one task). */
+float app_speed_hi_rpm(const app_t *a, uint32_t t_ms)
+{
+    return ti_absf(a->speed_rpm) + (a->p->cal_speed_accel_max_rpm_s * (float)ti_age(t_ms, a->speed_valid_ms) * 1.0e-3f);
+}
 
 /* Time (A12-R06): microsecond intervals use hal_time_us(); every millisecond time stamp comes from
  * hal_time_ms() (or the task's own 64-bit read), never from hal_time_us() / 1000. */
@@ -53,7 +65,7 @@ static void set_watchdogs(app_t *a)
     uint16_t hi;
     const hal_adc_sig_t ph[3] = {HAL_ADC_ISNS_U, HAL_ADC_ISNS_V, HAL_ADC_ISNS_W};
     for (uint32_t i = 0u; i < 3u; i++) {
-        isns_oc_codes(&a->cal.isns[i], a->p->i_oc_trip_a, &lo, &hi); /* FW-05 */
+        isns_oc_codes(&a->ofs.run[i], a->p->i_oc_trip_a, &lo, &hi); /* FW-05; round 23 (FW-44): the working offsets */
         (void)hal_adc_set_watchdog(ph[i], lo, hi);
     }
     (void)hal_adc_set_watchdog(HAL_ADC_VDC1, 0u, vdc_ov_code(&a->cal.vdc[0], a->p)); /* FW-06 */
@@ -139,6 +151,22 @@ static void init_calibration(app_t *a, const calib_t *cal)
         forbid(a, DTC_GAINS);
         a->gains.fsw_hz = a->p->fsw_hz[0];
     }
+    /* round 23 (FW-46): the ripple table's mean (never applied: a feed-forward of the ripple, no torque of its own) and its
+     * extremes around it inside cal_ripple_ff_max_a — what the task's constraint check scales */
+    int32_t sum = 0; /* in counts: a constant table is exactly its mean */
+    for (uint32_t k = 0u; k < TQ_RIPPLE_N; k++) {
+        sum += a->cal.ripple_ff[k];
+    }
+    a->rip_mean = (float)sum / (float)TQ_RIPPLE_N;
+    const float lim = a->p->cal_ripple_ff_max_a;
+    a->rip_lo = 0.0f;
+    a->rip_hi = 0.0f;
+    for (uint32_t k = 0u; k < TQ_RIPPLE_N; k++) {
+        const float v = ti_clampf(0.01f * ((float)a->cal.ripple_ff[k] - a->rip_mean), -lim, lim);
+        a->rip_lo = ti_minf(a->rip_lo, v);
+        a->rip_hi = ti_maxf(a->rip_hi, v);
+    }
+    a->rip_k = 0.0f;
 }
 
 /* Round 14 (F01/F02/F06): arming needs every piece of evidence (arm_evidence.h); each missing one
@@ -189,6 +217,45 @@ static void init_service_lock(app_t *a)
     }
 }
 
+/* FW-38: the programming session (boot/update.h) is entered only with the bridge disarmed and the link discharged —
+ * the FW-32 conditions — and the motor at standstill — the FW-16 condition: resolver valid, |n| < n_ss (no valid
+ * calibration: no standstill proven). The activation checks them again. */
+static uint8_t update_conditions(void *ctx)
+{
+    const app_t *a = (const app_t *)ctx;
+    const float n_ss = (a->cal_err == 0u) ? motor_n_ss_rpm(&a->cal.motor, a->p) : 0.0f;
+    const bool standstill = a->rslv.valid && (ti_absf(a->speed_rpm) < n_ss);
+    return ((dis_hv_state(&a->vdc) == TI_HV_SAFE) && (a->br.mode == BR_DISARMED) && standstill) ? 0u
+                                                                                               : UDS_NRC_CONDITIONS;
+}
+
+/* FW-38: the update state cannot arm. Entering it withdraws the EOL/HIL-validated arming evidence (FW-24: the record
+ * vouches for the image that runs, and a programming session is about to change the one that will) and forbids
+ * arming until the next power-up: FAULT, INV_STATUS b15 names the missing evidence, DTC_FW_UPDATE says why. The §6
+ * protective actions keep their authority. */
+static void update_enter(void *ctx)
+{
+    app_t *a = (app_t *)ctx;
+    a->evidence = (uint8_t)(a->evidence & (uint8_t)~ARM_EV_VALIDATED);
+    forbid(a, DTC_FW_UPDATE);
+}
+
+/* Round 23 (FW-43/FW-44): the run-time record — the statistics carry on from it; its tracked current offsets become
+ * the working calibration only when bound to THIS calibration record (its CRC) and inside the EOL tolerance, else
+ * the EOL offsets (the record's adoption key cycle is then cleared). Before set_watchdogs(): FW-05 follows them. */
+static void init_runtime(app_t *a)
+{
+    nv_runtime_t r;
+    const bool ok = nv_read(NV_REC_RUNTIME, &r, (uint16_t)sizeof r) && (r.version == RS_LAYOUT_VERSION);
+    rs_init(&a->rs, ok ? &r : NULL, hal_time_ms());
+    const bool bound = ok && (a->cal_err == 0u) && (r.ofs_key_cycle != 0u) && (r.cal_crc == a->cal.crc32);
+    ofs_init(&a->ofs, a->cal.isns, bound ? a->rs.rec.ofs_v : NULL, a->p);
+    if (!bound) {
+        a->rs.rec.ofs_key_cycle = 0u;
+    }
+    ovs_init(&a->ovs);
+}
+
 void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t serial[8])
 {
     (void)memset(a, 0, sizeof *a);
@@ -210,6 +277,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
         forbid(a, DTC_PARAMS_INVALID);
     }
     init_calibration(a, cal);
+    init_runtime(a); /* round 23: FW-43 statistics, FW-44 working current calibration */
     (void)hal_pwm_init(a->gains.fsw_hz, p->dead_time_ns);
     init_evidence(a);
     init_service_lock(a);
@@ -220,6 +288,11 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     nv_desat_t rec;
     const bool rec_ok = nv_read(NV_REC_DESAT, &rec, (uint16_t)sizeof rec);
     fm_boot(&a->fm, &rec, rec_ok);
+    if (a->fm.desat_blocked) {
+        /* round 23 (item 4, found by the bridge self-test): the block is a FAULT (fm_needs_fault_state) and the DTC store
+         * is RAM — the recorded DESAT is raised again, or that FAULT names nothing (0x14 keeps it, as it keeps the block) */
+        dtc_set((a->fm.desat_bank == 2u) ? DTC_DESAT_LS : DTC_DESAT_HS, hal_time_ms());
+    }
     init_fs26(a);
     init_identity(a);
     isns_init(&a->isns);
@@ -234,6 +307,8 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     dcl_reset(&a->dcl);
     can_cmd_init(&a->can);
     uds_init(&a->uds, UDS_KEY_FN, service_clear, a);
+    mc_init(); /* round 23 (FW-39): the commissioning service mode — idle, nothing staged, its default CALs */
+    upd_init(update_conditions, update_enter, a); /* FW-38: the programming session's conditions and entry */
     dis_init(&a->dis);
     pch_init(&a->pch);
     st_init(&a->st);
@@ -241,6 +316,7 @@ void app_init(app_t *a, const ti_params_t *p, const calib_t *cal, const uint8_t 
     a->init = a->no_arm ? SM_FAIL : SM_OK;
     a->last_task_ms = hal_time_ms();
     a->t_isr_us = hal_time_us();
+    cap_init(a); /* FW-41: the waveform capture, armed with its default configuration */
 }
 
 /* ======================= shared helpers ======================= */
@@ -255,8 +331,18 @@ static bool battery_present(const app_t *a, uint32_t t_ms)
 static fm_ctx_t ctx_now(const app_t *a)
 {
     const uint32_t t = hal_time_ms();
-    fm_ctx_t c = {.speed_rpm = a->speed_rpm, .speed_known = a->speed_known, .battery_present = battery_present(a, t),
+    /* round 23 (item 6): with the resolver invalid the §6 decisions take the speed's upper bound (its sign the last one) */
+    const float n = a->rslv.valid ? a->speed_rpm : ((a->speed_rpm < 0.0f) ? -app_speed_hi_rpm(a, t) : app_speed_hi_rpm(a, t));
+    fm_ctx_t c = {.speed_rpm = n, .speed_known = a->speed_known, .battery_present = battery_present(a, t),
                   .asc_active = (a->br.mode == BR_ASC), .vdc_v = a->vdc.vdc, .now_ms = t, .key_cycle = a->key_cycle};
+    bool t_any = false; /* FW-40: the operating context of a fault record (nvlog.h: nv_fault_ctx_t) */
+    bool t_all = false;
+    const float t_mod = temp_module_max(&a->temp, &t_any, &t_all);
+    c.op = (nv_fault_ctx_t){.ext = 1u, .state = (uint8_t)a->sm.st,
+                            .t_valid = (uint8_t)((t_any ? 1u : 0u) | (a->temp.ch[TEMP_MT1].valid ? 2u : 0u) |
+                                                 (a->temp.ch[TEMP_MT2].valid ? 4u : 0u)),
+                            .t_cmd_nm = a->t_cmd_nm, .t_act_nm = a->t_act_nm, .t_mod_c = t_mod,
+                            .t_mt1_c = a->temp.ch[TEMP_MT1].t_c, .t_mt2_c = a->temp.ch[TEMP_MT2].t_c};
     if (a->isns.valid) {
         float al;
         float be;
@@ -338,6 +424,32 @@ static void apply_decision(app_t *a, uint32_t now_us)
     }
 }
 
+/* Round 23 (item 5): an LS-ASC entry at speed shorts a winding that carries its back-EMF: the current overshoots its
+ * steady state (psi/L) by up to about as much again and decays with L/R — 730-900 A on the screening motor against the
+ * 601 A FW-05 compare, so every ASC entry at speed latched DTC_OVERCURRENT and the control-lost row. The compare's hardware
+ * action is harmless there: FAULT1 is mapped to the high sides only (DISMAP), which the ASC holds off anyway, and the low
+ * sides stay on (host-proven sample by sample). Inside cal_asc_oc_window_ms of the entry an over-current is that
+ * transient: DTC_ASC_OC_TRANSIENT (information), no row; once the window is over and the current back inside the compare
+ * the 1 ms task re-arms it (asc_oc_rearm). An over-current outside the window, or one that outlasts it, is the fault it
+ * always was (the ISR's software backstop sees it at the next sample). */
+/* Judged at the sample's own time, unsigned: an entry stamped after it — the same fault ISR's FW-06 action, or a fault
+ * ISR preempting the current loop after its trigger — is not before the sample, so not its transient. */
+static bool asc_transient(const app_t *a, uint32_t now_us)
+{
+    return (a->br.mode == BR_ASC) && !ti_elapsed(now_us, a->br.t_asc_us, a->p->cal_asc_oc_window_ms * 1000u);
+}
+
+static void over_current(app_t *a, uint32_t now_us, uint32_t t_ms, const fm_ctx_t *c)
+{
+    if (asc_transient(a, now_us)) {
+        dtc_set(DTC_ASC_OC_TRANSIENT, t_ms);
+        a->asc_oc_pending = true;
+    } else {
+        dtc_set(DTC_OVERCURRENT, t_ms);
+        fm_raise(&a->fm, SS_ROW_OVERCURRENT, true, c, &a->cal.motor, a->p);
+    }
+}
+
 /* ======================= current-loop ISR ======================= */
 /* Round 18 (A16-R01): each freshness check uses a time read AFTER its acquisition reads. The target stamps a
  * sample when it reads it (s32k396_adc.c), later than the ISR entry, and a frame can be published by an SDADC
@@ -350,7 +462,7 @@ static void sense_fast(app_t *a)
     /* A14-R03: a triplet only when all three channels of one trigger arrived; else the sample is lost
      * (the FW-05 failure path) — V_DC and the resolver below are still serviced */
     if (hal_adc_read_phase(c, &t)) {
-        isns_update(&a->isns, c, t, hal_time_us(), a->cal.isns, a->p);
+        isns_update(&a->isns, c, t, hal_time_us(), a->ofs.run, a->p); /* round 23 (FW-44): the working offsets */
     } else {
         isns_lost(&a->isns);
     }
@@ -411,16 +523,22 @@ static void control_fast(app_t *a, uint32_t now_us)
         apply_decision(a, now_us);
         return;
     }
-    a->foc.id_ref = a->id_ref;
-    a->foc.iq_ref = a->iq_ref;
     const float th = rslv_theta_e_at(&a->rslv, &a->cal.rslv, now_us, a->p);
     const float w = rslv_omega_e(&a->rslv, &a->cal.rslv);
+    a->foc.id_ref = a->id_ref;
+    a->foc.iq_ref = a->iq_ref;
+    if ((a->rip_k > 0.0f) && !a->zero_now) { /* round 23 (FW-46): the ripple feed-forward at the FOC's own angle */
+        const float lim = a->p->cal_ripple_ff_max_a;
+        a->foc.iq_ref += a->rip_k * ti_clampf(torque_ripple_at(a->cal.ripple_ff, a->rip_mean, th), -lim, lim);
+    }
+    mc_isr_refs(a); /* round 23 (FW-39): a commissioning routine's references, per sample */
     if (!foc_step(&a->foc, a->isns.i_a, th, w, a->vdc.vdc, &a->cal.motor, &a->gains, a->p) ||
         !br_modulate(&a->br, a->foc.duty, a->p)) {
         br_spo(&a->br, false);
         a->mod_req = false;
         dtc_set(DTC_CTRL_NONFINITE, hal_time_ms());
     }
+    mc_isr_sample(a); /* round 23 (FW-39): the measurement of this step */
 }
 
 /* Two times (round 18): now_us, the ENTRY, is the ISR's own — its liveness stamp (t_isr_us, FW-31), the WCET
@@ -442,15 +560,18 @@ void app_isr_current(app_t *a)
             const float m[3] = {a->offs_acc[0] / (float)OFFSET_SAMPLES, a->offs_acc[1] / (float)OFFSET_SAMPLES,
                                 a->offs_acc[2] / (float)OFFSET_SAMPLES};
             a->offs_ok = isns_offset_ok(m, a->cal.isns, a->p);
+            if (!a->offs_ok) {
+                dtc_set(DTC_ISNS_OFFSET, hal_time_ms()); /* round 23 (item 4): the §9 step 3 offset check's own DTC */
+            }
         }
     }
     if (isns_oc(&a->isns, a->p) && !fm_active(&a->fm, SS_ROW_OVERCURRENT)) {
         const fm_ctx_t c = ctx_now(a); /* software backstop of the FW-05 hardware compare */
-        dtc_set(DTC_OVERCURRENT, c.now_ms);
-        fm_raise(&a->fm, SS_ROW_OVERCURRENT, true, &c, &a->cal.motor, a->p);
+        over_current(a, now_us, c.now_ms, &c); /* round 23 (item 5): an ASC entry's transient is information */
         apply_decision(a, now_us);
     }
     control_fast(a, now_us);
+    cap_isr(a); /* FW-41: a bounded copy of what this ISR computed into the capture ring — last, so it records it */
 }
 
 /* ======================= fault ISR (eFlexPWM FFLAG) ======================= */
@@ -476,8 +597,7 @@ void app_isr_fault(app_t *a)
             fm_raise(&a->fm, SS_ROW_OVERVOLTAGE, true, &c, &a->cal.motor, a->p);
         }
         if ((wd & ~ov) != 0u) {
-            dtc_set(DTC_OVERCURRENT, c.now_ms);
-            fm_raise(&a->fm, SS_ROW_OVERCURRENT, true, &c, &a->cal.motor, a->p);
+            over_current(a, now_us, c.now_ms, &c); /* round 23 (item 5): an ASC entry's transient is information */
         }
         apply_decision(a, now_us);
     }
@@ -531,9 +651,12 @@ static void sense_slow(app_t *a, uint32_t t_ms)
         a->speed_valid_ms = t_ms;
         a->rslv_seen = true;
     }
-    /* after a resolver fault or a stale resolver the last valid speed stays the basis of the §6 column
-     * for a bounded time (inertia) — never angle feedback; then unknown = the n >= n_x column */
-    a->speed_known = a->rslv.valid || (a->rslv_seen && !ti_elapsed(t_ms, a->speed_valid_ms, a->p->cal_speed_hold_ms));
+    /* after a resolver fault or a stale resolver the §6 decisions use the speed's upper bound (app_speed_hi_rpm) — never
+     * angle feedback; round 23 (item 6): the speed is unknown only when the resolver was never valid, there is no valid
+     * calibration (no n_max), or the bound has passed the calibration's n_max — then the n >= n_x column, rule (a) at
+     * n_max. It was forgotten cal_speed_hold_ms (200 ms) after the fault: ASC at 2000 rpm. */
+    a->speed_known = a->rslv.valid || (a->rslv_seen && (a->cal_err == 0u) &&
+                                        (app_speed_hi_rpm(a, t_ms) < a->cal.motor.n_max_rpm));
     /* round 18 (A16-R02): each re-acquisition of the resolver frame ring is one occurrence of an information
      * DTC (its count and first/last stamps); no §6 row — while frames are absent the FW-28 age-out acts.
      * Round 19 (A17-R01): a ring whose DMA lost the carrier phase (the clock/position check, or the platform's error
@@ -587,15 +710,22 @@ static uint32_t diag_seed(const app_t *a)
 }
 
 /* FW-32: the diagnostic bus (uds.h) */
+_Static_assert(DIAG_RX_MAX_PER_TICK >= UDS_DIAG_RX_BS, "a segmented request's block is read in one task (uds_diag.h)");
 static void diag(app_t *a)
 {
     hal_can_frame_t rq;
     hal_can_frame_t rsp;
     for (uint32_t i = 0u; (i < DIAG_RX_MAX_PER_TICK) && hal_can_rx(HAL_CAN_DIAG, &rq); i++) {
-        if (uds_handle(&a->uds, &rq, diag_seed(a), &rsp)) {
+        if (mc_uds_handle(a, &rq, &rsp)) { /* round 23 (FW-39): the commissioning routines (commission.h) */
+            (void)hal_can_tx(HAL_CAN_DIAG, &rsp);
+            continue;
+        }
+        /* round 23 (FW-43): the read-only run-time statistics DID (0xFE43) first; anything else goes on */
+        if (rs_uds_handle(&a->rs.rec, a->key_cycle, &rq, &rsp) || uds_handle(&a->uds, &rq, diag_seed(a), &rsp)) {
             (void)hal_can_tx(HAL_CAN_DIAG, &rsp);
         }
     }
+    uds_diag_tick(&a->uds); /* FW-40: segmented responses, the 0x19 04 ring scan, one periodic DID — one frame at most */
 }
 
 static bool monitoring(const app_t *a)
@@ -618,6 +748,37 @@ static void flag(app_t *a, bool bad, ss_row_t row, bool latching, dtc_id_t d, co
     }
 }
 
+static void dtc_report(bool failed, dtc_id_t d, uint32_t t_ms)
+{
+    if (failed) {
+        dtc_set(d, t_ms);
+    } else {
+        dtc_pass(d);
+    }
+}
+
+/* FW-13 / FW-04 (round 23, item 4): every temperature channel group has its DTC, and each reports its pass when the
+ * condition ends — one occurrence per event: a module NTC invalid, a board NTC invalid, a motor sensor invalid, and the
+ * over-temperature — the hottest valid module NTC at the end of its derating (no torque left), passed below that end
+ * less the derating hysteresis. Information: the derating (FW-04) is the response, no §6 row. */
+static void temp_dtcs(const app_t *a, uint32_t t_ms)
+{
+    const temp_ch_state_t *ch = a->temp.ch;
+    bool any = false;
+    bool all = false;
+    const float t_mod = temp_module_max(&a->temp, &any, &all);
+    dtc_report(!all, DTC_TEMP_MODULE, t_ms);
+    dtc_report(!ch[TEMP_NTC_H].valid || !ch[TEMP_NTC_A].valid, DTC_TEMP_BOARD, t_ms);
+    dtc_report(!ch[TEMP_MT1].valid || !ch[TEMP_MT2].valid, DTC_TEMP_MOTOR, t_ms);
+    if (any && (t_mod >= a->p->cal_tmod_derate_end_c)) {
+        dtc_set(DTC_OVERTEMP, t_ms);
+    } else if (!any || (t_mod < (a->p->cal_tmod_derate_end_c - a->p->cal_derate_hyst_c))) {
+        dtc_pass(DTC_OVERTEMP);
+    } else {
+        /* inside the hysteresis: as it was */
+    }
+}
+
 static void detect(app_t *a, const fm_ctx_t *c)
 {
     const bool armed_states = (a->sm.st == SM_ARMED_ZERO_TORQUE) || (a->sm.st == SM_RUN) || (a->sm.st == SM_DERATE);
@@ -628,9 +789,11 @@ static void detect(app_t *a, const fm_ctx_t *c)
         const dtc_id_t vd = !a->vdc.vofs_ok ? DTC_VOFS : (a->vdc.disagree ? DTC_VDC_DISAGREE
                           : ((a->vdc.ch_failsafe[0] || a->vdc.ch_failsafe[1]) ? DTC_VDC_FAILSAFE : DTC_VDC_STALE));
         flag(a, vbad, SS_ROW_VDC_INVALID, true, vbad ? vd : DTC_NONE, c);
-        const dtc_id_t rd = a->rslv.stale ? DTC_RSLV_STALE : (a->rslv.amp_fault ? DTC_RSLV_AMPLITUDE
-                          : (a->rslv.exc_fault ? DTC_RSLV_EXCITATION : (a->rslv.trk_fault ? DTC_RSLV_TRACKING
-                          : (a->rslv.acc_fault ? DTC_RSLV_ACCEL : DTC_RSLV_RATE))));
+        /* round 23 (item 8): a latched plausibility fault names itself; stale when none explains the invalid angle (a
+         * frame kept out no longer renews the hold, so a latched fault ages the angle out too) */
+        const dtc_id_t rd = a->rslv.amp_fault ? DTC_RSLV_AMPLITUDE : (a->rslv.exc_fault ? DTC_RSLV_EXCITATION
+                          : (a->rslv.trk_fault ? DTC_RSLV_TRACKING : (a->rslv.acc_fault ? DTC_RSLV_ACCEL
+                          : (a->rslv.rate_fault ? DTC_RSLV_RATE : DTC_RSLV_STALE))));
         /* control lost = a resolver that WAS valid (round 16: its first acquisition waits for the SWG
          * ramp; before it nothing can arm — SENSOR_SELFTEST needs it — and nothing is "lost") */
         const bool rbad = !a->rslv.valid && a->rslv_seen;
@@ -659,7 +822,9 @@ static void detect(app_t *a, const fm_ctx_t *c)
             dtc_set((a->hvil.status == HVIL_OPEN) ? DTC_HVIL_OPEN : DTC_HVIL_SHORT, c->now_ms);
         }
         /* round 17: an LV overvoltage longer than its ISO 16750-2 band allows takes the same orderly ramp */
-        const bool cmd_lost = !can_cmd_fresh(&a->can, c->now_ms, a->p) || hvil_bad || a->vsup.sustained;
+        /* round 23 (FW-42): so does the overspeed warning band (the trip adds the control-lost row: overspeed()) */
+        const bool cmd_lost = !can_cmd_fresh(&a->can, c->now_ms, a->p) || hvil_bad || a->vsup.sustained ||
+                              (a->ovs.band != OVS_NONE);
         if (!can_cmd_fresh(&a->can, c->now_ms, a->p)) {
             dtc_set(DTC_CAN_TIMEOUT, c->now_ms);
         }
@@ -670,12 +835,7 @@ static void detect(app_t *a, const fm_ctx_t *c)
         }
         flag(a, bms && (a->can.p_chg_w <= 0.0f), SS_ROW_BMS_LIMIT_ZERO, false, DTC_NONE, c);
     }
-    bool any = false;
-    bool all = false;
-    (void)temp_module_max(&a->temp, &any, &all);
-    if (!all) {
-        dtc_set(DTC_TEMP_MODULE, c->now_ms);
-    }
+    temp_dtcs(a, c->now_ms);
     /* round 17: VSUPOV is information — logged with its duration, torque untouched — until it outlasts its band */
     if (a->vsup.ov) {
         dtc_set(DTC_LV_OVERVOLTAGE, c->now_ms);
@@ -686,6 +846,23 @@ static void detect(app_t *a, const fm_ctx_t *c)
     if (!a->vsup.valid && monitoring(a)) {
         dtc_set(DTC_LV_VSUP_UNKNOWN, c->now_ms);
     }
+}
+
+/* Round 23 (item 5): after an ASC entry's transient, once the window is over and the current back inside the FW-05
+ * compare, its phase flags and FAULT1's are cleared — FAULT1 only when no V_DC over-voltage shares it — so the compare
+ * (and FW-06's interrupt, on the same fault input) acts again on the next event; the information DTC passes. */
+static void asc_oc_rearm(app_t *a, uint32_t now_us)
+{
+    if (!a->asc_oc_pending || asc_transient(a, now_us) || isns_oc(&a->isns, a->p)) {
+        return;
+    }
+    const uint32_t ov = (1u << HAL_ADC_VDC1) | (1u << HAL_ADC_VDC2);
+    hal_adc_watchdog_clear((1u << HAL_ADC_ISNS_U) | (1u << HAL_ADC_ISNS_V) | (1u << HAL_ADC_ISNS_W));
+    if ((hal_adc_watchdog_status() & ov) == 0u) {
+        (void)hal_pwm_fault_clear(HAL_PWM_FAULT_ADC_WD);
+    }
+    dtc_pass(DTC_ASC_OC_TRANSIENT);
+    a->asc_oc_pending = false;
 }
 
 /* The FW-15 sequence. br_rec_step times the >= 1.5 ms low itself (round 18): the fault ISR may have stamped
@@ -760,7 +937,8 @@ static void gather(app_t *a, sm_in_t *in, uint32_t t_ms)
     *in = (sm_in_t){.now_ms = t_ms, .ign_on = a->ign.on, .init = a->init, .sensors_ok = sensors_ok(a),
                     .v5gd_ok = a->vdc.v5gd_ok, .fs0b_released = a->fs0b_released,
                     .gate_power_ready = (a->gp.st == GP_READY), .gate_power_failed = a->gp.timeout_dtc,
-                    .cmd_fresh = fresh, .enable_req = a->can.enable_req, .contactors = a->can.contactors,
+                    .cmd_fresh = fresh, .enable_req = a->can.enable_req && !mc_torque_barred(),
+                    .contactors = a->can.contactors,
                     .shutdown_req = fresh && a->can.shutdown_req, .discharge_req = fresh && a->can.discharge_req,
                     .selftest = a->selftest, .fault_needed = fm_needs_fault_state(&a->fm, bl_done) || a->no_arm,
                     .battery_lost = fm_active(&a->fm, SS_ROW_BATTERY_LOST),
@@ -777,8 +955,27 @@ static void gather(app_t *a, sm_in_t *in, uint32_t t_ms)
     in->flt_low_at_boot = a->vdc.v5gd_ok && (!hal_gpio_read(HAL_DI_FLT_HS_N) || !hal_gpio_read(HAL_DI_FLT_LS_N));
     in->rdy_before_gate_power = a->rdy_early;
     in->retry_allowed = fm_retry_allowed(&a->fm, fresh && a->can.desat_retry_auth, t_ms, a->p) && a->speed_known &&
-                        (ti_absf(a->speed_rpm) < a->n_x_rpm);
+                        (app_speed_hi_rpm(a, t_ms) < a->n_x_rpm);
     in->recovery_done = a->rec_done_retry && a->fm.retry_used && (a->sm.st == SM_FAULT);
+}
+
+/* Round 23 (item 4): §9 steps 3-4 record why they did not complete. A driver FLT low at boot with V5GD healthy — a DESAT
+ * pending from before the reset (§9) — is DTC_DESAT_PENDING_BOOT; the sensor self-test's timeout (a sensor not valid in
+ * cal_sensor_selftest_ms) is DTC_SENSOR_SELFTEST, and the FS0B/FS1B release not achieved in cal_fs0b_release_ms more is
+ * DTC_FS26_RELEASE. The other exits to FAULT have theirs where they are detected: V5GD (detect(), from FAULT on),
+ * FS_GPIO1 (execute()), the gate power (gate_power.c). */
+static void selftest_dtcs(const app_t *a, const sm_in_t *in, sm_state_t before, uint32_t t_ms)
+{
+    if (before != SM_SENSOR_SELFTEST) {
+        return;
+    }
+    if (in->flt_low_at_boot) {
+        dtc_set(DTC_DESAT_PENDING_BOOT, t_ms);
+    } else if ((a->sm.st == SM_FAULT) && in->v5gd_ok && !in->rdy_before_gate_power && !in->gate_power_failed) {
+        dtc_set(in->sensors_ok ? DTC_FS26_RELEASE : DTC_SENSOR_SELFTEST, t_ms);
+    } else {
+        /* still running, or its exit has its own DTC */
+    }
 }
 
 static void selftest_step(app_t *a, uint32_t t_ms)
@@ -832,7 +1029,7 @@ static void execute(app_t *a, uint32_t t_ms)
         a->fs0b_released = (s == FS26_OK);
     }
     if (o->req_asc_decision) {
-        a->asc_hold = !a->speed_known || (ti_absf(a->speed_rpm) >= a->n_x_rpm); /* §9 step 5 */
+        a->asc_hold = !a->speed_known || (app_speed_hi_rpm(a, t_ms) >= a->n_x_rpm); /* §9 step 5 */
         if (a->asc_hold) {
             hal_gpio_write(HAL_DO_ASC_REQ, false);
             hal_gpio_write(HAL_DO_ASC_REQ, true); /* idempotent: PWM-ASC takes over once armed */
@@ -881,7 +1078,7 @@ static void arming(app_t *a, uint32_t now_us, uint32_t t_ms)
     }
     if (!a->so.arm || a->no_arm) {
         if (a->br.mode == BR_ASC) {
-            (void)br_exit_asc(&a->br, a->speed_known && (ti_absf(a->speed_rpm) < a->n_x_rpm));
+            (void)br_exit_asc(&a->br, a->speed_known && (app_speed_hi_rpm(a, t_ms) < a->n_x_rpm));
         }
         if ((a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD)) {
             a->mod_req = false;
@@ -894,7 +1091,7 @@ static void arming(app_t *a, uint32_t now_us, uint32_t t_ms)
             br_enter_pwm_asc(&a->br, now_us, a->p); /* §9 step 5/8: PWM-ASC takes over */
         }
         const bool cc_ready = a->isns.valid && a->rslv.valid && a->vdc.valid && a->gains_ok;
-        const bool slow = a->speed_known && (ti_absf(a->speed_rpm) < a->n_x_rpm);
+        const bool slow = a->speed_known && (app_speed_hi_rpm(a, t_ms) < a->n_x_rpm);
         if (slow || (battery_present(a, t_ms) && cc_ready)) {
             if (br_exit_asc(&a->br, true)) { /* FW-06a: MCU-commanded exit */
                 a->asc_hold = false;
@@ -902,9 +1099,21 @@ static void arming(app_t *a, uint32_t now_us, uint32_t t_ms)
         }
         return;
     }
-    if (a->br.mode == BR_DISARMED) {
+    if ((a->br.mode == BR_DISARMED) && (a->ovs.band == OVS_NONE)) { /* round 23 (FW-42): no arming at overspeed */
         (void)br_arm_idle(&a->br);
     }
+}
+
+/* Round 23 (item 2): idle, the bridge's free-wheeling diodes conduct once the line-line back-EMF peak sqrt(3) w_e psi
+ * exceeds V_DC — below n_x at any link under the OV trip (n_x is defined at the 880 V trip): at 750 V from 6 890 rpm on
+ * the screening motor, where the idle bridge braked the shaft (50-65 N m) and pushed ~40 kW into the pack with no torque
+ * asked (the simulator's finding). So the bridge takes the back-EMF — zero torque, id control — once the phase back-EMF
+ * w_e psi (the speed's upper bound, the record's cold-magnet psi) reaches (1 - cal_fw_emf_margin_frac) of the voltage a
+ * reference may use of the MEASURED link, while zero current still fits (no current step at the take-over). */
+static bool emf_needs_control(const app_t *a, uint32_t t_ms)
+{
+    const float e = ti_absf(motor_omega_e(app_speed_hi_rpm(a, t_ms), &a->cal.motor)) * a->cal.motor.psi_wb;
+    return a->vdc.valid && (e >= ((1.0f - a->p->cal_fw_emf_margin_frac) * torque_v_available(a->vdc.vdc, a->p)));
 }
 
 static void torque_path(app_t *a, uint32_t t_ms)
@@ -936,19 +1145,24 @@ static void torque_path(app_t *a, uint32_t t_ms)
     if (act >= SS_ACT_ZERO_CURRENT) {
         a->t_cmd_nm = 0.0f; /* the §6 decision owns the bridge; the status reports what is applied: 0 Nm */
     } else if (fresh && (act != SS_ACT_RAMP_KEEP_CC) && (act != SS_ACT_RAMP_THEN_SPO)) {
-        a->t_cmd_nm = target;
+        /* round 23 (item 3): a fresh command is slewed at cal_torque_slew_nm_s, both directions, after its limits — it
+         * was applied at once, and a +200 -> -150 N m step at 10 000 rpm reversed i_q faster than the loop's voltage
+         * allows (FW-05 tripped). The zeroings are not slewed: the §6 decision above, the solver's refusals below. */
+        a->t_cmd_nm = ti_ramp(a->t_cmd_nm, target, p->cal_torque_slew_nm_s * 1.0e-3f);
         a->zero_now = false;
     } else {
         a->t_cmd_nm = ti_ramp(a->t_cmd_nm, 0.0f, p->cal_torque_ramp_nm_s * 1.0e-3f); /* FW-11: ramp, not hold */
     }
     const bool armed = (a->br.mode == BR_IDLE) || (a->br.mode == BR_MOD);
-    const bool fw_needed = !a->speed_known || (ti_absf(a->speed_rpm) >= a->n_x_rpm);
+    /* n_x stays the floor (and the §6 decisions' column); round 23 (item 2): the measured link decides below it */
+    const bool fw_needed = !a->speed_known || (app_speed_hi_rpm(a, t_ms) >= a->n_x_rpm) || emf_needs_control(a, t_ms);
     /* Round 15: while a §6 decision owns the bridge the only modulation is its own — zero-current
      * control while winding current remains after a battery-path loss below n_x — and it does not
      * depend on the operating state's arm (FAULT included). Ordinary modulation needs it. */
     const bool zero_cc = (act == SS_ACT_ZERO_CURRENT) && (i_mag(a) >= p->cal_spo_release_a);
     const bool ordinary = a->so.arm && ((ti_absf(a->t_cmd_nm) >= MOD_TORQUE_NM) || fw_needed || (act == SS_ACT_RAMP_KEEP_CC));
     a->mod_req = armed && !a->no_arm && ((act >= SS_ACT_ZERO_CURRENT) ? zero_cc : ordinary);
+    a->mod_req = a->mod_req || (mc_modulating() && armed && !a->no_arm && (act == SS_ACT_NONE)); /* round 23 (FW-39) */
     if (!a->mod_req) {
         a->foc.xi_d = 0.0f;
         a->foc.xi_q = 0.0f;
@@ -962,6 +1176,16 @@ static void torque_path(app_t *a, uint32_t t_ms)
     if (tr == TQ_NONFINITE) {
         dtc_set(DTC_CTRL_NONFINITE, t_ms);
         a->t_cmd_nm = 0.0f;
+    } else if (tr == TQ_POSTCOND) {
+        /* round 23 (FW-37): the solver refused its own vector — a fault, never a reference: zero torque, no current,
+         * and while the bridge is armed the §6 "control lost" row decides it now (as a lost arming evidence does) */
+        dtc_set(DTC_TORQUE_POSTCOND, t_ms);
+        a->t_cmd_nm = 0.0f;
+        if (armed) {
+            const fm_ctx_t c = ctx_now(a);
+            fm_raise(&a->fm, SS_ROW_RESOLVER_INVALID, true, &c, &a->cal.motor, p);
+            apply_decision(a, hal_time_us());
+        }
     } else if (tr == TQ_INFEASIBLE) {
         /* F23: not even iq = 0 fits the voltage inside the demagnetisation/current limits: zero
          * torque at the least-voltage id, ask the VCU to limit the speed, record it */
@@ -970,11 +1194,29 @@ static void torque_path(app_t *a, uint32_t t_ms)
             dtc_set(DTC_TORQUE_INFEASIBLE, t_ms);
         }
     } else {
-        /* TQ_OK or TQ_LIMITED: the pair passed the voltage-feasibility witness */
+        /* TQ_OK: the command's torque; TQ_LIMITED: less — the most the voltage and current limits allow (FW-37) */
     }
+    /* round 23 (FW-46): the ripple feed-forward for the ISR — only on a solved vector (TQ_OK / TQ_LIMITED) that the bridge
+     * modulates for torque (no §6 decision, no zeroing, no commissioning), the resolver valid and the cogging fundamental
+     * 6 f_e below cal_ripple_ff_fmax_hz; scaled down (never the base vector) until the vector with the table's extremes
+     * still fits the current circle and the voltage ellipse (torque_ripple_scale) */
+    const float w_e = motor_omega_e(a->speed_rpm, &a->cal.motor);
+    const bool ff_on = (p->cal_ripple_ff_max_a > 0.0f) && ((a->rip_lo < 0.0f) || (a->rip_hi > 0.0f)) &&
+                       ((tr == TQ_OK) || (tr == TQ_LIMITED)) && a->mod_req && !a->zero_now && (act == SS_ACT_NONE) &&
+                       !mc_modulating() && a->rslv.valid && a->speed_known &&
+                       ((6.0f * ti_absf(w_e) * (1.0f / TI_2PI)) < p->cal_ripple_ff_fmax_hz);
+    const float rip_k = ff_on ? torque_ripple_scale(id, iq, a->rip_lo, a->rip_hi, w_e, a->vdc.vdc, i_max, &a->cal.motor, p)
+                              : 0.0f;
+    a->rip_k = ti_minf(a->rip_k, rip_k); /* the ISR preempts this task: until the new references are out, a scale that fits
+                                            both the old vector and the new one (T-58) */
     a->speed_limit_req = (tr == TQ_INFEASIBLE) && relevant;
+    a->speed_limit_req = a->speed_limit_req || (a->ovs.band != OVS_NONE); /* round 23 (FW-42): overspeed */
     a->id_ref = a->zero_now ? 0.0f : id; /* FW-08 row: zero current, field weakening included */
     a->iq_ref = a->zero_now ? 0.0f : iq;
+    a->rip_k = rip_k; /* round 23 (FW-46): the new vector's scale, now that its references are out */
+    /* round 23 (FW-37): the status reports the torque applied (FW-08): what the issued references represent, 0 Nm
+     * without modulation; the command goes beside it */
+    a->t_act_nm = a->mod_req ? torque_from_current(a->id_ref, a->iq_ref, &a->cal.motor) : 0.0f;
 }
 
 static void status_tx(app_t *a, uint32_t t_ms)
@@ -991,7 +1233,8 @@ static void status_tx(app_t *a, uint32_t t_ms)
                             .derate = a->tlim.derate_active, .fault = (a->sm.st == SM_FAULT),
                             .zero_torque = ti_absf(a->t_cmd_nm) < MOD_TORQUE_NM, .discharging = dis_output(&a->dis),
                             .precharge_refused = (a->pch.res >= PCH_REFUSE_PLATEAU), .speed_valid = a->rslv.valid,
-                            .torque_nm = a->t_cmd_nm, .speed_rpm = a->speed_rpm, .vdc_v = a->vdc.vdc,
+                            .torque_nm = a->t_act_nm, .torque_cmd_nm = a->t_cmd_nm, .speed_rpm = a->speed_rpm,
+                            .vdc_v = a->vdc.vdc,
                             .vdc_valid = a->vdc.valid, .t_module_c = temp_module_max(&a->temp, &any, &all),
                             .n_dtc = dtc_confirmed_count(), .first_dtc = (uint16_t)dtc_first_active(),
                             .no_safe_state = a->fm.no_safe_state, .service_required = a->service_required,
@@ -1029,6 +1272,80 @@ static void evidence_watch(app_t *a, const fm_ctx_t *c)
     }
 }
 
+/* ======================= round 23: FW-42 overspeed, FW-43 statistics, FW-44 offset refresh ======================= */
+/* FW-42: the measured speed against the calibration record's n_max_rpm (overspeed.h). The warning band takes the §6
+ * command-lost row (detect(): the torque ramped to zero — SPO below n_x, current control kept above it with the
+ * battery), the speed-limit request (torque_path) and no arming (arming()); the trip band adds the §6 "Resolver
+ * invalid, or control lost" row, latched: SPO below n_x under the energy rule, LS-ASC at or above it — the matrix
+ * decides, there is no ASC of this check's own. DTC_OVERSPEED is stamped over the event, passed after it. */
+static void overspeed(app_t *a, const fm_ctx_t *c)
+{
+    const ovs_band_t b = ovs_step(&a->ovs, a->speed_rpm, a->rslv.valid, a->cal.motor.n_max_rpm, a->p);
+    if (b == OVS_NONE) {
+        dtc_pass(DTC_OVERSPEED); /* the next event is a new occurrence */
+        return;
+    }
+    dtc_set(DTC_OVERSPEED, c->now_ms);
+    if ((b == OVS_TRIP) && monitoring(a)) {
+        flag(a, true, SS_ROW_RESOLVER_INVALID, true, DTC_OVERSPEED, c);
+    }
+}
+
+/* FW-44: once per boot, when the key-on zero-current mean is complete and the speed is measured, the working offsets
+ * move toward it by at most cal_isns_ofs_step_v: only when it passes the key-on check against the EOL record (which
+ * still refuses to arm beyond it), once per key cycle (the record's key cycle), disarmed, PWM off, at standstill
+ * (FW-16's n_ss) — never while armed or moving. The FW-05 hardware compare follows; the record is queued. */
+static void offset_refresh(app_t *a, uint32_t t_ms)
+{
+    if (a->ofs.decided || (a->offs_n < OFFSET_SAMPLES) || !a->rslv.valid) {
+        return;
+    }
+    const float m[3] = {a->offs_acc[0] / (float)OFFSET_SAMPLES, a->offs_acc[1] / (float)OFFSET_SAMPLES,
+                        a->offs_acc[2] / (float)OFFSET_SAMPLES};
+    const bool standstill = ti_absf(a->speed_rpm) < motor_n_ss_rpm(&a->cal.motor, a->p);
+    const bool may = (a->cal_err == 0u) && (a->rs.rec.ofs_key_cycle != a->key_cycle) && (a->br.mode == BR_DISARMED) &&
+                     (hal_pwm_mode() == HAL_PWM_OFF) && standstill;
+    ofs_t o = a->ofs;
+    const bool adopted = ofs_decide(&o, m, a->cal.isns, may, a->p);
+    hal_crit_enter(); /* the current-loop ISR converts with the working offsets */
+    a->ofs = o;
+    hal_crit_exit();
+    if (!adopted) {
+        return;
+    }
+    for (uint32_t i = 0u; i < 3u; i++) {
+        a->rs.rec.ofs_v[i] = o.run[i].offset_v;
+    }
+    a->rs.rec.ofs_key_cycle = a->key_cycle;
+    a->rs.rec.cal_crc = a->cal.crc32;
+    set_watchdogs(a);
+    rs_persist(&a->rs, false, true, t_ms, a->p);
+}
+
+/* FW-43: statistics (no safety relevance) and the run-time record's cadence. V_DC x I_DC with I_DC the bridge's DC
+ * current from the loop's own dq voltages and currents (no DC shunt): P = 1.5 (v_d i_d + v_q i_q), while modulating. */
+static void run_stats(app_t *a, uint32_t t_ms)
+{
+    bool any = false;
+    bool all = false;
+    const float tmod = temp_module_max(&a->temp, &any, &all);
+    const temp_ch_state_t *m1 = &a->temp.ch[TEMP_MT1];
+    const temp_ch_state_t *m2 = &a->temp.ch[TEMP_MT2];
+    const bool down = (a->sm.st == SM_SAFE_POWERDOWN);
+    const rs_in_t in = {.on = (a->sm.st != SM_OFF) && !down,
+                        .run = (a->sm.st == SM_RUN) || (a->sm.st == SM_DERATE),
+                        .mod = (a->br.mode == BR_MOD) && a->vdc.valid,
+                        .p_w = 1.5f * ((a->foc.vd * a->foc.id) + (a->foc.vq * a->foc.iq)),
+                        .t_mod_c = tmod, .t_mod_ok = any,
+                        .t_cool_c = a->can.coolant_c,
+                        .t_cool_ok = a->can.coolant_valid && can_cmd_fresh(&a->can, t_ms, a->p),
+                        .t_mot_c = (m1->valid && (!m2->valid || (m1->t_c >= m2->t_c))) ? m1->t_c : m2->t_c,
+                        .t_mot_ok = m1->valid || m2->valid};
+    rs_step(&a->rs, &in);
+    rs_count_dtcs(&a->rs);
+    rs_persist(&a->rs, down, false, t_ms, a->p); /* every cal_rs_save_s, and once on entering SAFE_POWERDOWN */
+}
+
 void app_task_1ms(app_t *a)
 {
     const uint64_t t64 = hal_time_us64(); /* A12-R06: one read per tick keeps the 64-bit extension */
@@ -1057,13 +1374,18 @@ void app_task_1ms(app_t *a)
         (void)gp_step(&a->gp, t_ms, a->p); /* FW-16 d/e/g drop RDY on purpose */
     }
     fm_ctx_t c = ctx_now(a);
+    overspeed(a, &c); /* round 23 (FW-42): before detect(), which reads its band */
     detect(a, &c);
     evidence_watch(a, &c);
     fm_update(&a->fm, &c, &a->cal.motor, a->p);
     fault_actions(a, &c, now_us);
+    asc_oc_rearm(a, hal_time_us()); /* round 23 (item 5) */
+    mc_task(a, t_ms); /* round 23 (FW-39): the service mode's preconditions and watch, before the state machine */
     sm_in_t in;
     gather(a, &in, t_ms);
+    const sm_state_t before = a->sm.st;
     sm_step(&a->sm, &in, &a->so, a->p);
+    selftest_dtcs(a, &in, before, t_ms);
     execute(a, t_ms);
     arming(a, now_us, t_ms);
     if ((a->sm.st == SM_PRECHARGE_WAIT) || (a->pch.res == PCH_RUNNING)) {
@@ -1083,6 +1405,8 @@ void app_task_1ms(app_t *a)
         rslv_rate_check(&a->rslv, wm, mv, &a->cal.rslv, a->p);
     }
     status_tx(a, t_ms);
+    offset_refresh(a, t_ms); /* round 23 (FW-44) */
+    run_stats(a, t_ms);      /* round 23 (FW-43) */
     a->last_task_ms = t_ms;
 }
 
@@ -1090,6 +1414,7 @@ void app_idle(app_t *a)
 {
     (void)a;
     nv_service();
+    upd_service(); /* FW-38: STAGE programming, the image check, the reset, the trial boot's confirmation */
     if (nv_idle()) {
         fm_retained_commit(); /* the DESAT record reached NVM */
     }

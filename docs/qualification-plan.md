@@ -9,7 +9,7 @@ working tree ([`review-A16-disposition.md`](review-A16-disposition.md), gap regi
 - the verification report stands at 143 PASS · 15 WARN · 0 FAIL;
 - the firmware image is `TI_FW_ID` 0x0A0F0011, and the calibration record stays layout 2 (historical — the round-17
   state this plan was written against; the CURRENT baseline every procedure tests is §0.2: rev A.20 hardware,
-  `TI_FW_ID` 0x0A0F0013, calibration layout 2 — round 22, A20-N01).
+  `TI_FW_ID` 0x0A0F0015 (round 23, second image), calibration layout 4 (FW-45/FW-46; layout 3 before them) — rounds 22–23).
 
 Round 17 is still being completed: its "LV input" and "Firmware" sections are placeholders. If the LV-input study
 (G-11) changes the LV-entry parts, QP-LV-03 follows it.
@@ -95,9 +95,9 @@ Round 17 is still being completed: its "LV input" and "Firmware" sections are pl
 |---|---|
 | **8S / 8I / 4I / 4S** | 8XX SiC ([`bom.md`](bom.md), RHWID 10 k) · 8XX IGBT ([`bom-igbt.md`](bom-igbt.md), 4.7 k) · 4XX IGBT ([`bom-igbt4.md`](bom-igbt4.md), 2.2 k) · 4XX SiC on request ([`bom-sic4.md`](bom-sic4.md), 22 k). Marine builds are in §12. |
 | **HW A.20+** | Hardware built from the **rev A.20** schematic set and the SKU's BOM: the round-17 parts DEXP/DEXN PMEG4050EP-Q (on the amplifier node since round 18) and RFS4 ESR18EZPF1001, RSXP/RSXN ESR18EZPF2R20 (round 18) and TVSEP/TVSEN **SMDJ7.0A-HRA** (round 19). An A.15–A.17 build carries SMDJ8.5A-HRA — a different exciter protection configuration whose terminal-fault results do not transfer (F205); it is not a DUT for QP-RX-04/05/QP-MA-11 (round 22, A20-N01 — this row said "A.15+ … SMDJ8.5A-HRA" until then). The record carries the PCB fabrication revision, the assembly serial, and the date code of every barrier and safety part in design-basis §6a. |
-| **FW** | The production image `TI_FW_ID` **0x0A0F0013** (round 19; 0x0A0F0011 was the round-17 image and 0x0A0F0012 round 18 — a validation record for either does not arm the current image, T-06), built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
-| **CAL** | The FW-20 calibration record, layout 2, sealed to the card's device UID, the SKU, the f_sw and a non-zero motor ID. On benches without a motor, the ID is the test motor or the S6 screening motor (0.35 mH / 25 mΩ). The nominal record carries motor_id 0 and never arms (T-07). |
-| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for **0x0A0F0013** and this card — genuinely measured and sealed by QP-EOL-05 (T-05) on the image actually flashed; an older record is never relabelled. Any change of `TI_FW_ID` invalidates it (T-06). |
+| **FW** | The production image `TI_FW_ID` **0x0A0F0015** (round 23, the gap-closure image; 0x0A0F0014 was the round-23 torque-solver image, 0x0A0F0011 the round-17 image, 0x0A0F0012 round 18 and 0x0A0F0013 round 19 — a validation record for any of them does not arm the current image, T-06), built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
+| **CAL** | The FW-20 calibration record, layout 4 (round 23: FW-45's L_d/L_q saturation maps — flat, the scalars, until measured — and FW-46's torque-ripple table — zero until loaded; 190 fields / 91 calibration rows; layout 3 before them, layout 2 before the gap closure — an older record is refused), sealed to the card's device UID, the SKU, the f_sw and a non-zero motor ID. On benches without a motor, the ID is the test motor or the S6 screening motor (0.35 mH / 25 mΩ). The nominal record carries motor_id 0 and never arms (T-07). |
+| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for **0x0A0F0015** and this card — genuinely measured and sealed by QP-EOL-05 (T-05) on the image actually flashed; an older record is never relabelled. Any change of `TI_FW_ID` invalidates it (T-06). |
 | **OTP** | An FS2633D variant programmed per design-basis §8a, with `cal_fs26_prog_id` set to its M_PROGID. The default 0xFFFF never arms (T-34). |
 
 Firmware in the loop energises a gate only with **CAL + VAL + OTP** present (FW-24; target-bringup "What always
@@ -175,7 +175,7 @@ holds"). QP-EOL-05 therefore runs before any QP that arms. FW-16 needs the same 
 | §7 Resolver / exciter | RX-01 amplitude planes and SWG trim · RX-02 excitation at low KL30 · RX-03 KL30 short into the SDADC/monitor pads · RX-04 positive terminal fault, VEXD on · RX-05 back-drive, VEXD off/cranking · RX-06 negative terminal fault · RX-07 PTC hold and post-trip · RX-08 motor-temperature line fault |
 | §8 Discharge | DS-01 timing with both witnesses · DS-02 repeated pulses · DS-03 stuck-ON resistor opening (contained) · DS-04 stuck-ON/off detection and the FW-32 service lock |
 | §9 Safety chain / ASC | SF-01 ASC entry, six V_GS · SF-02 ASC exit/release · SF-03 DESAT during PWM-ASC · SF-04 DESAT with EN low · SF-05 fault latch and FW-15 timing · SF-06 FS26 on silicon · SF-07 S10 hold-up and VCC2-UVLO · SF-08 V5GD loss and hover · SF-09 FW-16 and the energy fixture · SF-10 motor data and the §6 release rule · SF-11 HVIL and harness default-OFF |
-| §10 Firmware HIL / dyno | FW-01 PWM-fault route, CPU halted · FW-02 FW-06 chain ≤ 15.6 µs · FW-03 REG_PROT lock · FW-04 WCET · FW-05 acquisition on silicon · FW-06 FW-05 OC route · FW-07 §6 matrix on HIL · FW-08 dyno: contactor opening under regen + loop margins · FW-09 long run and vehicle CAN |
+| §10 Firmware HIL / dyno | FW-01 PWM-fault route, CPU halted · FW-02 FW-06 chain ≤ 15.6 µs · FW-03 REG_PROT lock · FW-04 WCET · FW-05 acquisition on silicon · FW-06 FW-05 OC route · FW-07 §6 matrix on HIL · FW-08 dyno: contactor opening under regen + loop margins · FW-09 long run and vehicle CAN · FW-10 round-23 functions on the target: signed update, self-commissioning, diagnostics, capture, overspeed, records; the simulator-found fixes |
 | §11 First article / EOL | FAI-01 design-data release · FAI-02 first-card bring-up · FAI-03 harness numbering · EOL-01 identity · EOL-02 FS26 OTP fields · EOL-03 kit LCR · EOL-04 LV functional · EOL-05 validation record · EOL-06 current calibration · EOL-07 V_DC calibration · EOL-08 resolver calibration · EOL-09 safety-chain functional · EOL-10 hi-pot/IR · EOL-11 HV functional · EOL-12 B2B spin · EOL-13 record seal · EOL-14 vehicle commissioning |
 | §12 Marine | MA-01 identity · MA-02 M10 DPT and DESAT string · MA-03 marine SC · MA-04 45 °C thermal and standstill · MA-05 marine discharge, 103 W stuck-ON · MA-06 24 V control power and sustained ASC · MA-07 multi-cell bench · MA-08 DC-grid joining and FW-06 peaks · MA-09 M10 insulation and creepage · MA-10 IACS UR E10 set |
 
@@ -1509,7 +1509,7 @@ on DEXP/DEXN.
 5. Trip one PTC (energy-limited fault, QP-RX-04 step 1), restart warm within 1 h, then restart after cooling.
 6. Swap in a 25 Ω resolver emulation (the host test "a_low_impedance_resolver_saturates_the_trim_with_a_dtc").
 
-**Measure** — MAXAPP of each sample; the SWG amplitude at the setpoint; per-output amplitude and offset;
+**Measure** — (with the round-23 R2R reference filter RR2R/CR2R1/CR2R2 fitted, F214) MAXAPP of each sample; the SWG amplitude at the setpoint and its THD (the filter must not degrade the SINAD spec, 30 dB min); per-output amplitude and offset;
 |H(10 kHz)|; winding/monitor ratio (cold and post-trip); the time to ready; the SDADC input range at the maximum
 corner (T-29); DTCs.
 
@@ -2718,6 +2718,84 @@ the contactor-feedback content, not the frame layout (§14).
 
 ---
 
+### QP-FW-10 · Round-23 firmware functions on the target: signed update, self-commissioning, diagnostics, capture, overspeed, records, the inductance map and the ripple table (FW-38…FW-46) and the simulator-found fixes
+
+**Closes** —
+- FW-38 target items T-44…T-50 (the flash regions, C40_Ip erase/program, the HSE root of trust, the functional reset, the
+  bootloader binary, first-image adoption); IR-43 is an input (the OEM's re-validation policy after an update);
+- FW-39 target items T-51…T-54 (the service CALs against the vehicle's motor, L_d/L_q on the real inverter, the electrical
+  zero against a reference, the VCU vehicle-speed signal);
+- FW-40 T-55/T-56 (a CAN-FD tester over ISO-TP; the diagnostic path's cost in the 1 ms task); FW-41 T-43 (the capture ISR's
+  cost); FW-42, FW-43 and FW-44 on the dyno and across power cycles;
+- register F221–F232 on silicon: the twelve fixes the closed-loop simulator found (`review-A22-disposition.md`, "Self-found")
+  — above all F222 (field weakening decided on the measured link voltage, not on n_x alone), F221 (the temperature-rate
+  window), F223 (torque slew), F226 (the speed bound after a resolver loss) and F227 (the demodulator time centre, T-37).
+
+**DUT** — card, FW `TI_FW_ID` 0x0A0F0015, CAL layout 4, VAL and OTP: on F-HIL for the update and diagnostic items, on the
+QP-FW-08 dyno for commissioning, overspeed and the F222 point.
+
+**Fixture and instruments** — I-CAN with a CAN-FD tester (ISO-TP, TX_DL 64) and Traction Tool (`tool/`) with a CAN adapter
+(its CAN transport is mock-tested until this station — this is where it is proved); a signing workstation with the TEST key
+only (the release key is held outside the repository and never reaches a bench); the dyno with a rotor brake for the
+locked-rotor routines; a reference LCR meter and a reference angle source for T-52/T-53; a power analyser on the pack side
+for the F222 point; a current probe on one phase.
+
+**Steps**
+1. Update (FW-38): program the first image per T-50. Download a test-signed image over ISO-TP (4 095-byte blocks) and note the
+   time per MB. Then, one at a time: power fail during the erase, inside a block, and after the last block before the
+   activation routine; an image with a lower security version; a corrupted signature; the wrong target SKU; a good image.
+2. Diagnostics (FW-40): 0x19 01/02/0A/04 against the tester's expectation; every DID; 0x2A at 100/10/1 ms under full vehicle
+   CAN load while the 1 ms task's cost is measured at the T-36 operating point (T-56); 0x14 with HV present, while armed, and
+   with neither.
+3. Capture (FW-41): trigger on a DTC and on a level during a torque step; read the ring through the tool; measure `cap_isr`
+   (T-43).
+4. Commissioning (FW-39), on the dyno with the vehicle's motor, from the tool: attested LK with the brake applied — R_s, then
+   L_d/L_q; attested DF and DR at the dyno's low speed — ψ, the electrical zero, the direction; compare with the LCR reference
+   and the reference angle (T-52, T-53). Then every abort path, one per run: a heartbeat gap longer than `hb_timeout_ms`; the
+   brake released (rotor motion); the dyno speed leaving the window; the VCU asserting enable; the vehicle speed reported
+   above 0.5 km/h (T-54); HV leaving the SKU window. Commit only after a fresh unlock; key-cycle.
+5. Overspeed (FW-42): with the inverter armed at zero torque, dyno-drive past 1.00× and 1.05× n_max, then back down.
+6. The F222 point: 8XX at a 750 V link (4XX at its equivalent), zero torque, dyno from 6 000 rpm to n_x and back.
+7. Records (FW-43, FW-44): 20 key cycles, warm and cold; change one CAL value between two of them.
+8. The other simulator-found fixes on silicon: single ADC-code temperature steps at 70–110 °C; a +200 → −150 N·m step at
+   10 000 rpm; a resolver loss at 2 000 rpm and at 7 000 rpm; the demodulator time centre at 10 000 rpm against the reference
+   angle (T-37).
+9. The inductance map (FW-45, T-57): the Ld/Lq routine at the six bias indices from the tool, against an LCR or a
+   flux-linkage reference at those currents; then the torque step of QP-FW-08 at 80 % of I_max with the flat map and with the
+   measured map (a torque transducer).
+10. The ripple table (FW-46, T-58): the shaft torque at ≤ 100 rpm and 30 N·m over one electrical period (a torque transducer,
+    ≥ 1 kHz), the table computed by the tool and written through DID 0xFD46, committed, key-cycled; the same measurement
+    again; and at 600 rpm (above cal_ripple_ff_fmax_hz) unchanged.
+
+**Pass** —
+- Step 1: every interrupted or bad download leaves the previous image running (the anti-rollback counter and the boot slots
+  intact); the good image runs and refuses to arm until a new VAL record is written (FW-24); ≤ 10 s per MB.
+- Step 2: responses match the exports (`tool/protocol/`); the 1 ms task stays inside its T-36 budget with 0x2A at 1 ms; 0x14
+  refused with HV present or armed, accepted otherwise, and the DESAT-class and arm-forbidding DTCs are never cleared.
+- Step 3: the capture contains the trigger sample at its stated position; `cap_isr` ≤ the T-43 budget.
+- Step 4: R_s within 5 % of the LCR reference (2 % on the host plant), L_d/L_q within 10 %, the zero within 0.5° el of the
+  reference; every abort path ends the routine within 1 ms to the armed idle state with DTC_MC_ABORTED and no torque; the
+  commit is refused without a fresh unlock; the next key cycle runs on the new record with `calib_check` = 0.
+- Step 5: warn at 1.00×, trip at 1.05× with the §6 row and DTC_OVERSPEED; release only below the hysteresis.
+- Step 6: the inverter modulates once the back-EMF approaches the link (the fw_needed decision); pack current within ±5 A of
+  the losses; no braking torque on the dyno's torque transducer.
+- Step 7: the run-time record advances every 600 s and at shutdown and survives every cycle; the adopted offset moves ≤ 2 mV
+  per key cycle and adoption is refused after the CAL change until the record is re-sealed.
+- Step 8: no DTC_TEMP_MODULE from single-code steps; the torque step is slewed at 2 000 N·m/s with no over-current and no
+  ASC; the 2 000 rpm resolver loss is SPO, the 7 000 rpm loss reaches ASC only once the bound passes n_x; the angle error at
+  10 000 rpm ≤ 0.5° el.
+- Step 9: every map point within 10 % of the reference; the 80 % torque step within 2 % with the map (the flat map's error
+  is the record's, not a pass/fail); the 1 ms task inside its budget with a saturating map (the host's slowest solve is
+  2.8× the flat one: ≈ 180 µs of the 400 µs budget — measured here, T-57).
+- Step 10: the ripple at 100 rpm reduced by ≥ 70 % rms; at 600 rpm unchanged; the compensated current never outside the
+  solved limits (the postcondition's DTC absent).
+
+**Record** — the HIL log, the dyno log, the commissioning record (values ± uncertainty, verdicts, aborts), the update log.
+
+**On fail** — firmware; for step 4 also the rig (a wrong attestation is an operator error the routine bounds, not a pass).
+
+---
+
 ## 11. First article and EOL production
 
 ### QP-FAI-01 · Design-data release check (KiCad sets, ball map)
@@ -2819,7 +2897,7 @@ neighbours.
 **Pass** —
 - V_ID lies within ±4 % of its nominal: 0.90 V (4I), 1.60 V (8I), 2.50 V (8S), 3.44 V (4S). Open (> 4.6 V) and
   short (< 0.2 V) are rejected.
-- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0013 (the current image, §0.2), and M_PROGID equals `cal_fs26_prog_id`.
+- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0015 (the current image, round 23; §0.2), and M_PROGID equals `cal_fs26_prog_id`.
 
 **Record** — V_ID per unit. The distribution against the window edges is reviewed per lot.
 
@@ -2922,7 +3000,7 @@ serial-linked kit record.
 - FW-24 (FAULT_ROUTE_VALIDATED, OVP_ROUTE_VALIDATED);
 - target-bringup T-05, T-06 and T-27 (the device UID as the serial);
 - firmware README item 22;
-- the current image `TI_FW_ID` 0x0A0F0013 (round 19; the round-17 0x0A0F0011 and every later change of the ID "needs a new EOL/HIL validation record before it arms");
+- the current image `TI_FW_ID` 0x0A0F0015 (round 23; 0x0A0F0014 the round-23 torque-solver image, the round-17 0x0A0F0011 and every later change of the ID — 0x0A0F0012 round 18, 0x0A0F0013 round 19 — "needs a new EOL/HIL validation record before it arms");
 - F166; interface-requirements (EOL/calibration — the EOL/HIL arming-evidence record, the OEM's rig).
 
 **DUT** — every card at card EOL, FW and OTP. Any later image change repeats this QP.
@@ -2938,7 +3016,7 @@ serial-linked kit record.
    - the SKU;
    - flags FAULT_ROUTE_VALIDATED | OVP_ROUTE_VALIDATED;
    - hw_serial = the device UID;
-   - fw_id = 0x0A0F0013 (the image flashed on this card — T-05; §0.2);
+   - fw_id = 0x0A0F0015 (the image flashed on this card — T-05; §0.2; round 23);
    - ovp_chain_ns = the card segment measured + the QP-FW-02 (a) DV maximum;
    - CRC-32.
 5. Reboot, and read INV_STATUS byte 15.
@@ -3007,7 +3085,7 @@ calibration" (≈ ±0.3 %) and "VDC chain error, WORST CASE uncalibrated" (±2.0
 ### QP-EOL-08 · Resolver-chain calibration (per unit)
 
 **Closes** —
-- FW-20 layout 2 (the resolver record with the monitor gain `exc_code_per_vpp`); target-bringup T-07 and T-31;
+- FW-20 layout 4 since round 23's FW-45/FW-46 (the resolver record with the monitor gain `exc_code_per_vpp` since layout 2); target-bringup T-07 and T-31;
 - FW-10 target ("EOL phase trim, EOL monitor gain …");
 - *Sensing A.11* "Resolver wire shorted to KL30" note ("worst independent corners 1.29° electrical, an EOL
   calibration item (FW-20)");
@@ -3036,7 +3114,7 @@ calibration" (≈ ±0.3 %) and "VDC chain error, WORST CASE uncalibrated" (±2.0
   acceptance: "at the trim band's low edge … no nuisance trip"). Between the two values is CONDITIONAL: narrow
   the band or raise the setpoint within the headroom checks.
 
-**Record** — goes into CAL (layout 2).
+**Record** — goes into CAL (layout 4 since round 23's FW-45/FW-46; layout 3 before them, layout 2 before the gap closure).
 
 **On fail** — card repair; a CONDITIONAL result goes to QP-RX-01.
 
@@ -3125,20 +3203,25 @@ that gives τ ≥ `cal_precharge_tau_min_s`.
 
 ### QP-EOL-13 · Record sealing and final read-back (per unit)
 
-**Closes** — FW-20 target ("Fee configuration, device UID read"); target-bringup T-07; the round-17 identity
-("the calibration record stays layout 2").
+**Closes** — FW-20 target ("Fee configuration, device UID read"); target-bringup T-07 and T-50 (FW-38: the first image programmed
+into EXEC is adopted at the first boot); the round-17 identity
+("the calibration record stays layout 2" — layout 3 since the round-23 gap closure, which added calibration parameters, and
+layout 4 since its FW-45/FW-46, which added the saturation maps and the ripple table).
 
 **DUT** — every inverter, last station.
 
 **Steps**
-1. Seal the calibration record: layout 2, CRC-32, the device UID, the SKU, f_sw, and the motor ID if the motor is
-   known at EOL. With motor_id 0 the unit cannot arm until QP-EOL-14 runs.
-2. Read back the CAL and VAL records and `TI_FW_ID`.
+1. Seal the calibration record: layout 4 (round 23; the maps flat and the ripple table zero unless measured), CRC-32, the device UID, the SKU, f_sw, and the motor ID if the motor is
+   known at EOL — through the EOL writer, or through the FW-39 commit (RID 0xF021 after a fresh unlock) when the commissioning
+   routines ran at this station. With motor_id 0 the unit cannot arm until QP-EOL-14 runs.
+2. Read back the CAL and VAL records, `TI_FW_ID` and the root of trust (DID 0xFD23).
 3. Clear the EOL DTCs and confirm the service lock is absent.
 4. Park in LPOFF.
 
 **Pass** — every read-back matches and every CRC passes (`calib_check` = 0 once the motor is bound); no service
-lock; INV_STATUS byte 15 lists only "motor not bound" where that is expected.
+lock; INV_STATUS byte 15 lists only "motor not bound" where that is expected. DID 0xFD23 reports the root of trust as kind 3 (the OTP/HSE key)
+or 2 (the release build key) with the release key's id — never kind 1 (the host build's TEST key) or 0 (no key); the kind and
+key id go into the record.
 
 **Record** — the final configuration record.
 
@@ -3148,7 +3231,8 @@ lock; INV_STATUS byte 15 lists only "motor not bound" where that is expected.
 
 **Closes** —
 - the FW-20 motor fields (electrical zero, pole pairs, motor data, sensor type, MTPA, f_sw, `rule_b_released`);
-- target-bringup T-07, T-31 and T-37 (`cal_rslv_wind_per_mon`, DC-link trim gains on the real bank, precharge τ);
+- target-bringup T-07, T-31 and T-37 (`cal_rslv_wind_per_mon`, DC-link trim gains on the real bank, precharge τ) and
+  T-51…T-54 (FW-39: the service CALs, L_d/L_q, the zero, the vehicle-speed signal — proved in QP-FW-10 step 4);
 - *Sensing A.15* "Amplitude planes" ("EOL characterises monitor-to-terminal transfer with the real harness");
 - F17 (termination);
 - interface-requirements (EOL/calibration — resolver monitor-to-winding ratio; motor — pole pairs,
@@ -3159,7 +3243,9 @@ lock; INV_STATUS byte 15 lists only "motor not bound" where that is expected.
 **Steps**
 1. Measure winding/monitor with the real harness and the actual resolver, PTCs cold. Write `cal_rslv_wind_per_mon`
    (CAL 0.8–1). Never credit a post-trip PTC.
-2. Find the electrical zero.
+2. Find the electrical zero — with the FW-39 dyno-driven routine from Traction Tool (attestation DF/DR, the vehicle speed
+   valid and zero from the VCU, QP-FW-10 step 4), or the reference method; R_s and L_d/L_q with the brake (LK) at the same
+   station. A result beyond its band needs a second agreeing run before it is staged.
 3. Load the motor dataset and the QP-SF-10 decisions (FS1B policy, n_ss, `rule_b_released`).
 4. Set the precharge τ.
 5. Seal the record with the motor ID.
@@ -3528,7 +3614,7 @@ CAL values that are measured, and where:
 - `cal_peak_recovery_s` → QP-TH-02
 - `cal_qdis_*` → QP-DS-01, QP-DS-04
 - `cal_precharge_*` → QP-DS-04, QP-EOL-11, QP-EOL-14
-- `cal_spo_release_a`, `cal_speed_hold_ms` → QP-FW-07
+- `cal_spo_release_a`, `cal_speed_accel_max_rpm_s` (the round-23 speed bound that replaced `cal_speed_hold_ms`, contract §6) → QP-FW-07
 - `cal_dcl_tmax_nm` → QP-FW-07, QP-FW-08
 - `cal_vdyn_reserve_frac` → QP-FW-08
 - `cal_ntc_*` → QP-TH-02, QP-EOL-04

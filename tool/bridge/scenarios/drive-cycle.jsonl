@@ -1,0 +1,15 @@
+# A bench drive cycle on the dyno: arm, motoring and regen at three speeds (field weakening above n_x), disarm.
+{"cmd":"arm","in_ms":1500}
+{"cmd":"speed","rpm":2000,"ramp_rpm_s":4000,"in_ms":2500}
+{"cmd":"torque","nm":200,"in_ms":3500}
+{"cmd":"torque","nm":-150,"in_ms":5000}
+{"cmd":"torque","nm":0,"in_ms":6000}
+{"cmd":"speed","rpm":6000,"ramp_rpm_s":4000,"in_ms":6200}
+{"cmd":"torque","nm":250,"in_ms":7500}
+{"cmd":"torque","nm":0,"in_ms":9000}
+{"cmd":"speed","rpm":11000,"ramp_rpm_s":4000,"in_ms":9200}
+{"cmd":"torque","nm":150,"in_ms":11000}
+{"cmd":"torque","nm":-90,"in_ms":12500}
+{"cmd":"torque","nm":0,"in_ms":13500}
+{"cmd":"speed","rpm":0,"ramp_rpm_s":4000,"in_ms":13700}
+{"cmd":"disarm","in_ms":16700}

@@ -7,10 +7,18 @@
 #include "ti_crc.h"
 #include "timer.h"
 
-#define NV_MAGIC 0x54494E56u /* "TINV" */
-#define FAULT_SLOT0 10u
+/* Round 23 (item 9): the slot check is a CRC-32C over the header (magic, type, length, sequence) and the payload. It was
+ * a CRC-32 of the IEEE polynomial — the one calib_t (FW-20) and arm_validation_t (FW-24) end in: CRC(X || CRC(X)) is the
+ * same for every X, so the linear part of such a slot check cancels on a record's own CRC-32 wherever it sits, and a
+ * write torn after its header validated with the stale tail (the record from two writes back, CRC-clean). CRC-32C
+ * shares no such relation with CRC-32: a torn record is refused like any other corruption. A slot of an earlier image
+ * ("TINV", the CRC-32 check) stays readable, never written: the next write of that record goes to its other slot in
+ * the new format — nothing is lost at the update, and a tear from then on is caught. */
+#define NV_MAGIC 0x54494E32u    /* "TIN2": the slot check is a CRC-32C */
+#define NV_MAGIC_V1 0x54494E56u /* "TINV": an earlier image's slot, its check a CRC-32 — read only */
+#define FAULT_SLOT0 NV_FAULT_SLOT0
 #define VALID_SLOT0 (FAULT_SLOT0 + NV_FAULT_RING) /* after the fault ring */
-#define SLOTS_USED (VALID_SLOT0 + 2u)
+#define SLOTS_USED NV_SLOTS_USED
 _Static_assert(SLOTS_USED <= HAL_NVM_SLOTS, "the NVM record layout exceeds the slots");
 
 typedef struct {
@@ -38,7 +46,9 @@ static uint32_t s_slot_seq[HAL_NVM_SLOTS];
 
 static uint16_t slot_a(nv_rec_t t)
 {
-    return (t == NV_REC_VALIDATION) ? (uint16_t)VALID_SLOT0 : (uint16_t)((uint16_t)t * 2u);
+    /* records after the fault ring (VALIDATION, round 23 RUNTIME, ...) take A/B pairs in enum order */
+    return (t >= NV_REC_VALIDATION) ? (uint16_t)(VALID_SLOT0 + (2u * ((uint32_t)t - (uint32_t)NV_REC_VALIDATION)))
+                                    : (uint16_t)((uint16_t)t * 2u);
 }
 
 static uint32_t rec_crc(const nv_hdr_t *h, const uint8_t *payload)
@@ -48,7 +58,7 @@ static uint32_t rec_crc(const nv_hdr_t *h, const uint8_t *payload)
     z.crc = 0u;
     (void)memcpy(tmp, &z, sizeof z);
     (void)memcpy(&tmp[sizeof z], payload, h->len);
-    return ti_crc32(tmp, sizeof z + h->len);
+    return (h->magic == NV_MAGIC_V1) ? ti_crc32(tmp, sizeof z + h->len) : ti_crc32c(tmp, sizeof z + h->len);
 }
 
 /* Reads a slot; returns its seq if magic, type, length and CRC hold, else 0. */
@@ -60,8 +70,8 @@ static uint32_t slot_valid(uint16_t slot, nv_rec_t type, uint8_t *payload, uint1
         return 0u;
     }
     (void)memcpy(&h, raw, sizeof h);
-    if ((h.magic != NV_MAGIC) || (h.type != (uint16_t)type) || (h.len > NV_PAYLOAD_MAX) || (h.seq == 0u) ||
-        (h.crc != rec_crc(&h, &raw[sizeof h]))) {
+    if (((h.magic != NV_MAGIC) && (h.magic != NV_MAGIC_V1)) || (h.type != (uint16_t)type) || (h.len > NV_PAYLOAD_MAX) ||
+        (h.seq == 0u) || (h.crc != rec_crc(&h, &raw[sizeof h]))) {
         return 0u;
     }
     if (payload != NULL) {
@@ -73,7 +83,7 @@ static uint32_t slot_valid(uint16_t slot, nv_rec_t type, uint8_t *payload, uint1
 static nv_rec_t slot_type(uint16_t slot)
 {
     if (slot >= VALID_SLOT0) {
-        return NV_REC_VALIDATION;
+        return (nv_rec_t)((uint32_t)NV_REC_VALIDATION + ((uint32_t)(slot - VALID_SLOT0) / 2u));
     }
     return (slot >= FAULT_SLOT0) ? NV_REC_FAULT : (nv_rec_t)(slot / 2u);
 }

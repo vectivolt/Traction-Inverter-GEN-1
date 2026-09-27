@@ -1,0 +1,6 @@
+# FW-08 / FW-06: the battery path opens during regen below n_x (zero current, then SPO) and at speed (LS-ASC).
+{"cmd":"arm","in_ms":1500}
+{"cmd":"speed","rpm":4000,"ramp_rpm_s":5000,"in_ms":2500}
+{"cmd":"torque","nm":-120,"in_ms":3500}
+{"cmd":"inject","fault":"battery_loss","in_ms":5000}
+{"cmd":"torque","nm":0,"in_ms":5010}

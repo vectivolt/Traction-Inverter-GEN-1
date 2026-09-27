@@ -8,7 +8,7 @@
 #include "ti_types.h"
 
 #define HAL_NVM_SLOT_SIZE 512u
-#define HAL_NVM_SLOTS 32u
+#define HAL_NVM_SLOTS 64u /* round 23 (item 10): the 32-slot map was full (nvm/nvlog.h: NV_SLOTS_USED) */
 
 typedef enum { HAL_NVM_IDLE = 0, HAL_NVM_BUSY, HAL_NVM_DONE_OK, HAL_NVM_DONE_ERR } hal_nvm_status_t;
 

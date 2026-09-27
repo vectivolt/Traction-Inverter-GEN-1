@@ -66,6 +66,8 @@ static bool rx_cmd(can_cmd_t *c, const hal_can_frame_t *f, uint32_t now_ms, cons
     c->shutdown_req = (f->data[4] & 0x10u) != 0u;
     c->coolant_valid = f->data[5] != 0xFFu;
     c->coolant_c = (float)f->data[5] - 40.0f;
+    c->vspeed_valid = (f->data[4] & 0x20u) != 0u; /* round 23 (FW-39) */
+    c->vspeed_kmh = 0.01f * (float)get_u16(&f->data[6]);
     c->last_ms = now_ms;
     c->ever = true;
     return true;
@@ -155,7 +157,8 @@ void can_status_encode(const can_status_t *s, uint8_t ctr, hal_can_frame_t *f)
     f->data[14] = (uint8_t)((s->no_safe_state ? 0x01u : 0u) | (s->service_required ? 0x02u : 0u) |
                             (s->open_contactors_req ? 0x04u : 0u) | (s->speed_limit_req ? 0x08u : 0u));
     f->data[15] = (uint8_t)(s->evidence_missing & 0x1Fu);
-    finish(f, CAN_ID_INV_STATUS, 16u);
+    put_u16(&f->data[16], (uint16_t)(int16_t)ti_clampf(s->torque_cmd_nm * 10.0f, -32767.0f, 32767.0f));
+    finish(f, CAN_ID_INV_STATUS, 20u);
 }
 
 void can_encode_vcu_cmd(hal_can_frame_t *f, uint8_t ctr, ti_gear_t gear, bool enable, bool fault_reset,
@@ -180,4 +183,11 @@ void can_encode_vcu_bms(hal_can_frame_t *f, uint8_t ctr, float v_pack, float p_c
     put_u16(&f->data[4], (uint16_t)ti_clampf(p_chg_w / 100.0f, 0.0f, 65535.0f));
     put_u16(&f->data[6], (uint16_t)ti_clampf(p_dis_w / 100.0f, 0.0f, 65535.0f));
     finish(f, CAN_ID_VCU_BMS, 8u);
+}
+
+void can_vcu_cmd_vspeed(hal_can_frame_t *f, bool valid, float kmh)
+{
+    f->data[4] = (uint8_t)((f->data[4] & (uint8_t)~0x20u) | (valid ? 0x20u : 0u));
+    put_u16(&f->data[6], (uint16_t)ti_clampf(kmh * 100.0f, 0.0f, 65535.0f));
+    finish(f, CAN_ID_VCU_CMD, 8u);
 }

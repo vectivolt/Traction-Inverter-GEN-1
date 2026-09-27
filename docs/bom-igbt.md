@@ -1,6 +1,6 @@
-# Traction Inverter — 8XX · IGBT (HCG600FH120D3E1EA), 500–850 V bus — BOM (rev A.21, generated 2026-09-26)
+# Traction Inverter — 8XX · IGBT (HCG600FH120D3E1EA), 500–850 V bus — BOM (rev A.22, generated 2026-09-26)
 
-220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
+220 kW pk / 800 V IGBT traction inverter (5 kHz) — Power board + Cap-bank busbar + bolt-on Discharge board + Control card (round 23, A20-F05: the intro follows the SKU; it read "220 kW pk / 800 V SiC" under every variant heading before).
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
 LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
@@ -58,7 +58,7 @@ CSV: [`docs/bom-discharge-igbt.csv`](bom-discharge-igbt.csv). Top cost lines:
 | 2 | R0603-10k | UCC14141-Q1 ENA divider top from V15 | 1 | any |
 | 1 | R0603-62k-1% | UCC14141-Q1 FBVDD divider top: 2.5 V x | 0 | any 1 % |
 
-## control-card — 301 components, 118 BOM lines, ≈ ₹6,355 @1k
+## control-card — 304 components, 119 BOM lines, ≈ ₹6,355 @1k
 
 CSV: [`docs/bom-control-card-igbt.csv`](bom-control-card-igbt.csv). Top cost lines:
 
@@ -88,14 +88,14 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | DC-link film caps | 4,800 | 10.1% | 70.1% | 16 |
 | Hall sensors + AFE | 2,327 | 4.9% | 75.0% | 38 |
 | Gate-power flybacks | 2,252 | 4.7% | 79.8% | 77 |
-| MCU + clock + debug | 1,496 | 3.2% | 82.9% | 22 |
+| MCU + clock + debug | 1,496 | 3.1% | 82.9% | 22 |
 | VDC iso sensing + bias | 1,296 | 2.7% | 85.7% | 30 |
 | Discharge (active+passive) | 1,146 | 2.4% | 88.1% | 33 |
 | Vehicle connector + prot | 788 | 1.7% | 89.7% | 6 |
 | FS26 SBC + LV input + wake | 691 | 1.5% | 91.2% | 40 |
 | Gate drivers + networks | 659 | 1.4% | 92.6% | 129 |
 | ASC buffer | 650 | 1.4% | 93.9% | 18 |
-| misc | 604 | 1.3% | 95.2% | 56 |
+| misc | 604 | 1.3% | 95.2% | 59 |
 | Module snubbers | 540 | 1.1% | 96.3% | 3 |
 | Harness + pulldowns | 495 | 1.0% | 97.4% | 17 |
 | HV entry/Y-caps/HVIL/studs | 302 | 0.6% | 98.0% | 14 |
@@ -112,11 +112,11 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 30,484 | 64.2% |
-| drive + control ICs | 7,378 | 15.5% |
+| drive + control ICs | 7,423 | 15.6% |
 | capacitors | 4,981 | 10.5% |
 | magnetics | 2,195 | 4.6% |
-| connectors + sensors | 1,606 | 3.4% |
-| misc | 432 | 0.9% |
+| connectors + sensors | 1,561 | 3.3% |
+| misc | 433 | 0.9% |
 | isolation | 231 | 0.5% |
 | protection + diodes | 132 | 0.3% |
 | resistors | 44 | 0.1% |

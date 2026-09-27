@@ -1,0 +1,131 @@
+/* Traction Tool theme — one stylesheet for both variants: @tokens are replaced by Theme (src/ui/Theme.cpp) from the
+   dark or the light palette. Spacing scale 4 / 8 / 12 / 16 / 24 / 32 px; radii 6 (controls) and 10 (cards). */
+
+* { outline: 0; }
+QWidget { color: @text; font-size: 13px; }
+QMainWindow, QDialog, #pageHost, #page { background: @bg; }
+QToolTip { color: @text; background: @surface2; border: 1px solid @border; padding: 6px 8px; border-radius: 6px; }
+
+/* ---- cards and headings ---- */
+#card { background: @surface; border: 1px solid @border; border-radius: 10px; }
+#cardTitle { color: @muted; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
+#pageTitle { font-size: 20px; font-weight: 600; }
+#pageSubtitle, #muted { color: @muted; }
+#hint { color: @dim; font-size: 12px; }
+#mono { font-family: "SF Mono", "Menlo", "Consolas", "DejaVu Sans Mono", monospace; }
+#warnText { color: @warn; }
+#critText { color: @crit; }
+#okText { color: @ok; }
+
+/* ---- navigation ---- */
+#nav { background: @navbg; border: none; border-right: 1px solid @border; padding: 8px 8px; }
+#nav::item { color: @muted; padding: 10px 12px; margin: 2px 0; border-radius: 8px; }
+#nav::item:hover { background: @surface2; color: @text; }
+#nav::item:selected { background: @accentSoft; color: @text; }
+#nav:focus { border-right: 1px solid @accent; }
+#brand { font-size: 15px; font-weight: 700; padding: 16px 16px 4px 16px; }
+#brandSub { color: @dim; font-size: 11px; padding: 0 16px 12px 16px; }
+
+/* ---- connection bar ---- */
+#connBar { background: @navbg; border-bottom: 1px solid @border; }
+#connName { color: @muted; }
+#connAge { font-family: "SF Mono", "Menlo", "Consolas", monospace; color: @muted; }
+
+/* ---- pills (dynamic property severity: ok, warn, crit, info, neutral, stale, accent) ---- */
+QLabel#pill { border-radius: 10px; padding: 2px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+              background: @surface2; color: @muted; }
+QLabel#pill[severity="ok"] { background: @okSoft; color: @ok; }
+QLabel#pill[severity="warn"] { background: @warnSoft; color: @warn; }
+QLabel#pill[severity="crit"] { background: @critSoft; color: @crit; }
+QLabel#pill[severity="info"] { background: @infoSoft; color: @info; }
+QLabel#pill[severity="accent"] { background: @accentSoft; color: @accent; }
+QLabel#pill[severity="stale"] { background: @surface2; color: @dim; }
+
+/* ---- buttons ---- */
+QPushButton, QToolButton { background: @surface2; color: @text; border: 1px solid @border; border-radius: 6px;
+                           padding: 6px 12px; min-height: 18px; }
+QPushButton:hover, QToolButton:hover { border-color: @accent; }
+QPushButton:pressed, QToolButton:pressed { background: @accentSoft; }
+QPushButton:focus, QToolButton:focus { border-color: @accent; }
+QPushButton:disabled, QToolButton:disabled { color: @dim; background: @surface; border-color: @border; }
+QPushButton:checked, QToolButton:checked { background: @accentSoft; border-color: @accent; color: @text; }
+QPushButton#primary { background: @accent; color: @onAccent; border-color: @accent; font-weight: 600; }
+QPushButton#primary:hover { background: @accentHover; }
+QPushButton#primary:disabled { background: @surface2; color: @dim; border-color: @border; }
+QPushButton#danger { color: @crit; border-color: @critSoft; }
+QPushButton#danger:hover { background: @critSoft; border-color: @crit; }
+QPushButton#danger:disabled { color: @dim; border-color: @border; background: @surface; }
+QPushButton#deadman { background: @surface2; border: 2px solid @accent; border-radius: 10px; font-weight: 700;
+                      padding: 14px; font-size: 14px; }
+QPushButton#deadman:pressed { background: @accent; color: @onAccent; }
+QPushButton#deadman:disabled { border-color: @border; color: @dim; }
+QPushButton#segment { border-radius: 0; padding: 6px 14px; }
+QToolButton::menu-indicator { image: none; width: 0; }
+
+/* ---- inputs ---- */
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QPlainTextEdit, QTextEdit, QTextBrowser {
+    background: @field; border: 1px solid @border; border-radius: 6px; padding: 5px 8px;
+    selection-background-color: @accentSoft; selection-color: @text; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QPlainTextEdit:focus { border-color: @accent; }
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled { color: @dim; }
+QComboBox::drop-down { border: none; width: 18px; }
+QComboBox QAbstractItemView { background: @surface2; border: 1px solid @border; selection-background-color: @accentSoft; }
+QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button { width: 0; border: none; }
+QCheckBox, QRadioButton { spacing: 8px; }
+QSlider::groove:horizontal { height: 4px; background: @surface2; border-radius: 2px; }
+QSlider::sub-page:horizontal { background: @accent; border-radius: 2px; }
+QSlider::handle:horizontal { width: 16px; height: 16px; margin: -7px 0; border-radius: 8px; background: @text; }
+QSlider::handle:horizontal:focus { background: @accent; }
+
+/* ---- tables, lists, trees ---- */
+QTableView, QTreeView, QListView, QTableWidget, QTreeWidget, QListWidget {
+    background: @surface; alternate-background-color: @surfaceAlt; border: 1px solid @border; border-radius: 8px;
+    gridline-color: @border; selection-background-color: @accentSoft; selection-color: @text; }
+QHeaderView::section { background: @surface; color: @muted; border: none; border-bottom: 1px solid @border;
+                       padding: 6px 8px; font-size: 11px; font-weight: 600; }
+QTableView::item, QTreeView::item { padding: 4px 6px; }
+QTableView:focus, QTreeView:focus, QListView:focus { border-color: @accent; }
+
+/* ---- tabs ---- */
+QTabWidget::pane { border: none; }
+QTabBar::tab { background: transparent; color: @muted; padding: 8px 14px; border: none; border-bottom: 2px solid transparent; }
+QTabBar::tab:selected { color: @text; border-bottom: 2px solid @accent; }
+QTabBar::tab:hover { color: @text; }
+QTabBar::tab:focus { color: @accent; }
+
+/* ---- scroll bars ---- */
+QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
+QScrollBar::handle { background: @scroll; border-radius: 4px; min-height: 24px; min-width: 24px; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+QScrollArea { background: transparent; border: none; }
+QScrollArea > QWidget > QWidget { background: transparent; }
+
+QMenuBar { background: @navbg; }
+QMenuBar::item:selected { background: @surface2; }
+QMenu { background: @surface2; border: 1px solid @border; padding: 4px; }
+QMenu::item { padding: 6px 24px 6px 12px; border-radius: 4px; }
+QMenu::item:selected { background: @accentSoft; }
+QMenu::separator { height: 1px; background: @border; margin: 4px 8px; }
+QSplitter::handle { background: @border; }
+QSplitter::handle:horizontal { width: 1px; }
+QSplitter::handle:vertical { height: 1px; }
+QStatusBar { background: @navbg; color: @muted; border-top: 1px solid @border; }
+QProgressBar { background: @surface2; border: none; border-radius: 3px; height: 6px; text-align: center; }
+QProgressBar::chunk { background: @accent; border-radius: 3px; }
+
+/* ---- label/value grids (KvGrid): severity and stale are dynamic properties ---- */
+QLabel#kvValue { color: @text; }
+QLabel#kvValue[severity="ok"] { color: @ok; }
+QLabel#kvValue[severity="warn"] { color: @warn; }
+QLabel#kvValue[severity="crit"] { color: @crit; }
+QLabel#kvValue[severity="info"] { color: @info; }
+QLabel#kvValue[severity="accent"] { color: @accent; }
+QLabel#kvValue[stale="true"] { color: @dim; }
+
+/* ---- toast ---- */
+#toast { background: @surface2; border: 1px solid @border; border-radius: 10px; }
+#toast[severity="crit"] { border-color: @crit; }
+#toast[severity="warn"] { border-color: @warn; }
+#toast[severity="ok"] { border-color: @ok; }

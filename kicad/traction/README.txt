@@ -1,4 +1,6 @@
-KICAD 9/10 SET (rev A.21). Open traction.kicad_pro in KiCad 9 or 10: the root sheet holds the four boards
+KICAD 10 SET (rev A.22). Open traction.kicad_pro in KiCad 10.0.6 or later — the schematic files are the KiCad 9 format
+(20241209) and open in KiCad 9 too, but the footprint library (traction.pretty, copied from the KiCad 10.0.6 libraries, format
+20260206) needs KiCad 10: the footprint-enabled layout handoff is KiCad 10.0.6+. The root sheet holds the four boards
 (power, cap bank, discharge, control card) as sheet instances. Each board is its own PCB: its labels are local,
 so a net joins other boards only through the named connector/stud/tab, never by name across sheets.
 Every sheet embeds its symbols (no library needed to open it); traction.kicad_sym + sym-lib-table are an identical

@@ -46,9 +46,20 @@ static float convert(temp_ch_t ch, float v, const temp_mt_cal_t *mt, const ti_pa
     return temp_pt1000_c(v, p->mt_pullup_ohm);
 }
 
-static void update_one(temp_ch_state_t *c, temp_ch_t ch, float v, uint32_t now_ms, const temp_mt_cal_t *mt,
+static void accept(temp_ch_state_t *c, float t, float code, uint32_t now_ms)
+{
+    c->rate_cnt = 0u;
+    c->t_c = t;
+    c->ref_code = code;
+    c->valid = true;
+    c->primed = true;
+    c->last_ms = now_ms;
+}
+
+static void update_one(temp_ch_state_t *c, temp_ch_t ch, uint16_t code, uint32_t now_ms, const temp_mt_cal_t *mt,
                        const ti_params_t *p)
 {
+    const float v = ti_code_to_v(code);
     /* PT1000 against 10 k never reaches the rail: open reads VREF5, short reads 0 V either way */
     if (v >= p->cal_ntc_open_v) {
         c->fault = TEMP_OPEN;
@@ -61,33 +72,44 @@ static void update_one(temp_ch_state_t *c, temp_ch_t ch, float v, uint32_t now_m
     }
     if ((c->fault == TEMP_OPEN) || (c->fault == TEMP_SHORT) || (c->fault == TEMP_RATE)) {
         c->valid = false;
+        c->acc = 0u; /* an open or shorted sensor's samples never enter a window */
+        c->n = 0u;
+        c->win_ms = now_ms;
         return;
     }
-    const float t = convert(ch, v, mt, p);
-    if (c->primed) {
-        const float dt_s = (float)ti_age(now_ms, c->last_ms) * 1.0e-3f;
-        const bool too_fast = (dt_s > 0.0f) && ((ti_absf(t - c->t_c) / dt_s) > p->cal_temp_rate_c_s);
-        if (too_fast) {
-            c->rate_cnt++;
-            c->valid = false;
-            if (c->rate_cnt >= 3u) {
-                c->fault = TEMP_RATE;
-            }
-            return; /* sample rejected, previous value held */
-        }
+    if (!c->primed) {
+        accept(c, convert(ch, v, mt, p), (float)code, now_ms); /* the first sample: a value at once */
+        c->win_ms = now_ms;
+        return;
     }
-    c->rate_cnt = 0u;
-    c->t_c = t;
-    c->valid = true;
-    c->primed = true;
-    c->last_ms = now_ms;
+    c->acc += code;
+    c->n++;
+    if (!ti_elapsed(now_ms, c->win_ms, p->cal_temp_rate_win_ms) || (c->n == 0u)) {
+        return; /* the accepted mean stays in force until the window closes */
+    }
+    const float mean = (float)c->acc / (float)c->n;
+    c->acc = 0u;
+    c->n = 0u;
+    c->win_ms = now_ms;
+    const float t = convert(ch, mean * (TI_ADC_VREF_V / (float)TI_ADC_MAX_CODE), mt, p);
+    const float dt_s = (float)ti_age(now_ms, c->last_ms) * 1.0e-3f;
+    const bool moved = ti_absf(mean - c->ref_code) > (float)p->cal_temp_rate_db_codes;
+    if (moved && (dt_s > 0.0f) && ((ti_absf(t - c->t_c) / dt_s) > p->cal_temp_rate_c_s)) {
+        c->rate_cnt++;
+        c->valid = false; /* this window rejected, the previous mean held */
+        if (c->rate_cnt >= 3u) {
+            c->fault = TEMP_RATE;
+        }
+        return;
+    }
+    accept(c, t, mean, now_ms);
 }
 
 void temp_update(temp_t *t, const uint16_t codes[TEMP_COUNT], uint32_t now_ms, const temp_mt_cal_t *mt,
                  const ti_params_t *p)
 {
     for (uint32_t i = 0u; i < (uint32_t)TEMP_COUNT; i++) {
-        update_one(&t->ch[i], (temp_ch_t)i, ti_code_to_v(codes[i]), now_ms, mt, p);
+        update_one(&t->ch[i], (temp_ch_t)i, codes[i], now_ms, mt, p);
     }
 }
 

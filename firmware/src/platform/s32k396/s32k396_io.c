@@ -7,7 +7,7 @@
  *   SPI    : LPSPI3 PCS0, 32-bit FS26 frames, blocking with a bounded timeout (1 ms task only);
  *   CAN    : FlexCAN0 (vehicle) / FlexCAN1 (diagnostic), CAN-FD, RX into a software ring from the
  *            RTD callback, non-blocking TX on one MB per bus;
- *   NVM    : Fee (32 blocks x 512 B) behind a RAM mirror: reads never touch flash after boot, a
+ *   NVM    : Fee (64 blocks x 512 B, round 23) behind a RAM mirror: reads never touch flash after boot, a
  *            write updates the mirror only when Fee reports the job OK. */
 #include <string.h>
 

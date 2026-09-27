@@ -3,6 +3,8 @@
 
 static dtc_entry_t s_e[DTC_COUNT];
 static bool s_dirty;
+static volatile uint32_t s_events; /* FW-41: dtc_events() — written last in dtc_set, read first */
+static volatile dtc_id_t s_last;
 
 void dtc_init(void)
 {
@@ -26,6 +28,8 @@ void dtc_set(dtc_id_t id, uint32_t now_ms)
     if ((e->status & DTC_TF) == 0u) {
         e->occ = (e->occ < 255u) ? (uint8_t)(e->occ + 1u) : 255u;
         s_dirty = true;
+        s_last = id; /* FW-41: a new occurrence (the capture's trigger) */
+        s_events = s_events + 1u;
     }
     e->last_ms = now_ms;
     e->status |= (uint8_t)(DTC_TF | DTC_TFTOC | DTC_PDTC | DTC_CDTC | DTC_TFSLC);
@@ -79,6 +83,14 @@ void dtc_clear_all(void)
     s_dirty = true;
 }
 
+void dtc_clear(dtc_id_t id)
+{
+    if (ok_id(id)) {
+        s_e[id] = (dtc_entry_t){.status = (uint8_t)(DTC_TNCSLC | DTC_TNCTOC)};
+        s_dirty = true;
+    }
+}
+
 void dtc_new_cycle(void)
 {
     for (uint32_t i = 1u; i < (uint32_t)DTC_COUNT; i++) {
@@ -92,4 +104,11 @@ bool dtc_take_dirty(void)
     const bool d = s_dirty;
     s_dirty = false;
     return d;
+}
+
+uint32_t dtc_events(dtc_id_t *last)
+{
+    const uint32_t n = s_events; /* the count first: a newer occurrence between the two reads shows next time */
+    *last = s_last;
+    return n;
 }

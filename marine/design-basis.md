@@ -376,11 +376,11 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.21**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.22**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19, A.20 and A.21 (rounds 19–22) on 2026-09-26; no Marine unit is built or
+then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19, A.20, A.21 and A.22 (rounds 19–23) on 2026-09-26; no Marine unit is built or
 type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
-review rounds 7–22 (`../docs/review-A7-disposition.md` … `../docs/review-A21-disposition.md`). It has the same PCBs and
+review rounds 7–23 (`../docs/review-A7-disposition.md` … `../docs/review-A22-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
 **RHWID 47 k (4.12 V on HW_ID, harness pin 2 since A.9)**, 0.68 V clear of the nearest Road code
 (22 k = 3.44 V). Road firmware refuses a marine cell and marine firmware refuses a road inverter
@@ -388,11 +388,11 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.21 brought** (Road `design-basis.md` §11i–§11u; A.12 = round 13,
+**What A.9–A.22 brought** (Road `design-basis.md` §11i–§11v; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
 `review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17, `review-A16-disposition.md`; A.17 = round 18 (rechecks of 4425af9),
 `review-A17-disposition.md`; A.18 = round 19, `review-A18-disposition.md`; A.19 = round 20, `review-A19-disposition.md`;
-A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-disposition.md`):
+A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-disposition.md`; A.22 = round 23, `review-A22-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -622,6 +622,20 @@ A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-dispo
   caught the NCV4276C regulators coded as 3-lead DPAK (5-lead only), the two thermal pads without a pin and the 2-pad
   crystal. Marine: M8 inherits the footprint-bound Road sets and the handoff document (the M10 power board is its own
   layout, §2 creepage); no marine cell change.
+- **A.22.** Round 23 (three rechecks of the A.21 push 452de85, Road `review-A22-disposition.md`, F214–F220): the R2R
+  (sine-wave DAC) reference of the shared card gets its own RC-isolated branch (RR2R 10 Ω + 1 µF + 100 nF at ball A9 — the
+  S32K39 data sheet's note 8; three passives, ≈ ₹0.6), the SWD header is bound to its real surface-mount land, the footprint
+  library is declared KiCad 10.0.6+ and no longer mirrored into the KiCad 5 sets, and the shared firmware base's torque solver
+  now solves torque, voltage, current-circle and demagnetisation together with a torque postcondition (it could over-deliver
+  torque in field weakening on a salient motor) and a convergent MTPA fallback — TI_FW_ID 0x0A0F0014, then 0x0A0F0015 with the
+  round's VESC gap closure (FW-38 signed update, FW-39 interlocked self-commissioning, FW-40 UDS diagnostics, FW-41 capture,
+  FW-42 overspeed, FW-43 run-time statistics, FW-44 offset adoption) and the twelve fixes the closed-loop simulator bridge
+  found (Road F221–F232; the worst, F222: uncontrolled diode regeneration once the back-EMF passes the link below n_x — a
+  Marine port at its lower rail reaches that crossing at a lower speed, and the fix decides on the measured link voltage);
+  the same round's extension adds FW-45 (saturation-dependent inductance tables in the record, layout 4) and FW-46 (a
+  cogging feed-forward table) — a propulsion motor's maps are dyno measurements like the Road ones (T-57/T-58) — and the
+  suite now runs on the Cortex-M7 instruction set under QEMU with the target compiler (T-59), which M8 shares.
+  Marine: the card and the firmware base are shared, so M8 inherits all of it; no marine cell change.
 
 | Change | M8 | M10 |
 |---|---|---|

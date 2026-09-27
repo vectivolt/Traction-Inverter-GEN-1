@@ -270,7 +270,9 @@ for (const b of boards) writeFileSync(join(OUT, `${b.name}.kicad_pro`), `${JSON.
 writeFileSync(join(OUT, "traction.kicad_sym"), ["(kicad_symbol_lib", "\t(version 20241209)", '\t(generator "traction_kicad_sch_gen")', '\t(generator_version "9.0")',
   ...[...SYMS.values()].map((s) => libSymbol(s, "")), ")", ""].join("\n"));
 writeFileSync(join(OUT, "sym-lib-table"), `(sym_lib_table\n\t(version 7)\n\t(lib (name ${q(LIB)})(type "KiCad")(uri "\${KIPRJMOD}/traction.kicad_sym")(options "")(descr "Traction Inverter symbols (generated; identical to the lib_symbols embedded in every sheet)"))\n)\n`);
-writeFileSync(join(OUT, "README.txt"), `KICAD 9/10 SET (rev ${REV}). Open traction.kicad_pro in KiCad 9 or 10: the root sheet holds the four boards
+writeFileSync(join(OUT, "README.txt"), `KICAD 10 SET (rev ${REV}). Open traction.kicad_pro in KiCad 10.0.6 or later — the schematic files are the KiCad 9 format
+(20241209) and open in KiCad 9 too, but the footprint library (traction.pretty, copied from the KiCad 10.0.6 libraries, format
+20260206) needs KiCad 10: the footprint-enabled layout handoff is KiCad 10.0.6+. The root sheet holds the four boards
 (power, cap bank, discharge, control card) as sheet instances. Each board is its own PCB: its labels are local,
 so a net joins other boards only through the named connector/stud/tab, never by name across sheets.
 Every sheet embeds its symbols (no library needed to open it); traction.kicad_sym + sym-lib-table are an identical

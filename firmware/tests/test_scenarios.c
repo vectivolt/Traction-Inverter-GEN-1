@@ -36,7 +36,7 @@ static bool run_at_epoch(float rpm, float torque, uint64_t epoch_us)
     if (rpm != 0.0f) {
         h_ramp_speed(rpm, 600u);
     }
-    h_run_ms(20u);
+    h_run_ms(20u + (uint32_t)(ti_absf(torque) * 1000.0f / h_p.cal_torque_slew_nm_s)); /* round 23: the command slews */
     return (g_app.sm.st == SM_RUN) || (g_app.sm.st == SM_DERATE) || (g_app.sm.st == SM_ARMED_ZERO_TORQUE);
 }
 
@@ -101,7 +101,7 @@ TEST(boot_to_run_follows_section_9)
     H.enable = true;
     H.torque_nm = 100.0f;
     CHECK(h_run_until(SM_RUN, 100u));
-    h_run_ms(20u);
+    h_run_ms(60u); /* round 23: the command slews to 100 N m in 50 ms */
     CHECK(hal_pwm_mode() == HAL_PWM_MOD);
     CHECK(g_app.iq_ref > 50.0f);
     hal_can_frame_t f;
@@ -507,7 +507,7 @@ TEST(swg_trim_is_written_to_the_generator)
         bool monotonic = true;
         for (uint32_t ms = 0u; ms < 300u; ms++) {
             h_run_ms(1u);
-            monotonic = monotonic && (sim_swg_code() >= last) && ((sim_swg_code() - last) <= 1u);
+            monotonic = monotonic && (sim_swg_code() >= last) && ((unsigned)(sim_swg_code() - last) <= 1u);
             last = sim_swg_code();
         }
         float amp = 0.0f;
@@ -754,7 +754,7 @@ TEST(arming_refused_on_record_identity_or_crc_mismatch)
         H.enable = true;
         ever_armed = false;
         run_watch(2000u);
-        hal_can_frame_t f;
+        hal_can_frame_t f = {0};
         CHECK(!ever_armed && dtc_active(DTC_ARM_EVIDENCE) && last_status(&f));
         const uint8_t miss = (k < 3u) || (k == 5u) ? (uint8_t)ARM_EV_VALIDATED : (uint8_t)ARM_EV_OVP_ROUTE_VALIDATED;
         CHECK(f.data[15] == miss);
@@ -907,7 +907,7 @@ TEST(low_speed_open_contactor_is_a_battery_path_loss)
 }
 
 typedef enum { LOSS_OPEN = 0, LOSS_INVALID, LOSS_STALE } loss_t;
-typedef enum { SPD_ZERO = 0, SPD_LOW, SPD_HIGH, SPD_UNKNOWN } spd_t;
+typedef enum { SPD_ZERO = 0, SPD_LOW, SPD_HIGH, SPD_RSLV_LOST } spd_t;
 
 /* One case of the matrix below, up to and including the task invocation that processes the loss. */
 static bool loss_case(spd_t sp, loss_t l, float *t_before)
@@ -918,9 +918,6 @@ static bool loss_case(spd_t sp, loss_t l, float *t_before)
     (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
     (void)memset(&g_app_session, 0, sizeof g_app_session);
     h_setup(TI_SKU_8XX_SIC);
-    if (sp == SPD_UNKNOWN) {
-        h_p.cal_speed_hold_ms = 0u; /* no held speed: a resolver fault makes the speed unknown at once */
-    }
     h_boot();
     if (!h_to_run(50.0f)) {
         return false;
@@ -929,7 +926,7 @@ static bool loss_case(spd_t sp, loss_t l, float *t_before)
         h_ramp_speed((sp == SPD_HIGH) ? HIGH_RPM : LOW_RPM, 600u);
     }
     H.torque_nm = (sp == SPD_ZERO) ? 200.0f : -150.0f; /* holding at standstill, else regenerating */
-    h_run_ms(30u);
+    h_run_ms(130u); /* round 23: the command slews (200 N m in 100 ms) */
     *t_before = g_app.t_cmd_nm;
     if (l == LOSS_STALE) {
         H.send_cmd = false;
@@ -941,8 +938,8 @@ static bool loss_case(spd_t sp, loss_t l, float *t_before)
         vcu_frame_now();
     }
     H.i_pk_a = 480.0f; /* 340 A rms in the winding at the loss */
-    if (sp == SPD_UNKNOWN) {
-        H.rslv_amp = 0.6f; /* resolver lost in the same tick: last valid speed LOW_RPM, now unknown */
+    if (sp == SPD_RSLV_LOST) {
+        H.rslv_amp = 0.6f; /* resolver lost in the same tick: last valid speed LOW_RPM, now bounded (round 23) */
         h_set_speed(H.speed_rpm);
     }
     tick_1ms();
@@ -950,16 +947,18 @@ static bool loss_case(spd_t sp, loss_t l, float *t_before)
 }
 
 /* A13-R02: armed, a lost battery path — contactors reported OPEN, INVALID, or no fresh report — is the
- * §6 battery-lost row at zero, low, high and unknown speed, with 340 A rms in the winding and the
- * motor regenerating. In the invocation that processes it: the row is dispatched (with the command
+ * §6 battery-lost row at zero, low, high speed and with the resolver lost in the same tick, with 340 A rms in the
+ * winding and the motor regenerating. In the invocation that processes it: the row is dispatched (with the command
  * row when stale), the state machine grants neither torque nor arm, the torque/current target is
- * the §6 one (zero at the current-loop rate below n_x, LS-ASC above or unknown), never the request.
+ * the §6 one (zero at the current-loop rate below n_x, LS-ASC above), never the request.
  * Then: below n_x zero-torque current control keeps the energy under control (not all gates off)
- * until the current has decayed, then SPO and back to the unarmed sequence; above n_x or at unknown
- * speed PWM-ASC holds. The VCU sees FAULT, the bridge mode, no "keep HV" and no "no safe state". */
+ * until the current has decayed, then SPO and back to the unarmed sequence; above n_x PWM-ASC holds. Round 23
+ * (item 6): the speed after the resolver loss is bounded, not unknown — the battery row takes the low column on the
+ * bound (zero current), and the resolver row's SPO, refused by the energy rule (340 A rms, the battery gone), takes
+ * LS-ASC for the bridge: PWM-ASC holds. The VCU sees FAULT, the bridge mode, no "keep HV" and no "no safe state". */
 TEST(battery_path_loss_while_armed_at_every_speed)
 {
-    static const char *const SP[4] = {"zero", "low", "high", "unknown"};
+    static const char *const SP[4] = {"zero", "low", "high", "resolver lost"};
     static const char *const LS[3] = {"OPEN", "INVALID", "stale"};
     for (unsigned sp = 0u; sp < 4u; sp++) {
         for (unsigned l = 0u; l < 3u; l++) {
@@ -967,11 +966,14 @@ TEST(battery_path_loss_while_armed_at_every_speed)
             float t_before = 0.0f;
             CHECK(loss_case((spd_t)sp, (loss_t)l, &t_before));
             const bool slow = (sp == SPD_ZERO) || (sp == SPD_LOW);
+            const bool rslv_lost = (sp == SPD_RSLV_LOST);
             const ss_decision_t *d = &g_app.fm.row_dec[SS_ROW_BATTERY_LOST];
             /* the invocation that processed the loss */
             CHECK(fm_active(&g_app.fm, SS_ROW_BATTERY_LOST));
             CHECK((l != LOSS_STALE) || fm_active(&g_app.fm, SS_ROW_CMD_LOST));
-            CHECK(d->action == (slow ? SS_ACT_ZERO_CURRENT : SS_ACT_LS_ASC) && d->high_speed == !slow);
+            CHECK(d->action == ((slow || rslv_lost) ? SS_ACT_ZERO_CURRENT : SS_ACT_LS_ASC) &&
+                  d->high_speed == (!slow && !rslv_lost));
+            CHECK(!rslv_lost || (fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID) && g_app.fm.dec.action == SS_ACT_LS_ASC));
             CHECK(g_app.sm.st == SM_FAULT && !g_app.so.arm && !g_app.so.torque_enable);
             CHECK(ti_absf(t_before) > 90.0f && g_app.iq_ref == 0.0f);
             CHECK(g_app.t_cmd_nm == 0.0f && (!slow || g_app.id_ref == 0.0f)); /* round 17 (item 26): zero, not a trim */
@@ -988,7 +990,7 @@ TEST(battery_path_loss_while_armed_at_every_speed)
                 torque = torque || g_app.so.torque_enable || (g_app.iq_ref != 0.0f);
             }
             CHECK(!torque);
-            hal_can_frame_t f;
+            hal_can_frame_t f = {0};
             CHECK(last_status(&f) && (f.data[2] == (uint8_t)SM_FAULT) && ((f.data[1] & 0x80u) != 0u));
             CHECK((f.data[3] & 0x03u) == (slow ? 2u : 3u));                           /* modulating / PWM-ASC */
             CHECK(((f.data[1] & 0x20u) == 0u) && ((f.data[14] & 0x01u) == 0u)); /* keep HV 0, no safe state 0 */
@@ -1078,7 +1080,7 @@ static uint32_t stop_and_watch(void)
  * speed under torque with the microsecond counter wrapping inside the hold, and at 10 000 rpm in field
  * weakening. The angle is withdrawn at the hold, the §6 "resolver invalid" row takes the bridge (SPO
  * below n_x, PWM-ASC above), the torque permission goes (FAULT), DTC_RSLV_STALE, and the last speed is
- * kept only for the §6 column (cal_speed_hold_ms). When frames return the resolver re-acquires (not at
+ * kept only for the §6 column (round 23: bounded, cal_speed_accel_max_rpm_s). When frames return the resolver re-acquires (not at
  * the first frame), the row stays latched, and a VCU fault reset below n_x brings torque back. (Round 19: the
  * converters resume behind the SWG's cadence by the stall — in phase only after a whole number of laps — so the
  * ring re-syncs from the clock or, out of phase, is lost and the 1 ms task restarts the producer.) */
@@ -1122,7 +1124,7 @@ TEST(resolver_frames_stopping_withdraws_the_angle_at_the_hold)
             H.fault_reset = true;
             CHECK(h_run_until(SM_RUN, 1500u));
             H.fault_reset = false;
-            h_run_ms(20u);
+            h_run_ms(120u); /* round 23: the command slews back (200 N m in 100 ms) */
             CHECK(hal_pwm_mode() == HAL_PWM_MOD && ti_absf(g_app.t_cmd_nm - tq[k]) < 1.0f);
         }
     }
@@ -1336,7 +1338,7 @@ TEST(dc_link_trim_limits_regen_with_the_battery_present)
 {
     CHECK(run_at(LOW_RPM, 50.0f));
     H.torque_nm = -150.0f; /* braking at 1000 rpm */
-    h_run_ms(30u);
+    h_run_ms(130u); /* round 23: the command slews (200 N m in 100 ms) */
     CHECK(g_app.sm.st == SM_RUN && g_app.t_cmd_nm == -150.0f && g_app.dcl.integ == 0.0f); /* 750 V: idle */
     for (uint32_t k = 0u; k < 120u; k++) { /* a full pack pushed above the range by the charge current */
         H.v_pack += 1.0f;
@@ -1351,7 +1353,8 @@ TEST(dc_link_trim_limits_regen_with_the_battery_present)
     for (uint32_t k = 0u; (k < 20u) && !last_status(&f); k++) {
         h_run_ms(1u); /* the tick that sends the next status frame */
     }
-    CHECK_NEAR((double)(int16_t)(uint16_t)(f.data[4] | (f.data[5] << 8)) * 0.1, g_app.t_cmd_nm, 0.1); /* 0.1 Nm, truncated */
+    CHECK_NEAR((double)(int16_t)(uint16_t)(f.data[4] | (f.data[5] << 8)) * 0.1, g_app.t_act_nm, 0.1); /* 0.1 Nm, truncated */
+    CHECK_NEAR(g_app.t_act_nm, g_app.t_cmd_nm, 0.01); /* round 23: applied = commanded here */
     for (uint32_t k = 0u; k < 120u; k++) {
         H.v_pack -= 1.0f;
         h_run_ms(1u);
@@ -1374,7 +1377,7 @@ TEST(battery_path_loss_below_n_x_applies_and_reports_zero_current)
         sim_nvm_wipe();
         CHECK(run_at(rpm[c], 50.0f));
         H.torque_nm = -150.0f;
-        h_run_ms(30u);
+        h_run_ms(130u); /* round 23: the command slews */
         for (uint32_t k = 0u; (c == 0u) && (k < 120u); k++) {
             H.v_pack += 1.0f;
             h_run_ms(1u);
@@ -1596,7 +1599,8 @@ TEST(fs26_is_answered_every_2ms_inside_its_window_at_both_oscillator_corners)
         CHECK(sim_fs26_wd_err_cnt() == 0u && !sim_fs26_fs0b_asserted() && !dtc_active(DTC_FS26_WD));
         CHECK(g_app.sm.st == SM_RUN && hal_gpio_read(HAL_DI_DRV_EN_RB));
         if (t_fails != before) {
-            printf("    ^ fail-safe oscillator %+.0f %%: answers every %u..%u us\n", (double)osc[c] * 100.0, lo, hi);
+            printf("    ^ fail-safe oscillator %+.0f %%: answers every %u..%u us\n", (double)osc[c] * 100.0,
+                   (unsigned)lo, (unsigned)hi);
         }
     }
 }
@@ -1638,7 +1642,7 @@ TEST(asc_exit_first_high_side_pulse_after_the_release_deadline)
         CHECK(sim_pwm_mod_ns() > t_clr && gap >= (1070u + g_app.p->dead_time_ns));
         if (t_fails != before) {
             printf("    ^ %s: first high-side pulse %llu ns after the clear (deadline %u ns)\n", g_app.p->name,
-                   (unsigned long long)gap, 1070u + g_app.p->dead_time_ns);
+                   (unsigned long long)gap, (unsigned)(1070u + g_app.p->dead_time_ns));
         }
     }
 }
@@ -1680,7 +1684,7 @@ TEST(lv_overvoltage_beyond_its_band_takes_the_orderly_ramp)
     h_run_ms(100u); /* below n_x the row's cell: the ramp, then SPO — pulses off, the bridge still armed */
     CHECK(g_app.t_cmd_nm == 0.0f && hal_pwm_mode() == HAL_PWM_OFF && g_app.br.mode == BR_IDLE && g_app.sm.st == SM_RUN);
     sim_fs26_vsup(13.5f);
-    h_run_ms(20u);
+    h_run_ms(70u); /* round 23: the command slews back to 100 N m in 50 ms */
     CHECK(!g_app.vsup.ov && !g_app.vsup.sustained && !fm_active(&g_app.fm, SS_ROW_CMD_LOST) &&
           g_app.t_cmd_nm == 100.0f && hal_pwm_mode() == HAL_PWM_MOD);
 }
@@ -1752,7 +1756,7 @@ TEST(samples_stamped_after_the_isr_entry_stay_fresh)
             CHECK(g_app.sm.st == SM_RUN && !dtc_active(DTC_ISNS_STALE) && !dtc_active(DTC_VDC_STALE) &&
                   !dtc_active(DTC_RSLV_STALE));
             if (t_fails != fails0) {
-                printf("    ^ read delay %u ns, %s\n", delay_ns[d], (w == 0u) ? "no wrap" : "across the wrap");
+                printf("    ^ read delay %u ns, %s\n", (unsigned)delay_ns[d], (w == 0u) ? "no wrap" : "across the wrap");
             }
         }
     }
@@ -1941,6 +1945,100 @@ TEST(fw15_low_wait_counts_from_a_fault_that_preempted_the_task)
     CHECK(!dtc_active(DTC_FLT_RECOVERY_FAIL) && g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC);
 }
 
+/* ======================= round 23 (FW-37) ======================= */
+
+static int16_t status_i16(const hal_can_frame_t *f, unsigned at)
+{
+    return (int16_t)(uint16_t)(f->data[at] | (f->data[at + 1u] << 8));
+}
+
+static bool next_status(hal_can_frame_t *f)
+{
+    (void)last_status(f);
+    for (uint32_t k = 0u; k < 20u; k++) {
+        h_run_ms(1u); /* the tick that sends the next status frame */
+        if (last_status(f)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/* The review's salient motor (Ld 0.2 mH, Lq 0.8 mH, 25 mOhm, 0.1 Wb, 4 pole pairs; n_x 12 129 rpm) in the calibration
+ * record, 8356 rpm (3500 rad/s el) at 750 V: field weakening. Before, the references for +100 / -100 N m represented
+ * +164.7 / -168.3 N m while the status said +100 / -100. Now they represent the command (0.1 %), and INV_STATUS b4-5
+ * (the torque applied) and b16-17 (the command) both say it. */
+TEST(a_salient_motor_in_field_weakening_gets_the_commanded_torque_and_reports_it)
+{
+    sim_reset();
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    h_cal.motor.ld_h = 0.2e-3f;
+    h_cal.motor.lq_h = 0.8e-3f;
+    h_cal.motor.psi_wb = 0.1f;
+    calib_seal(&h_cal);
+    h_boot();
+    CHECK(h_to_run(100.0f));
+    h_ramp_speed(8356.0f, 600u);
+    const float tq[2] = {100.0f, -100.0f};
+    for (unsigned k = 0u; k < 2u; k++) {
+        H.torque_nm = tq[k];
+        h_run_ms(130u); /* round 23: the command slews (200 N m in 100 ms) */
+        const float t_ref = torque_from_current(g_app.id_ref, g_app.iq_ref, &g_app.cal.motor);
+        CHECK(g_app.sm.st == SM_RUN && hal_pwm_mode() == HAL_PWM_MOD && g_app.t_cmd_nm == tq[k]);
+        CHECK(g_app.id_ref < -50.0f && fabsf(t_ref - tq[k]) <= 0.1f && fabsf(g_app.t_act_nm - tq[k]) <= 0.1f);
+        hal_can_frame_t f;
+        CHECK(next_status(&f) && fabs((double)status_i16(&f, 4u) - (double)(tq[k] * 10.0f)) <= 1.0 &&
+              status_i16(&f, 16u) == (int16_t)(tq[k] * 10.0f));
+        if (fabsf(t_ref - tq[k]) > 0.1f) {
+            printf("    ^ %+.0f N m commanded: the references represent %+.1f N m\n", (double)tq[k], (double)t_ref);
+        }
+    }
+}
+
+/* 450 N m at 3000 rpm on the screening motor: the FW-03 envelope passes it, the 340 A rms circle holds 432.7 N m.
+ * TQ_LIMITED: the references represent the most the circle allows, INV_STATUS b4-5 reports that, b16-17 the 450 N m
+ * command (before, the status said 450 N m while 432.7 N m were applied). */
+TEST(a_current_limited_command_reports_the_torque_applied_beside_it)
+{
+    CHECK(run_at(3000.0f, 100.0f));
+    H.torque_nm = 450.0f;
+    h_run_ms(200u); /* round 23: the command slews (350 N m in 175 ms) */
+    const float t_ref = torque_from_current(g_app.id_ref, g_app.iq_ref, &g_app.cal.motor);
+    const float i_ref = sqrtf((g_app.id_ref * g_app.id_ref) + (g_app.iq_ref * g_app.iq_ref));
+    CHECK(g_app.sm.st == SM_RUN && g_app.t_cmd_nm == 450.0f && !dtc_active(DTC_TORQUE_POSTCOND));
+    CHECK(fabsf(t_ref - 432.7f) <= 0.2f && fabsf(g_app.t_act_nm - t_ref) <= 1e-3f && i_ref <= TI_SQRT2 * 340.0f * 1.0001f);
+    hal_can_frame_t f;
+    CHECK(next_status(&f) && fabs((double)status_i16(&f, 4u) - 4327.0) <= 2.0 && status_i16(&f, 16u) == 4500);
+}
+
+/* A torque -> current postcondition failure is a fault: a corrupt RAM copy of the motor record (id_demag_a < 0) makes
+ * every vector fail it. DTC, zero torque, no current reference, 0 Nm applied on the status, and the §6 "control lost"
+ * row decides the bridge in the same task: SPO at 1000 rpm, PWM-ASC at 10 000 rpm (n_x 8086 rpm); then FAULT. */
+TEST(a_torque_postcondition_failure_is_a_fault_with_no_current_reference)
+{
+    const float rpm[2] = {LOW_RPM, HIGH_RPM};
+    for (unsigned c = 0u; c < 2u; c++) {
+        const unsigned before = t_fails;
+        CHECK(run_at(rpm[c], 50.0f));
+        CHECK(hal_pwm_mode() == HAL_PWM_MOD && g_app.iq_ref > 10.0f);
+        g_app.cal.motor.id_demag_a = -50.0f;
+        tick_1ms();
+        CHECK(dtc_active(DTC_TORQUE_POSTCOND) && fm_active(&g_app.fm, SS_ROW_RESOLVER_INVALID));
+        CHECK(g_app.t_cmd_nm == 0.0f && g_app.t_act_nm == 0.0f && g_app.id_ref == 0.0f && g_app.iq_ref == 0.0f &&
+              !g_app.mod_req);
+        CHECK((c == 0u) ? (hal_pwm_mode() == HAL_PWM_OFF) : (g_app.br.mode == BR_ASC && hal_pwm_mode() == HAL_PWM_ASC));
+        h_run_ms(20u);
+        hal_can_frame_t f;
+        CHECK(g_app.sm.st == SM_FAULT && hal_pwm_mode() != HAL_PWM_MOD && !g_app.mod_req && g_app.id_ref == 0.0f &&
+              g_app.iq_ref == 0.0f);
+        CHECK(next_status(&f) && status_i16(&f, 4u) == 0 && status_i16(&f, 16u) == 0);
+        if (t_fails != before) {
+            printf("    ^ %.0f rpm\n", (double)rpm[c]);
+        }
+    }
+}
+
 void suite_scenarios(void)
 {
     RUN(boot_to_run_follows_section_9);
@@ -2013,4 +2111,7 @@ void suite_scenarios(void)
     RUN(a_late_completion_after_a_break_never_dates_the_angle);
     RUN(resolver_producer_restarts_are_bounded_per_key_cycle);
     RUN(fw15_low_wait_counts_from_a_fault_that_preempted_the_task);
+    RUN(a_salient_motor_in_field_weakening_gets_the_commanded_torque_and_reports_it);
+    RUN(a_current_limited_command_reports_the_torque_applied_beside_it);
+    RUN(a_torque_postcondition_failure_is_a_fault_with_no_current_reference);
 }

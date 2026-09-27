@@ -807,6 +807,7 @@ Evidence files for superseded/rejected parts are kept deliberately and labeled.
 | MMZ1608-automotive.pdf | 397,132 | TDK MMZ1608 automotive signal-line bead catalog (LVS1–4 MMZ1608B471CTDH5 since A.15) |
 | MPZ2012S101AT000-commercial-grade-reference.pdf | 207,952 | TDK MPZ2012 sibling sheet — evidence that the AT000 suffix is the commercial-grade catalog (bead alternates to be confirmed) |
 | Samtec-IPL1.pdf | 389,449 | Samtec IPL1 single/double-row 2.54 mm shrouded header (JDIS/JCTL IPL1-104, JHVIL IPL1-102 since A.15; doc F-226) |
+| Samtec-FTSH-DV.pdf | 560,843 | Samtec FTSH-1XX-XX-XXX-DV-XXX product print rev ET (JSWD FTSH-105-01-L-DV-K: double-row VERTICAL SURFACE-MOUNT 1.27 mm strip; sheet 1 numbering and tails, sheet 2 the -K shroud) — archived round 23 for the SMT land (F215) |
 | Samtec-IPD1-CC79L.pdf | 555,971 | Samtec IPD1 housings + CC79L crimps (the mating side of every IPL1 header) |
 | VY2-series.pdf | 172,543 | Vishay VY2 Y2 disc series (CPET VY2472M49Y5US6TV0 since A.15) |
 | B32021-Y2.pdf | 2,158,794 | TDK/EPCOS B32021 Y2 MKP film box — CPET alternate B32021A3472 |

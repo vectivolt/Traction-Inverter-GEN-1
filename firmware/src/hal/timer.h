@@ -22,8 +22,28 @@ uint32_t hal_time_us(void);
 /* Monotonic microseconds since the time base started (never wraps in service). */
 uint64_t hal_time_us64(void);
 
+/* n / d for a 64-bit n and a divisor 1..65535 with 32-bit arithmetic only: four 16-bit digits, one hardware UDIV each.
+ * The current-loop ISR (a DTC's time stamp) and the SDADC completion ISR (resync: the block a completion belongs to)
+ * divide 64-bit microseconds; a plain `/` there links libgcc's __aeabi_uldivmod (a ~100-cycle software loop, T-36) —
+ * `make target-size` refuses that symbol in every object outside the task/UDS ones. Precondition: d in 1..65535 (the
+ * callers' divisors are 1000 and the SDADC block period, 100 µs). Exact: tests/test_time.c against the 64-bit `/`. */
+static inline uint64_t ti_udiv64_16(uint64_t n, uint32_t d, uint32_t *rem)
+{
+    uint32_t r = 0u;
+    uint64_t q = 0u;
+    for (uint32_t i = 4u; i > 0u; i--) {
+        const uint32_t cur = (r << 16) | (uint32_t)((n >> (16u * (i - 1u))) & 0xFFFFu);
+        q = (q << 16) | (uint64_t)(cur / d);
+        r = cur % d;
+    }
+    if (rem != NULL) {
+        *rem = r;
+    }
+    return q;
+}
+
 /* The one millisecond domain. */
-static inline uint32_t ti_ms_from_us64(uint64_t us) { return (uint32_t)(us / 1000u); }
+static inline uint32_t ti_ms_from_us64(uint64_t us) { return (uint32_t)ti_udiv64_16(us, 1000u, NULL); }
 static inline uint32_t hal_time_ms(void) { return ti_ms_from_us64(hal_time_us64()); }
 
 /* The extension shared by both platforms: the high word advances when the raw counter reads below

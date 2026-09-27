@@ -12,7 +12,7 @@ RUN at the field-weakening limit, CAN at full load, and an NVM job in flight.
 |---|---|---|---|---|---|---|
 | eFlexPWM_1 fault ISR | FFLAG (FAULT0 FLT_HS, FAULT1 ADC watchdog, FAULT2 FLT_LS) | event | 0 | FW-06: ASC_REQ edge, dead-time wait, PWM-ASC. FW-15 step 1: PWM off, DESAT hold started (the MCU_GATE_EN drop is deferred), bank to retained RAM, queue NVM, §6 decision. FW-05: OC row | FW-06 action ≤ 1.0 µs to the ASC_REQ edge (`fw06_action_us`); whole ISR ≤ 10 µs (proposed) | |
 | SDADC frame protocol (round 16; round 18: the cadence stamp; round 19: the SWG-start origin) | eDMA major loop of EACH SDADC channel: three interrupts (EXC, SIN, COS) | 3 × 10 kHz (resolver carrier) | 1 | a 64-bit time read; that channel's block count checked against its DMA destination address and its block's end on the SWG-start cadence (a block's first completion within `cal_sd_irq_lat_max_us`, a later channel's within half a period, ± the origin's uncertainty, else the ring breaks and re-syncs from the clock); the last publishes the epoch, stamped on the cadence (`sdadc_ring.c`, below) | ≤ 1 µs each; from the carrier boundary (the SDADC's output latency + eDMA + this handler's latency) ≤ `cal_sd_irq_lat_max_us` = 30 µs (T-40) | |
-| Current loop `app_isr_current` | BCTU end of list (PWM_1 SM0 VAL0/VAL1 triggers) | 2·f_sw: 20 kHz (SiC 10 kHz), 16 kHz (SiC 8 kHz), 10 kHz (IGBT 5 kHz) | 2 | `br_service` (a pending MCU_GATE_EN drop), phase currents (a complete triplet or a lost sample), FW-05 software check, V_DC, resolver frame (seqlock copy of 3 × 16 samples, DMA positions before/after, the cadence) and its age check — each freshness judged at a time read after its reads (round 18, below) — stuck-channel check (F24), FOC, guards, duty write | must finish before the next half-cycle reload: < 0.5·T_sw minus the conversion time (≈ 23 µs at 20 kHz) | |
+| Current loop `app_isr_current` | BCTU end of list (PWM_1 SM0 VAL0/VAL1 triggers) | 2·f_sw: 20 kHz (SiC 10 kHz), 16 kHz (SiC 8 kHz), 10 kHz (IGBT 5 kHz) | 2 | `br_service` (a pending MCU_GATE_EN drop), phase currents (a complete triplet or a lost sample), FW-05 software check, V_DC, resolver frame (seqlock copy of 3 × 16 samples, DMA positions before/after, the cadence) and its age check — each freshness judged at a time read after its reads (round 18, below) — stuck-channel check (F24), FOC, guards, duty write, then the waveform capture's copy (round 23, FW-41: `cap_isr`, last; below) | must finish before the next half-cycle reload: < 0.5·T_sw minus the conversion time (≈ 23 µs at 20 kHz) | |
 | 1 ms task `app_task_1ms` | STM_0 channel 0 | 1 kHz | 4 | 64-bit time read (keeps the extension alive), the FS26 watchdog answer first (every second task, below), `br_service`, current-loop liveness (FW-31), slow ADC list, SWG trim (every 5 ms), the resolver producer restart when the ring is lost (round 19: ≤ `cal_rslv_restart_max` per key cycle), temperatures, HVIL, IGN, VSUP (FW-33), CAN RX/TX, UDS requests on the diagnostic bus (≤ 4 per tick, FW-32), fault manager, arming-evidence read-back, state machine, torque path (voltage witness, the RUN-only DC-link trim), discharge + service lock, gate power, FW-16 steps | ≤ 400 µs (40 % CPU, proposed) | |
 | FlexCAN RX | RTD FlexCAN ISR → callback | event (VCU frames every 10 ms) | 5 | copy into a 16-deep ring | ≤ 2 µs | |
 | Background `app_idle` | main loop | continuous | none | NVM queue: Fee/Fls main functions | not time-critical, never on a safety path | |
@@ -71,6 +71,69 @@ single-update 10 kHz loop at f_sw = 10 kHz leaves about 19° phase margin at the
 the loop runs at 2·f_sw. Only the IGBT SKUs (5 kHz) land exactly on 10 kHz. Since round 17 the
 contract states this (§2): it is a decision, no longer an open item.
 
+### Waveform capture in the current-loop ISR (round 23, FW-41)
+
+`cap_isr()` is the last statement of `app_isr_current()`: it copies what this ISR computed into one 32-byte record of the
+capture ring (`src/diag/capture.c`, contract §10i) — no conversion started, nothing waited for, no loop over the ring — and
+evaluates the triggers. Frozen, it returns after two loads.
+
+| Quantity | Value | Basis |
+|---|---|---|
+| Work per call (armed) | the entry time and the flags word, 12 channels scaled to int16 (multiply, max, min, round, convert: branch-free on FPv5), one 32-byte record store (one D-cache line: the ring is 32-byte aligned), the DTC event count and the §6 rows compared with the previous record's, the level when it is a source | `capture.c: cap_isr` |
+| Host reference | 11.8 ns (−O2) and 14.4 ns (−O1) per call, 37.5 ns with ASan/UBSan (arm64, the best of 40 × 20 000 calls) | `capture: the_isr_copy_is_a_bounded_copy_on_the_host` (`TI_CAP_BENCH=1` prints it) |
+| Cortex-M7 estimate | ≈ 300 Thumb-2 instructions on the common path (clang 17 −Os, thumbv7em, FPv5: per channel VMUL, VMAXNM, VMINNM, VRINTX, VCVT and one VMRS, no branch), ≈ 0.7–1.0 µs at 320 MHz (1–1.5 instructions per cycle and the ring's line fill) | a static count of the compiled function; on silicon: T-43 |
+| Share of the ISR budget | ≤ 1 µs of the ≈ 23 µs at 20 kHz, the tightest case (≤ 4.3 %) | the "Current loop" row above |
+| Once per capture | the trigger record (≈ 30 instructions more), the freeze (≈ 10) | |
+| The read-out | never in an ISR: the 1 ms task, ≤ 4 requests per tick (FW-32), each ≤ 56 bytes copied from the frozen ring, which the ISR does not write; an arm or a command is a counter the ISR reads at its next run — no critical section on either side | `diag/uds_capture.c` |
+
+With the capture armed from boot in every scenario, the host's timing assertions hold unchanged — the FW-06 chain within
+15.6 µs, the FS26 answers every 2 ms at both oscillator corners, FW-31 liveness, the ASC-exit edge, FW-34's read delays — and
+`capture: the_capture_reads_out_over_the_diagnostic_bus_while_the_inverter_runs` counts exactly one current-loop ISR per period
+from the arming through the trigger, the freeze and a 1176-block read-out under torque, every record one period after the one
+before. (A priority-0 fault ISR delays the next current-loop entry by its own run — e.g. the PWM-ASC dead time — as before.)
+
+### Motor self-commissioning in the current-loop ISR and the 1 ms task (round 23, FW-39)
+
+Nothing of it runs unless the service tool started a routine (its preconditions: contract §10g); outside a routine each
+hook is one flag test. Estimates for the Cortex-M7 at 320 MHz; the WCET columns above are measured with it (T-36).
+
+| Where | Work per call | Budget |
+|---|---|---|
+| current-loop ISR, before `foc_step` (`mc_isr_refs`) | the routine's current references: the sample's phase and index (two integer divisions), one lookup in the precomputed sine table, two adds | < 0.1 µs |
+| current-loop ISR, after `foc_step` (`mc_isr_sample`) | the commanded bridge voltage from the duties (4 multiplies), Clarke of the currents (3), the rotation into the locked rotor's frame (8), the demodulation (8 multiply-adds) or the DC sums (5), the voltage vector's cross product (the dyno routine, 3), the block index (one integer division); no trigonometry, no floating-point division | ≈ 0.3–0.5 µs, ≤ 2 % of the ≈ 23 µs ISR budget at 20 kHz |
+| 1 ms task, while a routine runs (`mc_task`) | the precondition list (a scan of the DTC store, ≈ 90 entries; a few compares), the watch (a Clarke and a square root) | ≈ 3 µs |
+| 1 ms task, the tick a routine ends (once) | the estimates — ≤ 9 complex 2 × 2 solves and their eigenvalues (L_d/L_q) or ≤ 9 atan2/sqrt (ψ, the zero) — and the FW-20 class check per quantity: `calib_check` on a copy of the record, a bitwise CRC-32 over its 476 bytes (round 23: layout 4, FW-45/FW-46 — ≈ 15 k cycles, ≈ 47 µs), two at most (a biased L_d/L_q run, FW-45: none — a map point's class is its range) | ≤ 110 µs; with the FW-37 solve's ≈ 65 µs worst case ≤ 175 µs of the task's 400 µs (with a saturating map, FW-45, the solve's ≈ 180 µs: ≤ 290 µs) |
+| 1 ms task, a start (UDS) | the injection tables (≤ 64 sinf/cosf pairs) and the plan | ≈ 30 µs, once |
+| 1 ms task, a commit (UDS) | `calib_seal` and `calib_check` (two CRCs, ≈ 95 µs; round 23: + the maps' conversion, FW-45, ≈ 20 flops per axis) and the record's `nv_queue` copy (below) | ≤ 120 µs, once |
+
+The routines' own durations (20 kHz loop): R_s 2 × (60 + 200) ms = 520 ms, L_d/L_q 2 × (40 + 192) ms = 464 ms (whole
+injection periods), ψ/zero 100 + 400 ms; at a 10 kHz loop the same in milliseconds with half the samples. The watch's
+schedule allows 20 ms more (`MC_R_TIMEOUT`).
+
+### Diagnostic services in the 1 ms task (round 23, FW-40)
+
+All of it runs in `diag()`: `uds_diag_rx()` for each request (≤ 4 per task, FW-32's limit), then `uds_diag_tick()` once —
+at most one frame per task (a response frame first, else one periodic DID), no wait, no retry loop, no loop over time. It
+reads what the application already holds and writes nothing control reads. Host figures: Apple M1 Pro, clang −O2, the
+average of 2·10⁵ calls (`uds_diag_tick` with the state live at 3000 rpm); the M7 at 320 MHz is taken as ≈ 30× slower
+(clock and issue width) — T-56 measures it, with T-36.
+
+| Where | Work per call | Host | Target (estimate) |
+|---|---|---|---|
+| a periodic DID (0x2A), up to one per task | the DID's bytes (≤ 43; four floats and a few flags for most) copied into one frame, `hal_can_tx` (never waits: a busy mailbox drops it) | 41 ns | ≈ 1–2 µs |
+| a 0x22 request (≤ 8 DIDs) | the same per DID, into the response; 0xFD22 reads the validation record (two slot copies, two CRC-32s over ≈ 50 bytes) | 41 ns (0xF207) | ≈ 2 µs; 0xFD22 ≈ 25 µs |
+| a 0x19 01 / 02 / 0A request | one pass over the DTC store (≈ 80 entries) | 0.23 µs (0A) | ≈ 7 µs |
+| a 0x19 04 request, each task until answered (≤ 9) | ≤ 2 ring records (`nv_read_fault`: a 512-byte slot copy, a CRC-32 over the record's 72 bytes, the O(16²) newest-first ordering) + one at the end | 1.4 µs mean | ≤ 40 µs |
+| a response frame (single, first or consecutive) | ≤ 64 bytes copied, `hal_can_tx` | < 0.1 µs | ≈ 1 µs |
+| round 23 (fix 11): a frame of a segmented request, ≤ 4 per task (`UDS_DIAG_RX_BS`, the static assert against `DIAG_RX_MAX_PER_TICK` in `app.c`) | a first or consecutive frame: ≤ 63 bytes copied into the 4095-byte buffer, the sequence number checked; the flow control owed sent by the tick as its one frame | — | ≈ 1 µs each |
+| round 23 (fix 11): a complete TransferData block, once per ≈ 17 tasks (65 consecutive frames at 4 per task) | `upd_uds` → `upd_transfer`: the counter and length checks, ≤ 4093 bytes copied byte by byte into the 4 KiB chunk buffers (the flash programming itself stays in `app_idle`); only in the programming session — disarmed, no torque (FW-38) | — | ≈ 40 µs |
+
+The stream is limited by construction: one frame per task, so ≤ 1 kHz whatever is scheduled (four DIDs at the fast rate
+share it: each every 4 ms), none in a task that sends a response frame, and a refused frame is dropped, not caught up. On
+the host the layer takes no simulated time and a 400-task run at 3000 rpm with four DIDs at 1 kHz is bit-identical, in
+every control output and every task's end time, to the same run without it (`uds_diag: the_stream_changes_no_control_
+output_and_no_task_timing`).
+
 ## FW-06: over-voltage to ASC request
 
 | Segment | Allocation | Source | Host model | Target (checklist T-05, T-08, T-11) |
@@ -118,17 +181,40 @@ preempt it, and neither grid moves.
 
 `hal_crit_enter/exit` set PRIMASK. That masks the fault ISR too, which is necessary because each
 user is reached from the fault ISR and from lower contexts. The users are:
-- the `nv_queue` record copy, ≤ 28 bytes (`nv_fault_t`), a few tens of cycles;
+- the `nv_queue` record copy of a fault event, `nv_fault_t` — 56 bytes since round 23 (FW-40 appended the operating
+  context), queued by the fault ISR itself — a few tens of cycles;
+- round 23 (FW-39): the commit's `nv_queue` copy of the calibration record — 476 bytes since layout 4 (FW-45/FW-46; 352
+  before), ≈ 1.4 µs — the longest section now, once
+  per commit and only with the bridge not switching (the commit is refused while it modulates or holds PWM-ASC);
 - `hal_time_us64()`: one STM read and the high-word update (A12-R06), a handful of cycles — round 19: also at every SDADC
   completion (≈ 30 000 per second);
 - round 19: `hal_swg_start()`'s bracket at a start or restart of the SWG — two `hal_time_us64()` and one SGEN register
   write — so nothing widens the origin's uncertainty between the reads;
 - the bridge's DESAT-hold bookkeeping (`en_low`, `br_service`): two GPIO reads, one time read and
   at most one GPIO write (A12-R05).
+- round 23 (FW-44): the copy of the three working current offsets at the key-on decision, once per boot with the
+  bridge disarmed (`app.c: offset_refresh`), a few tens of cycles.
 Whichever of these happens to be running when the V_DC compare trips adds directly to the FW-06
 action segment, so they are listed there; the `nv_queue` copy stays the longest.
 
 ## Other periodic deadlines
+
+- **Torque → current solve (round 23, FW-37)** — `torque_to_current()` runs in the 1 ms task. Worst case measured on the host
+  reference sweep: ≈ 20 k cycles (≈ 65 µs at 320 MHz) when the torque must be reduced by bisection (259 voltage checks + 571 slope
+  evaluations); an ordinary MTPA call ≈ 25 evaluations. Inside the 1 ms budget with margin; T-40-class target timing to confirm.
+  Round 23 (FW-45): with a saturating L_d/L_q map the contour costs a segment search, a square root and a division per
+  evaluation, the searches a five-point sign scan each; on the host (Apple M-series, −O2, the 20 000-case reference of
+  `tests/test_fw45_46.c`) the mean solve is 3.0× FW-37's (9.5 µs against 3.2 µs) and the slowest case 2.8× FW-37's slowest
+  (36 µs against 13 µs; 242 voltage checks + 754 slope evaluations + 35 cost evaluations, each on its contour) — by the
+  estimate above ≈ 180 µs at 320 MHz in the worst case, a reduced torque on a saturated machine. A flat map (the default)
+  takes FW-37's path: no change. The M7's number is T-57's; the task keeps ≤ 400 µs only if its other work stays ≤ 220 µs
+  in the same tick.
+- **Current loop with the maps and the ripple feed-forward (round 23, FW-45 / FW-46)** — `foc_step` evaluates both maps at
+  the measured currents (two lookups: the apparent inductance for the speed voltages, the differential for the scheduled
+  gains; four divisions) and `control_fast` the ripple table at the FOC's angle (one lookup, no `fmodf`: the angle is in
+  [0, 2π)): on the host +8 ns per `foc_step` with maps (29.9 → 38.2 ns) and +2 ns for the table — ≈ +0.7 µs on the M7 by
+  FW-41's scale (15 ns host ≈ 1 µs), ≈ 3 % of the ≈ 23 µs ISR budget at 20 kHz. The table's scale (`torque_ripple_scale`, ≤ 26
+  voltage and circle checks) runs in the 1 ms task after the solve, ≈ 5 µs.
 
 | Item | Period / deadline | Where |
 |---|---|---|
@@ -146,10 +232,14 @@ action segment, so they are listed there; the `nv_queue` copy stays the longest.
 | SWT (MCU watchdog) | 50 ms, serviced by the task | `hal_wdog_kick` |
 | Resolver | 10 kHz frames. Round 16: the angle is withdrawn when the newest coherent frame (its block start) is `cal_rslv_hold_us` = 500 µs old, checked on every current-loop tick whether or not a frame arrived (so at most one tick late: 550 µs at 20 kHz, 600 µs at 10 kHz); returning frames re-acquire (priming + 20 blocks ≈ 2.2 ms). A gap of more than 8 blocks between consumed frames also re-acquires. Round 18: the frame's stamp is its block start on the SDADC cadence; round 19: that cadence dated by the SWG start, a lost ring restarted by the 1 ms task (above) | `resolver.c: rslv_age`, `app.c: sense_fast, sense_slow`, `sdadc_ring.c` |
 | Current-loop liveness (round 16) | the 1 ms task declares the phase currents lost (and ages the resolver) when the last current-loop ISR entry is older than `cal_isns_stale_us` = 200 µs: a stopped BCTU is seen within one task period | `app.c: app_task_1ms` |
+| Overspeed, run-time statistics, offset refresh (round 23, FW-42/43/44) | every 1 ms task: the overspeed band (one comparison, a counter: `cal_ovs_debounce_ms` = 10 ms to enter or leave a band) before `detect()`; at the task's end the statistics (one dq power, three maxima, a scan of the DTC store's occurrence counters — `DTC_COUNT` entries) and the FW-44 decision, once per boot (the three working offsets copied under PRIMASK, the FW-05 compare re-programmed). The run-time record is queued every `cal_rs_save_s` = 600 s, once on entering SAFE_POWERDOWN (which waits for the queue before LPOFF) and at an adoption — never on a safety path; an unclean shutdown loses at most the last `cal_rs_save_s` | `app.c: overspeed, run_stats, offset_refresh`; `overspeed.c`, `runstats.c`, `offtrack.c` |
 | SWG ramp (round 16) | from `cal_swg_code_init` one IOAMPL code per 5 ms until the monitor plane is within ±5 % of 7.2 V pp: resolver valid 20 / 25 / 35 ms after init (high / typical / low MAXAPP corner, host model) | `resolver.c: rslv_swg_trim`, `app.c: sense_slow` |
-| Resolver chain latency | `cal_rslv_latency_us` (SDADC group delay + filter envelope), measured on HIL (checklist T-37). Sign (round 18, FW-36): **positive = the reported angle lags the rotor** — the block's angle is the rotor's that long before its mid-block reference — and the extrapolation to the control instant **adds** it: θ(now) = θ_block + ω·((now − t_ref) − t_mid + L) (it was subtracted: −12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs) | `rslv_theta_e_at` |
+| Resolver chain latency | `cal_rslv_latency_us` (SDADC group delay + filter envelope), measured on HIL (checklist T-37). Sign (round 18, FW-36): **positive = the reported angle lags the rotor** — the block's angle is the rotor's that long before its mid-block reference — and the extrapolation to the control instant **adds** it: θ(now) = θ_block + ω·((now − t_ref) − t_mid + L) (it was subtracted: −12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs). Round 23 (fix 7): t_mid is the demodulator's own weighting centroid — the lagged carrier weights the samples by sin²(φ_k + ref), whose centroid is 7.7 µs after the samples' mean at −24° (100 µs blocks of 16) — so L is the chain's delay beyond it | `rslv_theta_e_at`, `resolver.c: centroid_us` |
 
 Every hardware timing that the contract does not fix is a `cal_*` field. Each has its contract
-default and a `[min, max]` range (`include/cal_ranges.h`, 78 items; round 18 added `cal_sd_irq_lat_max_us`, round 19
-`cal_swg_start_lat_us` and `cal_rslv_restart_max`).
+default and a `[min, max]` range (`include/cal_ranges.h`, 91 items — round 23's FW-46 added `cal_ripple_ff_max_a` and
+`cal_ripple_ff_fmax_hz`; round 18 added `cal_sd_irq_lat_max_us`, round 19
+`cal_swg_start_lat_us` and `cal_rslv_restart_max`; round 23 the FW-42/43/44 six and, with its fixes, `cal_temp_rate_win_ms`,
+`cal_temp_rate_db_codes`, `cal_torque_slew_nm_s`, `cal_fw_emf_margin_frac`, `cal_asc_oc_window_ms` and
+`cal_speed_accel_max_rpm_s` in place of `cal_speed_hold_ms`).
 None is invented as a constant in the code.

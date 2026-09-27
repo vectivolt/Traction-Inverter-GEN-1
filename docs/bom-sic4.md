@@ -1,6 +1,6 @@
-# Traction Inverter — 4XX · SiC (HCS600FH120D3C1), 250–500 V bus — BOM (rev A.21, generated 2026-09-26)
+# Traction Inverter — 4XX · SiC (HCS600FH120D3C1), 250–500 V bus — BOM (rev A.22, generated 2026-09-26)
 
-220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
+150 kW pk / 400 V SiC traction inverter (on request) — Power board + Cap-bank busbar + bolt-on Discharge board + Control card (round 23, A20-F05: the intro follows the SKU; it read "220 kW pk / 800 V SiC" under every variant heading before).
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
 LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and
@@ -58,7 +58,7 @@ CSV: [`docs/bom-discharge-sic4.csv`](bom-discharge-sic4.csv). Top cost lines:
 | 2 | R0603-10k | UCC14141-Q1 ENA divider top from V15 | 1 | any |
 | 1 | R0603-62k-1% | UCC14141-Q1 FBVDD divider top: 2.5 V x | 0 | any 1 % |
 
-## control-card — 301 components, 118 BOM lines, ≈ ₹6,355 @1k
+## control-card — 304 components, 119 BOM lines, ≈ ₹6,355 @1k
 
 CSV: [`docs/bom-control-card-sic4.csv`](bom-control-card-sic4.csv). Top cost lines:
 
@@ -95,7 +95,7 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | FS26 SBC + LV input + wake | 691 | 1.0% | 94.1% | 40 |
 | Gate drivers + networks | 659 | 0.9% | 95.1% | 129 |
 | ASC buffer | 650 | 0.9% | 96.0% | 18 |
-| misc | 604 | 0.8% | 96.8% | 56 |
+| misc | 604 | 0.8% | 96.8% | 59 |
 | Module snubbers | 540 | 0.8% | 97.6% | 3 |
 | Harness + pulldowns | 495 | 0.7% | 98.3% | 17 |
 | HV entry/Y-caps/HVIL/studs | 302 | 0.4% | 98.7% | 14 |
@@ -112,10 +112,10 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 55,986 | 78.4% |
-| drive + control ICs | 10,494 | 14.7% |
+| drive + control ICs | 10,539 | 14.8% |
 | magnetics | 2,195 | 3.1% |
-| connectors + sensors | 1,606 | 2.2% |
-| misc | 429 | 0.6% |
+| connectors + sensors | 1,561 | 2.2% |
+| misc | 430 | 0.6% |
 | isolation | 231 | 0.3% |
 | capacitors | 216 | 0.3% |
 | protection + diodes | 132 | 0.2% |

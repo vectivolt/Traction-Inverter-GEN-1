@@ -1,0 +1,10 @@
+# FW-15 / section 6: a high-side DESAT above n_x (SPO, the >= 1.5 ms driver reset, then PWM-ASC; keep_hv),
+# then the speed brought below n_x, a VCU fault reset and the one authorised retry.
+{"cmd":"arm","in_ms":1500}
+{"cmd":"speed","rpm":10000,"ramp_rpm_s":5000,"in_ms":2500}
+{"cmd":"torque","nm":100,"in_ms":5000}
+{"cmd":"inject","fault":"desat_hs","in_ms":6000}
+{"cmd":"torque","nm":0,"in_ms":6010}
+{"cmd":"speed","rpm":1000,"ramp_rpm_s":5000,"in_ms":7000}
+{"cmd":"retry_auth","in_ms":9500}
+{"cmd":"fault_reset","in_ms":9600}

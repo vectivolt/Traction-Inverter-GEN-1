@@ -240,13 +240,6 @@
       "SMA-flat"
     ]
   },
-  "PinHeader_2x05_P1.27mm_Vertical": {
-    "source": "KiCad 10.0.6 Connector_PinHeader_1.27mm.pretty (verbatim copy)",
-    "sha256": "d6a5a2be5abdc770",
-    "codes": [
-      "HDR2x5-1.27"
-    ]
-  },
   "PinHeader_2x05_P2.00mm_Vertical": {
     "source": "KiCad 10.0.6 Connector_PinHeader_2.00mm.pretty (verbatim copy)",
     "sha256": "c585fb7d8e478e27",
@@ -337,6 +330,13 @@
     "sha256": "0659d885e00b7869",
     "codes": [
       "SOT363"
+    ]
+  },
+  "Samtec_FTSH-105-01-L-DV-K": {
+    "source": "drawn from the archived datasheet (MANIFEST.md)",
+    "sha256": "363560784d8ed718",
+    "codes": [
+      "HDR2x5-1.27"
     ]
   },
   "Samtec_IPL1-102_1x02": {

@@ -185,6 +185,7 @@ void br_enter_pwm_asc(bridge_t *b, uint32_t t_hs_off_us, const ti_params_t *p)
         hal_delay_us(dt_us - since);
     }
     hal_pwm_set_asc();
+    b->t_asc_us = hal_time_us();
     hal_gpio_write(HAL_DO_MCU_GATE_EN, true);
     b->mode = BR_ASC;
     b->n_asc_entries++;

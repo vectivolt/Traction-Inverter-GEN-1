@@ -25,7 +25,7 @@ const MCU_PINS: [string, string][] = [
   ["A5_VDC2", "VDC2_SE"],  // PTE1 ADC1_P6 — V_DC channel 2 (was PTB0: no ADC)
   ["A7_VDDA_SWG01", "V5A"],  // VDDA_SWG01 — SWG analog supply (filtered 5 V)
   ["A8_SWG1", "SWG1"],  // SWG1_0 SWG1_0 — resolver excitation source
-  ["A9_VREFH_R2R", "VREF5"],  // VREFH_R2R — ADC reference high (FS26 VREF 5 V)
+  ["A9_VREFH_R2R", "VR2R"],  // VREFH_R2R — the R2R (SWG) DAC reference: VREF5 through RR2R 10 R + CR2R1/CR2R2 (round 23, F214 — DS note 8: isolated or filtered from the SDADC/SAR references)
   ["A11_MT1", "MT1_SIG"],  // PTA15 ADC3_P4 — motor temp 1 (PTA12 absent)
   ["A12_VREXMP", "VREXM_P"],  // PTA16 SDADC1_AN[0] — excitation monitor + (SDADC1 AN0)
   ["A13_VDC1", "VDC1_SE"],  // PTA0 ADC6_P4 — V_DC channel 1
@@ -337,6 +337,19 @@ export default () => (
     ))}
     <capacitor name="CMA1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.AGND" }} />
     <capacitor name="CMA2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.AGND" }} />
+    {/* Round 23 (A20-F02, F214): S32K39 DS operating-conditions note 8 — "All the VREFH_xx except of VREFH_R2R must be shorted to a
+        single supply source … Isolated VREFH_R2R is required to avoid SDADC performance degradation. If an isolated supply cannot be
+        used, appropriate filtration is needed to isolate the VREFH_R2R noise." Until A.21 ball A9 sat directly on VREF5 with the
+        SDADC/SAR references. Now: VREF5 -> RR2R 10 R -> VR2R (A9) with CR2R1 1 uF + CR2R2 100 nF at the ball: a 16 kHz low-pass
+        that supplies the R-2R ladder's code-dependent reference current locally instead of drawing it through the shared
+        precision reference. A resistor, not a bead: the isolation must hold at the SWG update rate and below, and the FS26
+        VREF output-capacitance window (1.1-3.3 uF effective on VREF5) forbids more bulk directly on the rail — the 10 R keeps
+        CR2R1 off the regulator's loop. The DS gives no ladder reference current (VR-35 asks NXP); at an assumed <= 1 mA the
+        static drop is <= 10 mV = 0.2 % of the DAC full scale, inside the SWG's own +-10 % amplitude spec and calibrated out by
+        FW-10 at the monitor plane. The SDADC/SAR references stay on VREF5 (note 8's single source). */}
+    <resistor name="RR2R" resistance="10" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.VR2R" }} />
+    <capacitor name="CR2R1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VR2R", pin2: "net.AGND" }} />
+    <capacitor name="CR2R2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.VR2R", pin2: "net.AGND" }} />
     {/* SWD/JTAG + boot */}
     <chip name="JSWD" footprint={Header(10, 2)} {...gp()}
       pinLabels={{ pin1: "VREF", pin2: "TMS", pin3: "GND1", pin4: "TCK", pin5: "GND2", pin6: "TDO", pin7: "NC7", pin8: "TDI", pin9: "GND3", pin10: "RST" }}

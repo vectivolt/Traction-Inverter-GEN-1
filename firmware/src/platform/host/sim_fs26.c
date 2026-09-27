@@ -153,7 +153,7 @@ static void wd_good(void)
     F.wd_rfr++;
     if (F.wd_rfr >= rfr_limit()) {
         F.wd_rfr = 0u;
-        F.flt_err = (F.flt_err > 0u) ? (uint8_t)(F.flt_err - 1u) : 0u;
+        F.flt_err = ((F.flt_err > 0u) && !F.cfg.flt_err_stuck) ? (uint8_t)(F.flt_err - 1u) : F.flt_err;
     }
     const uint16_t lsb = (uint16_t)(F.token & 1u);
     F.token = (uint16_t)(F.token >> 1);

@@ -68,5 +68,12 @@ void suite_gate_power(void);
 void suite_gate_selftest(void);
 void suite_state_machine(void);
 void suite_scenarios(void);
+void suite_capture(void); /* round 23 (FW-41): sampled-waveform capture */
+void suite_fw42_44(void); /* round 23: overspeed, run-time statistics, offset refresh */
 
+void suite_commission(void); /* round 23 (FW-39): motor self-commissioning */
+void suite_update(void); /* round 23 (FW-38): firmware update */
+void suite_uds_diag(void); /* round 23 (FW-40): diagnostic services */
+void suite_r23_fixes(void); /* round 23: the defects the closed-loop simulator and the update work found (contract §10k) */
+void suite_fw45_46(void);   /* round 23: FW-45 saturation maps, FW-46 torque-ripple feed-forward (contract §10l, §10m) */
 #endif /* TEST_H */

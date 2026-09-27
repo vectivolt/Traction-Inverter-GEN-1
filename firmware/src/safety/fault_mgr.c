@@ -33,6 +33,7 @@ void fm_boot(fm_t *f, const nv_desat_t *rec, bool rec_valid)
     const bool recent_ret = ret_ok && ((g_fm_retained.key_cycle + 1u) >= f->key_cycle);
     if (recent_nvm || recent_ret) {
         f->desat_blocked = true;
+        f->desat_bank = recent_nvm ? rec->bank : g_fm_retained.bank;
         f->desat_count = 1u;
         f->retry_used = recent_nvm && (rec->key_cycle == f->key_cycle) && (rec->retry_used != 0u);
     }
@@ -155,7 +156,7 @@ void fm_desat(fm_t *f, bool hs, const fm_ctx_t *c, const motor_t *m, const ti_pa
     const nv_fault_t ev = {.key_cycle = c->key_cycle, .t_ms = c->now_ms,
                            .code = (uint16_t)(hs ? DTC_DESAT_HS : DTC_DESAT_LS),
                            .row = (uint8_t)(hs ? SS_ROW_FLT_HS : SS_ROW_FLT_LS), .speed_rpm = c->speed_rpm,
-                           .id_a = c->id_a, .iq_a = c->iq_a, .vdc_v = c->vdc_v};
+                           .id_a = c->id_a, .iq_a = c->iq_a, .vdc_v = c->vdc_v, .op = c->op};
     (void)nv_queue(NV_REC_FAULT, &ev, (uint16_t)sizeof ev);
     /* 3) bookkeeping */
     f->desat_count = (f->desat_count < 255u) ? (uint8_t)(f->desat_count + 1u) : 255u;

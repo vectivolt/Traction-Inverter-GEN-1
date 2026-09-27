@@ -37,7 +37,12 @@ int main(void)
         suite_foc,         suite_torque,     suite_dclink,     suite_gains,     suite_can_cmd,   suite_uds,
         suite_dtc,         suite_discharge,  suite_nvlog,      suite_calib,     suite_safe_state,
         suite_fault_mgr,   suite_fs26,       suite_bridge,     suite_gate_power, suite_gate_selftest,
-        suite_state_machine, suite_scenarios,
+        suite_state_machine, suite_scenarios, suite_capture, suite_fw42_44,
+        suite_commission, /* round 23 (FW-39) */
+        suite_update,     /* round 23 (FW-38) */
+        suite_uds_diag,   /* round 23 (FW-40) */
+        suite_r23_fixes,  /* round 23: contract §10k */
+        suite_fw45_46,    /* round 23: contract §10l, §10m */
     };
     for (unsigned i = 0u; i < sizeof suites / sizeof suites[0]; i++) {
         suites[i]();

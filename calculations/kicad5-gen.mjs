@@ -1072,7 +1072,7 @@ writeFileSync(join(OUT_NATIVE, "sym-lib-table"), SYM_TABLE);
 writeFileSync(join(OUT_NATIVE, "traction-cache.lib"), rawLib);
 writeFileSync(join(OUT_NATIVE, "README.txt"),
   `NATIVE KICAD 5 VARIANT (round 15, A13-R05). Same sheets as ../traction/, un-mirrored symbol library: KiCad 5\napplies each component's orientation matrix to the library pin before adding its position. Open traction.sch\nin KiCad 5.1.x. For EasyEDA import use ../traction/ instead. Both are verified by calculations/kicad5-verify.mjs.\n`);
-const FP_NOTE = `\nFOOTPRINTS (round 22, F210): every symbol's F2 field is "${FP_LIB}:<name>" and resolves in ${FP_LIB}.pretty, shipped here\nwith fp-lib-table (patterns copied verbatim from the KiCad 10 libraries or drawn from the archived datasheets — see\n${FP_LIB}.pretty/README.md, SOURCES.json and MANIFEST.md). Off-board parts (the LEM sensors USNSU/V/W on the busbar) carry\nno footprint on purpose. calculations/kicad-sch-verify.mjs proves every symbol pin has a pad of its number.\n`;
+const FP_NOTE = `\nFOOTPRINTS (round 22, F210; round 23): every symbol's F2 field names its footprint as "${FP_LIB}:<name>". The library itself\n(kicad/traction/${FP_LIB}.pretty — patterns copied verbatim from the KiCad 10.0.6 libraries or drawn from the archived datasheets,\nsee its README.md, SOURCES.json and MANIFEST.md) is in the KiCad 10 file format, which KiCad 5–9 and EasyEDA cannot read, so it is\nNOT shipped in this set: this set is the schematic and the footprint NAMES; the footprint-enabled layout handoff is the KiCad 10\nproject in kicad/ (KiCad 10.0.6 or later). Off-board parts (the LEM sensors USNSU/V/W on the busbar) carry no footprint on purpose.\n`;
 for (const d of [OUT, OUT_NATIVE]) appendFileSync(join(d, "README.txt"), FP_NOTE);
 // Package for EasyEDA import as part of GENERATING (zips must not drift behind the sheets).
 {
@@ -1082,16 +1082,15 @@ for (const d of [OUT, OUT_NATIVE]) appendFileSync(join(d, "README.txt"), FP_NOTE
   const members = [...files.map((f) => join(OUT, `${f}.sch`)),
     join(OUT, `${LIB_NAME}.lib`), join(OUT, `${LIB_NAME}.dcm`),
     join(OUT, "traction.pro"), join(OUT, "traction.sch"), join(OUT, "sym-lib-table"), join(OUT, "traction-cache.lib")];
-  const pretty = (d) => readdirSync(join(d, `${FP_LIB}.pretty`)).map((f) => join(d, `${FP_LIB}.pretty`, f));
-  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members, join(OUT, "fp-lib-table"), ...pretty(OUT)]);
-  execFileSync("zip", ["-qX", "-r", zip, ...members.map((m) => m.slice(OUT.length + 1)), "README.txt", "fp-lib-table", `${FP_LIB}.pretty`], { cwd: OUT });
+  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...members]);
+  execFileSync("zip", ["-qX", "-r", zip, ...members.map((m) => m.slice(OUT.length + 1)), "README.txt"], { cwd: OUT });
   console.log("   packaged → kicad5/Traction-Inverter-SHIP.zip (EasyEDA-import variant)");
   const zipN = join(ROOT, "kicad5", "Traction-Inverter-KiCad5-native.zip");
   try { unlinkSync(zipN); } catch {}
   const membersN = [...files.map((f) => join(OUT_NATIVE, `${f}.sch`)), join(OUT_NATIVE, `${LIB_NAME}.lib`), join(OUT_NATIVE, `${LIB_NAME}.dcm`),
     join(OUT_NATIVE, "traction.pro"), join(OUT_NATIVE, "traction.sch"), join(OUT_NATIVE, "sym-lib-table"), join(OUT_NATIVE, "traction-cache.lib"), join(OUT_NATIVE, "README.txt")];
-  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN, join(OUT_NATIVE, "fp-lib-table"), ...pretty(OUT_NATIVE)]);
-  execFileSync("zip", ["-qX", "-r", zipN, ...membersN.map((m) => m.slice(OUT_NATIVE.length + 1)), "fp-lib-table", `${FP_LIB}.pretty`], { cwd: OUT_NATIVE });
+  execFileSync("touch", ["-t", `${DATE.replace(/-/g, "")}0000`, ...membersN]);
+  execFileSync("zip", ["-qX", "-r", zipN, ...membersN.map((m) => m.slice(OUT_NATIVE.length + 1))], { cwd: OUT_NATIVE });
   console.log("   packaged → kicad5/Traction-Inverter-KiCad5-native.zip (native KiCad 5 variant)");
 }
 console.log(`\n${files.length} sheets · ${totalComps} components · ${totalLabels} labels · ${lib.size} symbols → kicad5/traction/`);

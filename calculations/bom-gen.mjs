@@ -82,7 +82,7 @@ const subTotal = new Map();
 
 let md = `# Traction Inverter — ${SKUS[SKU].title}, ${SKUS[SKU].bus} bus — BOM (rev ${REV}, generated ${new Date().toISOString().slice(0, 10)})
 
-220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card.
+${SKUS[SKU].intro} — Power board + Cap-bank busbar + bolt-on Discharge board + Control card (round 23, A20-F05: the intro follows the SKU; it read "220 kW pk / 800 V SiC" under every variant heading before).
 Generated from the built netlists by \`calculations/bom-gen.mjs\`; the sheets, the BOM and the
 LCSC fields resolve parts through the same parts-db, so they cannot disagree.
 Prices are INR planning figures at ~1k-inverter aggregate (RFQ ±30 %); hiitio module and

@@ -58,7 +58,7 @@ void hal_sd_ring_init(hal_sd_ring_t *r, uint32_t period_us, uint32_t lat_us, uin
     r->lost = false;
     r->n_reacq = 0u;
     r->taken = count0;
-    r->period_us = period_us;
+    r->period_us = (period_us < 65536u) ? period_us : 65535u; /* ti_udiv64_16's bound: a carrier below 16 Hz is not served */
     r->lat_us = lat_us;
 }
 
@@ -113,10 +113,11 @@ static void resync(hal_sd_ring_t *r, hal_sd_ch_t ch, uint64_t now_us)
         return; /* before the first block's end: a stale interrupt */
     }
     const uint64_t since = (now_us + unc) - r->t_org; /* from the earliest the origin can be */
-    if ((since % per) > ((per / 2u) + (2u * unc))) {
+    uint32_t rem;
+    const uint64_t n = ti_udiv64_16(since, r->period_us, &rem); /* ISR path: no libgcc 64-bit divide (T-36) */
+    if (rem > ((r->period_us / 2u) + (2u * r->unc_us))) {
         return;
     }
-    const uint64_t n = since / per;
     const uint32_t j = r->k_org + (uint32_t)(n - 1u); /* the block that ended: counts wrap like the DMA's */
     const uint32_t s = j % HAL_SD_NBUF;                /* where a DMA past block j writes */
     uint32_t past = 0u;

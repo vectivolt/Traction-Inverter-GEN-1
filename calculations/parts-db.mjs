@@ -36,10 +36,10 @@ const BUS_4XX = [
 ];
 const hwid = (value, code, what) => ({ m: /^RHWID$/, value, mpn: `R0603-${code}-1%`, desc: `SKU identity (${what}) — harness pin 2 against the card's 10 k pull-up to VREF5; firmware refuses DRV_EN unless it matches the loaded parameter set`, price1k: 0.3 });
 export const SKUS = {
-  sic8: { title: "8XX · SiC (HCS600FH120D3C1)", bus: "500–850 V", rows: [] },
-  igbt8: { title: "8XX · IGBT (HCG600FH120D3E1EA)", bus: "500–850 V", rows: [hwid("4.7k", "4k7", "8XX IGBT"), ...IGBT_DRIVE] },
-  igbt4: { title: "4XX · IGBT (HCG600FH120D3E1EA)", bus: "250–500 V", rows: [hwid("2.2k", "2k2", "4XX IGBT"), ...IGBT_DRIVE, ...BUS_4XX] },
-  sic4: { title: "4XX · SiC (HCS600FH120D3C1)", bus: "250–500 V", rows: [hwid("22k", "22k", "4XX SiC"), ...BUS_4XX] },
+  sic8: { title: "8XX · SiC (HCS600FH120D3C1)", bus: "500–850 V", intro: "220 kW pk / 800 V SiC traction inverter", rows: [] },
+  igbt8: { title: "8XX · IGBT (HCG600FH120D3E1EA)", bus: "500–850 V", intro: "220 kW pk / 800 V IGBT traction inverter (5 kHz)", rows: [hwid("4.7k", "4k7", "8XX IGBT"), ...IGBT_DRIVE] },
+  igbt4: { title: "4XX · IGBT (HCG600FH120D3E1EA)", bus: "250–500 V", intro: "150 kW pk / 400 V IGBT traction inverter", rows: [hwid("2.2k", "2k2", "4XX IGBT"), ...IGBT_DRIVE, ...BUS_4XX] },
+  sic4: { title: "4XX · SiC (HCS600FH120D3C1)", bus: "250–500 V", intro: "150 kW pk / 400 V SiC traction inverter (on request)", rows: [hwid("22k", "22k", "4XX SiC"), ...BUS_4XX] },
 };
 
 export const SAFETY_ROWS = [
@@ -86,6 +86,9 @@ export const DB = [
   { m: /^CBTP$/, mpn: "MLCC-22nF-50V-X7R-0603", mfr: "any", desc: "FS26 VPRE bootstrap 22 nF (F52 window 22–100 nF)", fp: "C0603", price1k: 0.3, alt: "any X7R" },
   { m: /^CBTC$/, mpn: "MLCC-47nF-50V-X7R-0603", mfr: "any", desc: "FS26 CORE bootstrap 47 nF (F52)", fp: "C0603", price1k: 0.3, alt: "any X7R" },
   { m: /^CVDIG$/, mpn: "MLCC-1uF-10V-X7R-0603", mfr: "any", desc: "FS26 VDIG 1 uF", fp: "C0603", price1k: 0.3, alt: "any X7R" },
+  { m: /^RR2R$/, mpn: "R0603-10R-1%", mfr: "any", desc: "VREFH_R2R isolation resistor (round 23, F214 — S32K39 DS note 8: the R2R/SWG DAC reference must be isolated or filtered from the SDADC/SAR references): VREF5 -> 10 R -> ball A9, with CR2R1/CR2R2 a 16 kHz low-pass supplying the ladder's code-dependent current locally; <= 10 mV static drop at the assumed <= 1 mA ladder current (VR-35); a resistor rather than a bead keeps CR2R1 outside the FS26 VREF output-capacitance window", fp: "R0603", price1k: 0.1, alt: "any 1 %" },
+  { m: /^CR2R1$/, mpn: "MLCC-1uF-10V-X7R-0603", mfr: "any", desc: "VREFH_R2R local reference capacitor at ball A9 (round 23, F214)", fp: "C0603", price1k: 0.3, alt: "any X7R" },
+  { m: /^CR2R2$/, mpn: "MLCC-100nF-50V-X7R-0603", mfr: "any", desc: "VREFH_R2R HF decoupling at ball A9 (round 23, F214)", fp: "C0603", price1k: 0.2, alt: "any X7R" },
   { m: /^CVM[12]$/, mpn: "MLCC-220nF-16V-X7R-0603", mfr: "any", desc: "VMID divider filter 220 nF", fp: "C0603", price1k: 0.3, alt: "any X7R" },
   { m: /^CSB[12]$/, mpn: "MLCC-22uF-16V-X7R-0805", mfr: "any", desc: "FS26 VPRE output 22 uF x2 — the F52 effective-capacitance model assumes a 16 V dielectric at 6 V bias (x0.75) and −20 % tolerance: 26 uF effective ≥ 22 uF", fp: "C0805", price1k: 2, alt: "X7R/X5R 16 V 0805" },
   { m: /^CSB3B?$/, mpn: "MLCC-22uF-10V-X7R-0805", mfr: "any", desc: "FS26 VCORE (V15S 1.5 V) output 22 uF x2 (F52: 20–100 uF effective)", fp: "C0805", price1k: 1.5, alt: "X7R/X5R 10 V 0805" },
@@ -233,7 +236,7 @@ export const DB = [
   { m: /^CMA2$/, mpn: "MLCC-100nF-16V", mfr: "any", desc: "VREF5 HF cap (counted in the VREF rail window)", fp: "C0603", price1k: 0.3, alt: "any" },
   { m: /^CMA1$/, mpn: "MLCC-1uF-16V", mfr: "any", desc: "VREF/analog domain cap", fp: "C0603", price1k: 0.3, alt: "any" },
   { m: /^RMRST$/, mpn: "R0603-10k", mfr: "any", desc: "RESET_B pull-up", fp: "R0603", price1k: 0.3, alt: "any" },
-  { m: /^JSWD$/, mpn: "FTSH-105-01-L-DV-K", mfr: "Samtec", desc: "10-pin 1.27 mm ARM Cortex debug header (2x5, keyed pin 7) - the drawn map: 1 VTref, 2 SWDIO/TMS, 3/5/9 GND, 4 SWCLK/TCK, 6 SWO/TDO, 8 TDI, 10 nRESET (A6-R10: was a 20-pin JTAG line)", fp: "HDR2x5-1.27", pins: 10, price1k: 45, alt: "Harwin M50-3500542 / CNC Tech 3220-10-0300-00" },
+  { m: /^JSWD$/, mpn: "FTSH-105-01-L-DV-K", mfr: "Samtec", desc: "SURFACE-MOUNT (-DV = double-row vertical SMT; -K keyed shroud) — bound to the drawn Samtec_FTSH-105-01-L-DV-K land since round 23 (F215: a through-hole 1.27 mm header pattern was bound before); 10-pin 1.27 mm ARM Cortex debug header (2x5, keyed pin 7) - the drawn map: 1 VTref, 2 SWDIO/TMS, 3/5/9 GND, 4 SWCLK/TCK, 6 SWO/TDO, 8 TDI, 10 nRESET (A6-R10: was a 20-pin JTAG line)", fp: "HDR2x5-1.27", pins: 10, price1k: 45, alt: "Harwin M50-3500542 / CNC Tech 3220-10-0300-00" },
   { m: /^RBOOT$/, mpn: "R0603-10k", mfr: "any", desc: "boot strap", fp: "R0603", price1k: 0.3, alt: "any" },
   { m: /^CRST$/, mpn: "MLCC-100pF-16V", mfr: "any", desc: "reset filter", fp: "C0603", price1k: 0.3, alt: "any" },
   // ---- control card: FS26 SBC ----

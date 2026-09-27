@@ -84,6 +84,20 @@ typedef enum {
     DTC_RSLV_REACQUIRED,    /* round 18 (A16-R02): the resolver frame ring re-acquired after an ambiguous completion —
                                information (the FW-28 age-out selects any safe state); one occurrence per event.
                                Round 19 (A17-R01): also each synchronized producer restart after a phase loss */
+    DTC_TORQUE_POSTCOND,    /* round 23 (FW-37): torque -> current refused its own result: no current reference,
+                               the §6 "control lost" row while armed */
+    DTC_OVERSPEED,          /* round 23 (FW-42): the measured speed in the overspeed warning or trip band (n_max_rpm of
+                               the calibration record); one occurrence per event, stamped over it */
+    DTC_FW_UPDATE,          /* round 23 (FW-38): the UDS programming session was entered — no arming until the next
+                               power-up (a record of the session, not a failure) */
+    DTC_FW_FALLBACK,        /* round 23 (FW-38): the bootloader refused or abandoned the last activation, or restored the
+                               last known good image (boot record `last`) */
+    DTC_MC_ABORTED,         /* round 23 (FW-39): a commissioning routine aborted — its reason in the routine's results
+                               (a record: the cause, if a failure, has its own DTC) */
+    DTC_MC_CAL_WRITTEN,     /* round 23 (FW-39): the commissioning wrote a new FW-20 record version — it takes effect at
+                               the next key cycle (a record, not a failure) */
+    DTC_ASC_OC_TRANSIENT,   /* round 23 (item 5): a phase over-current inside cal_asc_oc_window_ms of an LS-ASC entry — the
+                               short-circuit transient, information (not the control-lost fault); passed once it is over */
     DTC_COUNT
 } dtc_id_t;
 
@@ -114,7 +128,11 @@ uint32_t dtc_code(dtc_id_t id);
 uint16_t dtc_confirmed_count(void);
 dtc_id_t dtc_first_active(void);
 void dtc_clear_all(void);   /* UDS 0x14 */
+void dtc_clear(dtc_id_t id); /* FW-40: one DTC back to its power-up state (UDS 0x14 skips the latches, uds_diag.c) */
 void dtc_new_cycle(void);   /* operation-cycle start */
 bool dtc_take_dirty(void);  /* persistence hint for the NVM queue */
+/* FW-41 (round 23): new occurrences since power-up — never reset, dtc_clear_all() included — and the DTC of the
+ * newest; the waveform capture compares the count between two current-loop samples (its DTC trigger). */
+uint32_t dtc_events(dtc_id_t *last);
 
 #endif /* DTC_H */

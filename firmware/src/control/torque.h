@@ -1,14 +1,17 @@
 /* torque.h — torque path: limits (FW-03 power envelope, FW-04 thermal derating and the 30 s peak
  * budget, BMS regen/discharge power relayed by the VCU, FW-11 zero regen on BMS timeout),
- * torque -> current (MTPA LUT with a closed-form fallback, field weakening on the voltage
- * ellipse, a negative-Id demagnetisation clamp, the current circle), a final voltage-feasibility
- * witness (F23) and the guards. */
+ * torque -> current (round 23, FW-37: the MTPA point — a validated LUT or the solved minimum — and field
+ * weakening along the torque hyperbola, solved together with the voltage ellipse, the current circle and the
+ * demagnetisation limit; the torque reduced only when no point of the hyperbola fits), the F23 refusal and
+ * a postcondition on every returned vector; round 23 (FW-45) the saturation maps of motor_t in all of it; (FW-46) the
+ * torque-ripple feed-forward table and its scale. */
 #ifndef TORQUE_H
 #define TORQUE_H
 
 #include "motor.h"
 
 #define MTPA_LUT_MAX 16u
+#define TQ_RIPPLE_N 36u /* round 23 (FW-46): the ripple table's points over one electrical period (10 deg el) */
 
 typedef struct {
     uint8_t n; /* 0 or 1 => closed form */
@@ -42,17 +45,26 @@ void torque_limits(torque_lim_t *l, float vdc, float omega_mech_rad_s, float p_c
 float torque_clamp(const torque_lim_t *l, float t_req_nm, float omega_mech_rad_s);
 typedef enum {
     TQ_NONFINITE = 0, /* a non-finite input or result: outputs zeroed */
-    TQ_OK,            /* the MTPA / field-weakening / clamped pair is voltage-feasible as it is */
-    TQ_LIMITED,       /* |iq| reduced (or id pushed toward the demagnetisation limit) to be feasible */
-    TQ_INFEASIBLE     /* not even iq = 0 is feasible inside the demagnetisation and current limits:
+    TQ_OK,            /* the requested torque (within 0.1 %): the MTPA point, or in field weakening the
+                         least-current point of its torque hyperbola that fits */
+    TQ_LIMITED,       /* no point of the hyperbola fits: the largest torque of the same sign that does
+                         (|T| < |T_req|, zero at worst) */
+    TQ_INFEASIBLE,    /* not even iq = 0 is feasible inside the demagnetisation and current limits:
                          outputs = iq 0 at the least-voltage id; the caller commands zero torque,
                          requests a speed limit and sets a DTC */
+    TQ_POSTCOND       /* round 23: the vector failed its own postcondition — a software fault: outputs
+                         zeroed; the caller issues no current reference */
 } tq_res_t;
 
-/* Torque -> (id, iq). Every result other than TQ_NONFINITE/TQ_INFEASIBLE satisfies the witness
- * torque_v_required(id, iq) <= torque_v_available(vdc). */
+/* Torque -> (id, iq). Postcondition, checked on the returned vector before every return (FW-37): its torque
+ * torque_from_current(id, iq) has the sign of t_nm (or is zero) and |T| <= |t_nm| (1 + 1e-3) + 1e-3 N m —
+ * never more torque than requested — and within 0.1 % of it for TQ_OK; sqrt(id^2 + iq^2) <= i_max_a,
+ * id >= -id_demag_a and, except for TQ_INFEASIBLE (iq = 0 there), torque_v_required(id, iq) <=
+ * torque_v_available(vdc) — each within 1e-6. A failure is TQ_POSTCOND. */
 tq_res_t torque_to_current(float t_nm, float omega_e, float vdc, float i_max_a, const motor_t *m, const mtpa_lut_t *lut,
                            const ti_params_t *p, float *id, float *iq);
+/* Round 23: the torque a dq pair represents, T = 1.5 pp (psi + (Ld - Lq) id) iq (amplitude-invariant dq). */
+float torque_from_current(float id, float iq, const motor_t *m);
 /* Steady-state phase-voltage magnitude (peak) a dq pair needs at omega_e: Rs, Ld, Lq and psi. */
 float torque_v_required(float id, float iq, float omega_e, const motor_t *m);
 /* What a steady-state reference may use: the FOC limit cal_mod_index_max * V_dc / sqrt(3) less the
@@ -60,5 +72,16 @@ float torque_v_required(float id, float iq, float omega_e, const motor_t *m);
 float torque_v_available(float vdc, const ti_params_t *p);
 /* MTPA d-current for a q-current (closed form). */
 float torque_mtpa_id(float iq, const motor_t *m);
+
+/* Round 23 (FW-46): the torque-ripple (cogging) feed-forward. The table's i_q at theta_e less mean_cnt (A; 0.01 A per
+ * count, 10 deg el steps, linear, periodic; mean_cnt in counts); 0 for a non-finite angle. */
+float torque_ripple_at(const int16_t tab[TQ_RIPPLE_N], float mean_cnt, float theta_e);
+/* The largest k in [0, 1] with (id, iq + k ff) inside the current circle i_max_a and the voltage ellipse
+ * torque_v_available(vdc) at omega_e for ff = ff_lo and ff = ff_hi (the table's extremes; id unchanged, so the
+ * demagnetisation limit holds) — the feed-forward is scaled down, never the solved vector. 0 when (id, iq) itself does not
+ * fit. The fitting iq at a fixed id form an interval (exact for the circle and constant inductances; with the maps while
+ * L_q(|iq|) iq rises with iq — a physical flux), so the two ends cover every value between them. */
+float torque_ripple_scale(float id, float iq, float ff_lo, float ff_hi, float omega_e, float vdc, float i_max_a,
+                          const motor_t *m, const ti_params_t *p);
 
 #endif /* TORQUE_H */

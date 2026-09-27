@@ -176,6 +176,7 @@ typedef struct {
     uint8_t cal_can_ctr_max_jump;
     uint32_t cal_bms_timeout_ms;
     float cal_torque_ramp_nm_s;
+    float cal_torque_slew_nm_s; /* round 23 (item 3): a fresh command's slew, both directions */
     float cal_dir_change_rpm;
     float cal_rslv_amp_min;
     float cal_rslv_amp_max;
@@ -190,7 +191,7 @@ typedef struct {
     float cal_rslv_rate_min_rad_s;
     float cal_rslv_accel_max_rad_s2;
     float cal_rslv_latency_us;
-    uint32_t cal_speed_hold_ms;
+    float cal_speed_accel_max_rpm_s; /* round 23 (item 6): the §6 speed bound's growth after a resolver fault */
     uint32_t cal_rdy_timeout_ms;
     float cal_spo_release_a;
     float cal_precharge_low_frac;
@@ -214,10 +215,12 @@ typedef struct {
     float cal_torque_max_nm;
     uint32_t cal_desat_en_hold_us; /* A12-R05: MCU_GATE_EN held this long after a FLT is first seen */
     uint32_t cal_asc_release_ns;   /* FW-06a step 3 (round 17): ASC pins' release after ASC_CLR, + margin */
+    uint32_t cal_asc_oc_window_ms; /* round 23 (item 5): an over-current this soon after an ASC entry is its transient */
     uint32_t cal_vsup_ld_ms;       /* LV supervision (round 17): tolerated time above the jump-start ceiling */
     uint32_t cal_vsup_jump_ms;     /* ... tolerated VSUPOV event at or below it (24 V jump start) */
     float cal_vsup_jump_max_v;     /* ... the jump-start band ceiling */
     float cal_vdyn_reserve_frac;   /* F23: dynamic voltage reserve of the torque->current witness */
+    float cal_fw_emf_margin_frac;  /* round 23 (item 2): zero-torque modulation from (1 - this) x the available voltage */
     float cal_isns_act_min_a;      /* F24: latent stuck-channel detector */
     float cal_isns_act_frac;
     uint8_t cal_isns_act_debounce;
@@ -228,6 +231,16 @@ typedef struct {
     uint32_t cal_sd_irq_lat_max_us; /* A16-R02: servicing deadline of a resolver block's first SDADC completion */
     uint32_t cal_swg_start_lat_us;  /* A17-R01: SWG enable -> the first SDADC block's carrier phase 0 (the origin) */
     uint8_t cal_rslv_restart_max;   /* A17-R01: synchronized resolver producer restarts per key cycle */
+    float cal_ovs_warn_frac;        /* round 23 (FW-42): overspeed warning band start, fraction of n_max_rpm */
+    float cal_ovs_trip_frac;        /* round 23 (FW-42): overspeed trip band start, fraction of n_max_rpm */
+    float cal_ovs_hyst_frac;        /* round 23 (FW-42): each band is left this fraction of n_max below its start */
+    uint32_t cal_ovs_debounce_ms;   /* round 23 (FW-42): consecutive 1 ms samples to enter or leave a band */
+    uint32_t cal_rs_save_s;         /* round 23 (FW-43): run-time statistics saved at most this often (+ at shutdown) */
+    float cal_isns_ofs_step_v;      /* round 23 (FW-44): tracked current offset, largest step per key cycle */
+    uint32_t cal_temp_rate_win_ms;  /* round 23 (item 1, FW-13): the dT/dt check over this window's mean */
+    uint8_t cal_temp_rate_db_codes; /* round 23 (item 1, FW-13): a mean within this many codes never violates it */
+    float cal_ripple_ff_max_a;      /* round 23 (FW-46): the ripple feed-forward's clamp, A (0 = off) */
+    float cal_ripple_ff_fmax_hz;    /* round 23 (FW-46): applied only while 6 f_e is below this */
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */
