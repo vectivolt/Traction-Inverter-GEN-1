@@ -99,7 +99,7 @@ may have left them unwritten, a 256-byte buffer for a command of up to 300, a si
 the start-up and the stacks come on top. The S32K396 has 6 MB program flash and 800 KB RAM, 288 KB of it TCM
 (`docs/datasheets/S32K39.pdf`, Table 1).
 
-Last run on the final round-23 tree: **421 tests  4937 checks  0 failed** on the Cortex-M7 under QEMU (fpv5-sp-d16)  1 412 s wall — the host's exact counts, byte-identical output with `-ffp-contract=off`.
+Last run on the final round-24 tree: **444 tests, 5199 checks, 0 failed** on the Cortex-M7 under QEMU (fpv5-sp-d16), 3 575 s wall (a Qt build ran concurrently; round 23's run took 1 412 s) — the host's exact counts, byte-identical output with `-ffp-contract=off`.
 
 ## Architecture
 
