@@ -10,7 +10,7 @@ static void upd(vdc_t *s, float v1, float v2, float vofs, float v5gd, const ti_p
 {
     const uint16_t c[2] = {code_v(0.5f + v1 / 455.839f), code_v(0.5f + v2 / 455.839f)};
     const uint32_t t[2] = {5000u, 5000u};
-    vdc_update(s, c, t, code_v(vofs), code_v(0.5f * v5gd), 5000u, CAL, p);
+    vdc_update(s, c, t, code_v(vofs), code_v(0.5f * v5gd), TI_ACQ_NEW, TI_ACQ_NEW, 5000u, CAL, p);
 }
 
 TEST(nominal_pair_valid)
@@ -74,7 +74,7 @@ TEST(failsafe_below_0p25v_is_not_a_dead_bus)
     vdc_init(&s);
     const uint16_t c[2] = {code_v(0.1f), code_v(0.5f)};
     const uint32_t t[2] = {5000u, 5000u};
-    vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), 5000u, CAL, p);
+    vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, 5000u, CAL, p);
     CHECK(s.ch_failsafe[0] && !s.ch_valid[0] && s.ch_valid[1]);
     CHECK(!s.valid && (s.hv == TI_HV_UNKNOWN)); /* never SAFE on a failed witness */
 }
@@ -86,7 +86,7 @@ TEST(stale_channel_invalid)
     vdc_init(&s);
     const uint16_t c[2] = {code_v(1.5f), code_v(1.5f)};
     const uint32_t t[2] = {5000u, 5000u - p->cal_vdc_stale_us};
-    vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), 5000u, CAL, p);
+    vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, 5000u, CAL, p);
     CHECK(s.ch_stale[1] && !s.valid);
 }
 
@@ -133,14 +133,58 @@ TEST(a_channel_stamped_after_the_check_time_is_fresh)
             vdc_t s;
             vdc_init(&s);
             const uint32_t t[2] = {nows[n] + ahead[k], nows[n] + (ahead[k] / 2u)};
-            vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), nows[n], CAL, p);
+            vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, nows[n], CAL, p);
             CHECK(!s.ch_stale[0] && !s.ch_stale[1] && s.valid && (s.hv == TI_HV_PRESENT));
         }
         vdc_t s;
         vdc_init(&s);
         const uint32_t t[2] = {nows[n], nows[n] - p->cal_vdc_stale_us};
-        vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), nows[n], CAL, p);
+        vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, nows[n], CAL, p);
         CHECK(!s.ch_stale[0] && s.ch_stale[1] && !s.valid);
+    }
+}
+
+/* F244: a stopped converter keeps its last code and stamp (s32k396_adc.c: the stamp moves only with a new result). Round
+ * 18's signed age (ti_stale) read that stamp as fresh again for 2 x cal_vdc_stale_us - 1 us around every 2^32 us of its
+ * age — every 71.6 min — and the channel valid on the frozen code. Now each channel's stamp has the slow inputs'
+ * acquisition contract (ti_acq): one conversion, then none — valid while younger than the hold, stale from it, still stale
+ * at every microsecond within 1.5 holds of 2^32 us of age, valid at the first new stamp. Either channel, the other
+ * converting on; also with the conversion 64 us before the counter's own wrap. */
+TEST(a_stopped_channel_stays_stale_across_2e32_us_of_its_age)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const uint32_t hold = p->cal_vdc_stale_us;
+    const uint32_t w = (3u * hold) / 2u;
+    const uint16_t c[2] = {code_v(0.5f + 800.0f / 455.839f), code_v(0.5f + 800.0f / 455.839f)};
+    const uint32_t t0s[2] = {5000u, 0xFFFFFFC0u};
+    for (unsigned n = 0u; n < 2u; n++) {
+        for (unsigned k = 0u; k < 2u; k++) {
+            const uint32_t t0 = t0s[n];
+            vdc_t s;
+            vdc_init(&s);
+            uint32_t t[2] = {t0, t0};
+            bool held = true;
+            for (uint32_t d = 0u; d < hold; d++) { /* channel k converted at t0 and then no more */
+                t[1u - k] = t0 + d;
+                vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, t0 + d, CAL, p);
+                held = held && s.valid && !s.ch_stale[k];
+            }
+            t[1u - k] = t0 + hold;
+            vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, t0 + hold, CAL, p);
+            CHECK(held && s.ch_stale[k] && !s.ch_valid[k] && !s.valid && (s.hv == TI_HV_UNKNOWN));
+            bool stale = true;
+            for (uint32_t d = 0u; d <= (2u * w); d++) { /* now = t0 + 2^32 - w ... t0 + 2^32 + w */
+                const uint32_t now = (t0 - w) + d;
+                t[1u - k] = now;
+                vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, now, CAL, p);
+                stale = stale && s.ch_stale[k] && !s.ch_valid[k] && !s.valid && !s.ch_stale[1u - k];
+            }
+            CHECK(stale);
+            t[0] = t0 + w + 1u; /* a new conversion */
+            t[1] = t0 + w + 1u;
+            vdc_update(&s, c, t, code_v(0.5f), code_v(2.5f), TI_ACQ_NEW, TI_ACQ_NEW, t0 + w + 1u, CAL, p);
+            CHECK(!s.ch_stale[k] && s.valid && (s.hv == TI_HV_PRESENT));
+        }
     }
 }
 
@@ -155,4 +199,5 @@ void suite_vdc(void)
     RUN(bms_cross_check_3_percent_with_contactors_closed);
     RUN(ov_compare_code);
     RUN(a_channel_stamped_after_the_check_time_is_fresh);
+    RUN(a_stopped_channel_stays_stale_across_2e32_us_of_its_age);
 }

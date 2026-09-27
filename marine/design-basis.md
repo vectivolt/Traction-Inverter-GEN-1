@@ -376,9 +376,9 @@ monitoring reading (IT system).
 
 ## 9. Separation, identity and hardware deltas
 
-**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.22**.
+**How "separate" is enforced.** M8 is a *frozen fork* of the Road 8XX IGBT build at **rev A.23**.
 The fork point moved from A.8 to A.11 on 2026-09-24, then to A.12 in the same pass, and to A.13,
-then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19, A.20, A.21 and A.22 (rounds 19–23) on 2026-09-26; no Marine unit is built or
+then A.14, then A.15, then A.16, then A.17 (round 18) in the same pass, on 2026-09-25, then A.18, A.19, A.20, A.21 and A.22 (rounds 19–23) on 2026-09-26, then A.23 (round 24) on 2026-09-27; no Marine unit is built or
 type-approved yet, so none of these moves needed a class notification. M8 carries the Road fixes of
 review rounds 7–23 (`../docs/review-A7-disposition.md` … `../docs/review-A22-disposition.md`). It has the same PCBs and
 supply chain, but its own part number, its own firmware build, and a distinct identity resistor —
@@ -388,11 +388,11 @@ supply chain, but its own part number, its own firmware build, and a distinct id
 reaches M8 only through a marine ECO with class notification — a type-approved product does not
 move with the automotive line.
 
-**What A.9–A.22 brought** (Road `design-basis.md` §11i–§11v; A.12 = round 13,
+**What A.9–A.23 brought** (Road `design-basis.md` §11i–§11w; A.12 = round 13,
 `review-A12-disposition.md`; A.13 = round 14, `review-A13-disposition.md`; A.14 = round 15,
 `review-A14-disposition.md`; A.15 = round 16, `review-A15-disposition.md`; A.16 = round 17, `review-A16-disposition.md`; A.17 = round 18 (rechecks of 4425af9),
 `review-A17-disposition.md`; A.18 = round 19, `review-A18-disposition.md`; A.19 = round 20, `review-A19-disposition.md`;
-A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-disposition.md`; A.22 = round 23, `review-A22-disposition.md`):
+A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-disposition.md`; A.22 = round 23, `review-A22-disposition.md`; A.23 = round 24, `review-A23-disposition.md`):
 - **A.9.** PSASC/PSQD bound as QA01C-18 (+18/−3 V, 16.9–20.9 V): ASC entry 7.52 µs, FW-06
   end-point 906 V (Marine 909 V, §6c). FLT/RDY pull-ups on V5GD (harness pin 1, read on PTB5).
   Discharge gate divider 1.5 k/10 k. FW-16 self-test energy-limited (≤ 0.1 J, §7). Anti-surge RFS4.
@@ -636,6 +636,15 @@ A.20 = round 21, `review-A20-disposition.md`; A.21 = round 22, `review-A21-dispo
   cogging feed-forward table) — a propulsion motor's maps are dyno measurements like the Road ones (T-57/T-58) — and the
   suite now runs on the Cortex-M7 instruction set under QEMU with the target compiler (T-59), which M8 shares.
   Marine: the card and the firmware base are shared, so M8 inherits all of it; no marine cell change.
+- **A.23.** Round 24 (four A.22 rechecks, Road `review-A23-disposition.md`, F240–F242): the SDADC reference of the shared card
+  sat on the FS26's separate VREF while the SDADC supply is the LDO2 — the S32K39 DS Table 38 wants the reference within ±25 mV
+  of its supply and the two regulators are matched only within ±1 %; every non-R2R reference group is now on V5A with the
+  SDADC supply (NXP's GEN3 arrangement), the ratiometric loads followed, the FS26 VREF keeps its own capacitor window and feeds
+  the R2R ladder only (CSB5 2.2 µF, CR2R1 330 nF; no new part). Firmware (shared base): a stopped temperature ADC channel
+  stayed valid forever because the caller discarded the acquisition timestamp — a three-state freshness contract (new / held /
+  expired) with a hold-time CAL; the inductance map must have a positive flux slope in every segment and the ripple limiter
+  evaluates the interior breakpoints. Marine: the card and the firmware base are shared, so M8 inherits all of it; no marine
+  cell change.
 
 | Change | M8 | M10 |
 |---|---|---|

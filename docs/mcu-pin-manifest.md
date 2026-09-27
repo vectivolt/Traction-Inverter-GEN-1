@@ -51,7 +51,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | A5 | PTE1 | `VDC2_SE` | ADC1_P6 | V_DC channel 2 (was PTB0: no ADC) |
 | A7 | VDDA_SWG01 | `V5A` | — | SWG analog supply (filtered 5 V) |
 | A8 | SWG1_0 | `SWG1` | SWG1_0 | resolver excitation source |
-| A9 | VREFH_R2R | `VR2R` | — | R2R (SWG) DAC reference: VREF5 through RR2R 10 Ω with CR2R1 1 µF + CR2R2 100 nF at the ball — isolated/filtered from the SDADC/SAR references as DS note 8 requires (round 23, F214; on VREF5 directly until A.21) |
+| A9 | VREFH_R2R | `VR2R` | — | R2R (SWG) DAC reference: VREF5 (the FS26 VREF, a regulator of its own) through RR2R 10 Ω with CR2R1 330 nF + CR2R2 100 nF at the ball — isolated/filtered from the SDADC/SAR references as DS note 8 requires (round 23, F214; on VREF5 directly until A.21) |
 | A11 | PTA15 | `MT1_SIG` | ADC3_P4 | motor temp 1 (PTA12 absent) |
 | A12 | PTA16 | `VREXM_P` | SDADC1_AN[0] | excitation monitor + (SDADC1 AN0) |
 | A13 | PTA0 | `VDC1_SE` | ADC6_P4 | V_DC channel 1 |
@@ -87,11 +87,11 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | D14 | VDD_HV_A_6 | `V5A` | — | 5 V I/O and analog domain A |
 | D15 | PTB10 | `RDY_HS` | EIRQ[24] | RDY HS bank (GPIO/EIRQ) |
 | E5 | VDD_HV_A_2 | `V5A` | — | 5 V I/O and analog domain A |
-| E6 | VREFH_SAR_456 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| E6 | VREFH_SAR_456 | `V5A` | — | ADC reference high (FS26 VREF 5 V) |
 | E7 | VREFL_SAR_456 | `AGND` | — | ADC reference low |
 | E8 | V11_1 | `V11` | — | 1.1 V core (from the external NMOS ballast) |
 | E9 | VREFL_SDADC_01 | `AGND` | — | ADC reference low |
-| E10 | VREFH_SDADC_01 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| E10 | VREFH_SDADC_01 | `V5A` | — | ADC reference high (FS26 VREF 5 V) |
 | E11 | VSSA_SDADC | `AGND` | — | SDADC analog ground |
 | E12 | VDDA_SDADC | `V5A` | — | SDADC analog supply (filtered 5 V) |
 | E13 | VSS11 | `DGND` | — | ground |
@@ -101,7 +101,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | F6 | PTA4 | `TMS` | JTAG_TMS | JTAG TMS / SWDIO |
 | F7 | PTC4 | `TCK` | JTAG_TCK | JTAG TCK / SWCLK |
 | F8 | PTC5 | `TDI` | JTAG_TDI | JTAG TDI |
-| F13 | VREFH_SDADC_23 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| F13 | VREFH_SDADC_23 | `V5A` | — | ADC reference high (FS26 VREF 5 V) |
 | G5 | VSS24 | `DGND` | — | ground |
 | G7 | VSS8 | `DGND` | — | ground |
 | G8 | PTA10 | `TDO` | JTAG_TDO | JTAG TDO / SWO |
@@ -111,7 +111,7 @@ FS26 (USBC): all 48 pins + EP verified against the FS26 DS Table 3 (pin order 1 
 | G15 | PTF16 | `SBC_CS` | LPSPI3_PCS0 | LPSPI3 PCS0 |
 | H1 | PTA25 | `IGN_SNS` | ADC0_S8 | KL15 sense |
 | H5 | V15 | `V15S` | — | 1.5 V core-regulator input/sense — GEN3 net VCORE; DS 289-MAPBGA figure. **Round 14 (A12-R01): A.12 had this ball on VREF5** |
-| H6 | VREFH_SAR_0123 | `VREF5` | — | ADC reference high (FS26 VREF 5 V) |
+| H6 | VREFH_SAR_0123 | `V5A` | — | ADC reference high (FS26 VREF 5 V) |
 | H7 | VDD_HV_A_4 | `V5A` | — | 5 V I/O and analog domain A |
 | H8 | V11_3 | `V11` | — | 1.1 V core (from the external NMOS ballast) |
 | H9 | V11_7 | `V11` | — | 1.1 V core (from the external NMOS ballast) |

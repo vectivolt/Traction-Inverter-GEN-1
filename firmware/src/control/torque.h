@@ -76,11 +76,12 @@ float torque_mtpa_id(float iq, const motor_t *m);
 /* Round 23 (FW-46): the torque-ripple (cogging) feed-forward. The table's i_q at theta_e less mean_cnt (A; 0.01 A per
  * count, 10 deg el steps, linear, periodic; mean_cnt in counts); 0 for a non-finite angle. */
 float torque_ripple_at(const int16_t tab[TQ_RIPPLE_N], float mean_cnt, float theta_e);
-/* The largest k in [0, 1] with (id, iq + k ff) inside the current circle i_max_a and the voltage ellipse
- * torque_v_available(vdc) at omega_e for ff = ff_lo and ff = ff_hi (the table's extremes; id unchanged, so the
- * demagnetisation limit holds) — the feed-forward is scaled down, never the solved vector. 0 when (id, iq) itself does not
- * fit. The fitting iq at a fixed id form an interval (exact for the circle and constant inductances; with the maps while
- * L_q(|iq|) iq rises with iq — a physical flux), so the two ends cover every value between them. */
+/* A k in [0, 1] with (id, iq + k ff) inside the current circle i_max_a and the voltage ellipse torque_v_available(vdc) at
+ * omega_e for EVERY ff between ff_lo and ff_hi (the table's extremes; id unchanged, so the demagnetisation limit holds) —
+ * the feed-forward is scaled down, never the solved vector; 0 when (id, iq) itself does not fit, or an extreme is NaN.
+ * Round 24: the two extremes alone do not cover the values between them on a saturation map (|v| can peak at a breakpoint
+ * of the L_q map or inside a steep segment): the interval is cut at the breakpoints and each piece bounded (torque.c,
+ * ff_span_fits) — the largest k that bound allows, to the bisection's 1/4096. */
 float torque_ripple_scale(float id, float iq, float ff_lo, float ff_hi, float omega_e, float vdc, float i_max_a,
                           const motor_t *m, const ti_params_t *p);
 

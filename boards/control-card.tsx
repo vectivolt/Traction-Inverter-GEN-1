@@ -25,7 +25,7 @@ const MCU_PINS: [string, string][] = [
   ["A5_VDC2", "VDC2_SE"],  // PTE1 ADC1_P6 — V_DC channel 2 (was PTB0: no ADC)
   ["A7_VDDA_SWG01", "V5A"],  // VDDA_SWG01 — SWG analog supply (filtered 5 V)
   ["A8_SWG1", "SWG1"],  // SWG1_0 SWG1_0 — resolver excitation source
-  ["A9_VREFH_R2R", "VR2R"],  // VREFH_R2R — the R2R (SWG) DAC reference: VREF5 through RR2R 10 R + CR2R1/CR2R2 (round 23, F214 — DS note 8: isolated or filtered from the SDADC/SAR references)
+  ["A9_VREFH_R2R", "VR2R"],  // VREFH_R2R — the R2R (SWG) DAC reference: the FS26 VREF (VREF5, a regulator of its own — the "isolated supply" of note 8) through RR2R 10 R + CR2R1/CR2R2 (round 23, F214; round 24: VREF5 feeds nothing else, the ADC references moved to V5A — DS note 8: isolated or filtered from the SDADC/SAR references)
   ["A11_MT1", "MT1_SIG"],  // PTA15 ADC3_P4 — motor temp 1 (PTA12 absent)
   ["A12_VREXMP", "VREXM_P"],  // PTA16 SDADC1_AN[0] — excitation monitor + (SDADC1 AN0)
   ["A13_VDC1", "VDC1_SE"],  // PTA0 ADC6_P4 — V_DC channel 1
@@ -61,11 +61,11 @@ const MCU_PINS: [string, string][] = [
   ["D14_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
   ["D15_RDYHS", "RDY_HS"],  // PTB10 EIRQ[24] — RDY HS bank (GPIO/EIRQ)
   ["E5_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
-  ["E6_VREFH_SAR_456", "VREF5"],  // VREFH_SAR_456 — ADC reference high (FS26 VREF 5 V)
+  ["E6_VREFH_SAR_456", "V5A"],  // VREFH_SAR_456 — ADC reference high on V5A, the same FS26 LDO2 output as VDDA_SDADC/VDD_HV_A (round 24, F240: S32K39 DS Table 38 VREFP = AVDD +/- 25 mV; note 8 one source for every VREFH but the R2R; GEN3-identical). Until A.22 on VREF5 (FS26 VREF), a separate regulator matched only to +/-1 %
   ["E7_VREFL_SAR_456", "AGND"],  // VREFL_SAR_456 — ADC reference low
   ["E8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
   ["E9_VREFL_SDADC_01", "AGND"],  // VREFL_SDADC_01 — ADC reference low
-  ["E10_VREFH_SDADC_01", "VREF5"],  // VREFH_SDADC_01 — ADC reference high (FS26 VREF 5 V)
+  ["E10_VREFH_SDADC_01", "V5A"],  // VREFH_SDADC_01 — ADC reference high on V5A, the same FS26 LDO2 output as VDDA_SDADC/VDD_HV_A (round 24, F240: S32K39 DS Table 38 VREFP = AVDD +/- 25 mV; note 8 one source for every VREFH but the R2R; GEN3-identical). Until A.22 on VREF5 (FS26 VREF), a separate regulator matched only to +/-1 %
   ["E11_VSSA_SDADC", "AGND"],  // VSSA_SDADC — SDADC analog ground
   ["E12_VDDA_SDADC", "V5A"],  // VDDA_SDADC — SDADC analog supply (filtered 5 V)
   ["E13_VSS", "DGND"],  // VSS — ground
@@ -75,7 +75,7 @@ const MCU_PINS: [string, string][] = [
   ["F6_TMS", "TMS"],  // PTA4 JTAG_TMS — JTAG TMS / SWDIO
   ["F7_TCK", "TCK"],  // PTC4 JTAG_TCK — JTAG TCK / SWCLK
   ["F8_TDI", "TDI"],  // PTC5 JTAG_TDI — JTAG TDI
-  ["F13_VREFH_SDADC_23", "VREF5"],  // VREFH_SDADC_23 — ADC reference high (FS26 VREF 5 V)
+  ["F13_VREFH_SDADC_23", "V5A"],  // VREFH_SDADC_23 — ADC reference high on V5A, the same FS26 LDO2 output as VDDA_SDADC/VDD_HV_A (round 24, F240: S32K39 DS Table 38 VREFP = AVDD +/- 25 mV; note 8 one source for every VREFH but the R2R; GEN3-identical). Until A.22 on VREF5 (FS26 VREF), a separate regulator matched only to +/-1 %
   ["G5_VSS", "DGND"],  // VSS — ground
   ["G7_VSS", "DGND"],  // VSS — ground
   ["G8_TDO", "TDO"],  // PTA10 JTAG_TDO — JTAG TDO / SWO
@@ -85,7 +85,7 @@ const MCU_PINS: [string, string][] = [
   ["G15_CS", "SBC_CS"],  // PTF16 LPSPI3_PCS0 — LPSPI3 PCS0
   ["H1_IGN", "IGN_SNS"],  // PTA25 ADC0_S8 — KL15 sense
   ["H5_V15", "V15S"],  // V15 — 1.5 V core-regulator input/sense (GEN3 net VCORE; DS Fig. 6). ROUND 14 A12-R01: A.12 had this ball on VREF5 (5 V > 2.75 V abs max)
-  ["H6_VREFH_SAR_0123", "VREF5"],  // VREFH_SAR_0123 — ADC reference high (FS26 VREF 5 V)
+  ["H6_VREFH_SAR_0123", "V5A"],  // VREFH_SAR_0123 — ADC reference high on V5A, the same FS26 LDO2 output as VDDA_SDADC/VDD_HV_A (round 24, F240: S32K39 DS Table 38 VREFP = AVDD +/- 25 mV; note 8 one source for every VREFH but the R2R; GEN3-identical). Until A.22 on VREF5 (FS26 VREF), a separate regulator matched only to +/-1 %
   ["H7_VDD_HV_A", "V5A"],  // VDD_HV_A — 5 V I/O and analog domain A
   ["H8_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
   ["H9_V11", "V11"],  // V11 — 1.1 V core (from the external NMOS ballast)
@@ -293,7 +293,7 @@ export default () => (
     {/* FS26 output caps per DS: LDO1 COUT 4.7 uF (2.35-15 eff) · VREF COUT 2.2 uF
         (1.1-3.3 eff) · VBOS 4.7 uF — rev A.4.1 value completions */}
     {[["CSB1", "VPRE", "22uF"], ["CSB2", "VPRE", "22uF"], ["CSB3", "V15S", "22uF"], ["CSB3B", "V15S", "22uF"], ["CSB4", "V11", "10uF"],
-      ["CSB5", "VREF5", "1uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
+      ["CSB5", "VREF5", "2.2uF"], ["CSB6", "V3B", "4.7uF"], ["CSB7", "V5A", "10uF"], ["CSB8", "V5A", "10uF"]].map(([n, r, v]) => (
       <capacitor key={n} name={n} capacitance={v} footprint="0805" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
     ))}
@@ -320,7 +320,7 @@ export default () => (
     {/* AGND-DGND single-point tie */}
     <resistor name="RAGT" resistance="0" footprint="0805" {...gp()} connections={{ pin1: "net.AGND", pin2: "net.DGND" }} />
     {/* SKU identity pull-up (with the power board's RHWID on harness pin 2) */}
-    <resistor name="RHWP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.HW_ID" }} />
+    <resistor name="RHWP" resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.HW_ID" }} />  {/* round 24 (F240): the pull-up follows the ADC reference to V5A — the HW_ID divider stays ratiometric */}
 
     {/* ---- MCU: S32K396 + clock + decoupling ---- */}
     <chip name="UMCU" footprint={SmdFP(MCU_PINS.length)} {...gp()}
@@ -335,20 +335,27 @@ export default () => (
       <capacitor key={n} name={n} capacitance="100nF" footprint="0603" {...gp()}
         connections={{ pin1: `net.${r}`, pin2: "net.DGND" }} />
     ))}
-    <capacitor name="CMA1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.AGND" }} />
-    <capacitor name="CMA2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.AGND" }} />
-    {/* Round 23 (A20-F02, F214): S32K39 DS operating-conditions note 8 — "All the VREFH_xx except of VREFH_R2R must be shorted to a
-        single supply source … Isolated VREFH_R2R is required to avoid SDADC performance degradation. If an isolated supply cannot be
-        used, appropriate filtration is needed to isolate the VREFH_R2R noise." Until A.21 ball A9 sat directly on VREF5 with the
-        SDADC/SAR references. Now: VREF5 -> RR2R 10 R -> VR2R (A9) with CR2R1 1 uF + CR2R2 100 nF at the ball: a 16 kHz low-pass
-        that supplies the R-2R ladder's code-dependent reference current locally instead of drawing it through the shared
-        precision reference. A resistor, not a bead: the isolation must hold at the SWG update rate and below, and the FS26
-        VREF output-capacitance window (1.1-3.3 uF effective on VREF5) forbids more bulk directly on the rail — the 10 R keeps
-        CR2R1 off the regulator's loop. The DS gives no ladder reference current (VR-35 asks NXP); at an assumed <= 1 mA the
-        static drop is <= 10 mV = 0.2 % of the DAC full scale, inside the SWG's own +-10 % amplitude spec and calibrated out by
-        FW-10 at the monitor plane. The SDADC/SAR references stay on VREF5 (note 8's single source). */}
+    <capacitor name="CMA1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.AGND" }} />  {/* round 24 (F240): the reference decoupling at the VREFH balls, on the V5A reference island (layout-handoff 4.11) */}
+    <capacitor name="CMA2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.AGND" }} />
+    {/* Round 23 (A20-F02, F214) and round 24 (A20-F01 reopened, F240). S32K39 DS Rev. 3 Table 38 (the SDADC table): VREFP must
+        stay within AVDD +/- 25 mV; note 4: VDDA_SDADC is shorted to VDD_HV_A (V5A); note 8: every VREFH except VREFH_R2R on ONE
+        source, VREFH_R2R isolated or filtered. Until A.22 the four ADC reference groups (E6/H6 SAR, E10/F13 SDADC) sat on VREF5,
+        the FS26's precision reference — a separate regulator matched to the LDO2 (V5A) only within +/-1 % (+/-50 mV), twice the
+        SDADC window; the round-23 disposition had judged it against the general +100 mV note and missed Table 38 (three reviewers
+        caught it). Now the four groups are on V5A itself, with the SDADC supply and VDD_HV_A (NXP's GEN3 arrangement): the only
+        difference between VREFP and AVDD is the IR drop on the shared pour (< 1 mV at the reference currents). The ratiometric
+        loads follow the reference to V5A (RHWP, ROF1, the NTC pull-ups RSN/RMT/RT..P), so every ratio the firmware relies on is
+        unchanged; the absolute SAR scale is now the LDO2's +/-1.75 % (VREF was +/-0.75 %): the V_DC chain and the V5GD monitor
+        budgets are re-derived in design-verify (EOL gain calibration removes the static part; QP-TH-06 measures the drift).
+        VREF5 (FS26 VREF, +/-0.75 %, IREF <= 30 mA) now feeds only the R2R ladder: VREF5 -> RR2R 10 R -> VR2R (A9) with
+        CR2R1 330 nF + CR2R2 100 nF at the ball — the isolated supply of note 8 (a regulator of its own) plus a 37 kHz low-pass
+        that supplies the ladder's code-dependent reference current locally. CSB5 2.2 uF (X7R 0805) alone keeps the FS26
+        COUT_VREF window (1.1-3.3 uF effective: 1.36-2.92 uF over tolerance, bias, temperature and reflow); the branch cap is
+        behind 10 R, outside the regulator's loop. The DS gives no ladder reference current (VR-35 asks NXP); at an assumed
+        <= 1 mA the static drop is <= 10 mV = 0.2 % of the DAC full scale, inside the SWG's own +-10 % amplitude spec and
+        calibrated out by FW-10 at the monitor plane. */}
     <resistor name="RR2R" resistance="10" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.VR2R" }} />
-    <capacitor name="CR2R1" capacitance="1uF" footprint="0603" {...gp()} connections={{ pin1: "net.VR2R", pin2: "net.AGND" }} />
+    <capacitor name="CR2R1" capacitance="330nF" footprint="0603" {...gp()} connections={{ pin1: "net.VR2R", pin2: "net.AGND" }} />
     <capacitor name="CR2R2" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.VR2R", pin2: "net.AGND" }} />
     {/* SWD/JTAG + boot */}
     <chip name="JSWD" footprint={Header(10, 2)} {...gp()}
@@ -509,10 +516,10 @@ export default () => (
     <capacitor name="CILK" capacitance="2.2nF" footprint="0603" {...gp()} connections={{ pin1: "net.INTRLOK_N", pin2: "net.DGND" }} />
 
     {/* ---- VDC differential receivers (from the power board iso amps) ----
-        Receiver zero is offset to +0.5 V (buffered VREF5 divider into the + leg): a healthy
+        Receiver zero is offset to +0.5 V (buffered V5A divider into the + leg — the ADC reference, ratiometric since round 24): a healthy
         0 V bus reads 0.5 V, while the AMC1311 fail-safe state (negative differential when
         the HV side is dead) rails the receiver to ~0 V — the MCU can tell them apart. */}
-    <resistor name="ROF1" resistance="9.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: "net.VOFD" }} />
+    <resistor name="ROF1" resistance="9.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: "net.VOFD" }} />  {/* round 24 (F240): the +0.5 V offset divider follows the ADC reference to V5A (ratiometric) */}
     <resistor name="ROF2" resistance="1k" footprint="0603" {...gp()} connections={{ pin1: "net.VOFD", pin2: "net.AGND" }} />
     <capacitor name="COF1" capacitance="100nF" footprint="0603" {...gp()} connections={{ pin1: "net.VOFD", pin2: "net.AGND" }} />
     <chip name="UVOF" footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}
@@ -713,7 +720,7 @@ export default () => (
     {/* ---- TEMPERATURES ---- */}
     {PH.map((x) => (
       <group key={x}>
-        <resistor name={`RSN${x}P`} resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: `net.TMOD_${x}` }} />
+        <resistor name={`RSN${x}P`} resistance="5.1k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: `net.TMOD_${x}` }} />
         <capacitor name={`CSN${x}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.TMOD_${x}`, pin2: "net.AGND" }} />
       </group>
     ))}
@@ -729,7 +736,7 @@ export default () => (
         {/* SMAJ5.0A (round 14, F18): cathode on the line, anode on AGND — a real 400 W clamp, drawn as the diode it is */}
         <chip name={`TVSM${k}`} footprint={SmdFP(2)} {...gp()} pinLabels={{ pin1: "K", pin2: "A" }}
           connections={{ K: `net.${m}_F`, A: "net.AGND" }} />
-        <resistor name={`RMT${k}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: `net.${m}_F` }} />
+        <resistor name={`RMT${k}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: `net.${m}_F` }} />
         <resistor name={`RMT${k}S`} resistance="1k" footprint="0603" {...gp()} connections={{ pin1: `net.${m}_F`, pin2: `net.${m}_B` }} />
         <capacitor name={`CMT${k}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: `net.${m}_B`, pin2: "net.AGND" }} />
         <chip name={`UMT${k}`} footprint={SmdFP(5)} {...gp()} pinLabels={{ pin1: "OUT", pin2: "VN", pin3: "INP", pin4: "INN", pin5: "VP" }}

@@ -537,7 +537,52 @@ static bool ff_fits(float d, float q, float w, float v_av, float i_max, const mo
     return (sqrtf((d * d) + (q * q)) <= i_max) && (torque_v_required(d, q, w, m) <= v_av);
 }
 
-/* Bounded: 2 + 2 x 12 checks. */
+/* Round 24: on a piece [a, b] of i_q inside one segment of the L_q map and on one side of 0, lambda_q = L_q(|q|) q is one
+ * quadratic, its q^2 coefficient +/- s / step (s the segment's change of L_q per breakpoint step), so v_d strays from the
+ * line through its two ends by |w| |s| / step (q - a) (b - q) = C u (1 - u), u = (q - a) / (b - a), C = |w s| (b - a)^2 /
+ * step, and v_q is affine. |v| is then below A + (B - A) u + C u (1 - u) — A, B the ends' |v| (the norm of an affine
+ * function is convex, so below its chord) — whose largest value on [0, 1] is max(A, B) when |B - A| >= C, else
+ * (A + B) / 2 + C / 4 + (B - A)^2 / (4 C). C = 0 beyond the last point or without a map (L_q flat); NaN: no fit. */
+static float ff_piece_max(float a, float b, float va, float vb, float w, const motor_t *m)
+{
+    const float *map = m->lq_map_h;
+    const float x = ti_absf(0.5f * (a + b)) * ((float)(MOTOR_MAP_N - 1u) / m->i_map_a);
+    float c = 0.0f;
+    if ((map[0] != 0.0f) && (x < (float)(MOTOR_MAP_N - 1u))) {
+        const uint32_t k = (uint32_t)x;
+        const float s = m->lq_h * ((map[k + 1u] - map[k]) / map[0]);
+        c = ti_absf(w * s) * (b - a) * (b - a) * ((float)(MOTOR_MAP_N - 1u) / m->i_map_a);
+    }
+    const float dv = vb - va;
+    return !(c <= ti_absf(dv)) ? ((0.5f * (va + vb)) + (0.25f * c) + ((dv * dv) / (4.0f * c))) : ti_maxf(va, vb);
+}
+
+/* Round 24: (d, q) inside the circle and the ellipse for EVERY q in [lo, hi]. The circle is convex in q: the ends bound it.
+ * The voltage is not: between the ends |v| can peak at a breakpoint of the L_q map (the flux's slope jumps there) or, on
+ * a steep segment, inside one (lambda_q bends: the round-24 randomised reference found |v| 2.4e-4 above every end and
+ * breakpoint on maps that pass calib_check). So the interval is cut at the breakpoints inside it (and at 0, where the
+ * curvature of lambda_q changes sign) and each piece is bounded (ff_piece_max) — a bound, not a sample. */
+static bool ff_span_fits(float d, float lo, float hi, float w, float v_av, float i_max, const motor_t *m)
+{
+    const float step = m->i_map_a / (float)(MOTOR_MAP_N - 1u);
+    bool ok = (sqrtf((d * d) + (lo * lo)) <= i_max) && (sqrtf((d * d) + (hi * hi)) <= i_max);
+    float a = lo;
+    float va = torque_v_required(d, lo, w, m);
+    for (int32_t j = 1 - (int32_t)MOTOR_MAP_N; ok && (j <= (int32_t)MOTOR_MAP_N); j++) {
+        const bool end = (j == (int32_t)MOTOR_MAP_N);
+        const float b = end ? hi : (step * (float)j); /* the breakpoints -(N-1) .. N-1 steps in order, then the end */
+        if (end || ((b > lo) && (b < hi))) {
+            const float vb = torque_v_required(d, b, w, m);
+            ok = ff_piece_max(a, b, va, vb, w, m) <= v_av;
+            a = b;
+            va = vb;
+        }
+    }
+    return ok;
+}
+
+/* Bounded: 1 + 13 checks of the interval, each 2 voltages + one per breakpoint inside it (<= 2 N - 1; on a record — the
+ * full scale the SKU's limit, the table within 30 A — at most one: the breakpoints are >= 96 A apart). */
 float torque_ripple_scale(float id, float iq, float ff_lo, float ff_hi, float omega_e, float vdc, float i_max_a,
                           const motor_t *m, const ti_params_t *p)
 {
@@ -546,11 +591,14 @@ float torque_ripple_scale(float id, float iq, float ff_lo, float ff_hi, float om
     if (!ff_fits(id, iq, omega_e, v_av, i_max, m)) {
         return 0.0f;
     }
+    const bool swap = ff_hi < ff_lo; /* the interval's ends in order; a NaN stays where it is (no fit) */
+    const float f_lo = swap ? ff_hi : ff_lo;
+    const float f_hi = swap ? ff_lo : ff_hi;
     float lo = 0.0f;
     float hi = 1.0f;
     for (uint32_t n = 0u; n <= 12u; n++) {
         const float k = (n == 0u) ? 1.0f : (0.5f * (lo + hi)); /* all of it first */
-        if (ff_fits(id, iq + (k * ff_hi), omega_e, v_av, i_max, m) && ff_fits(id, iq + (k * ff_lo), omega_e, v_av, i_max, m)) {
+        if (ff_span_fits(id, iq + (k * f_lo), iq + (k * f_hi), omega_e, v_av, i_max, m)) {
             lo = k;
             if (n == 0u) {
                 break;

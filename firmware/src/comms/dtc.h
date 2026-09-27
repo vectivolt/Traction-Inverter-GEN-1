@@ -98,6 +98,10 @@ typedef enum {
                                the next key cycle (a record, not a failure) */
     DTC_ASC_OC_TRANSIENT,   /* round 23 (item 5): a phase over-current inside cal_asc_oc_window_ms of an LS-ASC entry — the
                                short-circuit transient, information (not the control-lost fault); passed once it is over */
+    DTC_ADC_SLOW_STALE,     /* round 24 (F240): Slow-list ADC input (temperature, V5GD, VOFS, KL15, HVIL or LV supply) not
+                               converted within the hold time - its reading withdrawn (FW-13, FW-07, FW-09, FW-33) */
+    DTC_TEMP_OPEN_SHORT,    /* round 24 (F243): Temperature sensor reads open or short - recorded also while its channel's
+                               latched rate fault keeps the reading invalid (FW-13) */
     DTC_COUNT
 } dtc_id_t;
 

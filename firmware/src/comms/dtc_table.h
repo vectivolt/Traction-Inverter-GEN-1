@@ -14,7 +14,7 @@ typedef struct {
     const char *text;
 } dtc_table_row_t;
 
-#define DTC_TABLE_N 81u /* DTC_COUNT when generated */
+#define DTC_TABLE_N 83u /* DTC_COUNT when generated */
 
 static const dtc_table_row_t DTC_TABLE[DTC_COUNT] = {
     [DTC_FS26_PROGID] = {"DTC_FS26_PROGID", 0xD10001u, "Safety SBC (FS26) OTP variant: M_PROGID unbound or not the procured one - no arming (FW-12)"},
@@ -28,7 +28,7 @@ static const dtc_table_row_t DTC_TABLE[DTC_COUNT] = {
     [DTC_FS26_GPIO1_OTP] = {"DTC_FS26_GPIO1_OTP", 0xD10009u, "Gate power up before start-up step 6: FS_GPIO1 slotted in the FS26 OTP - no arming"},
     [DTC_HWID_OPEN] = {"DTC_HWID_OPEN", 0xD1000Au, "HW_ID input open (power-board identity resistor missing) - no arming (FW-01)"},
     [DTC_HWID_SHORT] = {"DTC_HWID_SHORT", 0xD1000Bu, "HW_ID input shorted to ground - no arming (FW-01)"},
-    [DTC_HWID_UNKNOWN] = {"DTC_HWID_UNKNOWN", 0xD1000Cu, "HW_ID reading outside every SKU window or unstable - no arming (FW-01)"},
+    [DTC_HWID_UNKNOWN] = {"DTC_HWID_UNKNOWN", 0xD1000Cu, "HW_ID reading outside every SKU window, unstable or not converted - no arming (FW-01)"},
     [DTC_SKU_MISMATCH] = {"DTC_SKU_MISMATCH", 0xD1000Du, "HW_ID, parameter set and calibration record disagree on the SKU - no gate enable (FW-02)"},
     [DTC_CALIB_INVALID] = {"DTC_CALIB_INVALID", 0xD1000Eu, "Calibration record missing or wrong (layout, CRC, range, SKU, serial, motor ID) - no torque (FW-20)"},
     [DTC_PARAMS_INVALID] = {"DTC_PARAMS_INVALID", 0xD1000Fu, "Parameter set fails its range or consistency check - no arming"},
@@ -97,6 +97,8 @@ static const dtc_table_row_t DTC_TABLE[DTC_COUNT] = {
     [DTC_MC_ABORTED] = {"DTC_MC_ABORTED", 0xD1004Eu, "Commissioning routine aborted - its reason is in the routine's results; a record (FW-39)"},
     [DTC_MC_CAL_WRITTEN] = {"DTC_MC_CAL_WRITTEN", 0xD1004Fu, "Commissioning wrote a new calibration record version - effective at the next key cycle (FW-39)"},
     [DTC_ASC_OC_TRANSIENT] = {"DTC_ASC_OC_TRANSIENT", 0xD10050u, "Phase overcurrent inside the ASC-entry window: the short-circuit transient - information (FW-05)"},
+    [DTC_ADC_SLOW_STALE] = {"DTC_ADC_SLOW_STALE", 0xD10051u, "Slow-list ADC input (temperature, V5GD, VOFS, KL15, HVIL or LV supply) not converted within the hold time - its reading withdrawn (FW-13, FW-07, FW-09, FW-33)"},
+    [DTC_TEMP_OPEN_SHORT] = {"DTC_TEMP_OPEN_SHORT", 0xD10052u, "Temperature sensor reads open or short - recorded also while its channel's latched rate fault keeps the reading invalid (FW-13)"},
 };
 
 #endif /* DTC_TABLE_H */

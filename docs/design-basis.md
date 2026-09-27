@@ -198,7 +198,7 @@ UCC12051-Q1's 80 mA no-load maximum), read on different ADCs.
   **±2.1 % worst case** (correlated top string — rev A.6, R-F37; the old ±0.7 % was an RSS),
   ≈±0.3 % after EOL calibration; worst-corner linear FS 902 V vs the 880 V OV trip
 - Channel 2 is the discharge witness and OV cross-check (disagreement > 5 % ⇒ fault).
-- **Not fully independent (R-F11):** the receivers share VREF5/V5A and the +0.5 V offset
+- **Not fully independent (R-F11):** the receivers share V5A (the ADC reference since round 24) and the +0.5 V offset
   buffer UVOF, whose failure moves both channels together. Rev A.6 reads `VOFS` on its own ADC
   pin (FW-07) and cross-checks the BMS pack voltage with contactors closed.
 - (References use AMC0386-Q1 integrated-divider parts — the divider+AMC1311 chain is the
@@ -373,7 +373,7 @@ guarantee it (review round 3/5 item):
 | 2 | FS26 Q&A watchdog + supply monitors → FS0B | independent silicon, no SW |
 | 3 | FS0B ∧ MCU_EN ∧ RDY hardware AND → all 6 driver enables | discrete gate, no SW |
 | 4 | 3 × phase current + ΣI = 0 plausibility | 3rd channel = redundancy |
-| 5 | 2 × isolated V_DC senses (Δ > 5 % ⇒ fault) + shared-offset monitor + BMS pack cross-check | separate dividers, amps + bias; receivers share VREF5/offset (monitored — R-F11) |
+| 5 | 2 × isolated V_DC senses (Δ > 5 % ⇒ fault) + shared-offset monitor + BMS pack cross-check | separate dividers, amps + bias; receivers share V5A (the ADC reference since round 24)/offset (monitored — R-F11) |
 | 6 | Per-switch DESAT OC, driver-local, latching | different technology vs halls |
 | 7 | ASC via LS drivers, latched, overspeed-gated | separate command + bias path |
 | 8 | HVIL loop monitor → torque off + safe state | MCU-read ADC signature (no hardware comparator — R-F12) |
@@ -434,6 +434,45 @@ Earlier rounds: the rev A.3 campaign found and fixed 18 defects (F1–F36); the 
 reviews then confirmed and fixed F37–F46 (A.4), F47–F51 (A.4.1), F52–F57 (A.4.2), F58–F59
 (A.4.3), F60–F62 (A.5 docs audit), F63–F76 (A.6), F77–F89 (A.7), F90–F97 (A.8), F98–F105
 (the A.8 cross-check), F106–F113 (A.9), F114–F119 (the A.9 cross-check), F120–F122 (A.10) and F123–F134 (A.11).
+
+## 11w. Rev A.23 — round 24: four rechecks of 4ed0101 (summary)
+
+Four independent rechecks of the A.22 push ([`review-A23-disposition.md`](review-A23-disposition.md), register F240–F242). Three
+of them reopen A20-F01, and they are right: the S32K39 data sheet Rev. 3 we hold states in **Table 38, the SDADC table**, that
+the external positive reference must stay within **AVDD ± 25 mV** — our own extracted-parameters file had recorded it, and the
+round-23 row judged the general operating-conditions note (+100 mV) and called the figure absent. The SDADC references E10/F13
+(and the SAR groups E6/H6) sat on VREF5, the FS26's separate precision regulator, matched to the LDO2 that supplies VDDA_SDADC
+only within ±1 % = ±50 mV: an allowed regulator combination put the converter that carries the resolver outside its specified
+reference/supply relationship (the reviewers' 5.000 V / 5.040 V case). **Fixed by construction (F240):** every non-R2R reference
+group is on V5A itself, the node of VDDA_SDADC and VDD_HV_A — NXP's GEN3 arrangement, and the alternative IR-26 had named — so
+VREFP − AVDD is the IR drop on one pour (< 1 mV, a layout rule in the handoff §4.11); the ratiometric loads (the HW_ID and offset
+dividers, the seven NTC pull-ups) moved with the reference, so no code ratio the firmware uses changed; the R2R ladder keeps the
+FS26 VREF as its isolated supply through the 10 Ω branch (CR2R1 330 nF, corner 37 kHz); CSB5 2.2 µF alone holds the FS26's
+1.1–3.3 µF window (1.36–2.92 µF effective); the absolute SAR scale becomes the LDO2's ±1.75 % — the V_DC chain and V5GD budgets
+are re-derived (the 880 V hardware trip spans 865–895 V, still between the 850 V normal maximum and the 1000 V can), EOL gain
+calibration removes the static part and QP-TH-06 measures the drift. No new part. VR-34 is closed by design. The R2R separation
+(F214), the SMT SWD land (F215), the torque solver (F217/F218: two reviewers re-ran it — 8 four-quadrant cases, a 20 000-case
+and a 4 049-case screen with independent double-precision oracles, zero violations) and the BOM intro (F219) are confirmed.
+
+**Firmware (image 0x0A0F0016, CAL layout 4 unchanged).** Review 2 reproduced, with the exact `temp.c`, that a temperature ADC
+channel whose conversions had stopped stayed valid indefinitely: the HAL's seen-flag stays true after the first conversion and
+the caller passed the task's own time to the temperature module, which re-stamped the old code (F241). The fix is a
+three-state acquisition contract for every slow-list input — a new stamp is taken, a held one within `cal_temp_hold_ms`
+(10 ms of the 1 ms slow schedule) is neither re-accumulated nor re-timed, an expired one withdraws the channel with
+DTC_ADC_SLOW_STALE and its consumer's existing invalid-reading response — and an audit that gave the same contract to every
+slow consumer a decision hangs on (V5GD/VOFS, IGN, INTRLOK_N, VSUP, HW_ID); 76 checks failed on the old behaviour, 17 of 18
+mutations caught. The status register's finding on FW-45/46 held too: the record check bounded the inductance but not the
+flux slope, and the ripple limiter judged only its interval's ends — the check now requires the flux slope just below every
+breakpoint ≥ 0.25 × L0 (0.3 refused the project's own saturating reference plant in the piecewise-linear model), and the
+limiter cuts the interval at every breakpoint and bounds each piece in closed form, because the agent's own oracle showed
+breakpoints alone are not enough (the flux is quadratic inside a segment): 20 000 maps, a 257-point scan per interval, 0
+beyond 1e-6 (F242). Two more defects found on the way and fixed: a latched temperature-rate fault that a single open/short
+sample replaced and in-range samples then cleared (F243, DTC_TEMP_OPEN_SHORT surfaces the wire fault under the latch), and
+the V_DC channels' freshness check without the sticky expiry that let a converter stopped for 35 min read fresh for 200 µs
+near every 71.6-min wrap (F244; every seen stamp is recorded, so a first read that is already stale cannot come back as new).
+Counts: ERC 981 · verify 158/18/0 · sim 23/6/0 · Marine 87/23/0 · pin-verify 2065/2065 · KiCad proof PASS (689 components
+bound) · BOM ₹0 change · firmware 444 tests / 5199 checks / 0 failed in three flavours and on the Cortex-M7 under QEMU,
+82 DTCs, 191 fields / 92 CAL rows, 63 target markers. Marine forks at A.23.
 
 ## 11v. Rev A.22 — round 23: three rechecks of 452de85, and the VESC program (summary)
 

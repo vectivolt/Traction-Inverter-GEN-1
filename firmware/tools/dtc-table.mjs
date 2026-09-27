@@ -29,7 +29,7 @@ const DESC = {
   DTC_FS26_GPIO1_OTP: "Gate power up before start-up step 6: FS_GPIO1 slotted in the FS26 OTP - no arming",
   DTC_HWID_OPEN: "HW_ID input open (power-board identity resistor missing) - no arming (FW-01)",
   DTC_HWID_SHORT: "HW_ID input shorted to ground - no arming (FW-01)",
-  DTC_HWID_UNKNOWN: "HW_ID reading outside every SKU window or unstable - no arming (FW-01)",
+  DTC_HWID_UNKNOWN: "HW_ID reading outside every SKU window, unstable or not converted - no arming (FW-01)",
   DTC_SKU_MISMATCH: "HW_ID, parameter set and calibration record disagree on the SKU - no gate enable (FW-02)",
   DTC_CALIB_INVALID: "Calibration record missing or wrong (layout, CRC, range, SKU, serial, motor ID) - no torque (FW-20)",
   DTC_PARAMS_INVALID: "Parameter set fails its range or consistency check - no arming",

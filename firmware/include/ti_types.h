@@ -9,7 +9,8 @@
  *   angle        rad  electrical unless suffixed _mech; wrapped to [0, 2*pi)
  *   time         us   uint32_t free-running microseconds, wraps every 71.6 min — compare only with
  *                     ti_elapsed()/ti_age() (unsigned subtraction), never with < or >; a SENSOR stamp's
- *                     freshness with ti_stale() (signed: the stamp may postdate the check, round 18)
+ *                     freshness with ti_stale() (signed: the stamp may postdate the check, round 18), a
+ *                     slow-list sample's acquisition with ti_acq() (new / held / expired, round 24)
  *                ms   uint32_t for slow timers (1 kHz task), same wrap rules; only from hal_time_ms()
  *                     (hal/timer.h: us64 / 1000), never hal_time_us() / 1000 (A12-R06)
  *   ADC          code uint16_t 12-bit, 0..4095 = VREFL..VREFH (VREF5 = 5.0 V, ratiometric)
@@ -71,6 +72,41 @@ static inline bool ti_stale(uint32_t now, uint32_t stamp, uint32_t hold)
 {
     const uint32_t age = now - stamp;
     return (age >= hold) && ((0u - age) >= hold);
+}
+
+/* Round 24 (F241): the acquisition of a slow-list sample. hal_adc_read() returns the latest conversion's code, the time
+ * the platform fetched it and whether the channel ever converted — the same code and stamp, however often it is read,
+ * until the next conversion. A consumer judges every read against the stamp it last took (*l):
+ *   NEW      converted, another stamp than the one taken, fresh: take it (the stamp is recorded);
+ *   HELD     the stamp already taken, still fresh: nothing new — nothing is counted again, the consumer's verdict stands;
+ *   EXPIRED  never converted, or the stamp `hold` or more from now (ti_stale: signed, wrap-safe): the reading is
+ *            withdrawn — and stays withdrawn until a NEW sample: the same stamp again, which ti_stale reads as fresh near
+ *            every 2^32 us of a stopped channel's age, does not revive it.
+ * A constant input converted on schedule gives a new stamp every time: NEW, never a "must change" check. */
+typedef enum { TI_ACQ_NEW = 0, TI_ACQ_HELD, TI_ACQ_EXPIRED } ti_acq_t;
+
+typedef struct {
+    uint32_t t_us; /* the stamp last taken */
+    bool taken;    /* a stamp was taken */
+    bool expired;  /* the last judgement was EXPIRED */
+} ti_acq_last_t;
+
+static inline ti_acq_t ti_acq(ti_acq_last_t *l, bool seen, uint32_t t_us, uint32_t now_us, uint32_t hold_us)
+{
+    const bool same = l->taken && (t_us == l->t_us);
+    if (seen) { /* every stamp seen is recorded, judged or not (F244 hardening): a stamp that is already stale the first
+                 * time it is read would otherwise never be "the same" and could come back as NEW near the 32-bit wrap */
+        l->t_us = t_us;
+        l->taken = true;
+    }
+    l->expired = !seen || ti_stale(now_us, t_us, hold_us) || (same && l->expired);
+    if (l->expired) {
+        return TI_ACQ_EXPIRED;
+    }
+    if (same) {
+        return TI_ACQ_HELD;
+    }
+    return TI_ACQ_NEW;
 }
 
 static inline float ti_code_to_v(uint16_t code)

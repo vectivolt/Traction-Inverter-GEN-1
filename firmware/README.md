@@ -30,7 +30,7 @@ make clean
 `make test` compiles with `-std=c11 -Wall -Wextra -Werror -Wshadow -Wdouble-promotion
 -Wmissing-prototypes -Wstrict-prototypes -Wundef -Wpointer-arith -Wcast-qual -Wvla`. Test files
 alone get `-Wno-double-promotion`, because their reference arithmetic is done in double. Current
-result (round 23, with its fixes and FW-45/FW-46): **421 tests, 4937 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
+result (round 24: F241, the slow channels' acquisition freshness, the FW-45/FW-46 review and the F243/F244 follow-ups): **443 tests, 5195 checks, 0 failures**, also with `-fsanitize=address,undefined` and at
 `-O2` (`make BUILD=build/asan test CFLAGS="-O1 -g -fsanitize=address,undefined"`,
 `make BUILD=build/o2 test CFLAGS=-O2`).
 
@@ -142,7 +142,7 @@ These rules shape the code:
   its block start on the SDADC cadence, whatever its interrupt's latency. Round 19: that cadence is dated by the
   SWG start, never by a completion, and a ring whose DMA lost the carrier phase is restarted, not re-guessed.
 - **One parameter set per SKU.** `include/params_<sku>.h` is generated from the contract tables
-  and has 190 fields (round 23). 91 of them are `cal_*` values the contract does not fix, mostly hardware
+  and has 191 fields (round 24). 92 of them are `cal_*` values the contract does not fix, mostly hardware
   timings and tolerances. Each has its contract default and a `[min, max]` range
   (`include/cal_ranges.h`), checked at boot.
 - **Units:** see `include/ti_types.h`. Time is `uint32_t` µs or ms, compared only through
@@ -229,7 +229,13 @@ These rules shape the code:
   uncertainty, a constant 40 / 60 µs delay never published, a delay rejected once never absorbed after the break (also
   as the FOC angle at 10 000 rpm), a channel paused one period, a DMA stall and 2^32 µs of silence against the clock,
   an early completion, an interrupt late inside the origin's uncertainty (no false loss), the restart limit per key
-  cycle across an MCU reset.
+  cycle across an MCU reset;
+- round 24 (F241): every slow-list input stopped (its code and stamp frozen while the input moves on) or never
+  converted, each alone while the current loop and V_DC run: the seven temperatures, V5GD and VOFS, KL15, INTRLOK_N,
+  VSUP and HW_ID — held for `cal_temp_hold_ms`, then withdrawn with their consumers' responses; a constant input
+  converted on schedule valid for three minutes; the hold across the 32-bit µs wrap; F243: a latched rate fault through
+  an open or short sample (the channel stays RATE and invalid, the derating stays, `DTC_TEMP_OPEN_SHORT`); F244: a stopped
+  V_DC converter stale until a new conversion, also at every µs within 150 µs of 2^32 µs of its stamp's age.
 
 **Needs the target, HIL, EOL or the bench:** everything is in **[`docs/target-bringup.md`](docs/target-bringup.md)**
 — one row per open marker in the sources (RTD, RM, HW-RM, HW, EOL, REL), with the acceptance check and what
@@ -357,7 +363,7 @@ review). Each has regression tests that fail on the pre-fix source and pass now 
 | FW-06a — ASC exit | After its 1 µs ASC_CLR pulse the firmware waited 1 µs, so the first high-side pulse came 2.0 µs after the clear's falling edge — before the low sides' ASC release (≤ 1.07 µs: design-verify Safety A.8, VOW3120 t_pHL 0.5 + DASCR 0.08 + NSI6611 t_ASC_f 0.48 µs + 11 ns of logic) plus their turn-off (the dead time, 1.0 µs SiC / 2.5 µs IGBT): deadlines 2.07 / 3.57 µs. The contract still quoted 7.5 / 0.75 µs for the ASC entry/release. | The first HS pulse waits `cal_asc_release_ns` (1.5 µs; range 1.07–5 µs, never below the release) + the SKU dead time from the falling edge, + one µs timer count: 4.0 µs SiC, 5.0 µs IGBT on the host. The contract's ASC figures follow the verifier row: LS start ≥ 4.42 µs, entry ≤ 7.56 µs, release ≤ 1.06 µs (1.07 µs with the logic). | bridge: `asc_exit_only_when_allowed_and_hs_after_the_release`; scenarios: `asc_exit_first_high_side_pulse_after_the_release_deadline` (after an MCU reset at 10 000 rpm, SiC and IGBT) |
 | FW-33 — LV supply (let-through LV entry) | The firmware did not read VSUP: a load dump or a jump start left no record, and an overvoltage of any length was never acted on (the FS26's VSUPOV is only an interrupt, and INTB is unused). | VSUP through the FS26 AMUX (VSUP / 14, set at every boot), every 1 ms. Above 20 V is information — RUN and the torque unchanged (no derate), `DTC_LV_OVERVOLTAGE` stamped over the event — for `cal_vsup_ld_ms` (500 ms, range 400–1000) above `cal_vsup_jump_max_v` (27 V, range 24.5–30: IR-03 test B, 35 V / 400 ms) and for `cal_vsup_jump_ms` (65 s, range 60–120 s) at or below it (IR-02, 24 V / 60 s). Longer is `DTC_LV_OV_SUSTAINED` and the §6 command-lost ramp — the HVIL-open path — until KL30 is back. | scenarios: `lv_load_dump_35v_for_400ms_is_information_not_a_fault`, `lv_overvoltage_beyond_its_band_takes_the_orderly_ramp`, `lv_24v_jump_start_is_information_for_its_60s` (24 V and 26.5 V) |
 
-`TI_FW_ID` was 0x0A0F0011 in round 17 (0x0A0F0012 round 18, 0x0A0F0013 round 19, 0x0A0F0014 the round-23 torque-solver image, **0x0A0F0015 since the round-23 gap closure** — the current image): every change of the ID needs a new EOL/HIL validation record before it arms (checklist T-05);
+`TI_FW_ID` was 0x0A0F0011 in round 17 (0x0A0F0012 round 18, 0x0A0F0013 round 19, 0x0A0F0014 the round-23 torque-solver image, **0x0A0F0015 since the round-23 gap closure, 0x0A0F0016 since round 24** — the current image): every change of the ID needs a new EOL/HIL validation record before it arms (checklist T-05);
 the calibration record stays layout 2. It was introduced in this round and never validated, so the FS26,
 ASC-exit and LV changes ship under the same identity. Also in this round: the markers of the platform code were consolidated to one per
 bring-up item (47, each a row of `docs/target-bringup.md`; `make target-check` fails on drift either way), the
@@ -464,7 +470,7 @@ in `docs/firmware-contract.md`; §10c indexes the round) or a checklist row (`do
 26. **DC-link trim** — implemented (above): FW-08.
 27. **ADC1 injected chain** — FW-06 (the sample wait: 4 µs of the 5.0 µs row); measurement: T-11.
 28. **BCTU list read-back** — checklist T-12.
-29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0015 (round 23, second image — 0x0A0F0014 the round-23 torque-solver image; 0x0A0F0011 round 17, 0x0A0F0012 round 18, 0x0A0F0013 round 19), calibration layout 4 (round 23's FW-45/FW-46: the L_d/L_q saturation maps and the ripple table; 190 fields / 91 rows; layout 3 since the gap closure, layout 2 before); the records: T-05, T-06, T-07 (round 18:
+29. **Image identity** — §10c: `TI_FW_ID` 0x0A0F0016 (round 24 — 0x0A0F0015 the round-23 second image, 0x0A0F0014 the round-23 torque-solver image; 0x0A0F0011 round 17, 0x0A0F0012 round 18, 0x0A0F0013 round 19), calibration layout 4 (round 23's FW-45/FW-46: the L_d/L_q saturation maps and the ripple table; 190 fields / 91 rows; layout 3 since the gap closure, layout 2 before); the records: T-05, T-06, T-07 (round 18:
     0x0A0F0012, round 19: 0x0A0F0013, §10d; round 23: 0x0A0F0014, FW-37, §10e; then 0x0A0F0015, FW-38…FW-44 and §10k).
 30. **Amplitude planes** — FW-30 (round 17): the setpoint at the monitor, the floor at the winding through
     `cal_rslv_wind_per_mon` and the EOL ratio; the EOL confirmation: T-07.
@@ -809,3 +815,84 @@ the references against a current-loop ISR preempting the task (T-58).
 | Bridge: a committed record at the next key cycle | `power_up()` handed `app_init()` the bench's sealed default record, so a FW-39 commit was never loaded after `reboot` (found by the tool's commissioning test) → the NVM record wins once it exists | tool/qt tst_gui_smoke: the calibration CRC changes across the reboot, the routines re-run on the new record |
 | Map tolerance + motor DID | FW-45's record check refused every map commit on a machine that does not saturate (the six measured points scatter by ≈ 0.1 %, and the rule was never-rising; found by the tool's sweep) → a rise ≤ 2 % between neighbours passes (MOTOR_MAP_RISE_TOL); DID 0xFD25 carries the record's motor data (ψ, pp, the scalars) for the tool's ripple import over CAN; DID 0xFD26 the active record's maps (a committed map read back after the key cycle) | tests/test_fw45_46.c (a 1 % rise passes, 3 % refused), tests/test_uds_diag.c the_motor_did_mirrors_the_record |
 | Checklist | T-57 (the map on the dyno) and T-58 (the ripple table) from FW-45/46; T-59 the QEMU run (renumbered from a duplicate T-57); T-43's instruction count from the M7 build (458, not ≈ 300) | `make target-check` 63 markers |
+
+## Round 24
+
+External review of round 23 (an independent double-precision oracle). Each row has tests that fail on the round-23 source
+(restored in a private copy of the tree with the new tests, the suite run: the failed checks below) and mutations, each
+applied alone in that copy, its objects deleted, the suite run, the source restored — all caught
+(`docs/traceability.md`, "Round 24 — FW-45 flux slope, FW-46 whole interval"; contract §10l "Flux slope (round 24)", §10m
+"The whole interval (round 24)"). `TI_FW_ID` and the record layout (4) unchanged.
+
+| # | Defect (evidence) | Change | Tests (failing before) | Mutations (each caught) |
+|---|---|---|---|---|
+| 1 | FW-45 map check (MODERATE): `calib_check` bounded the apparent inductance only. The reviewer's L_q map — 1.75 mH flat to breakpoint 3, then 0.56 mH — passed while its flux λ = L(i)·i falls with the current (dλ/di −1.82 mH just above breakpoint 3, −4.20 mH just below 4), against the premise of the solve's contour search, the gain scheduling and FW-46's scale; so did round 23's own "saturating map inside the rules" (… 0.79, 0.30) | `nvm/calib.c: map_ok`: the model's flux slope just below every breakpoint, (k + 1)·L_k − k·L_(k−1) ≥ 0.25·L_0, else CAL_ERR_RANGE — exact (the slope is affine on a segment: a falling one's least value is its upper end, a rising one's ≥ L_k); refused at the power-up, the FW-39 commit (NRC 0x22, nothing written; the ripple table's commit likewise) and the class checks; DID 0xFD26 reads the maps as stored. The 2 % rise tolerance kept (a rise only raises the slope). Margin 0.25, not the gain floor's 0.3: the reference plant's model sits at 0.280·L_0 (its true differential inductance ≥ 0.307·L_0), and where a model sits in [0.25, 0.3) the floor over-gains it ≤ 1.2× (phase margin ≈ 55° against ≈ 61°). Round 23's positive control replaced by a physical profile | fw45_46: `the_model_flux_must_rise_with_the_current`, `an_unsupported_map_is_refused_at_the_commit_and_at_power_up` — 8 checks | the rule removed (8); positivity only (3); margin 0.30 (7); the margin over the neighbour, not point 0 (1); the wrong end, k + 1 (16); the last breakpoint skipped (3) |
+| 2 | FW-46 scale (MODERATE): `torque_ripple_scale` checked the circle and the ellipse at the two extremes only. The reviewer's case (the map above; i_d −101.995 A, i_q 280 A, 480 rad/s, 632.56 V, reserve 0.1, modulation 0.95, extremes −10 / +20 A): k = 1 while breakpoint 3 (288.5 A) needs 315.08 V of 312.25 V. Also on maps that pass row 1: a peak at a breakpoint (K, regenerating: +0.67 %) and one inside a steep segment (B: +4.9·10⁻⁵, no breakpoint between the extremes — the breakpoints alone miss it) | `control/torque.c`: `ff_span_fits` cuts [i_q + k·min, i_q + k·max] at every L_q breakpoint inside it and at 0; `ff_piece_max` bounds each piece in closed form — the chord's bow C = \|ω·s\|·(b − a)²/Δi: max(A, B) when \|B − A\| ≥ C, else (A + B)/2 + C/4 + (B − A)²/(4C); the circle at the ends; the extremes ordered, a NaN one still 0. Still the feed-forward scaled down, never the solved vector | fw45_46: `the_scale_holds_every_i_q_between_the_extremes` — 5 checks (the reviewer's case, K and B in both mirrors); `the_scale_holds_every_i_q_on_20000_physical_maps` — the proof (0 of 20 000 beyond 10⁻⁶, worst +5.8·10⁻⁷; it passes on round 23 at its seed: a 200 000-case run outside the suite, drawn alike without the half near the least \|v\|, found round 23's scale outside in 6, by up to 0.59 %, all regenerating) | no breakpoints (3); the negative ones skipped (1); no bound on the pieces (2); the cruder max + C/4 (2); C a quarter (2); the extremes unordered (1); a NaN extreme dropped (1); the circle at the ends removed (6) |
+
+**Why a bound, not a fine scan.** The review took |v| to be convex in i_q between breakpoints; that holds for linear
+pieces of λ_q, but the model's pieces are quadratic (L is linear in i), and a steep segment bends |v| outward — an
+exploration of 200 000 intervals found interior peaks up to 2.4·10⁻⁴ above every extreme, base and breakpoint (margins
+0.25 and 0.30; none at 0.5). The fallback the task named, a fine scan inside `ff_fits`, is still a sample and ≈ 830 voltage
+checks per call; the bound is ≤ 40 on a record (`docs/timing.md`: ≈ 12 µs at 320 MHz; on the host 0.57 µs mean against
+round 23's 0.27 µs), exact on flat segments and on steep ones across which |v| changes by more than the bow, conservative
+only where |v| is nearly flat: in the suite's reference (half of it drawn near the least |v|) the mean price is 1.8·10⁻³ of
+the scale, 69 of 17 067 limited cases lose more than 0.05, the worst gives 0 where 1 fits.
+
+**Counts**: 434 tests / 5108 checks in the live tree before the round-24 tests (the parallel round-24 acquisition work
+included) → **438 / 5139**, 0 failed in the default, −O2 and ASan/UBSan flavours; `make target-check` 63 markers
+(unchanged). **Not changed**: `tool/qt` explains a refused map commit as "a map must not rise with the current"
+(`CommissioningSequencer.cpp`) — it does not yet name the flux-slope rule.
+
+## Round 24 — acquisition freshness of the slow channels (F241)
+
+An external review (MAJOR), reproduced on `sense/temp.c` as committed (Git blob 04583c2): `hal_adc_read()` returns an
+input's last conversion and its stamp until the next one — forever once a converter stops — and the 1 ms task took every
+read as a new sample at its own time. Contract §10n; `docs/traceability.md`, "Round 24 — acquisition freshness (F241)".
+"Before" is the old behaviour restored in the new tree — every read taken as new (`ti_acq` returning NEW; the new tests
+cannot compile against the old sources, which have neither the host hook nor the DTC) — in a private copy of the tree
+(the parallel FW-45/FW-46 work at HEAD there), the suite run, the failed checks counted; each mutation applied alone in
+that copy, every object rebuilt (`make -B`), the suite run. `TI_FW_ID` unchanged.
+
+| # | Defect (evidence) | Change | Tests (failed checks before) | Mutations (failed checks) |
+|---|---|---|---|---|
+| 1 | Temperatures: TMOD_U converted once at 1 ms, then none for 60 s while the module heats to 120 °C — valid, `TEMP_OK`, 70 °C, accepted at 60 001 ms, the derating on the frozen value; the same on each of the seven channels; the three module NTCs stopped at 40 °C: derating 1.0 (the peak current); a channel that never converted read as a short | `include/ti_types.h: ti_acq` — NEW / HELD / EXPIRED against the stamp the consumer last took, the age signed and wrap-safe (`ti_stale`), EXPIRED kept until a new stamp; `app/app.c: sense_slow`; `sense/temp.c`: HELD takes nothing, EXPIRED invalid (the window emptied, the fault as it was, a TEMP_RATE latch kept); `cal_temp_hold_ms` 10 ms [3, 50]; `DTC_ADC_SLOW_STALE` (81, 0xD10051) | acq_fresh: `an_acquisition_is_new_held_or_expired` (10), `one_conversion_then_none_for_60_s_is_withdrawn` (4), `each_stopped_temperature_channel_is_held_then_withdrawn` (32: all seven), `three_stopped_module_channels_take_the_invalid_reading_derating` (3), `a_temperature_input_that_never_converts_is_invalid_from_the_start` (7), `the_hold_is_counted_across_the_microsecond_wrap` (1); temp: `a_held_conversion_is_not_taken_again_and_an_expired_one_withdraws_the_channel` (4, with temp.c ignoring the acquisition) | the age check removed (60); the task's time as the stamp (45); the age of the stamp last taken (1160); the hold + 1 µs (13), − 1 µs (2), + 1 period (8); EXPIRED revived by the same stamp (2); a held sample taken (9); an expired channel valid (35); its window kept (16); no DTC (38) |
+| 2 | V5GD / VOFS stopped: V_DC valid on the frozen code — FW-07's references blind (a failed VOFS buffer moves both channels by up to 228 V; FW-18 could report SAFE) | `sense/vdc.c`: a new conversion judged, a held one kept, an expired one leaves both channels invalid with the last verdicts kept — the §6 V_DC-invalid row (named `DTC_ADC_SLOW_STALE`), HV unknown, not the V5GD row's forced SPO and ASC clear; `app/app.c: sense_fast, detect` | `a_stopped_v5gd_or_vofs_reading_leaves_v_dc_invalid_not_a_v5gd_loss` (12; with vdc.c ignoring the acquisition: 12) | the ISR's time as the stamp (10); V_DC left valid (8); an expired V5GD judged a loss (4); the row named `DTC_VDC_STALE` (2) |
+| 3 | KL15 on forever; INTRLOK_N frozen: the closed and an implausible signature alternate against the toggling drive and never debounce — an open loop unseen (FW-09); VSUP valid at its last value (FW-33) | `app/app.c: sense_slow`: a held conversion is not judged again; an expired one reads as never converted (code 0) — KL15 absent (off 30 ms after the stop: the hold + `cal_ign_debounce_ms`), the HVIL signature lost 30 ms after it (inside FW-09's 100 ms), no VSUP reading at 10 ms | `a_stopped_kl15_reading_is_held_then_read_as_absent` (2), `a_stopped_interlock_reading_loses_the_hvil_signature_within_100_ms` (2), `a_stopped_vsup_reading_is_no_reading` (1) | the frozen code passed on (4) |
+| 4 | HW_ID never converted read "shorted" (`DTC_HWID_SHORT`); a stopped converter passed one conversion, eight times, as FW-01's stable reading | `app/app.c: init_identity`: eight new conversions or the identity unknown (`DTC_HWID_UNKNOWN`, no arming) | `the_identity_needs_eight_new_conversions` (2) | repeated conversions accepted (2) |
+| 5 | Host model | `platform/host/sim_hal.c`: `sim_adc_freeze` holds the code as well as the stamp (a stopped converter's data register; it had no user); `sim_adc_never` (one input never converts) | — | — |
+| 6 (F243) | FW-13's rate latch was not latched (reproduced on the round-24 `temp.c` by a probe): `TEMP_RATE` (3) → one open or short sample put `TEMP_OPEN`/`TEMP_SHORT` (1/2) in its place → samples back in range cleared that, `TEMP_OK`, the channel valid at the next window's mean (the 200th sample). End to end, the three module NTCs latched by a 40 → 90 °C step, TMOD_U open for one conversion, all back at 40 °C: TMOD_U valid 200 ms later, the derating released from 0.544 to 1.000 (340 A rms) | `sense/temp.[ch]`: every new sample's open/short check goes to a new `wire` (`TEMP_OK`/`_OPEN`/`_SHORT`); `fault` takes it only while no `TEMP_RATE` is latched — the latch and its invalid verdict stay for the key cycle (DID 0xF205 keeps reporting 3). The open or short is surfaced by its own DTC: `DTC_TEMP_OPEN_SHORT` (82, 0xD10052; `app.c: temp_dtcs` — set while any channel's `wire` reads open or short, latched or not, passed when none does; `nvm/runstats.c`: class sensor). Open and short without a latch act per sample as before | temp: `a_latched_rate_fault_is_never_replaced_by_an_open_or_short_sample` (4), `open_and_short_without_a_rate_latch_still_act_per_sample` (4 — its new `wire` checks only; its fault and validity checks pass before: the rules unchanged); acq_fresh: `a_rate_latched_module_channel_that_reads_open_or_short_stays_latched` (4) | the guard removed (14); open/short outranking the latch (8); open/short latched too (8); the verdict from the sample, not the latch (7); `wire` not recorded under the latch (6); `wire` never cleared (12); the DTC from `fault`, not `wire` (4); no DTC (4) |
+| 7 (F244) | V_DC kept round 18's age check (`ti_stale`) without round 24's stickiness (reproduced by a probe): one conversion, then none — stale 100 µs later, but valid on the frozen code for 199 µs around every 2^32 µs of the stamp's age (2^32 − 99 … + 99 µs, every 71.6 min). The latched §6 row held the bridge; the reported value blipped | `sense/vdc.[ch]`: each channel's stamp through `ti_acq` (`vdc_t.acq_ch`, hold `cal_vdc_stale_us`): new or held judged as before (a value, no window or debounce), expired stale — and stale until a new stamp; the §6 V_DC-invalid row (`DTC_VDC_STALE`), HV unknown. `vdc_update`'s signature unchanged: `app.c` passes the stamps as in round 18, the round-16/18 tests are untouched; never converted still reads code 0, the fail-safe level | vdc: `a_stopped_channel_stays_stale_across_2e32_us_of_its_age` (4: either channel, also next to the counter's wrap); acq_fresh: `a_stopped_v_dc_converter_is_stale_until_a_new_conversion` (passes before: the tick-by-tick hold, the row named `DTC_VDC_STALE`, the recovery — the wrap needs 71.6 min of simulated ISRs, so it is proved at module level) | `ti_stale` restored = before (4); `ti_acq` not sticky (6); the slow list's hold for V_DC (13); a held stamp read as stale (12); one acquisition state for both channels (4) |
+
+**Not caught: one equivalent mutation.** The HVIL judging a held conversion again: at the default hold (10 ms, not above
+the 10 ms HVIL period) a held conversion at an evaluation is always of the present drive level and is never judged twice,
+so the status is the same; the skip matters only for a hold above the HVIL period, where one conversion would count more
+than once toward FW-09's debounce.
+
+**Every `hal_adc_read()` consumer** (the phase triplet, `hal_adc_read_phase`, keeps round 16's contract, untouched):
+
+| Consumer | Decision it feeds | Freshness | Now |
+|---|---|---|---|
+| TMOD_U/V/W, NTC_H/A, MT1/2 (task) | FW-04 derating, FW-13, the arming self-test | matters | row 1 |
+| V5GD (current loop) | §4c V5GD row (SPO, ASC clear), FW-07 V_DC validity | matters | row 2 |
+| VOFS (current loop) | FW-07 V_DC value and validity, FW-18 HV state | matters | row 2 |
+| VDC1, VDC2 (current loop) | V_DC | matters — FW-34's stamp check (`cal_vdc_stale_us`) | row 7 (F244): the same contract, hold `cal_vdc_stale_us`; never converted still reads code 0, the AMC1311 fail-safe level, invalid whatever its stamp |
+| IGN (task) | key-off: SAFE_POWERDOWN, the discharge | matters | row 3 |
+| INTRLOK_N (task) | FW-09 HVIL | matters | row 3 |
+| SBC_AMUX (task) | FW-33 sustained LV overvoltage | matters | row 3 |
+| HW_ID (boot) | FW-01/02 identity, arming | matters | row 4 |
+
+**Counts**: 421 tests / 4937 checks → **434 / 5108** (+13 tests: `acq_fresh` 12, `temp` 1; +171 checks), 0 failed in the
+default, −O2 (`-ffp-contract=off`) and ASan/UBSan flavours in the private copy; the live tree with the FW-45/FW-46 round-24
+work: 438 / 5139, 0 failed. Parameter sets 190 → **191 fields**, 91 → **92 CAL rows** (`make params`); DTCs 80 → **81**
+(`node tools/dtc-table.mjs --c`, `--check` clean); `make target-check` 63 markers (T-60 has none). `make -C ../tool/bridge
+check` passes on the new image (0x19 0A: 81 DTCs). The protocol exports regenerated (`tool/protocol/*.json`: the CAL, the
+DTC and `DTC_HWID_UNKNOWN`'s text, with the tree's git state; `generate.mjs --check` clean). The bridge has no `adc_stop`
+injection: a name table, a prefix parser and the `clear` bookkeeping are more than a few lines.
+
+**Rows 6 and 7 (F243, F244)**, the same method: "before" restores the round-24 `temp.c` fault chain (`wire` never written)
+or `vdc.c`'s `ti_stale` line in a private copy of the live tree with the new tests, every object rebuilt, the suite run;
+each mutation alike. 438 / 5139 → **443 / 5195** (+5 tests: `temp` 2, `vdc` 1, `acq_fresh` 2; +56 checks), 0 failed in the
+default, −O2 (`-ffp-contract=off`) and ASan/UBSan flavours; DTCs 81 → **82** (`node tools/dtc-table.mjs --c`, `--check`
+clean); `make target-check` 63 markers; `tool/protocol/*.json` regenerated (`DTC_TEMP_OPEN_SHORT`, `DTC_VDC_STALE`'s
+text; `generate.mjs --check` clean); `make -C ../tool/bridge check` passes (0x19 0A: 82 DTCs). `TI_FW_ID` unchanged.
+Contract FW-13 and §10n; `docs/traceability.md` rows F243, F244.

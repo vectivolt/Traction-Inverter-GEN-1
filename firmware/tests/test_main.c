@@ -43,6 +43,7 @@ int main(void)
         suite_uds_diag,   /* round 23 (FW-40) */
         suite_r23_fixes,  /* round 23: contract §10k */
         suite_fw45_46,    /* round 23: contract §10l, §10m */
+        suite_acq_fresh,  /* round 24: contract §10n */
     };
     for (unsigned i = 0u; i < sizeof suites / sizeof suites[0]; i++) {
         suites[i]();

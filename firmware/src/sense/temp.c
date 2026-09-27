@@ -56,19 +56,31 @@ static void accept(temp_ch_state_t *c, float t, float code, uint32_t now_ms)
     c->last_ms = now_ms;
 }
 
-static void update_one(temp_ch_state_t *c, temp_ch_t ch, uint16_t code, uint32_t now_ms, const temp_mt_cal_t *mt,
-                       const ti_params_t *p)
+static void update_one(temp_ch_state_t *c, temp_ch_t ch, uint16_t code, ti_acq_t acq, uint32_t now_ms,
+                       const temp_mt_cal_t *mt, const ti_params_t *p)
 {
+    if (acq == TI_ACQ_HELD) {
+        return; /* round 24 (F241): the conversion already taken — nothing new */
+    }
+    if (acq == TI_ACQ_EXPIRED) {
+        c->valid = false; /* round 24: no conversion within cal_temp_hold_ms — the value withdrawn; the fault as it was */
+        c->acc = 0u;
+        c->n = 0u;
+        c->win_ms = now_ms;
+        return;
+    }
     const float v = ti_code_to_v(code);
     /* PT1000 against 10 k never reaches the rail: open reads VREF5, short reads 0 V either way */
     if (v >= p->cal_ntc_open_v) {
-        c->fault = TEMP_OPEN;
+        c->wire = TEMP_OPEN;
     } else if (v <= p->cal_ntc_short_v) {
-        c->fault = TEMP_SHORT;
-    } else if (c->fault != TEMP_RATE) {
-        c->fault = TEMP_OK;
+        c->wire = TEMP_SHORT;
     } else {
-        /* a rate fault stays latched for the key cycle */
+        c->wire = TEMP_OK;
+    }
+    if (c->fault != TEMP_RATE) {
+        c->fault = c->wire; /* F243: a rate fault stays latched for the key cycle — no sample replaces it (wire keeps
+                               an open or short read meanwhile: DTC_TEMP_OPEN_SHORT) */
     }
     if ((c->fault == TEMP_OPEN) || (c->fault == TEMP_SHORT) || (c->fault == TEMP_RATE)) {
         c->valid = false;
@@ -105,11 +117,11 @@ static void update_one(temp_ch_state_t *c, temp_ch_t ch, uint16_t code, uint32_t
     accept(c, t, mean, now_ms);
 }
 
-void temp_update(temp_t *t, const uint16_t codes[TEMP_COUNT], uint32_t now_ms, const temp_mt_cal_t *mt,
-                 const ti_params_t *p)
+void temp_update(temp_t *t, const uint16_t codes[TEMP_COUNT], const ti_acq_t acq[TEMP_COUNT], uint32_t now_ms,
+                 const temp_mt_cal_t *mt, const ti_params_t *p)
 {
     for (uint32_t i = 0u; i < (uint32_t)TEMP_COUNT; i++) {
-        update_one(&t->ch[i], (temp_ch_t)i, codes[i], now_ms, mt, p);
+        update_one(&t->ch[i], (temp_ch_t)i, codes[i], acq[i], now_ms, mt, p);
     }
 }
 

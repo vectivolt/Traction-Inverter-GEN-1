@@ -114,7 +114,8 @@ the open decisions and the first-article measurements the layout must keep possi
   (RθJA 52.3 K/W at 1 W; ours carries a few mW).
 - **MCU R2R reference (round 23, F214)** — CR2R1 (1 µF) and CR2R2 (100 nF) at ball A9 on the MCU side, RR2R (10 Ω) between the
   VREF5 island and them; VR2R is a short local net that carries nothing else (ERC-locked). The SDADC/SAR references (E10, F13, E6,
-  H6) stay on the VREF5 island with CMA1/CMA2 — one source, as S32K39 DS note 8 requires.
+  H6) sit on the V5A reference island with CMA1/CMA2 and E12 VDDA_SDADC — one source, as S32K39 DS note 8 requires, and the
+  same node as the SDADC supply, as Table 38 (VREFP = AVDD ± 25 mV) requires (round 24, F240).
 - **MCU supply pins (A.13)** — CV25 (220 nF) within 2 mm of ball J7 on the MCU side; CBAL (1 nF) at the
   QBAL gate next to F1; H5 (V15) is fed from the V15S plane, never from the 15 V bias rail of the same name
   on the power board (the two nets are V15S and V15 — keep the labels).

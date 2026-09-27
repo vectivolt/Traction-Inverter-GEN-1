@@ -713,7 +713,7 @@ void CommissioningSequencer::complete(Outcome o, QString text)
               : ((m_mask & 0x7F) == 0)    ? QStringLiteral(" — nothing is staged")
               : partMap                   ? QStringLiteral(" — a map has only some of its six points staged (a map is committed whole)")
                                           : QStringLiteral(" — the bridge is switching (modulating or ASC), or the sealed record failed "
-                                                           "calib_check (layout, CRC, ranges — a map must not rise with the current —, SKU, "
+                                                           "calib_check (layout, CRC, ranges — a map point may rise at most 2 % over its neighbour and the flux slope just below every breakpoint must stay ≥ 0.25 × the unsaturated inductance (round 24) —, SKU, "
                                                            "serial, motor ID)");
     }
     if (e.op == Op::Map && o != Outcome::Done && m_mapK >= 0) {

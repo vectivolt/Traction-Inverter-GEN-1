@@ -12,18 +12,25 @@ void vdc_init(vdc_t *s)
 }
 
 void vdc_update(vdc_t *s, const uint16_t code_ch[2], const uint32_t t_ch_us[2], uint16_t code_vofs,
-                uint16_t code_v5gd, uint32_t now_us, const vdc_cal_t cal[2], const ti_params_t *p)
+                uint16_t code_v5gd, ti_acq_t acq_vofs, ti_acq_t acq_v5gd, uint32_t now_us, const vdc_cal_t cal[2],
+                const ti_params_t *p)
 {
-    s->vofs_v = ti_code_to_v(code_vofs);
-    s->vofs_ok = (s->vofs_v >= p->vofs_min_v) && (s->vofs_v <= p->vofs_max_v);
-    s->v5gd_v = ti_code_to_v(code_v5gd) / p->v5gd_sns_ratio;
-    s->v5gd_ok = (s->v5gd_v >= p->v5gd_min_v) && (s->v5gd_v <= p->v5gd_max_v);
+    if (acq_vofs == TI_ACQ_NEW) { /* round 24 (F241): only a new conversion is judged */
+        s->vofs_v = ti_code_to_v(code_vofs);
+        s->vofs_ok = (s->vofs_v >= p->vofs_min_v) && (s->vofs_v <= p->vofs_max_v);
+    }
+    if (acq_v5gd == TI_ACQ_NEW) {
+        s->v5gd_v = ti_code_to_v(code_v5gd) / p->v5gd_sns_ratio;
+        s->v5gd_ok = (s->v5gd_v >= p->v5gd_min_v) && (s->v5gd_v <= p->v5gd_max_v);
+    }
+    s->ref_stale = (acq_vofs == TI_ACQ_EXPIRED) || (acq_v5gd == TI_ACQ_EXPIRED);
     for (uint32_t i = 0u; i < 2u; i++) {
         const float pin = ti_code_to_v(code_ch[i]);
         s->ch_failsafe[i] = pin < p->vdc_failsafe_v;
-        s->ch_stale[i] = ti_stale(now_us, t_ch_us[i], p->cal_vdc_stale_us); /* round 18: signed */
+        /* round 18: the age signed; F244: an expired stamp stays expired until a new one (code 0: never converted) */
+        s->ch_stale[i] = (ti_acq(&s->acq_ch[i], true, t_ch_us[i], now_us, p->cal_vdc_stale_us) == TI_ACQ_EXPIRED);
         s->v_ch[i] = cal[i].gain * (pin - s->vofs_v) + cal[i].offset_v;
-        s->ch_valid[i] = !s->ch_failsafe[i] && !s->ch_stale[i] && s->vofs_ok && s->v5gd_ok;
+        s->ch_valid[i] = !s->ch_failsafe[i] && !s->ch_stale[i] && s->vofs_ok && s->v5gd_ok && !s->ref_stale;
     }
     const float big = ti_maxf(ti_absf(s->v_ch[0]), ti_absf(s->v_ch[1]));
     const float lim = ti_maxf(p->vdc_disagree_frac * big, p->cal_vdc_disagree_floor_v);

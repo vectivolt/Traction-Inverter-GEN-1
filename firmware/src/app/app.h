@@ -29,7 +29,7 @@
 
 /* This image's identity: the EOL/HIL validation record (arm_evidence.h) is bound to it, so a new
  * image needs a new validation. TODO(REL): the release process derives it from the build. */
-#define TI_FW_ID 0x0A0F0015u /* round 23, second image: the VESC gap closure FW-38..FW-44 (signed update, service-mode
+#define TI_FW_ID 0x0A0F0016u /* round 24: the four A.22 rechecks — F241 acquisition freshness of every slow-list input (cal_temp_hold_ms, DTC_ADC_SLOW_STALE), F242 the inductance map's flux slope + the ripple limiter's exact piece bounds, F243 the temperature-rate latch (DTC_TEMP_OPEN_SHORT), F244 the V_DC channels' sticky expiry; 0x0A0F0015 was the round-23 second image: the VESC gap closure FW-38..FW-44 (signed update, service-mode
                               * commissioning, UDS 0x19/0x22/0x2A/0x14 over ISO-TP, waveform capture, overspeed, run-time
                               * statistics, offset refresh) and the closed-loop-simulator fixes (contract 10k) — the NVM
                               * layouts changed (fault snapshot, run-time and boot records, 64 slots) and the FW-20
@@ -42,6 +42,7 @@
 #include "runstats.h"  /* round 23: FW-43 */
 
 #include "uds_diag.h" /* round 23: FW-40 (app_t.udsd); after TI_FW_ID so the marker above keeps its line */
+#include "adc.h"      /* round 24 (F240): HAL_ADC_COUNT (app_t.acq) */
 
 typedef struct {
     const ti_params_t *p;
@@ -129,6 +130,10 @@ typedef struct {
     float rip_mean;             /* ... the record's table: its mean (counts; not applied: a feed-forward of the ripple only) */
     float rip_lo;               /* ... and its extremes less the mean, clamped to cal_ripple_ff_max_a */
     float rip_hi;
+    /* round 24 (F240): each slow-list input's acquisition — the stamp last taken (ti_acq): VOFS and V5GD the current-loop
+     * ISR's, the others the 1 ms task's — and the task's inputs expired at its last run (bit 1 << hal_adc_sig_t) */
+    ti_acq_last_t acq[HAL_ADC_COUNT];
+    uint32_t acq_expired;
 } app_t;
 
 /* Retained across an MCU reset inside a key cycle (not across power-down). */

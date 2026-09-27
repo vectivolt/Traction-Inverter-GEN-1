@@ -25,6 +25,7 @@
 #include <QTcpServer>
 #include <QTemporaryDir>
 #include <QtTest>
+#include "ProtocolInfo.h"
 
 #include <functional>
 #include <memory>
@@ -44,9 +45,18 @@ bool until(const std::function<bool()> &pred, int ms)
     }
     return true;
 }
-
-constexpr quint32 RUNNING_FW_ID = 0x0A0F0015; // the bridge's image (hello fw_id)
-constexpr quint32 NEW_FW_ID = 0x0A0F0016;
+// the running image's identity comes from the protocol exports (tool/protocol), never a literal: a firmware round bumps it.
+// A function, not a static: the exports are a Qt resource, loaded after static initialisation.
+static quint32 runningFwId()
+{
+    QString h = ProtocolInfo::instance().fwId;
+    if (h.startsWith(QLatin1String("0x"), Qt::CaseInsensitive)) {
+        h = h.mid(2);
+    }
+    return h.toUInt(nullptr, 16);
+}
+#define RUNNING_FW_ID runningFwId()
+#define NEW_FW_ID (runningFwId() + 1u) // the image under test is one above whatever runs, never a literal
 constexpr int PAYLOAD = 16000; // + the 128-byte header: 4093 + 4093 + 4093 + 3849 bytes in 4 TransferData blocks
 
 // A UDS request through the session; the response payload ("" when none came).

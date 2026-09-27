@@ -76,4 +76,5 @@ void suite_update(void); /* round 23 (FW-38): firmware update */
 void suite_uds_diag(void); /* round 23 (FW-40): diagnostic services */
 void suite_r23_fixes(void); /* round 23: the defects the closed-loop simulator and the update work found (contract §10k) */
 void suite_fw45_46(void);   /* round 23: FW-45 saturation maps, FW-46 torque-ripple feed-forward (contract §10l, §10m) */
+void suite_acq_fresh(void); /* round 24 (F240): acquisition freshness of the slow-list inputs (contract §10n) */
 #endif /* TEST_H */

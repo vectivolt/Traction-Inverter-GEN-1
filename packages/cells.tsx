@@ -401,7 +401,7 @@ export const HallChain = ({ ph, vout, adc }: { ph: string; vout: string; adc: st
 export const NtcIn = ({ id, out }: { id: string; out: string }) => (
   <group>
     <resistor name={`RT${id}`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: out, pin2: "net.AGND" }} />
-    <resistor name={`RT${id}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.VREF5", pin2: out }} />
+    <resistor name={`RT${id}P`} resistance="10k" footprint="0603" {...gp()} connections={{ pin1: "net.V5A", pin2: out }} />
     <capacitor name={`CT${id}F`} capacitance="47nF" footprint="0603" {...gp()} connections={{ pin1: out, pin2: "net.AGND" }} />
   </group>
 );

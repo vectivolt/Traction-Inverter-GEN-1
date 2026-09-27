@@ -6,7 +6,7 @@ encoding utf-8
 Sheet 1 1
 Title "Traction Inverter — Control Card (S32K396 + FS26, ASIL D)"
 Date "2026-09-23"
-Rev "A.22"
+Rev "A.23"
 Comp "Traction Inverter 220 kW pk - Control card (LV), sheet 4 of 4"
 Comment1 "Inverter = Power board + Cap bank busbar + bolt-on Discharge board (all HV) + Control card (LV); safe state holds with any link lost"
 Comment2 "Content: S32K396 lockstep MCU + FS2633D ASIL-D SBC + resolver AFE + hall AFE + CAN-FD + safety chain"
@@ -46,7 +46,7 @@ CARD-IF   -   1 section
 Text Notes 40800 14400 0    60   ~ 0
 VEHICLE-IF   -   1 section
 Text Notes 40810 15050 0    60   ~ 0
-rev A.22   -   26 sections   -   304 components
+rev A.23   -   26 sections   -   304 components
 Wire Notes Line
 	40750 16000 45200 16000
 Wire Notes Line
@@ -253,7 +253,7 @@ DGND
 Wire Wire Line
 	3200 5100 3000 5100
 Text Label 3000 5100 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	3200 5200 3000 5200
 Text Label 3000 5200 2    45   ~ 0
@@ -273,7 +273,7 @@ V5A
 Wire Wire Line
 	3200 5600 3000 5600
 Text Label 3000 5600 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	3200 5700 3000 5700
 Text Label 3000 5700 2    45   ~ 0
@@ -293,7 +293,7 @@ BCTRL
 Wire Wire Line
 	3200 6100 3000 6100
 Text Label 3000 6100 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	3200 6200 3000 6200
 Text Label 3000 6200 2    45   ~ 0
@@ -365,7 +365,7 @@ V15S
 Wire Wire Line
 	4900 1400 5100 1400
 Text Label 5100 1400 0    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	4900 1500 5100 1500
 Text Label 5100 1500 0    45   ~ 0
@@ -630,7 +630,7 @@ $EndComp
 Wire Wire Line
 	6100 2750 5900 2750
 Text Label 5900 2750 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	6600 2750 6800 2750
 Text Label 6800 2750 0    45   ~ 0
@@ -651,7 +651,7 @@ $EndComp
 Wire Wire Line
 	6100 3150 5900 3150
 Text Label 5900 3150 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	6600 3150 6800 3150
 Text Label 6800 3150 0    45   ~ 0
@@ -913,11 +913,11 @@ L traction-r1:C CR2R1
 U 1 1 5E000191
 P 9450 1150
 F 0 "CR2R1" H 9450 990 50  0000 C CNN
-F 1 "1uF" H 9450 1320 50  0000 C CNN
+F 1 "330nF" H 9450 1320 50  0000 C CNN
 F 2 "traction:C_0603_1608Metric" H 9450 1150 50  0001 C CNN
 F 3 "~" H 9450 1150 50  0001 C CNN
 F 4 "CLASS" H 9450 1150 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-10V-X7R-0603" H 9450 1150 50  0001 C CNN "MPN"
+F 5 "MLCC-330nF-16V-X7R-0603" H 9450 1150 50  0001 C CNN "MPN"
 	1    9450 1150
 	1    0    0    -1  
 $EndComp
@@ -1949,11 +1949,11 @@ L traction-r1:C CSB5
 U 1 1 5E0001B7
 P 19300 6900
 F 0 "CSB5" H 19300 6740 50  0000 C CNN
-F 1 "1uF" H 19300 7070 50  0000 C CNN
+F 1 "2.2uF" H 19300 7070 50  0000 C CNN
 F 2 "traction:C_0805_2012Metric" H 19300 6900 50  0001 C CNN
 F 3 "~" H 19300 6900 50  0001 C CNN
 F 4 "CLASS" H 19300 6900 50  0001 C CNN "LCSC"
-F 5 "MLCC-1uF-16V-X7R-0805" H 19300 6900 50  0001 C CNN "MPN"
+F 5 "MLCC-2.2uF-16V-X7R-0805" H 19300 6900 50  0001 C CNN "MPN"
 	1    19300 6900
 	1    0    0    -1  
 $EndComp
@@ -6515,7 +6515,7 @@ $EndComp
 Wire Wire Line
 	5700 24150 5500 24150
 Text Label 5500 24150 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	6200 24150 6400 24150
 Text Label 6400 24150 0    45   ~ 0
@@ -6862,7 +6862,7 @@ $EndComp
 Wire Wire Line
 	33250 10400 33050 10400
 Text Label 33050 10400 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	33750 10400 33950 10400
 Text Label 33950 10400 0    45   ~ 0
@@ -6883,7 +6883,7 @@ $EndComp
 Wire Wire Line
 	33250 11200 33050 11200
 Text Label 33050 11200 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	33750 11200 33950 11200
 Text Label 33950 11200 0    45   ~ 0
@@ -6904,7 +6904,7 @@ $EndComp
 Wire Wire Line
 	33250 12000 33050 12000
 Text Label 33050 12000 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	33750 12000 33950 12000
 Text Label 33950 12000 0    45   ~ 0
@@ -7019,7 +7019,7 @@ $EndComp
 Wire Wire Line
 	34050 15350 33850 15350
 Text Label 33850 15350 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	34550 15350 34750 15350
 Text Label 34750 15350 0    45   ~ 0
@@ -7061,7 +7061,7 @@ $EndComp
 Wire Wire Line
 	34050 16150 33850 16150
 Text Label 33850 16150 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	34550 16150 34750 16150
 Text Label 34750 16150 0    45   ~ 0
@@ -7242,7 +7242,7 @@ $EndComp
 Wire Wire Line
 	18050 20050 17850 20050
 Text Label 17850 20050 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	18550 20050 18750 20050
 Text Label 18750 20050 0    45   ~ 0
@@ -7284,7 +7284,7 @@ $EndComp
 Wire Wire Line
 	20100 20050 19900 20050
 Text Label 19900 20050 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	20600 20050 20800 20050
 Text Label 20800 20050 0    45   ~ 0
@@ -8233,7 +8233,7 @@ $EndComp
 Wire Wire Line
 	45600 8750 45400 8750
 Text Label 45400 8750 2    45   ~ 0
-VREF5
+V5A
 Wire Wire Line
 	46100 8750 46300 8750
 Text Label 46300 8750 0    45   ~ 0

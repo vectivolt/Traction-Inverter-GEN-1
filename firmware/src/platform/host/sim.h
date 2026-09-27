@@ -37,7 +37,12 @@ void sim_set_isr_latency_ns(uint32_t ns);    /* fault ISR entry latency (default
 /* ---------------- analog inputs ---------------- */
 void sim_adc_set_code(hal_adc_sig_t sig, uint16_t code);
 void sim_adc_set_v(hal_adc_sig_t sig, float v_pin);
-void sim_adc_freeze(hal_adc_sig_t sig, bool frozen); /* time stamp stops advancing (stale) */
+/* A converter that stops: hal_adc_read() returns the code and the stamp of the freeze from then on (round 24: the code
+ * too — the data register keeps its last result, whatever the input does; the phase triplet's stamp only). */
+void sim_adc_freeze(hal_adc_sig_t sig, bool frozen);
+/* Round 24 (F240): one that never ran — hal_adc_read() false, code 0, stamp 0, the target's "never converted"
+ * (s32k396_adc.c) — for that input alone. Cleared by sim_reset(). */
+void sim_adc_never(hal_adc_sig_t sig, bool never);
 /* Round 15: model the target's slow list — every input but the phase currents and V_DC reads "never
  * converted" (false, code 0) after hal_adc_init() until hal_adc_start_slow() has run. Default off. */
 void sim_adc_require_slow_start(bool on);

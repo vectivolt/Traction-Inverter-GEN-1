@@ -214,7 +214,10 @@ action segment, so they are listed there; the `nv_queue` copy stays the longest.
   gains; four divisions) and `control_fast` the ripple table at the FOC's angle (one lookup, no `fmodf`: the angle is in
   [0, 2π)): on the host +8 ns per `foc_step` with maps (29.9 → 38.2 ns) and +2 ns for the table — ≈ +0.7 µs on the M7 by
   FW-41's scale (15 ns host ≈ 1 µs), ≈ 3 % of the ≈ 23 µs ISR budget at 20 kHz. The table's scale (`torque_ripple_scale`, ≤ 26
-  voltage and circle checks) runs in the 1 ms task after the solve, ≈ 5 µs.
+  voltage and circle checks) runs in the 1 ms task after the solve, ≈ 5 µs. Round 24: it checks the whole interval between
+  the table's extremes — 13 checks of it, each its two ends, the L_q breakpoints inside (on a record at most one: they are
+  ≥ 96 A apart, the interval ≤ 60 A) and a closed-form bound per piece: ≤ 40 voltage checks; on the host (−O2) 0.57 µs
+  mean and 1.1–1.7 µs slowest against round 23's 0.27 / 0.70 µs — ≈ 12 µs at 320 MHz at the same cost per check.
 
 | Item | Period / deadline | Where |
 |---|---|---|
@@ -224,6 +227,7 @@ action segment, so they are listed there; the `nv_queue` copy stays the longest.
 | VCU command staleness | 20 ms ⇒ ramp to zero (FW-11) | `can_cmd.c: can_cmd_fresh` |
 | BMS limit timeout | 100 ms ⇒ zero regen | `can_cmd.c: can_bms_fresh` |
 | HVIL reaction | ≤ 100 ms (FW-09) | `hvil.c` |
+| Slow-list acquisition (round 24, F241) | every slow input converts once per 1 ms task; a read whose stamp has not moved is held (nothing taken again) for less than `cal_temp_hold_ms` = 10 ms (3–50), then withdrawn until a new conversion: the temperatures invalid, V5GD/VOFS leave V_DC invalid (in the current loop, at its rate), KL15 absent after its debounce (30 ms after the stop), the HVIL signature lost 30 ms after it, no VSUP reading at 10 ms. Cost: two `ti_acq` judgements per current-loop ISR (a few compares), ten per task | `ti_types.h: ti_acq`, `app.c: sense_fast, sense_slow` |
 | LV supply supervision (FW-33, round 17) | VSUP read through the FS26 AMUX every 1 ms (slow list). An overvoltage (> 20 V, ends < 19.5 V) is information: tolerated for `cal_vsup_ld_ms` = 500 ms (400–1000) of continuous time above `cal_vsup_jump_max_v` = 27 V (a test-B pulse: 35 V, ≤ 400 ms) and for `cal_vsup_jump_ms` = 65 s (60–120 s) per event at or below it (a 24 V / 60 s jump start); in the next millisecond after either it is sustained and takes the §6 command-lost ramp (the FW-11/FW-09 ramp) | `vsup.c: vsup_update`, `app.c: sense_slow, detect` |
 | QDIS witness | 200 ms (FW-18) | `discharge.c` |
 | FW-15 driver reset | ≥ 1.5 ms low from the fault ISR's stamp, on the bridge's own clock (round 18: not the task's earlier time), then one-shot 72–210 µs + DRV_EN RC (`cal_oneshot_wait_us`) | `bridge.c: br_rec_step` |
@@ -237,7 +241,7 @@ action segment, so they are listed there; the `nv_queue` copy stays the longest.
 | Resolver chain latency | `cal_rslv_latency_us` (SDADC group delay + filter envelope), measured on HIL (checklist T-37). Sign (round 18, FW-36): **positive = the reported angle lags the rotor** — the block's angle is the rotor's that long before its mid-block reference — and the extrapolation to the control instant **adds** it: θ(now) = θ_block + ω·((now − t_ref) − t_mid + L) (it was subtracted: −12 / −24° el at 10 000 rpm, 4 pole pairs, 25 / 50 µs). Round 23 (fix 7): t_mid is the demodulator's own weighting centroid — the lagged carrier weights the samples by sin²(φ_k + ref), whose centroid is 7.7 µs after the samples' mean at −24° (100 µs blocks of 16) — so L is the chain's delay beyond it | `rslv_theta_e_at`, `resolver.c: centroid_us` |
 
 Every hardware timing that the contract does not fix is a `cal_*` field. Each has its contract
-default and a `[min, max]` range (`include/cal_ranges.h`, 91 items — round 23's FW-46 added `cal_ripple_ff_max_a` and
+default and a `[min, max]` range (`include/cal_ranges.h`, 92 items — round 24 added `cal_temp_hold_ms`; round 23's FW-46 added `cal_ripple_ff_max_a` and
 `cal_ripple_ff_fmax_hz`; round 18 added `cal_sd_irq_lat_max_us`, round 19
 `cal_swg_start_lat_us` and `cal_rslv_restart_max`; round 23 the FW-42/43/44 six and, with its fixes, `cal_temp_rate_win_ms`,
 `cal_temp_rate_db_codes`, `cal_torque_slew_nm_s`, `cal_fw_emf_margin_frac`, `cal_asc_oc_window_ms` and

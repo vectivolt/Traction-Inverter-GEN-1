@@ -1,4 +1,4 @@
-# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.22, generated 2026-09-26)
+# Traction Inverter — 8XX · SiC (HCS600FH120D3C1), 500–850 V bus — BOM (rev A.23, generated 2026-09-27)
 
 220 kW pk / 800 V SiC traction inverter — Power board + Cap-bank busbar + bolt-on Discharge board + Control card (round 23, A20-F05: the intro follows the SKU; it read "220 kW pk / 800 V SiC" under every variant heading before).
 Generated from the built netlists by `calculations/bom-gen.mjs`; the sheets, the BOM and the
@@ -58,7 +58,7 @@ CSV: [`docs/bom-discharge.csv`](bom-discharge.csv). Top cost lines:
 | 2 | R0603-10k | UCC14141-Q1 ENA divider top from V15 | 1 | any |
 | 1 | R0603-62k-1% | UCC14141-Q1 FBVDD divider top: 2.5 V x | 0 | any 1 % |
 
-## control-card — 304 components, 119 BOM lines, ≈ ₹6,355 @1k
+## control-card — 304 components, 120 BOM lines, ≈ ₹6,355 @1k
 
 CSV: [`docs/bom-control-card.csv`](bom-control-card.csv). Top cost lines:
 
@@ -112,11 +112,11 @@ Where the money actually goes — cumulative share shows the Pareto: the first t
 | Category | ₹ | share |
 |---|---|---|
 | power semiconductors | 55,986 | 76.7% |
-| drive + control ICs | 7,375 | 10.1% |
+| drive + control ICs | 7,378 | 10.1% |
 | capacitors | 4,980 | 6.8% |
 | magnetics | 2,195 | 3.0% |
 | connectors + sensors | 1,561 | 2.1% |
-| misc | 430 | 0.6% |
+| misc | 427 | 0.6% |
 | isolation | 231 | 0.3% |
 | protection + diodes | 132 | 0.2% |
 | resistors | 94 | 0.1% |

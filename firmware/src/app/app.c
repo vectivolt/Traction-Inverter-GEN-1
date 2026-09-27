@@ -112,13 +112,18 @@ static void init_fs26(app_t *a)
 static void init_identity(app_t *a)
 {
     uint16_t codes[8];
-    uint32_t t;
+    ti_acq_last_t last = {0};
+    bool fresh = true;
     for (uint32_t i = 0u; i < 8u; i++) {
+        uint32_t t;
         hal_adc_start_slow(); /* round 15: HW_ID (ADC3_P0) is on the slow list, which nothing has run yet */
         hal_delay_us(100u);
-        (void)hal_adc_read(HAL_ADC_HW_ID, &codes[i], &t);
+        const bool seen = hal_adc_read(HAL_ADC_HW_ID, &codes[i], &t);
+        /* round 24 (F241): FW-01's stable reading is eight conversions, each a new one — a converter that never ran
+         * reads code 0 (it was "short"), one that stopped repeats one conversion eight times: the identity unknown */
+        fresh = (ti_acq(&last, seen, t, hal_time_us(), a->p->cal_temp_hold_ms * 1000u) == TI_ACQ_NEW) && fresh;
     }
-    const hwid_result_t r = hwid_classify_stable(codes, 8u, &a->hw_sku);
+    const hwid_result_t r = fresh ? hwid_classify_stable(codes, 8u, &a->hw_sku) : HWID_UNSTABLE;
     static const dtc_id_t MAP[] = {DTC_NONE, DTC_HWID_OPEN, DTC_HWID_SHORT, DTC_HWID_UNKNOWN, DTC_HWID_UNKNOWN};
     if (r != HWID_OK) {
         forbid(a, MAP[r]);
@@ -470,12 +475,19 @@ static void sense_fast(app_t *a)
     uint32_t tv[2];
     uint16_t vofs;
     uint16_t v5;
-    uint32_t tx;
-    (void)hal_adc_read(HAL_ADC_VOFS, &vofs, &tx);
-    (void)hal_adc_read(HAL_ADC_V5GD, &v5, &tx);
+    uint32_t t_ofs;
+    uint32_t t_gd;
+    const bool ofs_seen = hal_adc_read(HAL_ADC_VOFS, &vofs, &t_ofs);
+    const bool gd_seen = hal_adc_read(HAL_ADC_V5GD, &v5, &t_gd);
+    /* V_DC: each stamp is judged in vdc.c (round 18; F244: its acquisition, sticky once expired); a channel never
+     * converted reads code 0 — the AMC1311 fail-safe level, invalid whatever its stamp — so the returned flag adds
+     * nothing there */
     (void)hal_adc_read(HAL_ADC_VDC1, &v[0], &tv[0]);
     (void)hal_adc_read(HAL_ADC_VDC2, &v[1], &tv[1]);
-    vdc_update(&a->vdc, v, tv, vofs, v5, hal_time_us(), a->cal.vdc, a->p);
+    const uint32_t now = hal_time_us();
+    const uint32_t hold = a->p->cal_temp_hold_ms * 1000u; /* round 24 (F241): VOFS and V5GD are slow-list inputs */
+    vdc_update(&a->vdc, v, tv, vofs, v5, ti_acq(&a->acq[HAL_ADC_VOFS], ofs_seen, t_ofs, now, hold),
+               ti_acq(&a->acq[HAL_ADC_V5GD], gd_seen, t_gd, now, hold), now, a->cal.vdc, a->p);
     /* A14-R02: one coherent frame (EXC, SIN, COS of one epoch and its stamp) or nothing */
     hal_sd_frame_t f;
     if (hal_sdadc_read_frame(&f)) {
@@ -628,24 +640,48 @@ void app_isr_fault(app_t *a)
 }
 
 /* ======================= 1 kHz task ======================= */
+/* Round 24 (F241): the slow-list inputs the task reads — the temperatures first, in temp_ch_t order. Each read is judged
+ * by its acquisition (ti_acq: hal_adc_read's stamp against the one last taken, cal_temp_hold_ms): the platform returns
+ * the last conversion and its stamp until the next one, forever after a converter stops, and each read used to be taken
+ * as a new sample at the task's time — a stopped channel stayed valid at its last value. */
+enum { SL_IGN = TEMP_COUNT, SL_HVIL, SL_VSUP, SL_N };
+static const hal_adc_sig_t SLOW_IN[SL_N] = {HAL_ADC_TMOD_U, HAL_ADC_TMOD_V, HAL_ADC_TMOD_W, HAL_ADC_NTC_H, HAL_ADC_NTC_A,
+                                            HAL_ADC_MT1,    HAL_ADC_MT2,    HAL_ADC_IGN,   HAL_ADC_INTRLOK_N,
+                                            HAL_ADC_SBC_AMUX};
+
 static void sense_slow(app_t *a, uint32_t t_ms)
 {
-    uint16_t c;
-    uint32_t t;
+    uint16_t c[SL_N];
+    uint32_t t[SL_N];
+    bool seen[SL_N];
+    ti_acq_t q[SL_N];
     hal_adc_start_slow();
-    (void)hal_adc_read(HAL_ADC_IGN, &c, &t);
-    ign_update(&a->ign, c, t_ms, a->p);
-    (void)hal_adc_read(HAL_ADC_INTRLOK_N, &c, &t);
-    hal_gpio_write(HAL_DO_INTRLOK_P, hvil_step(&a->hvil, c, t_ms, a->p));
-    (void)hal_adc_read(HAL_ADC_SBC_AMUX, &c, &t);
-    vsup_update(&a->vsup, c, t_ms, a->p);
-    const hal_adc_sig_t ts[TEMP_COUNT] = {HAL_ADC_TMOD_U, HAL_ADC_TMOD_V, HAL_ADC_TMOD_W, HAL_ADC_NTC_H,
-                                          HAL_ADC_NTC_A,  HAL_ADC_MT1,    HAL_ADC_MT2};
-    uint16_t codes[TEMP_COUNT];
-    for (uint32_t i = 0u; i < (uint32_t)TEMP_COUNT; i++) {
-        (void)hal_adc_read(ts[i], &codes[i], &t);
+    for (uint32_t k = 0u; k < (uint32_t)SL_N; k++) {
+        seen[k] = hal_adc_read(SLOW_IN[k], &c[k], &t[k]);
     }
-    temp_update(&a->temp, codes, t_ms, &a->cal.mt, a->p);
+    const uint32_t now_us = hal_time_us(); /* round 18: read after the acquisitions */
+    uint32_t expired = 0u;
+    for (uint32_t k = 0u; k < (uint32_t)SL_N; k++) {
+        q[k] = ti_acq(&a->acq[SLOW_IN[k]], seen[k], t[k], now_us, a->p->cal_temp_hold_ms * 1000u);
+        if (q[k] == TI_ACQ_EXPIRED) {
+            expired |= 1u << (uint32_t)SLOW_IN[k];
+            c[k] = 0u; /* read as never converted (the platform's code 0) */
+        }
+    }
+    a->acq_expired = expired;
+    /* KL15, INTRLOK_N, VSUP: a held conversion is not judged again (the debounce and the HVIL evaluation wait for a new
+     * one); an expired one reads as never converted — KL15 absent, the HVIL signature lost (0 V), no VSUP reading: each
+     * module's reading of a converter that never ran, as before round 24 */
+    if (q[SL_IGN] != TI_ACQ_HELD) {
+        ign_update(&a->ign, c[SL_IGN], t_ms, a->p);
+    }
+    if (q[SL_HVIL] != TI_ACQ_HELD) {
+        hal_gpio_write(HAL_DO_INTRLOK_P, hvil_step(&a->hvil, c[SL_HVIL], t_ms, a->p));
+    }
+    if (q[SL_VSUP] != TI_ACQ_HELD) {
+        vsup_update(&a->vsup, c[SL_VSUP], t_ms, a->p);
+    }
+    temp_update(&a->temp, c, q, t_ms, &a->cal.mt, a->p); /* the first TEMP_COUNT entries */
     if (a->rslv.valid) {
         a->speed_rpm = rslv_speed_rpm(&a->rslv, &a->cal.rslv);
         a->speed_valid_ms = t_ms;
@@ -770,6 +806,12 @@ static void temp_dtcs(const app_t *a, uint32_t t_ms)
     dtc_report(!all, DTC_TEMP_MODULE, t_ms);
     dtc_report(!ch[TEMP_NTC_H].valid || !ch[TEMP_NTC_A].valid, DTC_TEMP_BOARD, t_ms);
     dtc_report(!ch[TEMP_MT1].valid || !ch[TEMP_MT2].valid, DTC_TEMP_MOTOR, t_ms);
+    /* F243: any channel whose last new sample reads open or short — also one a latched TEMP_RATE keeps reporting RATE */
+    bool wire = false;
+    for (uint32_t k = 0u; k < (uint32_t)TEMP_COUNT; k++) {
+        wire = wire || (ch[k].wire != TEMP_OK);
+    }
+    dtc_report(wire, DTC_TEMP_OPEN_SHORT, t_ms);
     if (any && (t_mod >= a->p->cal_tmod_derate_end_c)) {
         dtc_set(DTC_OVERTEMP, t_ms);
     } else if (!any || (t_mod < (a->p->cal_tmod_derate_end_c - a->p->cal_derate_hyst_c))) {
@@ -786,8 +828,9 @@ static void detect(app_t *a, const fm_ctx_t *c)
         /* V5GD: §4c — SPO, ASC cleared, V_DC invalid, supply DTC, no arming */
         flag(a, !a->vdc.v5gd_ok, SS_ROW_V5GD_LOSS, true, DTC_V5GD, c);
         const bool vbad = a->vdc.v5gd_ok && !a->vdc.valid;
-        const dtc_id_t vd = !a->vdc.vofs_ok ? DTC_VOFS : (a->vdc.disagree ? DTC_VDC_DISAGREE
-                          : ((a->vdc.ch_failsafe[0] || a->vdc.ch_failsafe[1]) ? DTC_VDC_FAILSAFE : DTC_VDC_STALE));
+        const dtc_id_t vd = a->vdc.ref_stale ? DTC_ADC_SLOW_STALE : (!a->vdc.vofs_ok ? DTC_VOFS
+                          : (a->vdc.disagree ? DTC_VDC_DISAGREE
+                          : ((a->vdc.ch_failsafe[0] || a->vdc.ch_failsafe[1]) ? DTC_VDC_FAILSAFE : DTC_VDC_STALE)));
         flag(a, vbad, SS_ROW_VDC_INVALID, true, vbad ? vd : DTC_NONE, c);
         /* round 23 (item 8): a latched plausibility fault names itself; stale when none explains the invalid angle (a
          * frame kept out no longer renews the hold, so a latched fault ages the angle out too) */
@@ -836,6 +879,9 @@ static void detect(app_t *a, const fm_ctx_t *c)
         flag(a, bms && (a->can.p_chg_w <= 0.0f), SS_ROW_BMS_LIMIT_ZERO, false, DTC_NONE, c);
     }
     temp_dtcs(a, c->now_ms);
+    /* round 24 (F241): a slow-list input with no conversion for cal_temp_hold_ms (or none ever) — the task's or the
+     * current loop's (VOFS, V5GD); its consumer's own response already acts (above, and in temp_dtcs / the modules) */
+    dtc_report((a->acq_expired != 0u) || a->vdc.ref_stale, DTC_ADC_SLOW_STALE, c->now_ms);
     /* round 17: VSUPOV is information — logged with its duration, torque untouched — until it outlasts its band */
     if (a->vsup.ov) {
         dtc_set(DTC_LV_OVERVOLTAGE, c->now_ms);

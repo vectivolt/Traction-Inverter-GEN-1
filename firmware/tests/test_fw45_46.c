@@ -1,5 +1,6 @@
 /* test_fw45_46.c — round 23, FW-45 (saturation-dependent L_d/L_q in the torque solve, the current loop and FW-39's
- * commissioning) and FW-46 (the torque-ripple feed-forward), contract §10l / §10m. */
+ * commissioning) and FW-46 (the torque-ripple feed-forward), contract §10l / §10m; round 24, the model's flux rising with
+ * the current (calib_check) and the feed-forward's whole interval inside the ellipse (torque_ripple_scale). */
 #include <string.h>
 
 #include "calib.h"
@@ -376,7 +377,9 @@ TEST(the_psi_e_guard_keeps_the_contour_defined_on_weak_magnets)
 /* Layout 4: a layout-3 record is refused (no torque). The maps: each point in the 20 uH - 5 mH class range, non-increasing
  * beyond the 2 % measurement tolerance (a 1 % rise passes, 3 % is refused),
  * the last >= 0.3 x the first, the full scale the SKU's current limit; the ripple table within +/- 30 A: each violation
- * alone is CAL_ERR_RANGE; the nominal record carries flat maps at the scalars and passes. */
+ * alone is CAL_ERR_RANGE; the nominal record carries flat maps at the scalars and passes. Round 24: the saturating map
+ * that passes is a physical one — round 23's (1 ... 0.79, 0.30) has a flux that falls with the current and is refused now
+ * (the_model_flux_must_rise_with_the_current). */
 TEST(the_record_is_layout_4_and_a_bad_map_is_refused)
 {
     static const uint8_t SN[8] = {'T', 'I', '-', '0', '0', '0', '0', '1'};
@@ -411,8 +414,8 @@ TEST(the_record_is_layout_4_and_a_bad_map_is_refused)
     c.motor.ld_map_h[1] = 1.019f * c.motor.ld_map_h[0];
     calib_seal(&c);
     CHECK(calib_check(&c, p, SN) == 0u);
-    c = good; /* a saturating map inside the rules */
-    const float prof[6] = {1.0f, 0.98f, 0.93f, 0.86f, 0.79f, 0.30f};
+    c = good; /* a saturating map inside the rules (round 24: its flux rises — the model's slope 0.43 L_0 at the last point) */
+    const float prof[6] = {1.0f, 0.98f, 0.93f, 0.86f, 0.79f, 0.73f};
     for (uint32_t k = 0u; k < 6u; k++) {
         c.motor.lq_map_h[k] = prof[k] * c.motor.lq_h;
     }
@@ -1380,6 +1383,502 @@ TEST(with_the_default_cal_a_table_changes_nothing)
     CHECK(off && memcmp(trace[0], trace[1], sizeof trace[0]) == 0);
 }
 
+/* ======================= round 24: the model's flux rises; the feed-forward's whole interval fits ======================= */
+static const uint8_t R24_SN[8] = {'T', 'I', '-', '0', '0', '0', '0', '1'};
+
+/* calib_check of p's nominal record (a motor bound) with the d and/or q map replaced (NULL: the nominal flat map) */
+static uint32_t check_maps(const ti_params_t *p, const float *ld, const float *lq)
+{
+    calib_t c;
+    calib_nominal(&c, p, R24_SN);
+    c.motor_id = 42u;
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        c.motor.ld_map_h[k] = (ld != NULL) ? ld[k] : c.motor.ld_map_h[k];
+        c.motor.lq_map_h[k] = (lq != NULL) ? lq[k] : c.motor.lq_map_h[k];
+    }
+    calib_seal(&c);
+    return calib_check(&c, p, R24_SN);
+}
+
+/* prof x l0 as a map */
+static const float *prof_map(float out[MOTOR_MAP_N], const double prof[MOTOR_MAP_N], double l0)
+{
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        out[k] = (float)(prof[k] * l0);
+    }
+    return out;
+}
+
+/* the model's dlambda/di just below breakpoint k = 1 .. N-1, over point 0: (k + 1) L_k - k L_(k-1) */
+static double slope_below(const double *m, uint32_t k) { return (((k + 1.0) * m[k]) - (k * m[k - 1u])) / m[0]; }
+
+/* Round 24 — the reviewer's defect (1): the round-23 rules bound the apparent inductance only. The reviewer's L_q map, 1.75 mH
+ * flat to breakpoint 3 then 0.56 mH, passes them (each point in range, never rising, the last 0.32 x the first) while its
+ * flux lambda = L(i) i FALLS with the current: dlambda/di = L_k + (2x - k) s is -1.82 mH just above breakpoint 3 and -4.20
+ * mH just below 4. Refused now on either axis (CAL_ERR_RANGE), as is round 23's own "saturating map inside the rules" (1 ...
+ * 0.79, 0.30: -2.15 L_0 below the last point). The margin, 0.25 L_0, at every breakpoint from both sides of it (x 1.001
+ * passes, x 0.999 is refused, on each axis); a segment steepest just ABOVE a breakpoint is refused through the next one (a
+ * falling segment's least slope is its right end). Passing: flat, gently saturating, the FW-45 plant's apparent maps (q:
+ * 0.280 L_0 below the last point — a 0.30 margin refuses the reference machine, whose true differential inductance never
+ * falls below 0.307 L_0), a fall to the margin followed by a 1.9 % rise, 1.9 % rises all the way, scatter up and back: a
+ * rise inside the 2 % tolerance never trips the slope rule. */
+TEST(the_model_flux_must_rise_with_the_current)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    float a[MOTOR_MAP_N];
+    CHECK(check_maps(p, NULL, NULL) == 0u); /* flat */
+    static const double rv[6] = {1750.0, 1750.0, 1750.0, 1750.0, 560.0, 560.0}; /* uH */
+    double rn[6];
+    bool r23 = rv[5] >= (0.3 * rv[0]); /* the round-23 rules hold */
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        rn[k] = rv[k] / rv[0];
+        r23 = r23 && (rv[k] >= 20.0) && (rv[k] <= 5000.0) && ((k == 0u) || (rv[k] <= (1.02 * rv[k - 1u])));
+    }
+    const double above3 = rv[3] + (3.0 * (rv[4] - rv[3])); /* uH */
+    CHECK(r23 && (fabs(above3 + 1820.0) < 1e-9) && (fabs((slope_below(rv, 4u) * rv[0]) + 4200.0) < 1e-9));
+    CHECK(check_maps(p, NULL, prof_map(a, rn, 1750e-6)) == CAL_ERR_RANGE);
+    CHECK(check_maps(p, prof_map(a, rn, 1750e-6), NULL) == CAL_ERR_RANGE);
+    static const double r23p[6] = {1.0, 0.98, 0.93, 0.86, 0.79, 0.30};
+    CHECK(slope_below(r23p, 5u) < -2.1 && check_maps(p, NULL, prof_map(a, r23p, 0.55e-3)) == CAL_ERR_RANGE);
+    unsigned both = 0u;
+    for (uint32_t j = 1u; j < MOTOR_MAP_N; j++) {
+        for (uint32_t side = 0u; side < 2u; side++) { /* one fall, to slope t just below breakpoint j; flat around it */
+            const double t = 0.25 * ((side == 0u) ? 1.001 : 0.999);
+            double m[6];
+            for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+                m[k] = (k < j) ? 1.0 : ((t + (double)j) / (j + 1.0));
+            }
+            const uint32_t want = (side == 0u) ? 0u : CAL_ERR_RANGE;
+            both += ((fabs(slope_below(m, j) - t) < 1e-12) && (check_maps(p, NULL, prof_map(a, m, 0.5e-3)) == want) &&
+                     (check_maps(p, prof_map(a, m, 0.5e-3), NULL) == want)) ? 1u : 0u;
+        }
+    }
+    CHECK(both == 10u);
+    unsigned above = 0u;
+    for (uint32_t j = 2u; j < (MOTOR_MAP_N - 1u); j++) { /* steepest just above breakpoint j: 0.25 there, less at j + 1 */
+        double m[6];
+        for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+            m[k] = (k <= j) ? 1.0 : (1.0 + (((0.25 * 1.001) - 1.0) / (double)j));
+        }
+        above += (((m[j] + (j * (m[j + 1u] - m[j]))) >= 0.25) && (m[MOTOR_MAP_N - 1u] >= 0.3) &&
+                  (check_maps(p, NULL, prof_map(a, m, 0.5e-3)) == CAL_ERR_RANGE)) ? 1u : 0u;
+    }
+    CHECK(above == 3u);
+    static const double second[6] = {1.0, 1.0, 0.8, 0.655, 0.655, 0.655}; /* 0.22 L_0 below 3: the margin is over point 0 */
+    CHECK(slope_below(second, 2u) > 0.25 && fabs(slope_below(second, 3u) - 0.22) < 1e-12 &&
+          check_maps(p, NULL, prof_map(a, second, 0.5e-3)) == CAL_ERR_RANGE);
+    /* passing */
+    static const double gentle[6] = {1.0, 0.99, 0.97, 0.94, 0.90, 0.86};
+    static const double back1[6] = {1.0, 1.019, 1.0, 1.0, 1.0, 1.0};
+    static const double back5[6] = {1.0, 1.0, 1.0, 1.0, 1.019, 1.0};
+    double up[6];
+    double pq[6];
+    double pd[6];
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        const double i = p->i_crest_a * k / 5.0;
+        up[k] = pow(1.019, (double)k);
+        pq[k] = (k == 0u) ? 1.0 : (P_ISQ * atan(i / P_ISQ) / i);
+        pd[k] = (k == 0u) ? 1.0 : (P_ISD * atan(i / P_ISD) / i);
+    }
+    float b[MOTOR_MAP_N];
+    const double sq5 = slope_below(pq, 5u);
+    CHECK(sq5 > 0.25 && sq5 < 0.30 && check_maps(p, prof_map(a, pd, P_LD), prof_map(b, pq, P_LQ)) == 0u);
+    CHECK(check_maps(p, prof_map(a, gentle, 0.5e-3), prof_map(b, up, 0.5e-3)) == 0u);
+    CHECK(check_maps(p, prof_map(a, back1, 0.5e-3), prof_map(b, back5, 0.5e-3)) == 0u);
+    unsigned vee = 0u;
+    for (uint32_t j = 1u; j < (MOTOR_MAP_N - 1u); j++) { /* a fall to the margin at breakpoint j, then a 1.9 % rise */
+        const double l = ((0.25 * 1.001) + (double)j) / (j + 1.0);
+        double m[6];
+        for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+            m[k] = (k < j) ? 1.0 : ((k == j) ? l : (1.019 * l));
+        }
+        vee += (check_maps(p, NULL, prof_map(a, m, 0.5e-3)) == 0u) ? 1u : 0u;
+    }
+    CHECK(vee == 4u);
+    printf("    the reviewer's L_q map: dlambda/di %.0f uH above breakpoint 3, %.0f uH below 4 -> refused; the plant's L_q map %.3f"
+           " L_0 below the last point -> passes (0.25 L_0)\n", above3, slope_below(rv, 4u) * rv[0], sq5);
+}
+
+/* Round 24: the FW-39 commit (RID 0xF021) and the power-up both run calib_check, so a map the model cannot hold is refused
+ * there. Six differential points with a knee — L_q at the first three biases, 0.3 L_q above: each positive, but the
+ * trapezoids make the apparent map 1, 1, 1, 0.883, 0.738, 0.650 and the model's slope 0.154 L_0 just below breakpoint 4
+ * (six breakpoints cannot hold so sharp a knee) — are refused: NRC 0x22, nothing queued, no DTC_MC_CAL_WRITTEN; the plant's
+ * own six (the differential inductance at each bias) then commit. A power-up on a record with the reviewer's map:
+ * CAL_ERR_RANGE and DTC_CALIB_INVALID — no torque. */
+TEST(an_unsupported_map_is_refused_at_the_commit_and_at_power_up)
+{
+    CHECK(boot_on(TI_SKU_8XX_SIC, plant_cfg(), false));
+    const float full = g_app.cal.motor.i_map_a;
+    static const float knee[6] = {1.0f, 1.0f, 1.0f, 0.3f, 0.3f, 0.3f};
+    for (uint32_t pass = 0u; pass < 2u; pass++) {
+        for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+            const double b = fmax(fmin(full * k / 5.0, full - 20.0), 50.0);
+            g_mc.mp[1][k].staged = true;
+            g_mc.mp[1][k].pending = false;
+            g_mc.mp[1][k].staged_value = (pass == 0u) ? (knee[k] * P_LQ) : (float)plant_l_diff(P_LQ, P_ISQ, b);
+        }
+        const uint8_t code = unlock() ? rc(0x01u, UDS_RID_MC_COMMIT, NULL, 0u, NULL) : 0xFDu;
+        h_run_ms(20u);
+        calib_t rd;
+        const bool stored = nv_read(NV_REC_CALIB, &rd, (uint16_t)sizeof rd);
+        if (pass == 0u) {
+            CHECK(code == UDS_NRC_CONDITIONS && !dtc_active(DTC_MC_CAL_WRITTEN) && !stored);
+        } else {
+            CHECK(code == 0u && dtc_active(DTC_MC_CAL_WRITTEN) && stored && calib_check(&rd, &h_p, h_serial()) == 0u &&
+                  rd.motor.lq_map_h[5] < 0.7f * P_LQ);
+        }
+    }
+    sim_reset();
+    (void)memset(&g_app_session, 0, sizeof g_app_session);
+    (void)memset(&g_fm_retained, 0, sizeof g_fm_retained);
+    dtc_init();
+    h_setup(TI_SKU_8XX_SIC);
+    static const float rv[6] = {1750e-6f, 1750e-6f, 1750e-6f, 1750e-6f, 560e-6f, 560e-6f};
+    (void)memcpy(h_cal.motor.lq_map_h, rv, sizeof rv);
+    h_cal.motor.lq_h = rv[0];
+    calib_seal(&h_cal);
+    h_boot();
+    CHECK(g_app.cal_err == CAL_ERR_RANGE && dtc_active(DTC_CALIB_INVALID));
+}
+
+/* ---- the scale: references and an independent check ---- */
+/* Round 23's scale (the two extremes only: the "before") and the same with the breakpoints between them (no bound on the
+ * pieces): references for the tests below. */
+static bool r23_fits(float d, float q, float w, float v_av, float i_max, const motor_t *m)
+{
+    return (sqrtf((d * d) + (q * q)) <= i_max) && (torque_v_required(d, q, w, m) <= v_av);
+}
+
+static float ref_scale(bool bps, float id, float iq, float ff_lo, float ff_hi, float w, float vdc, float i_max,
+                       const motor_t *m, const ti_params_t *p)
+{
+    const float v_av = torque_v_available(vdc, p);
+    if (!r23_fits(id, iq, w, v_av, i_max, m)) {
+        return 0.0f;
+    }
+    float lo = 0.0f;
+    float hi = 1.0f;
+    for (uint32_t n = 0u; n <= 12u; n++) {
+        const float k = (n == 0u) ? 1.0f : (0.5f * (lo + hi));
+        const float a = iq + (k * ff_lo);
+        const float b = iq + (k * ff_hi);
+        bool ok = r23_fits(id, a, w, v_av, i_max, m) && r23_fits(id, b, w, v_av, i_max, m);
+        for (int32_t j = -5; bps && (j <= 5); j++) {
+            const float x = (m->i_map_a / 5.0f) * (float)j;
+            ok = ok && (!((x > fminf(a, b)) && (x < fmaxf(a, b))) || r23_fits(id, x, w, v_av, i_max, m));
+        }
+        if (ok) {
+            lo = k;
+            if (n == 0u) {
+                break;
+            }
+        } else {
+            hi = k;
+        }
+    }
+    return lo;
+}
+
+/* the worst of |v| / v_av - 1 and |i| / i_max - 1 at q, from the model in double */
+static double pt_excess(const motor_t *m, double d, double q, double w, double v_av, double i_max)
+{
+    return fmax((v_sat(m, d, q, w) / v_av) - 1.0, (sqrt((d * d) + (q * q)) / i_max) - 1.0);
+}
+
+#define SPAN_J 256 /* the fine scan: steps per interval */
+
+/* ... over [q + k ff_lo, q + k ff_hi]: SPAN_J + 1 points and every breakpoint inside */
+static double span_excess(const motor_t *m, double d, double q, double k, double ff_lo, double ff_hi, double w, double v_av,
+                          double i_max)
+{
+    const double a = q + (k * ff_lo);
+    const double b = q + (k * ff_hi);
+    double e = -INFINITY;
+    for (int j = 0; j <= SPAN_J; j++) {
+        e = fmax(e, pt_excess(m, d, a + ((b - a) * j / SPAN_J), w, v_av, i_max));
+    }
+    for (int j = -5; j <= 5; j++) {
+        const double x = m->i_map_a * j / 5.0;
+        e = ((x > fmin(a, b)) && (x < fmax(a, b))) ? fmax(e, pt_excess(m, d, x, w, v_av, i_max)) : e;
+    }
+    return e;
+}
+
+/* the largest |v| over [lo, hi] (the same points, 16 x as fine) */
+static double span_peak(const motor_t *m, double d, double lo, double hi, double w)
+{
+    double v = 0.0;
+    for (int j = 0; j <= 16 * SPAN_J; j++) {
+        v = fmax(v, v_sat(m, d, lo + ((hi - lo) * j / (16 * SPAN_J)), w));
+    }
+    for (int j = -5; j <= 5; j++) {
+        const double x = m->i_map_a * j / 5.0;
+        v = ((x > lo) && (x < hi)) ? fmax(v, v_sat(m, d, x, w)) : v;
+    }
+    return v;
+}
+
+/* the link voltage whose torque_v_available is v_av */
+static float vdc_for(double v_av, const ti_params_t *p)
+{
+    return (float)(v_av * 1.7320508075688772 / ((1.0 - p->cal_vdyn_reserve_frac) * p->cal_mod_index_max));
+}
+
+typedef struct {
+    double v_ends; /* the largest of the two extremes' and the base's |v| */
+    double v_peak; /* the interval's */
+    float k_new, k_r23, k_bps;
+    double e_new, e_r23, e_bps; /* span_excess at each */
+} r24_lim_t;
+
+/* the three scales with the ellipse halfway between the extremes' (and the base's) voltage and the interval's peak, or
+ * (from_base) between the base's and the peak */
+static r24_lim_t lim_case(const motor_t *m, const ti_params_t *p, float d, float q, float w, float ff_lo, float ff_hi,
+                          float i_max, bool from_base)
+{
+    r24_lim_t r;
+    const double lo = (double)q + ff_lo;
+    const double hi = (double)q + ff_hi;
+    r.v_ends = fmax(fmax(v_sat(m, d, lo, w), v_sat(m, d, hi, w)), v_sat(m, d, q, w));
+    r.v_peak = span_peak(m, d, lo, hi, w);
+    const float vdc = vdc_for(0.5 * ((from_base ? v_sat(m, d, q, w) : r.v_ends) + r.v_peak), p);
+    const double v_av = torque_v_available(vdc, p);
+    r.k_new = torque_ripple_scale(d, q, ff_lo, ff_hi, w, vdc, i_max, m, p);
+    r.k_r23 = ref_scale(false, d, q, ff_lo, ff_hi, w, vdc, i_max, m, p);
+    r.k_bps = ref_scale(true, d, q, ff_lo, ff_hi, w, vdc, i_max, m, p);
+    r.e_new = span_excess(m, d, q, r.k_new, ff_lo, ff_hi, w, v_av, i_max);
+    r.e_r23 = span_excess(m, d, q, r.k_r23, ff_lo, ff_hi, w, v_av, i_max);
+    r.e_bps = span_excess(m, d, q, r.k_bps, ff_lo, ff_hi, w, v_av, i_max);
+    return r;
+}
+
+/* a motor with a flat d map and the q map prof, at the SKU's full scale */
+static motor_t r24_motor(const ti_params_t *p, float rs, float psi, float ld, float lq, const double prof[MOTOR_MAP_N])
+{
+    motor_t m = motor_screening();
+    m.rs_ohm = rs;
+    m.psi_wb = psi;
+    m.ld_h = ld;
+    m.lq_h = lq;
+    m.i_map_a = p->i_crest_a;
+    for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+        m.ld_map_h[k] = ld;
+        m.lq_map_h[k] = (float)(prof[k] * lq);
+    }
+    return m;
+}
+
+/* Round 24 — the reviewer's defect (2): round 23 checked the feed-forward's two extremes only, and |v| can peak between them.
+ * The reviewer's case (the non-physical map above: 1 mH / 1.75 mH, 25 mOhm, 0.5 Wb; i_d -101.995 A, i_q 280 A, 480 rad/s,
+ * 632.56 V, reserve 0.1, modulation 0.95, extremes -10 / +20 A): scale 1, while breakpoint 3 (288.5 A) needs 315.08 V of
+ * 312.25 V; now a part, every i_q of it inside. On PHYSICAL maps (each passes calib_check), the ellipse halfway between the
+ * extremes' (and the base's) voltage and the interval's peak:
+ *  K — L_q 1.7 mH falling to 0.63 of itself over the first segment (0.26 L_0 below breakpoint 1), then flat; 70 mOhm, 0.05 Wb,
+ *      L_d 0.2 mH, i_d -225 A, regenerating (i_q -100 A at +76 rad/s, and the mirror), extremes -/+10 A: |v| peaks AT
+ *      breakpoint 1 (-96.17 A), 0.67 % above the extremes — round 23's scale leaves the ellipse, the breakpoints alone find it;
+ *  B — L_q 0.47 mH falling to 0.82 of itself over the third segment (0.28 L_0 below breakpoint 3), 0.17 Ohm, 0.23 Wb, L_d
+ *      0.93 mH, i_d 0, i_q -264 A at 1771 rad/s (and the mirror), extremes -3 / +25 A: |v| peaks INSIDE the segment (-258 A),
+ *      4.9e-5 above the extremes, no breakpoint between them — round 23's scale and the breakpoints alone both leave it.
+ * The new scale: a part, every i_q of it inside (the fine scan, 1e-6). The motoring quadrants of K (the peak an extreme):
+ * inside too; and where |v| rises across a steep segment by more than the chord's bow (K's first segment at 3000 rad/s) the
+ * bound costs nothing: the scale is the extremes' exactly. The extremes in either order give the same scale; a NaN extreme
+ * gives 0. */
+TEST(the_scale_holds_every_i_q_between_the_extremes)
+{
+    ti_params_t pr = *ti_params_get(TI_SKU_8XX_SIC);
+    pr.cal_vdyn_reserve_frac = 0.1f;
+    pr.cal_mod_index_max = 0.95f;
+    static const double rq[6] = {1.0, 1.0, 1.0, 1.0, 0.32, 0.32};
+    motor_t mr = r24_motor(&pr, 0.025f, 0.5f, 1e-3f, 1.75e-3f, rq);
+    mr.i_map_a = 480.832611f;
+    mr.lq_map_h[4] = 560e-6f; /* exactly the reviewer's */
+    mr.lq_map_h[5] = 560e-6f;
+    const float vdc = 632.561829f;
+    const float v_av = torque_v_available(vdc, &pr);
+    const float v_bp = torque_v_required(-101.995407f, 288.499573f, 480.0f, &mr);
+    const float k_r23 = ref_scale(false, -101.995407f, 280.0f, -10.0f, 20.0f, 480.0f, vdc, 480.832611f, &mr, &pr);
+    const float k_new = torque_ripple_scale(-101.995407f, 280.0f, -10.0f, 20.0f, 480.0f, vdc, 480.832611f, &mr, &pr);
+    CHECK(fabsf(v_av - 312.2543f) < 1e-3f && fabsf(v_bp - 315.0806f) < 2e-3f && k_r23 == 1.0f);
+    CHECK(k_new > 0.0f && k_new < 1.0f &&
+          span_excess(&mr, -101.995407f, 280.0f, k_new, -10.0f, 20.0f, 480.0f, v_av, 480.832611f) <= 1e-6);
+    printf("    the reviewer's case: round 23's scale %.0f (288.5 A needs %.2f V of %.2f V); now %.4f\n", (double)k_r23,
+           (double)v_bp, (double)v_av, (double)k_new);
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    static const double kq[6] = {1.0, 0.63, 0.63, 0.63, 0.63, 0.63};
+    static const double bq[6] = {1.0, 1.0, 1.0, 0.82, 0.82, 0.82};
+    const motor_t mk = r24_motor(p, 0.07f, 0.05f, 0.2e-3f, 1.7e-3f, kq);
+    const motor_t mb = r24_motor(p, 0.17f, 0.23f, 0.93e-3f, 0.47e-3f, bq);
+    CHECK(check_maps(p, mk.ld_map_h, mk.lq_map_h) == 0u && check_maps(p, mb.ld_map_h, mb.lq_map_h) == 0u);
+    for (uint32_t s = 0u; s < 2u; s++) {
+        const float sg = (s == 0u) ? 1.0f : -1.0f; /* the mirror: -w, -i_q, the extremes reversed — the same |v| */
+        const r24_lim_t k = lim_case(&mk, p, -225.0f, -100.0f * sg, 76.0f * sg, -10.0f, 10.0f, 400.0f, false);
+        CHECK(k.v_peak > 1.006 * k.v_ends && k.e_r23 > 3e-3 && k.e_bps <= 1e-6 && k.k_new < 1.0f && k.e_new <= 1e-6);
+        const r24_lim_t b = lim_case(&mb, p, 0.0f, -264.0f * sg, 1771.0f * sg, (s == 0u) ? -3.0f : -25.0f,
+                                     (s == 0u) ? 25.0f : 3.0f, 400.0f, false);
+        CHECK(b.v_peak > 1.00004 * b.v_ends && b.e_r23 > 1e-5 && b.e_bps > 1e-5 && b.k_new < 1.0f && b.e_new <= 1e-6);
+        const r24_lim_t km = lim_case(&mk, p, -225.0f, 100.0f * sg, 76.0f * sg, -10.0f, 10.0f, 400.0f, true); /* motoring */
+        CHECK(km.k_new < 1.0f && km.e_new <= 1e-6 && km.e_r23 <= 1e-6);
+        /* on K's steep first segment at 3000 rad/s |v| rises across the interval (by far more than the bow): the bound costs
+         * nothing — the scale is the extremes' exactly */
+        const r24_lim_t mono = lim_case(&mk, p, -100.0f, 50.0f * sg, 3000.0f * sg, -10.0f, 10.0f, 400.0f, true);
+        CHECK(mono.k_new < 1.0f && mono.k_new == mono.k_r23 && mono.k_new == mono.k_bps && mono.e_new <= 1e-6);
+        if (s == 0u) {
+            printf("    K (peak at breakpoint -1, +%.2f %%): round 23 %.4f (%+.2e), the breakpoints %.4f (%+.2e), now %.4f (%+.2e)\n"
+                   "    B (peak inside a segment, +%.1e): round 23 %.4f (%+.2e), the breakpoints %.4f (%+.2e), now %.4f (%+.2e)\n",
+                   100.0 * (k.v_peak / k.v_ends - 1.0), (double)k.k_r23, k.e_r23, (double)k.k_bps, k.e_bps,
+                   (double)k.k_new, k.e_new, b.v_peak / b.v_ends - 1.0, (double)b.k_r23, b.e_r23, (double)b.k_bps, b.e_bps,
+                   (double)b.k_new, b.e_new);
+        }
+    }
+    const float vk = vdc_for(v_sat(&mk, -225.0, -96.0, 76.0), p);
+    const float k1 = torque_ripple_scale(-225.0f, -100.0f, -10.0f, 10.0f, 76.0f, vk, 400.0f, &mk, p);
+    CHECK(k1 == torque_ripple_scale(-225.0f, -100.0f, 10.0f, -10.0f, 76.0f, vk, 400.0f, &mk, p));
+    CHECK(torque_ripple_scale(-225.0f, -100.0f, NAN, 10.0f, 76.0f, vk, 400.0f, &mk, p) == 0.0f &&
+          torque_ripple_scale(-225.0f, -100.0f, -10.0f, NAN, 76.0f, vk, 400.0f, &mk, p) == 0.0f);
+}
+
+/* Round 24: a map for the reference below at l0 — the secant of a flux that bends over (atan, tanh or Froehlich; i_map / I_s
+ * up to 2.5; atan after a linear stretch), a random walk (falls up to 30 %, rises inside the 2 % tolerance), such a walk with
+ * one segment steepened to the slope's margin (x 1 to 1.05) or flat — drawn until calib_check passes it. */
+static void r24_map(float map[MOTOR_MAP_N], double l0, const ti_params_t *p, unsigned *refused)
+{
+    bool ok = false;
+    while (!ok) {
+        const uint32_t fam = (uint32_t)urand(0.0, 7.0);
+        const double r = urand(0.05, 2.5);
+        const double i0 = (urand(0.0, 1.0) < 0.5) ? 0.0 : urand(0.0, 0.7);
+        for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
+            const double x = k / 5.0;
+            double f = 1.0;
+            if (k == 0u) {
+                f = 1.0;
+            } else if (fam == 0u) {
+                f = (x <= i0) ? 1.0 : ((i0 + (atan((x - i0) * r) / r)) / x);
+            } else if (fam == 1u) {
+                f = tanh(x * r) / (x * r);
+            } else if (fam == 2u) {
+                f = 1.0 / (1.0 + (x * r));
+            } else if (fam == 3u) {
+                f = (map[k - 1u] / l0) * (1.0 - urand(-0.019, 0.3));
+            } else if (fam <= 5u) {
+                f = (map[k - 1u] / l0) * (1.0 - urand(-0.019, 0.02));
+            } else {
+                f = 1.0;
+            }
+            map[k] = (float)(l0 * f);
+        }
+        if ((fam == 4u) || (fam == 5u)) { /* one segment k as steep as the margin allows (x 1 to 1.05) */
+            const uint32_t k = (uint32_t)urand(0.0, 5.0);
+            const double t = 0.25 * map[0] * urand(1.0, 1.05);
+            const double ratio = ((t + ((k + 1.0) * map[k])) / (k + 2.0)) / map[k + 1u];
+            for (uint32_t j = k + 1u; j < MOTOR_MAP_N; j++) {
+                map[j] = (float)(map[j] * ratio);
+            }
+        }
+        ok = check_maps(p, NULL, map) == 0u;
+        *refused += ok ? 0u : 1u;
+    }
+}
+
+/* Round 24 — the proof: 20 000 cases, both maps of each drawn by r24_map (every one passes calib_check), the motor from the
+ * FW-37 reference's distribution (the inductances inside the class range), the four SKUs with a random reserve (0-0.2)
+ * and modulation limit (0.8-1), the current limit 50 A to the SKU's, i_d from 0 to the demagnetisation / current limit
+ * (field weakening), i_q near a breakpoint (+/-35 A) or anywhere, half the cases near the least |v| over i_q (where |v| is
+ * flattest), both signs of i_q and of the speed (1 to 20 000 rad/s), extremes -30..0 / 0..+30 A, and the ellipse between the
+ * base's voltage and the full interval's peak (+0.1 %): the scale is exercised. Each returned scale's interval is scanned in
+ * double (SPAN_J + 1 points and the breakpoints): none leaves the ellipse or the circle by more than 1e-6 (the
+ * postcondition's slack; float rounding). Counted beside it: round 23's scale (the extremes) and the breakpoints alone —
+ * where they leave the ellipse — and the price of the bound (the largest scale that fits, from the scan, less the one
+ * returned). */
+TEST(the_scale_holds_every_i_q_on_20000_physical_maps)
+{
+    s_rng = 24u;
+    unsigned refused = 0u;
+    unsigned quad[4] = {0u, 0u, 0u, 0u};
+    unsigned bad[3] = {0u, 0u, 0u}; /* new, round 23, the breakpoints alone */
+    unsigned bad_q[4] = {0u, 0u, 0u, 0u};
+    double worst[3] = {-INFINITY, -INFINITY, -INFINITY};
+    unsigned n_lim = 0u;
+    unsigned n_one = 0u;
+    unsigned lost = 0u;
+    double loss_sum = 0.0;
+    double loss_max = 0.0;
+    for (uint32_t i = 0u; i < 20000u; i++) {
+        ti_params_t pp = *ti_params_get(SKUS[i % 4u]);
+        pp.cal_vdyn_reserve_frac = (float)urand(0.0, 0.2);
+        pp.cal_mod_index_max = (float)urand(0.8, 1.0);
+        motor_t m = rnd_motor(i);
+        m.ld_h = fmaxf(m.ld_h, 20e-6f);
+        m.lq_h = fmaxf(m.lq_h, 20e-6f);
+        m.i_map_a = pp.i_crest_a;
+        r24_map(m.ld_map_h, m.ld_h, &pp, &refused);
+        r24_map(m.lq_map_h, m.lq_h, &pp, &refused);
+        const double step = m.i_map_a / 5.0;
+        const float imax = (float)urand(50.0, m.i_map_a);
+        const float d = (urand(0.0, 1.0) < 0.2) ? 0.0f : (float)(-urand(0.0, 1.0) * fmin(imax, m.id_demag_a));
+        const double qc = sqrt(fmax(((double)imax * imax) - ((double)d * d), 0.0));
+        const double sq = (urand(0.0, 1.0) < 0.5) ? -1.0 : 1.0;
+        const float w = (float)(((urand(0.0, 1.0) < 0.5) ? -1.0 : 1.0) * exp(urand(0.0, log(20000.0))));
+        double q = (urand(0.0, 1.0) < 0.7) ? ((double)(uint32_t)urand(1.0, 6.0) * step) + urand(-35.0, 35.0) : urand(0.0, qc);
+        q = sq * fmin(fmax(q, 0.0), qc);
+        if (urand(0.0, 1.0) < 0.5) { /* near the least |v| over i_q at this i_d */
+            double v_lo = INFINITY;
+            double q_lo = 0.0;
+            for (int j = 0; j <= 400; j++) {
+                const double x = -qc + (2.0 * qc * j / 400.0);
+                const double v = v_sat(&m, d, x, w);
+                q_lo = (v < v_lo) ? x : q_lo;
+                v_lo = fmin(v_lo, v);
+            }
+            q = fmin(fmax(q_lo + urand(-20.0, 20.0), -qc), qc);
+        }
+        const float qf = (float)q;
+        const float flo = (urand(0.0, 1.0) < 0.1) ? 0.0f : (float)(-urand(0.0, 30.0));
+        const float fhi = (urand(0.0, 1.0) < 0.1) ? 0.0f : (float)urand(0.0, 30.0);
+        const double vb = v_sat(&m, d, qf, w);
+        const double vp = span_peak(&m, d, (double)qf + flo, (double)qf + fhi, w);
+        const float vdc = vdc_for(vb + (urand(0.0, 1.0) * ((vp * 1.001) - vb)), &pp);
+        const double v_av = torque_v_available(vdc, &pp);
+        const uint32_t qi = ((qf >= 0.0f) ? 0u : 1u) + ((w >= 0.0f) ? 0u : 2u);
+        quad[qi]++;
+        const float k[3] = {torque_ripple_scale(d, qf, flo, fhi, w, vdc, imax, &m, &pp),
+                            ref_scale(false, d, qf, flo, fhi, w, vdc, imax, &m, &pp),
+                            ref_scale(true, d, qf, flo, fhi, w, vdc, imax, &m, &pp)};
+        for (uint32_t j = 0u; j < 3u; j++) {
+            const double e = span_excess(&m, d, qf, k[j], flo, fhi, w, v_av, imax);
+            worst[j] = fmax(worst[j], e);
+            bad[j] += (e > 1e-6) ? 1u : 0u;
+            bad_q[qi] += ((j == 1u) && (e > 1e-6)) ? 1u : 0u;
+        }
+        n_one += (k[0] == 1.0f) ? 1u : 0u;
+        if ((k[0] < 1.0f) && (pt_excess(&m, d, qf, w, v_av, imax) <= 1e-6)) { /* the bound's price */
+            double lo = (span_excess(&m, d, qf, 1.0, flo, fhi, w, v_av, imax) <= 1e-6) ? 1.0 : 0.0;
+            double hi = 1.0;
+            for (int n = 0; (n < 16) && (lo < 1.0); n++) {
+                const double kk = 0.5 * (lo + hi);
+                if (span_excess(&m, d, qf, kk, flo, fhi, w, v_av, imax) <= 1e-6) {
+                    lo = kk;
+                } else {
+                    hi = kk;
+                }
+            }
+            n_lim++;
+            const double l = fmax(lo - k[0], 0.0);
+            loss_sum += l;
+            loss_max = fmax(loss_max, l);
+            lost += (l > 0.05) ? 1u : 0u;
+        }
+    }
+    CHECK(bad[0] == 0u);
+    CHECK(quad[0] > 3000u && quad[1] > 3000u && quad[2] > 3000u && quad[3] > 3000u && n_lim > 8000u && n_one > 1000u);
+    printf("    20000 physical maps (%u candidates refused by calib_check); quadrants (q+w+, q-w+, q+w-, q-w-) %u %u %u %u:\n"
+           "      the new scale's worst %+.2e (%u beyond 1e-6); round 23's %+.2e (%u: %u %u %u %u by quadrant); the breakpoints"
+           " alone %+.2e (%u)\n      scale 1 in %u; below 1 in %u: the largest that fits less the returned: mean %.1e,"
+           " worst %.3f, > 0.05 in %u\n",
+           refused, quad[0], quad[1], quad[2], quad[3], worst[0], bad[0], worst[1], bad[1], bad_q[0], bad_q[1], bad_q[2],
+           bad_q[3], worst[2], bad[2], n_one, n_lim, loss_sum / (double)((n_lim > 0u) ? n_lim : 1u), loss_max, lost);
+}
+
 void suite_fw45_46(void)
 {
     RUN(a_flat_map_is_the_scalar_solve_bit_for_bit);
@@ -1395,4 +1894,8 @@ void suite_fw45_46(void)
     RUN(the_ripple_table_write_is_interlocked_and_range_checked);
     RUN(the_feed_forward_never_leaves_the_solved_margin);
     RUN(with_the_default_cal_a_table_changes_nothing);
+    RUN(the_model_flux_must_rise_with_the_current); /* round 24 */
+    RUN(an_unsupported_map_is_refused_at_the_commit_and_at_power_up);
+    RUN(the_scale_holds_every_i_q_between_the_extremes);
+    RUN(the_scale_holds_every_i_q_on_20000_physical_maps);
 }

@@ -32,6 +32,7 @@ void sim_set_isr_latency_ns(uint32_t ns) { s_isr_latency = ns; }
 static uint16_t s_code[HAL_ADC_COUNT];
 static bool s_frozen[HAL_ADC_COUNT];
 static uint64_t s_frozen_t[HAL_ADC_COUNT];
+static uint16_t s_frozen_code[HAL_ADC_COUNT]; /* round 24: a stopped converter's data register keeps its last result */
 static struct {
     bool en;
     uint16_t lo, hi;
@@ -42,6 +43,7 @@ static bool s_slow_model;   /* the target's slow list: nothing converted before 
 static bool s_slow_started;
 static uint8_t s_phase_stop; /* bit k: phase channel k delivers no new conversion (round 16 injection) */
 static uint32_t s_adc_read_ns; /* round 18: a read takes this long, then stamps (the target's order) */
+static uint32_t s_never;       /* round 24 (F240): bit sig — that input never converts */
 
 typedef enum { HVIL_M_CLOSED = 0, HVIL_M_OPEN, HVIL_M_SHORT_GND, HVIL_M_SHORT_BAT } hvil_mode_t;
 static hvil_mode_t s_hvil;
@@ -456,12 +458,12 @@ bool hal_adc_read(hal_adc_sig_t sig, uint16_t *code, uint32_t *t_us)
         return false;
     }
     adc_read_time();
-    if (slow_unconverted(sig)) {
+    if (slow_unconverted(sig) || ((s_never & (1u << (uint32_t)sig)) != 0u)) {
         *code = 0u;
         *t_us = 0u;
         return false; /* never converted */
     }
-    *code = (sig == HAL_ADC_INTRLOK_N) ? v_to_code(hvil_v()) : s_code[sig];
+    *code = s_frozen[sig] ? s_frozen_code[sig] : ((sig == HAL_ADC_INTRLOK_N) ? v_to_code(hvil_v()) : s_code[sig]);
     *t_us = (uint32_t)((s_frozen[sig] ? s_frozen_t[sig] : s_now) / 1000u);
     return true;
 }
@@ -513,9 +515,17 @@ void sim_adc_set_code(hal_adc_sig_t sig, uint16_t code)
 
 void sim_adc_set_v(hal_adc_sig_t sig, float v_pin) { sim_adc_set_code(sig, v_to_code(v_pin)); }
 
+void sim_adc_never(hal_adc_sig_t sig, bool never)
+{
+    if (sig < HAL_ADC_COUNT) {
+        s_never = never ? (s_never | (1u << (uint32_t)sig)) : (s_never & ~(1u << (uint32_t)sig));
+    }
+}
+
 void sim_adc_freeze(hal_adc_sig_t sig, bool frozen)
 {
     if (sig < HAL_ADC_COUNT) {
+        s_frozen_code[sig] = (sig == HAL_ADC_INTRLOK_N) ? v_to_code(hvil_v()) : s_code[sig];
         s_frozen[sig] = frozen;
         s_frozen_t[sig] = s_now;
     }
@@ -1098,6 +1108,7 @@ void sim_reset_at_us(uint64_t t_us)
     s_slow_started = false;
     s_phase_stop = 0u;
     s_adc_read_ns = 0u;
+    s_never = 0u;
     s_hvil = HVIL_M_CLOSED;
     (void)memset(&P, 0, sizeof P);
     pwm_regs_reset();

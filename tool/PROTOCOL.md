@@ -9,7 +9,7 @@ This is the interface specification for the Qt application (or any other client)
   `docs/firmware-contract.md` (FW-11, FW-08b, FW-24, FW-32, FW-38 to FW-41). The same information is machine-readable
   in `tool/protocol/can-frames.json`, with test vectors produced by the firmware's own encoders.
 
-Firmware basis of this document: `TI_FW_ID` 0x0A0F0015 (the round-23 working tree of 2026-09-26: INV_STATUS is
+Firmware basis of this document: `TI_FW_ID` 0x0A0F0016 (the round-24 tree of 2026-09-27; 0x0A0F0015 was the round-23 gap-closure image: INV_STATUS is
 20 bytes; the round-23 fixes: the bridge's ISO 15765-2 tester, the periodic stream, the VCU vehicle speed, 0x14 and
 the bench key). The machine-readable exports record the exact firmware tree they were generated from; when the firmware
 changes, regenerate them (section C) — the generator fails loudly if this document's tables no longer match the
@@ -212,7 +212,7 @@ Printed at start-up, on `info`, `reboot` and `provision`.
 | Field | Type | Meaning |
 |---|---|---|
 | `bridge` | string | "traction-tool-bridge 1" (protocol generation) |
-| `fw_id` | string | `TI_FW_ID` of the compiled image, "0x0A0F0015" |
+| `fw_id` | string | `TI_FW_ID` of the compiled image, "0x0A0F0016" |
 - `root` (round 23): `{kind, key_id}` — the image verifier's root of trust (`kind` "test" on the host build — the tool shows a banner, an EOL station refuses it; "otp"/"build" on a target; `key_id` = SHA-256(public key)[0..3]); DID 0xFD23 carries the same; DID 0xFD24 carries the FW-38 boot record (`hello.boot_rec` over the bridge); DID 0xFD25 the record's motor data (ψ, pole pairs, the scalars — `hello.motor`/`hello.calib` over the bridge); DID 0xFD26 the active record's FW-45 inductance maps (the read-back of a committed map after the key cycle).
 | `sku`, `sku_name` | int, string | 1 = 8XX SiC, 2 = 8XX IGBT, 3 = 4XX IGBT, 4 = 4XX SiC |
 | `dtc_count` | int | `DTC_COUNT` (ids 1 … dtc_count−1) |
@@ -471,7 +471,7 @@ simulated). `sim_bridge --script FILE` loads it after `hello`; stdin stays open 
 ```
 $ ./sim_bridge --rate 200
 {"type":"log","level":"info","t_ms":1001.02,"msg":"power-up 1: 8XX SiC, key cycle 1, init ok"}
-{"type":"hello","bridge":"traction-tool-bridge 1","fw_id":"0x0A0F0015","sku":1,"sku_name":"8XX SiC",...}
+{"type":"hello","bridge":"traction-tool-bridge 1","fw_id":"0x0A0F0016","sku":1,"sku_name":"8XX SiC",...}
 {"type":"tel","v":1,"seq":0,"t_ms":1002.02,"src":"sim","state":{"sm":1,...},...}
 > {"cmd":"arm","id":1}
 {"type":"ack","id":1,"cmd":"arm","ok":true,"t_ms":2410.02}

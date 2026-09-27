@@ -97,8 +97,9 @@
     {"cal_temp_rate_db_codes", offsetof(ti_params_t, cal_temp_rate_db_codes), TI_CAL_U8, 1.0f, 32.0f}, \
     {"cal_ripple_ff_max_a", offsetof(ti_params_t, cal_ripple_ff_max_a), TI_CAL_F32, 0.0f, 30.0f}, \
     {"cal_ripple_ff_fmax_hz", offsetof(ti_params_t, cal_ripple_ff_fmax_hz), TI_CAL_F32, 0.0f, 500.0f}, \
+    {"cal_temp_hold_ms", offsetof(ti_params_t, cal_temp_hold_ms), TI_CAL_U32, 3.0f, 50.0f}, \
 }
 
-#define TI_CAL_RANGE_COUNT 91u
+#define TI_CAL_RANGE_COUNT 92u
 
 #endif /* CAL_RANGES_H */

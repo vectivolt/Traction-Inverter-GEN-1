@@ -241,6 +241,7 @@ typedef struct {
     uint8_t cal_temp_rate_db_codes; /* round 23 (item 1, FW-13): a mean within this many codes never violates it */
     float cal_ripple_ff_max_a;      /* round 23 (FW-46): the ripple feed-forward's clamp, A (0 = off) */
     float cal_ripple_ff_fmax_hz;    /* round 23 (FW-46): applied only while 6 f_e is below this */
+    uint32_t cal_temp_hold_ms;      /* round 24 (F240): a slow-list sample not renewed is held this long, then expired */
 } ti_params_t;
 
 /* Range metadata for cal_* fields (generated into cal_ranges.h). */

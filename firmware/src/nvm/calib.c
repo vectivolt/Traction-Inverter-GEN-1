@@ -44,13 +44,21 @@ static bool in(float x, float lo, float hi) { return (x >= lo) && (x <= hi); }
 /* Round 23 (FW-45): each point in the inductance class range, non-increasing with the current (saturation only lowers it)
  * beyond MOTOR_MAP_RISE_TOL — the FW-39 routine's points scatter by about 0.1 % on a machine that does not saturate, and
  * a strict rule refused every such commit (found by the service tool) — and the last >= 0.3 x the first (a sanity bound,
- * the current loop's gain floor). */
+ * the current loop's gain floor).
+ * Round 24: and the model's flux lambda = L(i) i rises with the current, with a margin — the apparent inductance alone does
+ * not make it (L 1.75 mH to 0.56 mH over one segment passed: dlambda/di -1.8 mH there). motor_sat's L is linear on segment
+ * k (x in [k, k + 1] breakpoint steps), so dlambda/di = L_k + (2x - k) s, s = L_(k+1) - L_k, is affine there and its ends
+ * bound it: on a falling segment the right end, L_(k+1) + (k + 1) s — the one-sided slope just below breakpoint k + 1,
+ * checked here; on a rising one the left end, >= L_k, which the segment before it (or k = 0) already holds above the margin;
+ * beyond the last point L_(N-1) (the rule above). A rise inside MOTOR_MAP_RISE_TOL only raises the slope. */
 #define MOTOR_MAP_RISE_TOL 0.02f /* a rise between neighbouring points inside this is measurement scatter, not physics */
+#define MOTOR_MAP_SLOPE_MIN 0.25f /* x L_0 */
 static bool map_ok(const float map[MOTOR_MAP_N])
 {
     bool ok = map[MOTOR_MAP_N - 1u] >= (0.3f * map[0]);
     for (uint32_t k = 0u; k < MOTOR_MAP_N; k++) {
         ok = ok && in(map[k], 20e-6f, 5e-3f) && ((k == 0u) || (map[k] <= ((1.0f + MOTOR_MAP_RISE_TOL) * map[k - 1u])));
+        ok = ok && ((k == 0u) || ((map[k] + ((float)k * (map[k] - map[k - 1u]))) >= (MOTOR_MAP_SLOPE_MIN * map[0])));
     }
     return ok;
 }

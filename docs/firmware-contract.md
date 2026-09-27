@@ -26,8 +26,8 @@ this repository claims it exists. Verification of each requirement is HIL first,
 
 ## 2. SKU identity and parameter sets
 
-- **FW-01** Read `HW_ID` (harness pin 2; card 10 k pull-up to VREF5 against the power board's
-  `RHWID`) before arming. Windows at VREF5 = 5.0 V (1 % parts, ±4 % window):
+- **FW-01** Read `HW_ID` (harness pin 2; card 10 k pull-up to V5A — the ADC reference since round 24, so the read is
+  ratiometric — against the power board's `RHWID`) before arming. Windows as ratios of the reference (1 % parts, ±4 % window):
 
   | SKU | RHWID | V_ID nominal |
   |---|---|---|
@@ -319,7 +319,7 @@ unpowered MCU pads. That is inside the S32K39 injection rating (R9X-13).
 | FW-10 | Resolver (SDADC sin/cos + excitation monitor) | amplitude (sin²+cos²) window, tracking error, angle-rate plausibility vs current model, excitation-monitor level (its planes: FW-30); any fault ⇒ no angle-dependent torque, §6 state. Each check debounced over `cal_rslv_debounce` consecutive frames — round 23 (§10k item 8): one bad frame is one count, kept out of the observer, never a fault |
 | FW-11 | CAN torque command | counter + CRC, ≤ 20 ms staleness ⇒ ramp to zero torque (not hold last value) — round 15, confirmed round 17: a stale command also leaves the contactor state unknown, so while armed it is also the §6 battery-lost row ("contactor/precharge feedback invalid"), and that row wins — zero current at the current-loop rate below n_x, LS-ASC above; the ramp remains for a command lost with the battery path proven (e.g. HVIL open); BMS limit timeout ⇒ zero regen only (motoring keeps the FW-03 envelope; the relayed discharge limit is not held stale) |
 | FW-12 | FS26 | OTP set of design-basis §8a verified by SPI readback at every boot (R-F38); FS1B policy per §6; Q&A watchdog configured before FS0B release with **WD_ERR_LIMIT = 2** (not the default 6), WD_FS_REACTION = RSTB + FS0B (default), window ≤ 3 ms, so runaway code asserts FS0B within about two windows (round 7, RR03). **FS1B_TDELAY = 0 (required)**: FS1B asserts with FS0B, FW-16 step a reads the ASC preset at once, and a delay would only lengthen the SPO interval after an FS0B event; the ASC entry is break-before-make in hardware (§4c). **FS1B_TDUR = 100 ms** (default): the ASC latch holds after FS1B releases, and the bounded pulse also bounds RFS4 on a FAULT_OUT wire short (§9). Keep BACKUP_SAFETY_PATH_FS0B = 1 (default: an FS0B short-to-high asserts RSTB). Set **BACKUP_SAFETY_PATH_FS1B = 0** (round 9, A8-03). An FS1B short-to-high comes from FAULT_OUT shorted to KL30 (or a board-level short on FS1B_N). With this setting it still counts in the fault error counter, and FW-12 reads it as a DTC with no arming until repaired. It does not reset the MCU. A reset would restore neither the FS1B→ASC preset nor FAULT_OUT, it would interrupt the MCU's §6 control during the very fault that asserted FS1B, and a reset loop would repeat the RFS4 stress. FS_GPIO1 (flyback-enable OR input) stays low from POR until §9 step 6, then high, so gate power is held through an MCU reset but is never up while FS1B is still asserted at boot. The OTP must configure GPIO1 **push-pull and not slotted** (design-basis §8a): a slotted push-pull GPIO1 goes high by itself at power-up (DS Table 133). The FW-16 boot test asserts FS0B with FS0B_REQ (FS_SAFE_IOS_1 bit 6). FS1B-ASC only for motors that need it (§4c: with EN low the LS DESAT is not documented). Outside that policy, only FW-16 switches the low sides on through ASC. It does so in states without documented LS DESAT: step a (EN low, via FS1B), step f (EN high, IN+ low) and step h (both, around the FLT injection). Each runs only under its measured no-HV, standstill conditions |
-| FW-13 | Temperatures | module NTCs (open/short/rate — round 23: the rate over a window with a deadband, §10k item 1), motor sensors, board NTCs; derate per FW-04 |
+| FW-13 | Temperatures | module NTCs (open/short/rate — round 23: the rate over a window with a deadband, §10k item 1), motor sensors, board NTCs; derate per FW-04. Round 24 (§10n): a channel with no new conversion for `cal_temp_hold_ms` is invalid — like every slow-list input. A rate fault (three implausible windows) is latched for the key cycle and no later sample replaces it (F243): an open or short read while it holds leaves the channel invalid and reporting "rate", and is recorded as `DTC_TEMP_OPEN_SHORT` — set while any channel reads open or short, latched or not |
 | FW-14 | Gate power | RDY_HS/RDY_LS low ⇒ no PWM; flyback enables sequenced before DRV_EN |
 | FW-33 | LV supply (KL30 at the FS26 VSUP, read through its AMUX — round 17) | an overvoltage inside the vehicle's profiles (IR-03 test B, IR-02 jump start) is information — RUN and the torque unchanged, a DTC whose stamps give the duration; longer ⇒ the §6 command-lost ramp. "FW-33 LV supply supervision" below |
 
@@ -826,7 +826,7 @@ voltage and current constraints, a postcondition on every current vector.
   overvoltage is information for as long as the vehicle interface allows — above 27 V for 500 ms (IR-03 test B),
   at or below it for 65 s (IR-02 jump start), each a range-checked CAL — and the §6 command-lost ramp beyond
   that — §5, "FW-33 LV supply supervision"; checklist T-39.
-- **Image identity.** `TI_FW_ID` 0x0A0F0015 since the round-23 gap closure (0x0A0F0014 the round-23 torque-solver image; 0x0A0F0011 round 17, 0x0A0F0012 round 18, 0x0A0F0013 round 19): round 17 changed the image (zero current under the battery-lost
+- **Image identity.** `TI_FW_ID` 0x0A0F0016 since round 24 (0x0A0F0015 the round-23 gap closure, 0x0A0F0014 the round-23 torque-solver image; 0x0A0F0011 round 17, 0x0A0F0012 round 18, 0x0A0F0013 round 19): round 17 changed the image (zero current under the battery-lost
   row, the RUN-only DC-link trim, FW-32, the FW-12 refresh cadence, the FW-06a release wait, FW-33). A new
   EOL/HIL validation record is required before it arms (FW-24); the calibration record stays layout 2. (Round 18
   moves the image to 0x0A0F0012 and round 19 to 0x0A0F0013, §10d; round 23 to 0x0A0F0014, §10e, and to 0x0A0F0015 with §10f–§10k.)
@@ -919,7 +919,7 @@ voltage and current constraints, a postcondition on every current vector.
   the §6 "control lost" row at once. INV_STATUS (20 bytes since round 23) reports in b4–5 the torque the issued
   current references represent — the torque applied (FW-08), below the command when the limits reduce it — and in
   b16–17 the command beside it; the DBC carries both (checklist T-38).
-- **Image identity.** `TI_FW_ID` 0x0A0F0015 (round 23, second image; 0x0A0F0014 before the gap closure): a new EOL/HIL validation record is required before this
+- **Image identity.** `TI_FW_ID` 0x0A0F0016 (round 24; 0x0A0F0015 the round-23 second image, 0x0A0F0014 before the gap closure): a new EOL/HIL validation record is required before this
   image arms (FW-24); the calibration record stays layout 2.
 
 ## 11. What this contract does not close
@@ -1188,7 +1188,8 @@ a changed test key is noticed.
   - **Not closed here:** the OEM diagnostic specification (IDs, DID and DTC numbers, the sessions they need); a DTC store
     that survives a power-up; snapshot records for DTCs other than DESAT (the ring's only producer is FW-15 step 1).
 
-The DTC table at this revision (80 DTCs; `node tools/dtc-table.mjs --md` prints it from `dtc.h`):
+The DTC table at this revision (82 DTCs — round 24 added `DTC_ADC_SLOW_STALE` and `DTC_TEMP_OPEN_SHORT`, §10n and FW-13; `node tools/dtc-table.mjs --md`
+prints it from `dtc.h`):
 
 | Id | DTC number | Name | Description |
 |---|---|---|---|
@@ -1203,7 +1204,7 @@ The DTC table at this revision (80 DTCs; `node tools/dtc-table.mjs --md` prints 
 | 9 | 0xD10009 | `DTC_FS26_GPIO1_OTP` | Gate power up before start-up step 6: FS_GPIO1 slotted in the FS26 OTP - no arming |
 | 10 | 0xD1000A | `DTC_HWID_OPEN` | HW_ID input open (power-board identity resistor missing) - no arming (FW-01) |
 | 11 | 0xD1000B | `DTC_HWID_SHORT` | HW_ID input shorted to ground - no arming (FW-01) |
-| 12 | 0xD1000C | `DTC_HWID_UNKNOWN` | HW_ID reading outside every SKU window or unstable - no arming (FW-01) |
+| 12 | 0xD1000C | `DTC_HWID_UNKNOWN` | HW_ID reading outside every SKU window, unstable or not converted - no arming (FW-01) |
 | 13 | 0xD1000D | `DTC_SKU_MISMATCH` | HW_ID, parameter set and calibration record disagree on the SKU - no gate enable (FW-02) |
 | 14 | 0xD1000E | `DTC_CALIB_INVALID` | Calibration record missing or wrong (layout, CRC, range, SKU, serial, motor ID) - no torque (FW-20) |
 | 15 | 0xD1000F | `DTC_PARAMS_INVALID` | Parameter set fails its range or consistency check - no arming |
@@ -1272,6 +1273,8 @@ The DTC table at this revision (80 DTCs; `node tools/dtc-table.mjs --md` prints 
 | 78 | 0xD1004E | `DTC_MC_ABORTED` | Commissioning routine aborted - its reason is in the routine's results; a record (FW-39) |
 | 79 | 0xD1004F | `DTC_MC_CAL_WRITTEN` | Commissioning wrote a new calibration record version - effective at the next key cycle (FW-39) |
 | 80 | 0xD10050 | `DTC_ASC_OC_TRANSIENT` | Phase overcurrent inside the ASC-entry window: the short-circuit transient - information (FW-05) |
+| 81 | 0xD10051 | `DTC_ADC_SLOW_STALE` | Slow-list ADC input (temperature, V5GD, VOFS, KL15, HVIL or LV supply) not converted within the hold time - its reading withdrawn (FW-13, FW-07, FW-09, FW-33) |
+| 82 | 0xD10052 | `DTC_TEMP_OPEN_SHORT` | Temperature sensor reads open or short - recorded also while its channel's latched rate fault keeps the reading invalid (FW-13) |
 
 ## 10i. Round 23 — sampled-waveform capture (FW-41)
 - **FW-41** Sampled-waveform capture with a fault trigger, read-only (gap 4 of `docs/firmware-vs-vesc.md`). A static RAM
@@ -1486,7 +1489,8 @@ From `docs/firmware-vs-vesc.md`, ranked gap 8. Implemented in `firmware/src/cont
     point 0 is the scalar in every record the nominal record and the FW-39 commit write, a flat map is the scalar model
     bit for bit, and a scalar FW-39 commits alone moves the whole map's level. Linear between the breakpoints, the last
     point beyond. `calib_check`: each point inside the inductance class range (20 µH – 5 mH), non-increasing with the
-    current (saturation only lowers it), the last ≥ 0.3 × the first; else CAL_ERR_RANGE — no torque, as any bad record.
+    current (saturation only lowers it), the last ≥ 0.3 × the first, and (round 24, "Flux slope" below) the model's flux
+    rising with the current, dλ/di ≥ 0.25 × point 0; else CAL_ERR_RANGE — no torque, as any bad record.
     The §6 energy screen and the back-EMF bound keep the scalars: on a non-increasing map the unsaturated inductance
     bounds the apparent and the differential one, so the screen stays conservative.
   - **The model**: λ_d = ψ + L_d(|i_d|)·i_d, λ_q = L_q(|i_q|)·i_q, T = 1.5·p·(λ_d·i_q − λ_q·i_d); the voltage
@@ -1556,6 +1560,28 @@ tool's ripple-map import over CAN reads ψ and the pole pairs from DID 0xFD25 (t
 the active record's maps, so a committed map can be read back after the key cycle (the routine's per-point results belong
 to the running key cycle only).
 
+**Flux slope (round 24).** An external review (with an independent double-precision model) found that the rules above bound
+the apparent inductance only: an L_q map 1.75 mH flat to breakpoint 3, then 0.56 mH, passed them while its flux λ = L(i)·i
+falls with the current — dλ/di −1.82 mH just above breakpoint 3, −4.20 mH just below 4: non-physical, and against the premise
+of the solve's contour search (the torque rising with |i_q|), of the gain scheduling and of FW-46's scale (§10m). The record
+check now also requires the model's flux to rise with a margin. On segment k (x ∈ [k, k + 1] breakpoint steps) dλ/di =
+L_k + (2x − k)·(L_(k+1) − L_k) is affine: on a falling segment its least value is the upper end, the one-sided slope just below
+breakpoint k + 1; on a rising one the lower end, ≥ L_k, which the segment before it (or point 0) already holds above the
+margin; beyond the last point L_5 (the 0.3 rule). So one comparison per breakpoint is exact: (k + 1)·L_k − k·L_(k−1) ≥
+0.25·L_0 for k = 1 … 5, else CAL_ERR_RANGE; a rise inside the 2 % tolerance only raises the slope. The margin is 0.25, not
+the current loop's gain floor 0.3: the piecewise-linear apparent inductance undershoots a smooth machine's differential
+inductance at a falling segment's upper end — the FW-45 host plant (q axis I_s 320 A, a true differential inductance never
+below 0.307·L_0) has 0.280·L_0 there, so 0.30 refuses the reference machine (its 80 % torque test then fails at the
+power-up); at 0.25 the smooth laws (atan, tanh, Fröhlich) pass down to a true 0.27–0.28·L_0 at the full scale, and where
+an accepted model sits in [0.25, 0.3) the floor over-gains it by at most 1.2 (phase margin ≈ 55° against the design's
+≈ 61°, 90° − 360°·f_c·75 µs). The check runs wherever `calib_check` runs — the power-up (the record from NVM or the EOL
+station), the FW-39 commit (RID 0xF021: a whole staged map through the trapezoids; a knee sharper than six breakpoints hold,
+differential points L, L, L, 0.3·L, 0.3·L, 0.3·L — slope 0.154·L_0 below breakpoint 4 — is refused with NRC 0x22 and nothing
+is written; the tool's ripple table goes the same way) and the class checks of single quantities; DID 0xFD26 reads the maps
+as stored (no check on a read). Round 23's own "saturating map inside the rules" (… 0.79, 0.30: −2.15·L_0 below the last
+point) was non-physical and is refused now. Tests `the_model_flux_must_rise_with_the_current`,
+`an_unsupported_map_is_refused_at_the_commit_and_at_power_up` (`firmware/tests/test_fw45_46.c`).
+
 ## 10m. Round 23 — torque-ripple feed-forward (FW-46)
 
 From `docs/firmware-vs-vesc.md`, ranked gap 10. Implemented in `firmware/src/control/torque.c` (`torque_ripple_at`,
@@ -1571,7 +1597,7 @@ From `docs/firmware-vs-vesc.md`, ranked gap 10. Implemented in `firmware/src/con
     0 — the default — applies nothing: the image without FW-46, bit for bit. `cal_ripple_ff_fmax_hz` 200 Hz [0, 500]:
     applied only while the cogging fundamental **6·f_e** — six per electrical period, a three-phase machine's — is below
     it (a table's lower harmonics are gated at the same speed, which costs nothing at 500 rpm where the loop follows
-    them; its 12th and higher switch off with the 6th). 190 fields per parameter set, 91 CAL rows.
+    them; its 12th and higher switch off with the 6th). 191 fields per parameter set, 92 CAL rows (round 24 added cal_temp_hold_ms).
   - **Application**: in the current-loop ISR at the FOC's own angle, i_q,ref += k·clamp(table(θ_e) − mean): linear
     interpolation; the table's mean is never applied (a ripple has none — the mean torque stays the solved one). k ∈
     [0, 1] comes from the 1 ms task: non-zero only for a solved vector (TQ_OK / TQ_LIMITED) the bridge modulates for
@@ -1581,7 +1607,32 @@ From `docs/firmware-vs-vesc.md`, ranked gap 10. Implemented in `firmware/src/con
     the feed-forward is scaled down, never the solved vector. The ISR preempts the task: until the new references are
     out the scale is the smaller of the old and the new, so no ISR combines a scale with a vector it was not computed
     for. The postcondition's torque band is on the solved vector; the feed-forward's own torque is the cogging's
-    opposite (bounded by the CAL, zero mean).
+    opposite (bounded by the CAL, zero mean). Round 24: every i_q between the extremes, not the extremes only (below).
+  - **The whole interval (round 24).** On a map the two extremes do not cover the values between them: at a fixed i_d, |v|
+    over i_q can peak at an L_q breakpoint (the flux's slope jumps there) or inside a steep segment (λ_q is a quadratic
+    there and bends |v| outward). The reviewer's case (§10l's non-physical map; i_d −102 A, i_q 280 A, 480 rad/s, 632.6 V,
+    reserve 0.1, extremes −10 / +20 A) got k = 1 while breakpoint 3 (288.5 A) needs 315.08 V of 312.25 V. On maps that pass
+    §10l the same happens: a physical map whose L_q falls to 0.63 of itself over the first segment peaks at breakpoint 1,
+    0.67 % above the extremes (regenerating at 76 rad/s, i_d −225 A), and one falling to 0.82 over the third segment peaks
+    inside it, 4.9·10⁻⁵ above the extremes with no breakpoint between them — checking the breakpoints alone is not enough
+    (an exploration of 200 000 intervals per margin found such interior peaks up to 2.4·10⁻⁴ above every extreme, base and
+    breakpoint at 0.25 and at 0.30, none at 0.5). `torque_ripple_scale` now checks the whole interval [i_q + k·min,
+    i_q + k·max]: the circle at its ends (|i| is convex in i_q); the voltage on pieces cut at every breakpoint inside it and
+    at 0, each bounded by A + (B − A)·u + C·u(1 − u) — A, B the piece's end |v|, u ∈ [0, 1] along it, C = |ω·s|·(b − a)²/Δi
+    with s the segment's change of L_q per breakpoint step Δi: λ_q strays from its chord by at most C·u(1 − u)/|ω| and the
+    norm of an affine function stays below its chord — whose largest value is max(A, B) when |B − A| ≥ C, else
+    (A + B)/2 + C/4 + (B − A)²/(4C). A bound, not a sample: over 20 000 physical maps (each passing `calib_check`; the four
+    SKUs, random reserve 0–0.2 and modulation limit 0.8–1, field weakening, both signs of i_q and of the speed, extremes
+    −30 … +30 A, the ellipse between the base's voltage and the interval's peak) the returned scale's interval, scanned in
+    double at 257 points and the breakpoints, never leaves the ellipse or the circle by more than 10⁻⁶ (worst +5.8·10⁻⁷,
+    float rounding); a 200 000-case run outside the suite (maps and cases drawn alike, without the half near the least |v|): none, where round
+    23's scale left the ellipse in 6 (by up to 0.59 %, all regenerating). The price: where |v| is nearly flat across a steep segment and the
+    base sits within the bow of the ellipse, the scale is below the largest that fits (in the suite's reference, half of
+    it drawn near the least |v|: mean 1.8·10⁻³ of the scale, 69 of 17 067 more than 0.05 below, worst 0 where 1 fits); a
+    flat segment adds nothing (C = 0), nor does a steep one across which |v| changes by more than C. Still the
+    feed-forward scaled down, never the solved vector; a NaN extreme gives 0; the extremes in either order give the same
+    scale. Cost: ≤ 40 voltage checks on a record (`firmware/docs/timing.md`). Tests
+    `the_scale_holds_every_i_q_between_the_extremes`, `the_scale_holds_every_i_q_on_20000_physical_maps`.
   - **Service tool**: DID 0xFD46. `2E FD 46` + 36 × int16 big-endian (0.01 A) — 75 bytes, one ISO 15765-2 request (first
     and consecutive frames under this ECU's flow control, FW-38's receiver) → `6E FD 46`; under FW-39's interlocks: the
     SecurityAccess unlock (NRC 0x33; one write per unlock), no routine running and not in torque — RUN/DERATE, the bridge
@@ -1600,3 +1651,56 @@ From `docs/firmware-vs-vesc.md`, ranked gap 10. Implemented in `firmware/src/con
   - **Target**: T-58 (the table from a dyno torque transducer at ≤ 100 rpm; the two CALs against the measured reduction).
   - **Image identity**: the round's (§10e); the record layout 4.
 
+
+## 10n. Round 24 — acquisition freshness of the slow channels (F241)
+
+Found by an external review of the temperature path and reproduced on the unmodified `sense/temp.c` (Git blob 04583c2);
+fixed with tests that fail on the code before the fix, mutation checks, and rows in `firmware/docs/traceability.md`
+("Round 24"). `TI_FW_ID` is not changed by this fix (the round's image identity is set with its release).
+
+1. **The defect.** `hal_adc_read()` returns an input's latest conversion, the time the platform fetched it and whether it
+   ever converted — the same code and stamp however often it is read, until the next conversion, and forever after a
+   converter stops. The 1 ms task took every read of the slow list (the 1 kHz list, §4 / `s32k396_cfg.h`) as a new sample
+   at its own time. A temperature channel whose conversions stopped stayed valid at its last value (one conversion at
+   1 ms, none for 60 s: valid, `TEMP_OK`, the temperature unchanged, accepted at 60 001 ms), and FW-04 derated on it.
+   Every other slow-list input had the same gap: V5GD and VOFS — FW-07's conditions for V_DC, read at the current-loop
+   rate — KL15, VSUP (FW-33), INTRLOK_N (a frozen HVIL reading alternates between the closed signature and an implausible
+   one against the toggling drive and never debounces: an open loop went unseen, FW-09) and HW_ID (FW-01's eight stable
+   samples could be one conversion read eight times).
+2. **The contract.** Each slow-list read is judged against the stamp its consumer last took (`ti_acq`,
+   `include/ti_types.h`; the age signed and wrap-safe, `ti_stale`):
+   - **new**: converted, another stamp, younger than the hold — taken as before;
+   - **held**: the stamp already taken, younger than the hold — nothing is taken again (no sample accumulated, no
+     acceptance time renewed, no debounce advanced) and the consumer's last verdict stands;
+   - **expired**: never converted, or the stamp `cal_temp_hold_ms` or more old — the reading is withdrawn, and stays
+     withdrawn until a new conversion (the same stamp again, which a 32-bit age shows as fresh near every 71.6 min, does
+     not revive it).
+
+   A constant input converted on schedule is new at every read: there is no "the value must change" check.
+3. **An expired input** takes its consumer's existing response to an invalid reading, and sets `DTC_ADC_SLOW_STALE`
+   (id 81, 0xD10051; passed once every slow-list input converts again):
+   - **a temperature channel** (TMOD_U/V/W, NTC_H/A, MT1/2) is invalid: its group DTC (`DTC_TEMP_MODULE`, `_BOARD`,
+     `_MOTOR`); a module channel leaves the hottest valid module NTC, and with none valid FW-04 derates to the continuous
+     rating; the open window is emptied and a latched `TEMP_RATE` stays latched. Resumed conversions are accepted as at
+     power-up: a channel never primed at its first sample, otherwise at the next window's accepted mean (§10k item 1);
+   - **V5GD or VOFS**: both V_DC channels are invalid — FW-07's references are unknown — so the §6 "V_DC invalid" row
+     (latched, named by `DTC_ADC_SLOW_STALE`) and HV unknown (FW-18). The last V5GD/VOFS verdicts stand: a reading that
+     stopped is not a measured V5GD loss, so it does not take the V5GD row's forced SPO and ASC clear. A V5GD never
+     converted since power-up is not proven healthy (the V5GD row, as before round 24);
+   - **KL15, INTRLOK_N and VSUP** read as never converted (code 0, the platform's): KL15 absent (the power-down after
+     `cal_ign_debounce_ms`), the HVIL signature lost (`DTC_HVIL_SHORT`, the §6 command-lost ramp — 30 ms after the stop
+     at the defaults, inside FW-09's 100 ms), no VSUP reading (`DTC_LV_VSUP_UNKNOWN`, FW-33);
+   - **HW_ID**: the eight boot reads must be eight new conversions, or the identity is unknown (`DTC_HWID_UNKNOWN`, no
+     arming). Before, a converter that never ran read "shorted" (`DTC_HWID_SHORT`) and one that stopped passed.
+
+   The phase currents keep their complete-triplet rule (round 16). The V_DC channels keep FW-34's stamp check and, since
+   F244, join this contract with `cal_vdc_stale_us` as the hold: a stopped converter's channel is stale — the §6 "V_DC
+   invalid" row (`DTC_VDC_STALE`), HV unknown — and stays stale until a new conversion (the signed age alone read the
+   stopped stamp as fresh again for ≈ 2 × 100 µs near every 2^32 µs of its age); a held stamp is judged as before, and a
+   channel never converted still reads code 0, the AMC1311 fail-safe level, invalid whatever its stamp.
+4. **The CAL.** `cal_temp_hold_ms` = 10 ms, range [3, 50], for every slow-list input. The slow list converts each input
+   once per 1 ms task (`hal_adc_start_slow()`; the schedule `s32k396_cfg.h: adc_slow_chain`), so 10 ms is ten periods: a
+   late task or a lost conversion never expires an input. The floor is three periods. The ceiling keeps an HVIL open that
+   coincides with a stopped INTRLOK_N conversion inside FW-09's 100 ms (50 ms + 3 × 10 ms). The period on silicon: T-60.
+5. **Counts**: 191 fields per parameter set, 92 CAL rows (`include/cal_ranges.h`); 82 DTCs (the table in §10h;
+   `DTC_TEMP_OPEN_SHORT`, F243, the 82nd).

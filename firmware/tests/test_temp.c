@@ -5,6 +5,10 @@
 
 static uint16_t code_v(float v) { return (uint16_t)(v * 4095.0f / 5.0f + 0.5f); }
 
+/* Round 24 (F241): the tests before it feed a new conversion every call */
+static const ti_acq_t ALL_NEW[TEMP_COUNT] = {TI_ACQ_NEW, TI_ACQ_NEW, TI_ACQ_NEW, TI_ACQ_NEW,
+                                             TI_ACQ_NEW, TI_ACQ_NEW, TI_ACQ_NEW};
+
 static float ntc_mod_v(float t)
 {
     const float r = 5000.0f * expf(3375.0f * (1.0f / (t + 273.15f) - 1.0f / 298.15f)) + 100.0f;
@@ -40,12 +44,12 @@ TEST(open_short_rate_plausibility)
     }
     c[TEMP_MT1] = code_v(0.4946f);
     c[TEMP_MT2] = code_v(0.4946f);
-    temp_update(&t, c, 100u, &mt, p);
+    temp_update(&t, c, ALL_NEW, 100u, &mt, p);
     CHECK(t.ch[TEMP_TMOD_U].valid && t.ch[TEMP_MT1].valid);
     CHECK_NEAR(t.ch[TEMP_MT1].t_c, 25.0, 1.0);
     c[TEMP_TMOD_V] = code_v(4.99f); /* open */
     c[TEMP_TMOD_W] = code_v(0.0f);  /* short */
-    temp_update(&t, c, 101u, &mt, p);
+    temp_update(&t, c, ALL_NEW, 101u, &mt, p);
     CHECK(!t.ch[TEMP_TMOD_V].valid && (t.ch[TEMP_TMOD_V].fault == TEMP_OPEN));
     CHECK(!t.ch[TEMP_TMOD_W].valid && (t.ch[TEMP_TMOD_W].fault == TEMP_SHORT));
     bool any;
@@ -59,16 +63,16 @@ TEST(open_short_rate_plausibility)
     const uint32_t win = p->cal_temp_rate_win_ms;
     uint32_t ms = 102u;
     for (; ms < (102u + win); ms++) {
-        temp_update(&t, c, ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, ms, &mt, p);
     }
     CHECK(!t.ch[TEMP_TMOD_U].valid && (t.ch[TEMP_TMOD_U].fault == TEMP_OK));
     CHECK_NEAR(t.ch[TEMP_TMOD_U].t_c, 25.0, 0.5); /* held */
     for (; ms < (102u + (3u * win)); ms++) {
-        temp_update(&t, c, ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, ms, &mt, p);
     }
     CHECK(t.ch[TEMP_TMOD_U].fault == TEMP_RATE);
     c[TEMP_TMOD_U] = code_v(2.5f);
-    temp_update(&t, c, 5000u, &mt, p);
+    temp_update(&t, c, ALL_NEW, 5000u, &mt, p);
     CHECK(!t.ch[TEMP_TMOD_U].valid); /* latched for the key cycle */
 }
 
@@ -83,7 +87,7 @@ TEST(slow_heating_accepted)
         for (unsigned i = 0u; i < (unsigned)TEMP_COUNT; i++) {
             c[i] = code_v(ntc_mod_v(25.0f + (float)k));
         }
-        temp_update(&t, c, 100u * k, &mt, p);
+        temp_update(&t, c, ALL_NEW, 100u * k, &mt, p);
     }
     CHECK(t.ch[TEMP_TMOD_U].valid && (t.ch[TEMP_TMOD_U].fault == TEMP_OK));
     CHECK_NEAR(t.ch[TEMP_TMOD_U].t_c, 85.0, 0.5);
@@ -117,7 +121,7 @@ TEST(one_code_steps_and_a_slow_rise_never_trip_the_rate_check)
         bool always_valid = true;
         for (uint32_t ms = 0u; ms < 5000u; ms++) {
             codes_at(c, at[a], ((ms & 1u) != 0u) ? 1 : 0);
-            temp_update(&t, c, 1000u + ms, &mt, p);
+            temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
             always_valid = always_valid && t.ch[TEMP_TMOD_U].valid;
         }
         CHECK(always_valid && t.ch[TEMP_TMOD_U].fault == TEMP_OK);
@@ -129,7 +133,7 @@ TEST(one_code_steps_and_a_slow_rise_never_trip_the_rate_check)
     bool always_valid = true;
     for (uint32_t ms = 0u; ms <= 8000u; ms++) {
         codes_at(c, 70.0f + (5.0f * (float)ms * 1.0e-3f), 0);
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
         always_valid = always_valid && t.ch[TEMP_TMOD_U].valid;
     }
     CHECK(always_valid && t.ch[TEMP_TMOD_U].fault == TEMP_OK);
@@ -150,28 +154,28 @@ TEST(a_fast_ramp_a_step_open_and_short_still_trip)
     uint32_t ms = 0u;
     for (; ms < 1000u; ms++) {
         codes_at(c, 60.0f, 0);
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
     }
     uint32_t latched_at = 0u;
     for (uint32_t k = 0u; (k <= 1000u) && (latched_at == 0u); k++, ms++) {
         codes_at(c, 60.0f + (40.0f * (float)k * 1.0e-3f), 0);
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
         latched_at = (t.ch[TEMP_TMOD_U].fault == TEMP_RATE) ? k : 0u;
     }
     CHECK(latched_at > 0u && latched_at <= ((4u * win) + 1u) && !t.ch[TEMP_TMOD_U].valid);
     codes_at(c, 60.0f, 0);
-    temp_update(&t, c, 1000u + ms + (10u * win), &mt, p);
+    temp_update(&t, c, ALL_NEW, 1000u + ms + (10u * win), &mt, p);
     CHECK(!t.ch[TEMP_TMOD_U].valid && t.ch[TEMP_TMOD_U].fault == TEMP_RATE); /* latched for the key cycle */
     /* a persistent step */
     temp_init(&t);
     for (ms = 0u; ms < 1000u; ms++) {
         codes_at(c, 60.0f, 0);
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
     }
     latched_at = 0u;
     for (uint32_t k = 0u; (k <= (4u * win)) && (latched_at == 0u); k++, ms++) {
         codes_at(c, 90.0f, 0);
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
         latched_at = (t.ch[TEMP_TMOD_U].fault == TEMP_RATE) ? k : 0u;
     }
     CHECK(latched_at > 0u && latched_at <= ((3u * win) + 1u));
@@ -183,14 +187,14 @@ TEST(a_fast_ramp_a_step_open_and_short_still_trip)
         if (ms == 1500u) {
             codes_at(c, 90.0f, 0);
         }
-        temp_update(&t, c, 1000u + ms, &mt, p);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
         always_valid = always_valid && t.ch[TEMP_TMOD_U].valid;
     }
     CHECK(always_valid && t.ch[TEMP_TMOD_U].fault == TEMP_OK);
     /* open and short: at once */
     c[TEMP_TMOD_V] = code_v(4.99f);
     c[TEMP_TMOD_W] = code_v(0.0f);
-    temp_update(&t, c, 1000u + ms, &mt, p);
+    temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, p);
     CHECK(!t.ch[TEMP_TMOD_V].valid && t.ch[TEMP_TMOD_V].fault == TEMP_OPEN);
     CHECK(!t.ch[TEMP_TMOD_W].valid && t.ch[TEMP_TMOD_W].fault == TEMP_SHORT);
 }
@@ -213,11 +217,199 @@ TEST(the_deadband_holds_a_slow_swing_of_a_few_codes)
         for (unsigned i = 0u; i < (unsigned)TEMP_COUNT; i++) {
             c[i] = (uint16_t)(base + ((((ms / 100u) & 1u) != 0u) ? 2 : -2));
         }
-        temp_update(&t, c, 1000u + ms, &mt, &q);
+        temp_update(&t, c, ALL_NEW, 1000u + ms, &mt, &q);
         always_valid = always_valid && t.ch[TEMP_MT1].valid;
     }
     CHECK(always_valid && t.ch[TEMP_MT1].fault == TEMP_OK);
     CHECK_NEAR(t.ch[TEMP_MT1].t_c, 80.0, 2.0);
+}
+
+/* ---------------- round 24 (F241): a sample is a new conversion ---------------- */
+
+static void acq_all(ti_acq_t q[TEMP_COUNT], ti_acq_t v)
+{
+    for (unsigned i = 0u; i < (unsigned)TEMP_COUNT; i++) {
+        q[i] = v;
+    }
+}
+
+/* HELD takes nothing — the channel's state bit for bit for two windows' time, though the code moves (a register nothing
+ * converts into any more); EXPIRED withdraws the channel, empties its open window and keeps its value and fault; resumed
+ * conversions are judged afresh: a primed channel is valid again at the next window's accepted mean, not before, one never
+ * primed at its first sample. A latched TEMP_RATE stays latched through an expiry and the resumption. */
+TEST(a_held_conversion_is_not_taken_again_and_an_expired_one_withdraws_the_channel)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const temp_mt_cal_t mt = {.type = TEMP_MT_PT1000};
+    const uint32_t win = p->cal_temp_rate_win_ms;
+    temp_t t;
+    temp_init(&t);
+    const temp_ch_state_t *u = &t.ch[TEMP_TMOD_U];
+    uint16_t c[TEMP_COUNT];
+    ti_acq_t q[TEMP_COUNT];
+    acq_all(q, TI_ACQ_NEW);
+    uint32_t ms = 1000u;
+    for (; ms < (1000u + win + (win / 2u)); ms++) { /* primed, a window accepted, the next one half full */
+        codes_at(c, 60.0f, 0);
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    const temp_ch_state_t b = *u;
+    CHECK(b.valid && (b.n > 0u));
+    acq_all(q, TI_ACQ_HELD);
+    for (uint32_t k = 0u; k < (2u * win); k++, ms++) {
+        codes_at(c, 61.0f, 0);
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    CHECK((u->t_c == b.t_c) && (u->valid == b.valid) && (u->fault == b.fault) && (u->primed == b.primed) &&
+          (u->last_ms == b.last_ms) && (u->ref_code == b.ref_code) && (u->acc == b.acc) && (u->n == b.n) &&
+          (u->win_ms == b.win_ms) && (u->rate_cnt == b.rate_cnt));
+    acq_all(q, TI_ACQ_EXPIRED);
+    temp_update(&t, c, q, ms++, &mt, p);
+    CHECK(!u->valid && (u->acc == 0u) && (u->n == 0u) && (u->fault == TEMP_OK) && (u->t_c == b.t_c));
+    acq_all(q, TI_ACQ_NEW);
+    bool early = false;
+    for (uint32_t k = 0u; k < (win - 1u); k++, ms++) {
+        temp_update(&t, c, q, ms, &mt, p);
+        early = early || u->valid;
+    }
+    for (uint32_t k = 0u; k < 2u; k++, ms++) {
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    CHECK(!early && u->valid && (u->fault == TEMP_OK));
+    CHECK_NEAR(u->t_c, 61.0, 0.3);
+    /* a latched TEMP_RATE */
+    temp_init(&t);
+    acq_all(q, TI_ACQ_NEW);
+    for (ms = 1000u; ms < 2000u; ms++) {
+        codes_at(c, 60.0f, 0);
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    codes_at(c, 90.0f, 0);
+    for (uint32_t k = 0u; (k < (4u * win)) && (u->fault != TEMP_RATE); k++, ms++) {
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    CHECK(u->fault == TEMP_RATE);
+    acq_all(q, TI_ACQ_EXPIRED);
+    temp_update(&t, c, q, ms++, &mt, p);
+    CHECK(!u->valid && (u->fault == TEMP_RATE));
+    acq_all(q, TI_ACQ_NEW);
+    codes_at(c, 60.0f, 0);
+    for (uint32_t k = 0u; k < (2u * win); k++, ms++) {
+        temp_update(&t, c, q, ms, &mt, p);
+    }
+    CHECK(!u->valid && (u->fault == TEMP_RATE));
+    /* never primed: withdrawn from the first call, accepted at the first new conversion */
+    temp_init(&t);
+    acq_all(q, TI_ACQ_EXPIRED);
+    codes_at(c, 40.0f, 0);
+    temp_update(&t, c, q, 5000u, &mt, p);
+    CHECK(!u->valid && !u->primed && (u->fault == TEMP_OK));
+    acq_all(q, TI_ACQ_NEW);
+    temp_update(&t, c, q, 5001u, &mt, p);
+    CHECK(u->valid);
+    CHECK_NEAR(u->t_c, 40.0, 0.3);
+}
+
+/* ---------------- F243: a latched TEMP_RATE is never replaced by a later sample ---------------- */
+
+/* Every channel primed at 60 degC, then a persistent step to 90 degC: TEMP_RATE latched. */
+static uint32_t latch_rate(temp_t *t, const temp_mt_cal_t *mt, const ti_params_t *p)
+{
+    uint16_t c[TEMP_COUNT];
+    uint32_t ms = 1000u;
+    for (; ms < 2000u; ms++) {
+        codes_at(c, 60.0f, 0);
+        temp_update(t, c, ALL_NEW, ms, mt, p);
+    }
+    codes_at(c, 90.0f, 0);
+    for (uint32_t k = 0u; (k < (4u * p->cal_temp_rate_win_ms)) && (t->ch[TEMP_TMOD_U].fault != TEMP_RATE); k++, ms++) {
+        temp_update(t, c, ALL_NEW, ms, mt, p);
+    }
+    return ms;
+}
+
+/* The reviewer's probe: TEMP_RATE latched, one open (short) sample put TEMP_OPEN (TEMP_SHORT) in its place, and the samples
+ * back in range cleared that — TEMP_OK, the channel valid at the next window's mean (the 200th sample), the module maximum
+ * (FW-04's derating) back on it. Now the latch and its invalid verdict stay: the open (short) is recorded in `wire`
+ * (DTC_TEMP_OPEN_SHORT, app.c) and cleared by the next in-range sample; three windows at the last accepted mean later the
+ * channel is still RATE and invalid, and no module channel is back in the maximum. */
+TEST(a_latched_rate_fault_is_never_replaced_by_an_open_or_short_sample)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const temp_mt_cal_t mt = {.type = TEMP_MT_PT1000};
+    const float rail[2] = {4.99f, 0.0f};
+    const temp_fault_t read[2] = {TEMP_OPEN, TEMP_SHORT};
+    for (unsigned k = 0u; k < 2u; k++) {
+        temp_t t;
+        temp_init(&t);
+        const temp_ch_state_t *u = &t.ch[TEMP_TMOD_U];
+        uint32_t ms = latch_rate(&t, &mt, p);
+        CHECK(!u->valid && (u->fault == TEMP_RATE) && (u->wire == TEMP_OK));
+        uint16_t c[TEMP_COUNT];
+        codes_at(c, 90.0f, 0);
+        c[TEMP_TMOD_U] = code_v(rail[k]);
+        temp_update(&t, c, ALL_NEW, ms++, &mt, p);
+        CHECK(!u->valid && (u->fault == TEMP_RATE) && (u->wire == read[k]));
+        codes_at(c, 60.0f, 0);
+        bool held = true;
+        for (uint32_t n = 0u; n < (3u * p->cal_temp_rate_win_ms); n++, ms++) {
+            temp_update(&t, c, ALL_NEW, ms, &mt, p);
+            held = held && !u->valid && (u->fault == TEMP_RATE) && (u->wire == TEMP_OK);
+        }
+        bool any = true;
+        bool all = true;
+        (void)temp_module_max(&t, &any, &all);
+        CHECK(held && !any && !all);
+    }
+}
+
+/* Without a latched TEMP_RATE nothing changes: an open (short) sample invalidates the channel at once (`wire` reads the
+ * same), and in-range samples bring it back at the next window's accepted mean, TEMP_OK — not before; a channel never
+ * primed is accepted at its first in-range sample. */
+TEST(open_and_short_without_a_rate_latch_still_act_per_sample)
+{
+    const ti_params_t *p = ti_params_get(TI_SKU_8XX_SIC);
+    const temp_mt_cal_t mt = {.type = TEMP_MT_PT1000};
+    const uint32_t win = p->cal_temp_rate_win_ms;
+    const float rail[2] = {4.99f, 0.0f};
+    const temp_fault_t read[2] = {TEMP_OPEN, TEMP_SHORT};
+    for (unsigned k = 0u; k < 2u; k++) {
+        temp_t t;
+        temp_init(&t);
+        const temp_ch_state_t *u = &t.ch[TEMP_TMOD_U];
+        uint16_t c[TEMP_COUNT];
+        uint32_t ms = 1000u;
+        for (; ms < 2000u; ms++) {
+            codes_at(c, 60.0f, 0);
+            temp_update(&t, c, ALL_NEW, ms, &mt, p);
+        }
+        CHECK(u->valid && (u->fault == TEMP_OK) && (u->wire == TEMP_OK));
+        c[TEMP_TMOD_U] = code_v(rail[k]);
+        temp_update(&t, c, ALL_NEW, ms++, &mt, p);
+        CHECK(!u->valid && (u->fault == read[k]));
+        CHECK(u->wire == read[k]); /* F243: the sample's open/short in wire too */
+        codes_at(c, 60.0f, 0);
+        bool early = false;
+        for (uint32_t n = 0u; n < (win - 1u); n++, ms++) {
+            temp_update(&t, c, ALL_NEW, ms, &mt, p);
+            early = early || u->valid;
+        }
+        for (uint32_t n = 0u; n < 2u; n++, ms++) {
+            temp_update(&t, c, ALL_NEW, ms, &mt, p);
+        }
+        CHECK(!early && u->valid && (u->fault == TEMP_OK) && (u->wire == TEMP_OK));
+        CHECK_NEAR(u->t_c, 60.0, 0.3);
+        temp_init(&t); /* never primed */
+        codes_at(c, 60.0f, 0);
+        c[TEMP_TMOD_U] = code_v(rail[k]);
+        temp_update(&t, c, ALL_NEW, 5000u, &mt, p);
+        CHECK(!u->valid && !u->primed && (u->fault == read[k]));
+        CHECK(u->wire == read[k]);
+        codes_at(c, 40.0f, 0);
+        temp_update(&t, c, ALL_NEW, 5001u, &mt, p);
+        CHECK(u->valid && (u->fault == TEMP_OK) && (u->wire == TEMP_OK));
+        CHECK_NEAR(u->t_c, 40.0, 0.3);
+    }
 }
 
 void suite_temp(void)
@@ -229,4 +421,7 @@ void suite_temp(void)
     RUN(one_code_steps_and_a_slow_rise_never_trip_the_rate_check);
     RUN(a_fast_ramp_a_step_open_and_short_still_trip);
     RUN(the_deadband_holds_a_slow_swing_of_a_few_codes);
+    RUN(a_held_conversion_is_not_taken_again_and_an_expired_one_withdraws_the_channel);
+    RUN(a_latched_rate_fault_is_never_replaced_by_an_open_or_short_sample);
+    RUN(open_and_short_without_a_rate_latch_still_act_per_sample);
 }

@@ -2,7 +2,7 @@
 // sign-image.mjs — the FW-38 image container (firmware/src/boot/image.h): a 128-byte header, then the payload.
 //
 //   node tools/sign-image.mjs --in app.bin --out app.tifw --key <ed25519-private.pem | test> \
-//        --target <1..4 | 8xx-sic | 8xx-igbt | 4xx-igbt | 4xx-sic> --fw-id <0x0A0F0015> --sec-ver <n>
+//        --target <1..4 | 8xx-sic | 8xx-igbt | 4xx-igbt | 4xx-sic> --fw-id <0x0A0F0016> --sec-ver <n>
 //   node tools/sign-image.mjs --verify app.tifw --key <ed25519-public.pem | private.pem | test>
 //   node tools/sign-image.mjs --pubkey <ed25519-public.pem | private.pem | test>   the 32 bytes as a C list
 //

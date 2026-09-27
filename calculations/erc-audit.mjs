@@ -399,16 +399,19 @@ ok(same(C("UMCU.H5_V15"), "V15S") && C("UMCU.H5_VREFH_SAR_456") === undefined, "
 ok(same(C("UMCU.J7_V25"), "V25") && same(C("CV25.pin1"), "V25") && same(C("CV25.pin2"), "DGND") && near(V(CARD, "CV25"), 220e-9) && C("UMCU.J7_VSS") === undefined,
   "J7 is V25 with its 220 nF COUT_V25 to ground, not a ground ball (A12-R02)");
 ok(same(C("CBAL.pin1"), "BCTRL") && same(C("CBAL.pin2"), "DGND") && near(V(CARD, "CBAL"), 1e-9) && same(C("UMCU.F1_NMOS_CTRL"), "BCTRL"), "CNMOS 1 nF on the ballast gate (A12-R04)");
-ok(same(C("UMCU.E6_VREFH_SAR_456"), "VREF5") && same(C("UMCU.H6_VREFH_SAR_0123"), "VREF5"), "SAR reference-high balls E6/H6 on VREF5");
-// round 23 (A20-F02, F214): S32K39 DS note 8 — every VREFH except VREFH_R2R on ONE source (VREF5), VREFH_R2R isolated/filtered
-ok(same(C("UMCU.E10_VREFH_SDADC_01"), "VREF5") && same(C("UMCU.F13_VREFH_SDADC_23"), "VREF5") && same(C("UMCU.E12_VDDA_SDADC"), "V5A"),
-  "SDADC reference-high balls E10/F13 on VREF5 (one source with the SAR references, DS note 8); VDDA_SDADC on V5A = VDD_HV_A (note 4)");
+ok(same(C("UMCU.E6_VREFH_SAR_456"), "V5A") && same(C("UMCU.H6_VREFH_SAR_0123"), "V5A"), "SAR reference-high balls E6/H6 on V5A, the ADC reference since round 24 (F240)");
+// round 23 (A20-F02, F214) + round 24 (A20-F01, F240): S32K39 DS Table 38 VREFP = AVDD +/- 25 mV and note 8 — every VREFH except
+// VREFH_R2R on ONE source, and that source is V5A = VDDA_SDADC = VDD_HV_A (the +/-25 mV holds by construction); VREFH_R2R isolated
+ok(same(C("UMCU.E10_VREFH_SDADC_01"), "V5A") && same(C("UMCU.F13_VREFH_SDADC_23"), "V5A") && same(C("UMCU.E12_VDDA_SDADC"), "V5A"),
+  "SDADC reference-high balls E10/F13 on V5A with VDDA_SDADC (DS Table 38: VREFP = AVDD +/- 25 mV; note 4/8 one source; F240)");
+ok(!["E6_VREFH_SAR_456","H6_VREFH_SAR_0123","E10_VREFH_SDADC_01","F13_VREFH_SDADC_23"].some((b) => same(C(`UMCU.${b}`), "VREF5")),
+  "no ADC reference on VREF5 any more (the FS26 VREF is a separate regulator matched to LDO2 only within +/-1 % — twice the SDADC window)");
 ok(same(C("UMCU.A9_VREFH_R2R"), "VR2R") && same(C("RR2R.pin1"), "VREF5") && same(C("RR2R.pin2"), "VR2R") && near(V(CARD, "RR2R"), 10)
-  && same(C("CR2R1.pin1"), "VR2R") && same(C("CR2R1.pin2"), "AGND") && near(V(CARD, "CR2R1"), 1e-6)
+  && same(C("CR2R1.pin1"), "VR2R") && same(C("CR2R1.pin2"), "AGND") && near(V(CARD, "CR2R1"), 330e-9)
   && same(C("CR2R2.pin1"), "VR2R") && same(C("CR2R2.pin2"), "AGND") && near(V(CARD, "CR2R2"), 100e-9)
   && ![...CARD.pinNet.entries()].some(([k, n]) => n === "VR2R" && !/^(UMCU\.|RR2R\.|CR2R[12]\.)/.test(k))
   && [...CARD.pinNet.entries()].filter(([k, n]) => n === "VR2R" && /^UMCU\.[A-U]\d/.test(k)).length === 1,
-  "VREFH_R2R (A9) isolated from the ADC references: VREF5 -> RR2R 10 R -> VR2R with CR2R1 1 uF + CR2R2 100 nF, nothing else on VR2R (DS note 8; F214)");
+  "VREFH_R2R (A9) isolated from the ADC references: VREF5 (the FS26 VREF, a regulator of its own) -> RR2R 10 R -> VR2R with CR2R1 330 nF + CR2R2 100 nF, nothing else on VR2R (DS note 8; F214)");
 ok(same(C("UMCU.B5_HWID"), "HW_ID") && same(C("UMCU.T15_NTCA"), "NTC_A") && same(C("UMCU.D5_MT2"), "MT2_SIG") && same(C("UMCU.U4_ASCREQ"), "ASC_REQ")
   && ["C12_HWID", "C14_NTCA", "D11_MT2", "T5_ASCREQ"].every((l) => C(`UMCU.${l}`) === undefined), "round-14 remap: HW_ID/NTC_A/MT2_SIG/ASC_REQ on GEN3-netlist-confirmed balls B5/T15/D5/U4");
 for (const s of ["SIN", "COS"])
@@ -430,7 +433,7 @@ for (const k of ["H", "L"]) {
 }
 ok(DIS.comps.filter((c) => /^RBLD\d+$/.test(c.name)).every((c) => near(Number(c.resistance), 22e3)), "bleeder parts 22 k (66 k total)");
 ok(same(P("RHWID.pin1"), "HW_ID") && same(P("RHWID.pin2"), "DGND"), "SKU identity resistor on the power board (platform)");
-ok(same(C("RHWP.pin1"), "VREF5") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.B5_HWID"), "HW_ID"), "SKU identity read by the MCU ADC (B5/PTE0 ADC3_P0 since A.13)");
+ok(same(C("RHWP.pin1"), "V5A") && same(C("RHWP.pin2"), "HW_ID") && same(C("UMCU.B5_HWID"), "HW_ID"), "SKU identity read by the MCU ADC (B5/PTE0 ADC3_P0 since A.13)");
 ok(same(C("UMCU.R17_VOFS"), "VOFS"), "shared VDC receiver offset monitored by the MCU (F11 common cause)");
 ok(same(C("JVEH.SHLDR"), "DGND") && same(C("JVEH.SHLDS"), "DGND"), "resolver shields return at the connector ground, not AGND (F35)");
 ok(same(C("CFLTD.pin1"), "FLT_OKD") && same(C("CFLTD.pin2"), "DGND") && near(V(CARD, "CFLTD"), 3.3e-9) && near(V(CARD, "RFLTD"), 10e3),
@@ -573,9 +576,9 @@ ok(same(C("REXA2.pin2"), "NEX3") && same(C("REXA4.pin1"), "REX_F") && same(C("RE
   && same(C("CEXA1.pin1"), "REX_F") && same(C("CEXA1.pin2"), "NEX4") && same(C("UEXF.INN"), "NEX4")
   && near(V(CARD, "CEXA2"), 1.5e-9) && near(V(CARD, "CEXA1"), 220e-12) && near(V(CARD, "REXA4"), 28e3) && near(V(CARD, "REXA2"), 10e3) && near(V(CARD, "REXA3"), 10e3),
   "exciter MFB topology (feedback R to the summing node, feedback C to the inverting input) and values 10k/24k/10k, 1.5 nF/220 pF: |H(10 kHz)| 1.85");
-// R2-F27: the board NTCs are on-board 0603 parts, biased from VREF5
+// R2-F27: the board NTCs are on-board 0603 parts, biased from the ADC reference (V5A since round 24 — ratiometric)
 for (const [id, n] of [["AMB", "NTC_A"], ["HS", "NTC_H"]])
-  ok(same(C(`RT${id}.pin1`), n) && same(C(`RT${id}.pin2`), "AGND") && same(C(`RT${id}P.pin1`), "VREF5") && same(C(`RT${id}P.pin2`), n),
+  ok(same(C(`RT${id}.pin1`), n) && same(C(`RT${id}.pin2`), "AGND") && same(C(`RT${id}P.pin1`), "V5A") && same(C(`RT${id}P.pin2`), n),
     `board NTC RT${id} on-board with its 10 k pull-up`);
 ok(bridges(PWR, "V5SB", "V5SC").length === 0 && bridges(PWR, "V5SB", "V5GD").length === 0 && bridges(PWR, "V5SC", "V5GD").length === 0,
   "the two VDC bias 5 V rails are separate from each other and from V5GD (keyed by net)");
@@ -586,11 +589,13 @@ ok(["RSINF1", "RSINF2", "RCOSF1", "RCOSF2", "RSIN1", "RSIN2", "RCOS1", "RCOS2"].
   && same(C("CSINF2.pin1"), "SINF_N") && same(C("CSINA3.pin1"), "SIN_N") && same(C("CCOSF2.pin1"), "COSF_N") && same(C("CCOSA3.pin1"), "COS_N")
   && same(C("CEXA4.pin1"), "SWG1") && near(V(CARD, "CEXA4"), 47e-12),
   "resolver series/bias 12 k (pin injection <= 2.92 mA at 35 V into an unpowered MCU), 220 pF C_AAF at the SDADC pins + 47 p at the clamp + 22 p common-mode on BOTH legs; SWG 47 pF load");
-ok(near(V(CARD, "CSB5"), 1e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "CMA2"), 100e-9), "VREF5 rail 2.1 uF nominal (CSB5 1 uF + CMA1 + CMA2)");
+ok(near(V(CARD, "CSB5"), 2.2e-6) && near(V(CARD, "CMA1"), 1e-6) && near(V(CARD, "CMA2"), 100e-9) && same(C("CMA1.pin1"), "V5A") && same(C("CMA2.pin1"), "V5A")
+  && same(C("RSNUP.pin1"), "V5A") && same(C("RMT1P.pin1"), "V5A") && same(C("ROF1.pin1"), "V5A") && near(V(CARD, "CR2R1"), 330e-9),
+  "round 24 (F240): VREF5 carries CSB5 2.2 uF alone (the FS26 COUT_VREF window by itself) plus the R2R branch (CR2R1 330 nF behind RR2R); the reference decoupling CMA1/CMA2, the NTC pull-ups, the HW_ID pull-up and the offset divider are on V5A with the ADC reference (ratiometric)");
 // round-12 parts resolve per SKU: UCC12050 biases + their LDOs, 33 V-stand-off TVS (-VR, round 17 let-through) on all three LV entries, 0805 CSB5, 100 k hall pull-downs
 for (const [sku, k] of Object.entries(SKUS)) {
   const mpn = (ref) => [...k.rows, ...DB].find((r) => r.m.test(ref))?.mpn ?? "";
-  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMDJ7\.0A-HRA$/, TVSEN: /^SMDJ7\.0A-HRA$/, DEXP: /^PMEG4050EP-Q/, DEXN: /^PMEG4050EP-Q/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC33A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CSB5: /1uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
+  const bad = Object.entries({ PS5B: /^UCC12051QDVERQ1$/, PS5C: /^UCC12051QDVERQ1$/, TVSM1: /^SMAJ5\.0A/, TVSM2: /^SMAJ5\.0A/, TVSEP: /^SMDJ7\.0A-HRA$/, TVSEN: /^SMDJ7\.0A-HRA$/, DEXP: /^PMEG4050EP-Q/, DEXN: /^PMEG4050EP-Q/, FEXP: /^MF-MSMF020\/33X$/, FMT1: /^0438\.375WRA$/, RSXP: /2R2/, U5LB: /^NCV4276C/, U5LC: /^NCV4276C/, C5B1: /10uF-16V-X7R/, C5LB2: /10uF-16V-X7R/, DTVSC: /^TPSMC33A-VR$/, DTVH: /^TPSMC33CA-VR$/, DTVL: /^TPSMC33CA-VR$/, CSB5: /2\.2uF-16V-X7R-0805/, RUB0: /100k/, UEXD: /^ALM2402QPWPRQ1$/ })
     .filter(([r, rx]) => !rx.test(mpn(r))).map(([r]) => `${r}=${mpn(r) || "none"}`);
   ok(!bad.length, `${sku}: round-12/14 parts resolve (UCC12051-Q1 + ballasted LDOs, TPSMC33A/33CA-VR since round 17, CSB5 0805, hall pull-downs, SMAJ5.0A + 0438.375WRA, SMDJ8.5A-HRA unidirectional + PMEG4050EP-Q diversion + MF-MSMF020/33X)`, bad.join(", "));
 }

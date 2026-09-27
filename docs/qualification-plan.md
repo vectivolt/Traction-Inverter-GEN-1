@@ -9,7 +9,7 @@ working tree ([`review-A16-disposition.md`](review-A16-disposition.md), gap regi
 - the verification report stands at 143 PASS · 15 WARN · 0 FAIL;
 - the firmware image is `TI_FW_ID` 0x0A0F0011, and the calibration record stays layout 2 (historical — the round-17
   state this plan was written against; the CURRENT baseline every procedure tests is §0.2: rev A.20 hardware,
-  `TI_FW_ID` 0x0A0F0015 (round 23, second image), calibration layout 4 (FW-45/FW-46; layout 3 before them) — rounds 22–23).
+  `TI_FW_ID` 0x0A0F0016 (round 24; 0x0A0F0015 the round-23 second image), calibration layout 4 (FW-45/FW-46; layout 3 before them) — rounds 22–24).
 
 Round 17 is still being completed: its "LV input" and "Firmware" sections are placeholders. If the LV-input study
 (G-11) changes the LV-entry parts, QP-LV-03 follows it.
@@ -95,9 +95,9 @@ Round 17 is still being completed: its "LV input" and "Firmware" sections are pl
 |---|---|
 | **8S / 8I / 4I / 4S** | 8XX SiC ([`bom.md`](bom.md), RHWID 10 k) · 8XX IGBT ([`bom-igbt.md`](bom-igbt.md), 4.7 k) · 4XX IGBT ([`bom-igbt4.md`](bom-igbt4.md), 2.2 k) · 4XX SiC on request ([`bom-sic4.md`](bom-sic4.md), 22 k). Marine builds are in §12. |
 | **HW A.20+** | Hardware built from the **rev A.20** schematic set and the SKU's BOM: the round-17 parts DEXP/DEXN PMEG4050EP-Q (on the amplifier node since round 18) and RFS4 ESR18EZPF1001, RSXP/RSXN ESR18EZPF2R20 (round 18) and TVSEP/TVSEN **SMDJ7.0A-HRA** (round 19). An A.15–A.17 build carries SMDJ8.5A-HRA — a different exciter protection configuration whose terminal-fault results do not transfer (F205); it is not a DUT for QP-RX-04/05/QP-MA-11 (round 22, A20-N01 — this row said "A.15+ … SMDJ8.5A-HRA" until then). The record carries the PCB fabrication revision, the assembly serial, and the date code of every barrier and safety part in design-basis §6a. |
-| **FW** | The production image `TI_FW_ID` **0x0A0F0015** (round 23, the gap-closure image; 0x0A0F0014 was the round-23 torque-solver image, 0x0A0F0011 the round-17 image, 0x0A0F0012 round 18 and 0x0A0F0013 round 19 — a validation record for any of them does not arm the current image, T-06), built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
-| **CAL** | The FW-20 calibration record, layout 4 (round 23: FW-45's L_d/L_q saturation maps — flat, the scalars, until measured — and FW-46's torque-ripple table — zero until loaded; 190 fields / 91 calibration rows; layout 3 before them, layout 2 before the gap closure — an older record is refused), sealed to the card's device UID, the SKU, the f_sw and a non-zero motor ID. On benches without a motor, the ID is the test motor or the S6 screening motor (0.35 mH / 25 mΩ). The nominal record carries motor_id 0 and never arms (T-07). |
-| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for **0x0A0F0015** and this card — genuinely measured and sealed by QP-EOL-05 (T-05) on the image actually flashed; an older record is never relabelled. Any change of `TI_FW_ID` invalidates it (T-06). |
+| **FW** | The production image `TI_FW_ID` **0x0A0F0016** (round 24: acquisition freshness, the map slope and ripple bounds, the temperature latch, the V_DC expiry; 0x0A0F0015 the round-23 gap-closure image, 0x0A0F0014 was the round-23 torque-solver image, 0x0A0F0011 the round-17 image, 0x0A0F0012 round 18 and 0x0A0F0013 round 19 — a validation record for any of them does not arm the current image, T-06), built for the DUT's SKU. **No FW** means the card is not in the loop: F-JICB drives the harness. |
+| **CAL** | The FW-20 calibration record, layout 4 (round 23: FW-45's L_d/L_q saturation maps — flat, the scalars, until measured — and FW-46's torque-ripple table — zero until loaded; 191 fields / 92 calibration rows; layout 3 before them, layout 2 before the gap closure — an older record is refused), sealed to the card's device UID, the SKU, the f_sw and a non-zero motor ID. On benches without a motor, the ID is the test motor or the S6 screening motor (0.35 mH / 25 mΩ). The nominal record carries motor_id 0 and never arms (T-07). |
+| **VAL** | `NV_REC_VALIDATION` (`arm_validation_t`, layout 1, magic "EVID") for **0x0A0F0016** and this card — genuinely measured and sealed by QP-EOL-05 (T-05) on the image actually flashed; an older record is never relabelled. Any change of `TI_FW_ID` invalidates it (T-06). |
 | **OTP** | An FS2633D variant programmed per design-basis §8a, with `cal_fs26_prog_id` set to its M_PROGID. The default 0xFFFF never arms (T-34). |
 
 Firmware in the loop energises a gate only with **CAL + VAL + OTP** present (FW-24; target-bringup "What always
@@ -990,12 +990,12 @@ check.
 **On fail** — part or process change per the failure. The AEC-Q gap is then closed by this board-level evidence,
 or by a different connector or opto family.
 
-### QP-TH-06 · Sensor-chain drift over temperature — hall reference vs VREF5, V_DC chain
+### QP-TH-06 · Sensor-chain drift over temperature — hall reference (V5S) vs the ADC reference (V5A since round 24), V_DC chain
 
 **Closes** —
 - *Sensing* "Hall ratiometric ref vs ADC ref". It was a WARN at A.15; PASS since round 17 (G-07, F180) "after
   the EOL gain calibration (FW-20)", within the ±5 % torque-accuracy allocation the row cites from
-  interface-requirements (EOL/calibration — hall gain vs VREF5). This QP measures the residual;
+  interface-requirements (EOL/calibration — hall gain vs the ADC reference, IR-26). This QP measures the residual;
 - the "≈ ±0.3 % after EOL calibration" claim of *Sensing* "VDC chain error after EOL gain/offset calibration";
 - the FW-05 addendum ("equal gain error … an EOL calibration item").
 
@@ -1003,18 +1003,18 @@ or by a different connector or opto family.
 8S parameter set; FW, CAL (from QP-EOL-06/07), VAL and OTP.
 
 **Fixture and instruments** — card chamber at −40 / 25 / 85 °C (the product ambient); a reference current through
-each LEM via a multi-turn loop (N turns × I, plan); I-HVS with a reference meter at 850 V; I-LVS on V5A and
+each LEM via a multi-turn loop (N turns × I, plan); I-HVS with a reference meter at 850 V; I-LVS on V5A, V5S and
 VREF5.
 
 **Steps**
-1. At each temperature, record V5A, VREF5 and their ratio.
+1. At each temperature, record V5A (the ADC reference since round 24, F240), V5S and their ratio; record VREF5 for the R2R branch.
 2. Read each phase current at ±200 A and ±481 A equivalent. Compute the gain relative to the 25 °C calibration.
 3. Apply 850 V and 880 V. Read both V_DC channels.
 
 **Pass** —
-- The V5A / VREF5 ratio drift after the EOL calibration is ≤ ±2 % (the worst end of the row's ±1–2 %), and the
+- The V5S / V5A ratio drift after the EOL calibration is ≤ ±2 % (the worst end of the row's ±1–2 %), and the
   residual current-gain error stays inside the ±5 % torque-accuracy allocation. That allocation is the one the
-  row cites from interface-requirements (EOL/calibration — hall gain vs VREF5).
+  row cites from interface-requirements (EOL/calibration — hall gain vs the ADC reference, IR-26).
 - At every temperature the FW-05 decision holds: 481 A true current does not trip, and a true current of ≤ 620 A
   trips (the host test "overcurrent_crest_does_not_trip_620_does"). That bounds the low-side gain error at
   ≤ 3.1 % (derived: 601/620 = 0.969).
@@ -1822,7 +1822,7 @@ motor-temperature sensor type).
 **DUT** — card, both motor-temperature lines, with the MCU on, off and in LPOFF standby; three cards (plan).
 
 **Fixture and instruments** — fault source at 16 V and 24 V (60 s) and 35 V (400 ms) through the harness replica
-(≈ 1 Ω fuse + harness); I-CP on TVSM; I-LVS on the OPA333 input and on VREF5.
+(≈ 1 Ω fuse + harness); I-CP on TVSM; I-LVS on the OPA333 input, on V5A (the ADC reference since round 24) and on VREF5 (the R2R branch).
 
 **Steps** — apply each fault per line and state; replace the fuse between tests; check the line function after
 replacing FMT.
@@ -1831,7 +1831,7 @@ replacing FMT.
 - FMT (0438.375WRA, I²t 0.0041 A²s) opens: ≈ 16 µs at ≈ 16 A predicted.
 - The TVSM clamp stays ≤ 9.2 V, with the current ≤ its 43.5 A I_PP.
 - The OPA333 input current is ≤ 3.9 mA (the 10 mA abs limit).
-- VREF5 stays in regulation, with injection < 0.5 mA and no FS26 VREF fault.
+- V5A and VREF5 stay in regulation, with injection < 0.5 mA and no FS26 LDO2/VREF fault.
 - After the fault the open line is reported as a DTC (FW-13), and the line works again after the fuse is replaced.
 
 **Record** — waveforms.
@@ -2731,7 +2731,7 @@ the contactor-feedback content, not the frame layout (§14).
   — above all F222 (field weakening decided on the measured link voltage, not on n_x alone), F221 (the temperature-rate
   window), F223 (torque slew), F226 (the speed bound after a resolver loss) and F227 (the demodulator time centre, T-37).
 
-**DUT** — card, FW `TI_FW_ID` 0x0A0F0015, CAL layout 4, VAL and OTP: on F-HIL for the update and diagnostic items, on the
+**DUT** — card, FW `TI_FW_ID` 0x0A0F0016, CAL layout 4, VAL and OTP: on F-HIL for the update and diagnostic items, on the
 QP-FW-08 dyno for commissioning, overspeed and the F222 point.
 
 **Fixture and instruments** — I-CAN with a CAN-FD tester (ISO-TP, TX_DL 64) and Traction Tool (`tool/`) with a CAN adapter
@@ -2897,7 +2897,7 @@ neighbours.
 **Pass** —
 - V_ID lies within ±4 % of its nominal: 0.90 V (4I), 1.60 V (8I), 2.50 V (8S), 3.44 V (4S). Open (> 4.6 V) and
   short (< 0.2 V) are rejected.
-- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0015 (the current image, round 23; §0.2), and M_PROGID equals `cal_fs26_prog_id`.
+- The SKU matches the kit record, `TI_FW_ID` is 0x0A0F0016 (the current image, round 24; §0.2), and M_PROGID equals `cal_fs26_prog_id`.
 
 **Record** — V_ID per unit. The distribution against the window edges is reviewed per lot.
 
@@ -3000,7 +3000,7 @@ serial-linked kit record.
 - FW-24 (FAULT_ROUTE_VALIDATED, OVP_ROUTE_VALIDATED);
 - target-bringup T-05, T-06 and T-27 (the device UID as the serial);
 - firmware README item 22;
-- the current image `TI_FW_ID` 0x0A0F0015 (round 23; 0x0A0F0014 the round-23 torque-solver image, the round-17 0x0A0F0011 and every later change of the ID — 0x0A0F0012 round 18, 0x0A0F0013 round 19 — "needs a new EOL/HIL validation record before it arms");
+- the current image `TI_FW_ID` 0x0A0F0016 (round 24; 0x0A0F0015 the round-23 gap-closure image, 0x0A0F0014 the round-23 torque-solver image, the round-17 0x0A0F0011 and every later change of the ID — 0x0A0F0012 round 18, 0x0A0F0013 round 19 — "needs a new EOL/HIL validation record before it arms");
 - F166; interface-requirements (EOL/calibration — the EOL/HIL arming-evidence record, the OEM's rig).
 
 **DUT** — every card at card EOL, FW and OTP. Any later image change repeats this QP.
@@ -3016,7 +3016,7 @@ serial-linked kit record.
    - the SKU;
    - flags FAULT_ROUTE_VALIDATED | OVP_ROUTE_VALIDATED;
    - hw_serial = the device UID;
-   - fw_id = 0x0A0F0015 (the image flashed on this card — T-05; §0.2; round 23);
+   - fw_id = 0x0A0F0016 (the image flashed on this card — T-05; §0.2; round 24);
    - ovp_chain_ns = the card segment measured + the QP-FW-02 (a) DV maximum;
    - CRC-32.
 5. Reboot, and read INV_STATUS byte 15.
@@ -3039,7 +3039,7 @@ serial-linked kit record.
 - *Sensing* "Hall ratiometric ref vs ADC ref", the "EOL gain calibration" its round-17 PASS rests on (G-07,
   F180);
 - the FW-05 addendum and the traceability coverage table (an equal gain error is an EOL item);
-- interface-requirements (EOL/calibration — hall gain vs VREF5; the FW-20 calibration record).
+- interface-requirements (EOL/calibration — hall gain vs the ADC reference, IR-26; the FW-20 calibration record).
 
 **DUT** — every inverter at box EOL on F-B2B (or the card with a multi-turn loop through each LEM).
 
@@ -3054,7 +3054,7 @@ serial-linked kit record.
   and 2.22 mV/A.
 - The three gains agree with the reference within ±1 % (plan; the equal-gain error is only observable here).
 - 481 A (566 A) does not trip, and 620 A (729 A) trips.
-- V5A / VREF5 is recorded.
+- V5S / V5A is recorded (the ADC reference is V5A since round 24).
 
 **Record** — goes into CAL.
 

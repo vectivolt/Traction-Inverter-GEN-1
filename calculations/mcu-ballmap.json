@@ -90,7 +90,7 @@
       "fn": "",
       "label": "A9_VREFH_R2R",
       "net": "VR2R",
-      "role": "ADC reference high (FS26 VREF 5 V)",
+      "role": "R2R (SWG) DAC reference: FS26 VREF (VREF5) through RR2R 10 R + CR2R1/CR2R2 (isolated supply, DS note 8)",
       "cls": "supply"
     },
     {
@@ -739,8 +739,8 @@
       "port": "VREFH_SAR_456",
       "fn": "",
       "label": "E6_VREFH_SAR_456",
-      "net": "VREF5",
-      "role": "ADC reference high (FS26 VREF 5 V)",
+      "net": "V5A",
+      "role": "ADC reference high on V5A with VDDA_SDADC/VDD_HV_A (round 24, F240: DS Table 38 VREFP = AVDD +/- 25 mV)",
       "cls": "supply"
     },
     {
@@ -779,8 +779,8 @@
       "port": "VREFH_SDADC_01",
       "fn": "",
       "label": "E10_VREFH_SDADC_01",
-      "net": "VREF5",
-      "role": "ADC reference high (FS26 VREF 5 V)",
+      "net": "V5A",
+      "role": "ADC reference high on V5A with VDDA_SDADC/VDD_HV_A (round 24, F240: DS Table 38 VREFP = AVDD +/- 25 mV)",
       "cls": "supply"
     },
     {
@@ -979,8 +979,8 @@
       "port": "VREFH_SDADC_23",
       "fn": "",
       "label": "F13_VREFH_SDADC_23",
-      "net": "VREF5",
-      "role": "ADC reference high (FS26 VREF 5 V)",
+      "net": "V5A",
+      "role": "ADC reference high on V5A with VDDA_SDADC/VDD_HV_A (round 24, F240: DS Table 38 VREFP = AVDD +/- 25 mV)",
       "cls": "supply"
     },
     {
@@ -1249,8 +1249,8 @@
       "port": "VREFH_SAR_0123",
       "fn": "",
       "label": "H6_VREFH_SAR_0123",
-      "net": "VREF5",
-      "role": "ADC reference high (FS26 VREF 5 V)",
+      "net": "V5A",
+      "role": "ADC reference high on V5A with VDDA_SDADC/VDD_HV_A (round 24, F240: DS Table 38 VREFP = AVDD +/- 25 mV)",
       "cls": "supply"
     },
     {
